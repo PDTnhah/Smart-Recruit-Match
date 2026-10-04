@@ -1,0 +1,168 @@
+#!/bin/sh
+# Self-contained POSIX tests for loop.sh
+set -eu
+HERE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+LOOP="$HERE/../loop.sh"
+PASS=0; FAIL=0
+ok() { PASS=$((PASS+1)); echo "ok   - $1"; }
+no() { FAIL=$((FAIL+1)); echo "FAIL - $1"; }
+# assert_contains <substring> <desc> <command...>
+assert_contains() {
+  sub=$1; desc=$2; shift 2
+  out=$("$@" 2>&1 || true)
+  case "$out" in *"$sub"*) ok "$desc" ;; *) no "$desc (missing '$sub' in: $out)" ;; esac
+}
+newstate() { d=$(mktemp -d); printf '%s/loop-state' "$d"; }
+
+test_start_status() {
+  st=$(newstate)
+  sh "$LOOP" start US-9.9 --tier 1 --state "$st" >/dev/null
+  # state file well-formed
+  grep -q '^story=US-9.9$' "$st" && ok "start: writes story" || no "start: writes story"
+  grep -q '^tier=1$' "$st" && ok "start: writes tier" || no "start: writes tier"
+  grep -q '^stage=frame$' "$st" && ok "start: stage=frame" || no "start: stage=frame"
+  grep -q '^entered=frame$' "$st" && ok "start: entered=frame" || no "start: entered=frame"
+  assert_contains "story:   US-9.9" "status: shows story" sh "$LOOP" status --state "$st"
+  assert_contains "stage:   frame" "status: shows stage" sh "$LOOP" status --state "$st"
+  assert_contains "next:    enter execute" "status: next is execute" sh "$LOOP" status --state "$st"
+  rm -rf "$(dirname "$st")"
+}
+test_start_status
+
+test_enter() {
+  st=$(newstate); sh "$LOOP" start US-9.9 --tier 2 --state "$st" >/dev/null
+  # in-order enter is silent on stderr and updates stage
+  err=$(sh "$LOOP" enter execute --state "$st" 2>&1 >/dev/null || true)
+  [ -z "$err" ] && ok "enter: in-order is silent" || no "enter: in-order silent (got: $err)"
+  grep -q '^stage=execute$' "$st" && ok "enter: updates stage" || no "enter: updates stage"
+  case "$(kv=$(sed -n 's/^entered=//p' "$st"); echo "$kv")" in *execute*) ok "enter: appends entered" ;; *) no "enter: appends entered" ;; esac
+  # backward enter warns
+  err=$(sh "$LOOP" enter frame --state "$st" 2>&1 >/dev/null || true)
+  case "$err" in *WARN*backward*) ok "enter: backward warns" ;; *) no "enter: backward warns (got: $err)" ;; esac
+  # commit without self-verify at tier 2 warns
+  st2=$(newstate); sh "$LOOP" start US-9.8 --tier 2 --state "$st2" >/dev/null
+  sh "$LOOP" enter execute --state "$st2" >/dev/null
+  err=$(sh "$LOOP" enter commit --state "$st2" 2>&1 >/dev/null || true)
+  case "$err" in *WARN*self-verify*) ok "enter: commit-without-self-verify warns" ;; *) no "enter: commit warn (got: $err)" ;; esac
+  # tier 0 commit without self-verify is silent
+  st3=$(newstate); sh "$LOOP" start US-9.7 --tier 0 --state "$st3" >/dev/null
+  sh "$LOOP" enter execute --state "$st3" >/dev/null
+  err=$(sh "$LOOP" enter commit --state "$st3" 2>&1 >/dev/null || true)
+  [ -z "$err" ] && ok "enter: tier0 commit silent" || no "enter: tier0 commit silent (got: $err)"
+  rm -rf "$(dirname "$st")" "$(dirname "$st2")" "$(dirname "$st3")"
+}
+test_enter
+
+test_gate_complete() {
+  st=$(newstate); d=$(dirname "$st")
+  sh "$LOOP" start US-9.6 --tier 1 --state "$st" >/dev/null
+  # stub a gate-runner next to loop.sh's resolution path: vendor loop.sh into a local
+  # .koni-harness alongside a stub gate-runner so loop.sh resolves the stub via $SELF_DIR
+  mkdir -p "$d/.koni-harness"
+  cp "$LOOP" "$d/.koni-harness/loop.sh"; chmod +x "$d/.koni-harness/loop.sh"
+  VLOOP="$d/.koni-harness/loop.sh"
+  printf '#!/bin/sh\nexit 0\n' > "$d/.koni-harness/gate-runner.sh"; chmod +x "$d/.koni-harness/gate-runner.sh"
+  # run from $d so the vendored loop.sh resolves its sibling gate-runner.sh stub
+  ( cd "$d" && sh "$VLOOP" gate work-commit --state "$st" >/dev/null ) \
+    && ok "gate: pass exits 0" || no "gate: pass exits 0"
+  grep -q '^gate_work-commit=pass$' "$st" && ok "gate: records pass" || no "gate: records pass"
+  # failing gate → exit 1, records block
+  printf '#!/bin/sh\nexit 1\n' > "$d/.koni-harness/gate-runner.sh"
+  if ( cd "$d" && sh "$VLOOP" gate work-commit --state "$st" >/dev/null 2>&1 ); then no "gate: block exits non-zero"; else ok "gate: block exits non-zero"; fi
+  grep -q '^gate_work-commit=block$' "$st" && ok "gate: records block" || no "gate: records block"
+  # complete
+  sh "$LOOP" complete --state "$st" >/dev/null
+  grep -q '^stage=complete$' "$st" && ok "complete: stage=complete" || no "complete: stage=complete"
+  rm -rf "$d"
+}
+test_gate_complete
+
+test_install_loop() {
+  INS="$HERE/../install-gate.sh"; SRC="$HERE/.."
+  d=$(mktemp -d); ( cd "$d" && git init -q && git config user.email t@t && git config user.name t )
+  ( cd "$d" && sh "$INS" --source "$SRC" >/dev/null 2>&1 )
+  [ -f "$d/.koni-harness/loop.sh" ] && ok "install: vendors loop.sh" || no "install: vendors loop.sh"
+  grep -q '.koni-harness/loop-state' "$d/.gitignore" && ok "install: gitignores loop-state" || no "install: gitignores loop-state"
+  # idempotent: re-run keeps a single gitignore marker block
+  ( cd "$d" && sh "$INS" --source "$SRC" >/dev/null 2>&1 )
+  n=$(grep -c '>>> koni-harness >>>' "$d/.gitignore")
+  [ "$n" -eq 1 ] && ok "install: gitignore marker idempotent" || no "install: gitignore marker idempotent (got $n)"
+  rm -rf "$d"
+}
+test_install_loop
+
+test_kv_delimiter_safe() {
+  st=$(newstate); d=$(dirname "$st")
+  sh "$LOOP" start US-1 --tier 1 --state "$st" >/dev/null
+  # vendor loop.sh + a passing stub gate-runner so gate resolves via $SELF_DIR
+  mkdir -p "$d/.koni-harness"
+  cp "$LOOP" "$d/.koni-harness/loop.sh"; chmod +x "$d/.koni-harness/loop.sh"
+  VLOOP="$d/.koni-harness/loop.sh"
+  printf '#!/bin/sh\nexit 0\n' > "$d/.koni-harness/gate-runner.sh"; chmod +x "$d/.koni-harness/gate-runner.sh"
+  # a phase containing a '|' must not error out or corrupt the state file
+  if ( cd "$d" && sh "$VLOOP" gate 'a|b' --state "$st" >/dev/null 2>&1 ); then
+    ok "kv_set: pipe-bearing value does not error"
+  else
+    no "kv_set: pipe-bearing value does not error"
+  fi
+  grep -q '^story=US-1$' "$st" && ok "kv_set: state uncorrupted after pipe value" || no "kv_set: state uncorrupted after pipe value"
+  grep -q '^gate_a|b=pass$' "$st" && ok "kv_set: writes pipe value literally" || no "kv_set: writes pipe value literally"
+  rm -rf "$d"
+}
+test_kv_delimiter_safe
+
+test_gitignore_no_trailing_newline() {
+  INS="$HERE/../install-gate.sh"; SRC="$HERE/.."
+  d=$(mktemp -d); ( cd "$d" && git init -q && git config user.email t@t && git config user.name t )
+  printf 'node_modules' > "$d/.gitignore"   # NO trailing newline
+  ( cd "$d" && sh "$INS" --source "$SRC" >/dev/null 2>&1 )
+  grep -q '^node_modules$' "$d/.gitignore" && ok "gitignore: original line intact on its own line" || no "gitignore: original line intact on its own line"
+  grep -q '.koni-harness/loop-state' "$d/.gitignore" && ok "gitignore: marker appended" || no "gitignore: marker appended"
+  rm -rf "$d"
+}
+test_gitignore_no_trailing_newline
+
+test_tier_validation() {
+  st=$(newstate)
+  if sh "$LOOP" start US-2 --tier abc --state "$st" >/dev/null 2>&1; then
+    no "tier: non-integer rejected"
+  else
+    [ "$?" -eq 2 ] && ok "tier: non-integer rejected (exit 2)" || no "tier: non-integer wrong exit"
+  fi
+  rm -rf "$(dirname "$st")"
+}
+test_tier_validation
+
+test_gate_fallback_runner() {
+  # $SELF_DIR/gate-runner.sh absent, but ./.koni-harness/gate-runner.sh present → fallback used
+  st=$(newstate); d=$(dirname "$st")
+  sh "$LOOP" start US-3 --tier 1 --state "$st" >/dev/null
+  # vendor loop.sh into a SELF_DIR that has NO sibling gate-runner.sh
+  mkdir -p "$d/bin" "$d/.koni-harness"
+  cp "$LOOP" "$d/bin/loop.sh"; chmod +x "$d/bin/loop.sh"
+  VLOOP="$d/bin/loop.sh"
+  # fallback location (cwd-relative) has the passing runner
+  printf '#!/bin/sh\nexit 0\n' > "$d/.koni-harness/gate-runner.sh"; chmod +x "$d/.koni-harness/gate-runner.sh"
+  if ( cd "$d" && sh "$VLOOP" gate work-commit --state "$st" >/dev/null 2>&1 ); then
+    ok "gate: falls back to ./.koni-harness/gate-runner.sh"
+  else
+    no "gate: falls back to ./.koni-harness/gate-runner.sh"
+  fi
+  rm -rf "$d"
+}
+test_gate_fallback_runner
+
+test_complete_is_terminal() {
+  # after complete, 'enter' must warn (WARN+complete), exit 0, and NOT clobber stage
+  st=$(newstate)
+  sh "$LOOP" start US-7 --state "$st" >/dev/null
+  sh "$LOOP" complete --state "$st" >/dev/null
+  err=$(sh "$LOOP" enter frame --state "$st" 2>&1 >/dev/null); rc=$?
+  case "$err" in *WARN*complete*) ok "complete-guard: warns WARN+complete" ;; *) no "complete-guard: warns WARN+complete (got: $err)" ;; esac
+  [ "$rc" -eq 0 ] && ok "complete-guard: exits 0" || no "complete-guard: exits 0 (got $rc)"
+  grep -q '^stage=complete$' "$st" && ok "complete-guard: stage not clobbered" || no "complete-guard: stage not clobbered"
+  rm -rf "$(dirname "$st")"
+}
+test_complete_is_terminal
+
+echo "----"; echo "PASS=$PASS FAIL=$FAIL"; [ "$FAIL" -eq 0 ]
