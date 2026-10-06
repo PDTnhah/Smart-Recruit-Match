@@ -1,0 +1,32 @@
+# Dependencies and build output
+node_modules/
+dist/
+build/
+coverage/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Editors and OS
+.idea/
+.vscode/*
+!.vscode/extensions.json
+.DS_Store
+Thumbs.db
+
+# Per-developer running snapshot (copy from .active-context.example.md) — CONTEXT D17
+.active-context.md
+
+# Link to .agents/skills, created per machine (docs/SETUP.md) — CONTEXT D18
+.claude/skills
+.claude/settings.local.json
