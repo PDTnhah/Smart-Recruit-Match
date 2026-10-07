@@ -8,9 +8,9 @@ Hệ thống giúp Trung tâm quan hệ doanh nghiệp của trường ghép sin
 
 ## Trạng thái
 
-- Mới có tài liệu, **chưa có code**. `VERSION` là 0.0.0. Đã tách 37 story cho 6 epic (`docs/sprints/epics/`); chưa mở sprint.
+- Mới có tài liệu, **chưa có code**. `VERSION` là 0.0.0. Đã tách 37 story cho 6 epic (`docs/sprints/epics/`); cả 37 file story đã có trong `docs/sprints/stories/`, ở `backlog` ([CONTEXT D21](docs/CONTEXT.md)). Chưa mở sprint.
 - Lộ trình: xong trong tháng 12/2026, hai làn chạy song song bằng agent ([sprints/README › Lộ trình](docs/sprints/README.md#lộ-trình), [CONTEXT D20](docs/CONTEXT.md)).
-- Bước tiếp theo: mở `sprint-2026-W41`, tạo file story US-1.1 và bắt đầu.
+- Bước tiếp theo: mở `sprint-2026-W41` rồi bắt đầu US-1.1. Khi bắt đầu một story, đọc lại file của nó và thêm khối *Story refresh* nếu spec đã đổi.
 - Việc đang làm của người dùng hiện tại nằm ở `.active-context.md`. Đọc file này khi bắt đầu phiên, nếu có.
 
 ## Tài liệu

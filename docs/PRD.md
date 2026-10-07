@@ -865,7 +865,7 @@ Priority: `P0` = bắt buộc cho MVP, `P1` = nên có, `P2` = tùy chọn, `P3`
 
 ## Epics & User Stories
 
-Mỗi epic tương ứng một giai đoạn trong [ARCHITECTURE.md › Implementation roadmap](ARCHITECTURE.md#implementation-roadmap). Chi tiết epic ở `docs/sprints/epics/EPIC-N.md`; file story tạo ở `docs/sprints/stories/` khi bắt đầu làm story đó. Lịch theo tuần và thứ tự làm ở [sprints/README › Lộ trình](sprints/README.md#lộ-trình) ([CONTEXT D20](CONTEXT.md)).
+Mỗi epic tương ứng một giai đoạn trong [ARCHITECTURE.md › Implementation roadmap](ARCHITECTURE.md#implementation-roadmap). Chi tiết epic ở `docs/sprints/epics/EPIC-N.md`; file story của cả 37 story nằm ở `docs/sprints/stories/` ([CONTEXT D21](CONTEXT.md)). Lịch theo tuần và thứ tự làm ở [sprints/README › Lộ trình](sprints/README.md#lộ-trình) ([CONTEXT D20](CONTEXT.md)).
 
 ### EPIC-1: Nền tảng, tài khoản và đợt thực tập
 
