@@ -92,4 +92,4 @@ Theo koni-harness `parallel-orchestration.md` (Tier A):
 
 ## Trạng thái hiện tại
 
-Đã tách 37 story cho 6 epic (`epics/EPIC-1.md` … `EPIC-6.md`), tất cả ở `backlog`; file story tạo khi bắt đầu làm. Chưa mở sprint. Bước tiếp theo: mở `sprint-2026-W41`, tạo file story US-1.1 và bắt đầu.
+Đã tách 37 story cho 6 epic (`epics/EPIC-1.md` … `EPIC-6.md`). Cả 37 file story đã có trong `stories/`, tất cả ở `backlog` ([CONTEXT D21](../CONTEXT.md)). Khi bắt đầu một story, đọc lại file của nó và thêm khối *Story refresh* nếu spec đã đổi. Chưa mở sprint. Bước tiếp theo: mở `sprint-2026-W41` rồi bắt đầu US-1.1.

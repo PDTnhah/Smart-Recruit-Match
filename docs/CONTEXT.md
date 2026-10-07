@@ -305,3 +305,23 @@
 
 **Date**: 2026-10-07
 **Version**: 0.0.0
+
+### D21. Tạo sẵn file story cho cả 37 story
+
+**Context**: D20 tách 37 story trong các file epic, và quy ước lúc đó là file story chỉ được tạo khi bắt đầu làm. Vì vậy `docs/sprints/stories/` còn trống và `STATUS.md` báo 0 story. Người dùng yêu cầu tạo story cho mọi epic từ ARCHITECTURE và các file epic.
+
+**Decision**:
+- Tạo sẵn 37 file `docs/sprints/stories/US-X.Y-<slug>.md` theo template story của koni-docs, tất cả ở `status: backlog`. Frontmatter (điểm, priority, `prd_ref`, `arch_ref`, `depends_on`, `external_deps`) lấy từ mục *Schedule and dependencies* và *FR/AD Coverage* của từng epic.
+- Mỗi file có Goal, Background, tiêu chí nghiệm thu, task, Dev notes, bảng kiểm chứng và bản nháp Changelog entry. *Implementation notes* và *Files modified* để trống đến khi làm.
+- Chưa có `package.json` nên bảng *Verification commands* chỉ ghi file test và tên case. Lệnh chạy được điền sau khi US-1.1 tạo script.
+- Khi bắt đầu một story: đọc lại file của nó, so với spec hiện tại. Nếu spec đã đổi thì thêm khối *Story refresh* (giữ nguyên số AC), rồi mới đặt `status: in-progress`.
+
+**Rationale**: Có file story sớm thì thấy được toàn bộ phạm vi và tiêu chí nghiệm thu, các agent chạy song song có hợp đồng rõ ràng, và `koni-docs status` có dữ liệu để theo dõi lộ trình D20.
+
+**Alternatives considered**:
+- Giữ quy ước cũ, tạo từng file khi bắt đầu làm — loại vì người dùng muốn có story cho mọi epic ngay.
+
+**Impact**: Sửa câu "file story tạo khi bắt đầu làm" ở `docs/sprints/README.md`, PRD › Epics & User Stories và AGENTS.md › Trạng thái. `STATUS.md` sinh lại với 37 story.
+
+**Date**: 2026-10-07
+**Version**: 0.0.0
