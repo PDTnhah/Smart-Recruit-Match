@@ -879,7 +879,7 @@ Mỗi epic tương ứng một giai đoạn trong [ARCHITECTURE.md › Implement
 |-------|-------|--------|---------|
 | US-1.1 | Scaffold monorepo, Docker Compose, CI | 👀 review | — |
 | US-1.2 | Lược đồ DB lõi, `transitionTo`, nhật ký thao tác | 👀 review | — |
-| US-1.3 | Đăng nhập, phân quyền, DESIGN.md, khung giao diện | 📋 backlog | — |
+| US-1.3 | Đăng nhập, phân quyền, DESIGN.md, khung giao diện | 👀 review | — |
 | US-1.4 | Tạo và cấu hình đợt thực tập | 📋 backlog | — |
 | US-1.5 | Doanh nghiệp, tài khoản HR, đăng và duyệt JD | 📋 backlog | — |
 | US-1.6 | Đồng ý xử lý dữ liệu và nộp CV | 📋 backlog | — |

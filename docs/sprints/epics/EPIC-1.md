@@ -52,7 +52,7 @@ Lộ trình chung ở [sprints/README › Lộ trình](../README.md#lộ-trình)
 |---|---|---|---|---|
 | US-1.1 | 5 | T1 (W41) | A | – |
 | US-1.2 | 5 | T1 (W41, kéo sớm từ T2) | A | US-1.1 |
-| US-1.3 | 8 | T2 (W42) | A | US-1.1 |
+| US-1.3 | 8 | T1 (W41, kéo sớm từ T2) | A | US-1.1, US-1.2 |
 | US-1.4 | 5 | T3 (W43) | A | US-1.2, US-1.3 |
 | US-1.5 | 8 | T3 (W43) | A | US-1.2, US-1.3 |
 | US-1.6 | 5 | T4 (W44) | A | US-1.4 |

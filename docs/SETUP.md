@@ -96,6 +96,8 @@ Chạy tại gốc repo:
 | `pnpm --filter @srm/api dev` | Chạy API ở `localhost:3000` (tsc watch + node watch) |
 | `pnpm --filter @srm/api db:generate` | Sinh migration SQL từ `apps/api/src/db/schema` vào `apps/api/drizzle/` (build `@srm/shared` trước) |
 | `pnpm --filter @srm/api db:migrate` | Áp migration lên DB ở `DATABASE_URL` |
+| `pnpm --filter @srm/api db:seed` | Tạo tài khoản demo cho bốn vai trò (chỉ dev/test; chạy lại không tạo trùng) |
+| `pnpm api:sync` | Xuất OpenAPI từ API rồi sinh kiểu client cho web (`apps/web/src/shared/api/`) |
 | `pnpm --filter @srm/web dev` | Chạy web ở `localhost:5173`, proxy `/api` sang `localhost:3000` |
 | `pnpm docs:validate` / `docs:sync` / `docs:status` | Lệnh koni-docs ([docs/README.md](README.md)) |
 | `ai-service/.venv/bin/ruff check ai-service` | Lint AI Service |
@@ -146,18 +148,47 @@ MAILPIT_UI_HOST_PORT=8025
 # Chỉ tự đặt khi chạy API hoặc db:migrate ngoài Docker (cổng theo POSTGRES_HOST_PORT):
 # DATABASE_URL=postgres://srm:change-me-postgres@localhost:5432/srm
 
+# Authentication (added in v0.2.0, CONTEXT D25)
+# Khóa ký access token, ≥ 32 ký tự ngẫu nhiên (openssl rand -base64 48). Bắt buộc; để trống thì compose không chạy.
+JWT_ACCESS_SECRET=
+# Thời hạn refresh token, tính bằng ngày.
+REFRESH_TOKEN_TTL_DAYS=7
+# Compose tự đặt REDIS_URL cho api. Chỉ tự đặt khi chạy API ngoài Docker (cổng theo REDIS_HOST_PORT):
+# REDIS_URL=redis://localhost:6379
+# Mật khẩu của các tài khoản do db:seed tạo (chỉ dữ liệu dev/test):
+# SEED_PASSWORD=Srm-Dev-12345
+
 # Core Backend (added in v0.1.0)
 # Mức log pino: fatal | error | warn | info | debug | trace | silent
 LOG_LEVEL=info
 ```
 
-API chạy ngoài Docker (`pnpm --filter @srm/api dev`) đọc `PORT` (mặc định 3000), `LOG_LEVEL` và `DATABASE_URL` (bắt buộc) từ môi trường của shell. Dựng `postgres` bằng compose rồi áp migration trước lần chạy đầu:
+API chạy ngoài Docker (`pnpm --filter @srm/api dev`) đọc `PORT` (mặc định 3000), `LOG_LEVEL`, `REFRESH_TOKEN_TTL_DAYS` và các biến bắt buộc `DATABASE_URL`, `REDIS_URL`, `JWT_ACCESS_SECRET` từ môi trường của shell. Dựng `postgres` và `redis` bằng compose, áp migration và seed trước lần chạy đầu:
 
 ```bash
-docker compose -f deploy/docker-compose.yml up -d --wait postgres
+docker compose -f deploy/docker-compose.yml up -d --wait postgres redis
 export DATABASE_URL=postgres://srm:change-me-postgres@localhost:5432/srm   # cổng theo POSTGRES_HOST_PORT
+export REDIS_URL=redis://localhost:6379                                     # cổng theo REDIS_HOST_PORT
+export JWT_ACCESS_SECRET=dev-only-jwt-access-secret-0123456789
 pnpm --filter @srm/api db:migrate
+pnpm --filter @srm/api db:seed       # tài khoản demo, chạy lại không tạo trùng
 pnpm --filter @srm/api dev
+pnpm --filter @srm/web dev           # http://localhost:5173
 ```
+
+### Tài khoản demo
+
+`db:seed` (`apps/api/src/db/seed/dev-seed.ts`) tạo các tài khoản dưới đây, mật khẩu chung lấy từ `SEED_PASSWORD`, mặc định `Srm-Dev-12345`. Script từ chối chạy khi `NODE_ENV=production`, nên với hệ thống dựng bằng compose thì chạy từ máy host với `DATABASE_URL` trỏ vào cổng `POSTGRES_HOST_PORT`.
+
+| Vai trò | Email | Cổng |
+|---|---|---|
+| `ADMIN` | `admin@srm.local` | `/admin` |
+| `CENTER` | `center@srm.local` | `/admin` |
+| `HR` | `hr.alpha@srm.local`, `hr.beta@srm.local` (hai công ty demo) | `/hr` |
+| `STUDENT` | `sv001@srm.local`, `sv002@srm.local` | `/sv` |
+
+Refresh token nằm trong cookie `Secure`. Trình duyệt chỉ lưu cookie này qua HTTPS hoặc `localhost`; mở web bằng IP LAN qua HTTP (ví dụ thử trên điện thoại thật) thì đăng nhập được nhưng tải lại trang sẽ mất phiên. Kiểm giao diện điện thoại bằng chế độ thiết bị của trình duyệt trên máy ([DESIGN.md](../DESIGN.md) §5).
+
+Đổi endpoint API thì chạy `pnpm api:sync` để xuất lại `apps/web/src/shared/api/openapi.json` và sinh lại kiểu `schema.d.ts`. CI báo lỗi nếu hai file này lệch với code.
 
 Sửa schema trong `apps/api/src/db/schema/` thì chạy `pnpm --filter @srm/api db:generate` và commit file SQL sinh ra. CI kiểm migration có khớp schema không. Có hai làn chạy song song thì rebase lên nhánh đã có migration mới nhất rồi mới sinh ([LESSONS §6](LESSONS.md)).

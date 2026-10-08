@@ -46,6 +46,7 @@ See [CONTEXT.md D21](CONTEXT.md).
 - Dùng `matcher: "Bash"` và `if: "Bash(git commit*)"`, rồi gọi `scripts/claude-commit-gate.sh`. Script này đọc `tool_input.command` từ stdin, chỉ chạy cổng khi lệnh thật sự có `git … commit`, và trả exit 2 khi cổng hỏng.
 - Lớp chặn chính vẫn là hook git `pre-commit`. Hook Claude chỉ để agent thấy lỗi sớm.
 - Thử bằng `git commit --dry-run` khi đang stage một thay đổi phải bị chặn. Lệnh này không bao giờ tạo commit.
+- Hook `PreToolUse` chạy ở thư mục hiện tại của phiên, không phải gốc repo, trong khi các check đọc đường dẫn tương đối như `.koni-harness/secret-allow`. `scripts/claude-commit-gate.sh` phải `cd` về gốc repo trước khi chạy cổng (sửa ở 0.2.0, khi allowlist bị bỏ qua lúc phiên đang ở `apps/api`).
 
 See [CONTEXT.md D22](CONTEXT.md).
 
@@ -102,3 +103,16 @@ See [CONTEXT.md D24](CONTEXT.md).
 - Chạy `pnpm lint` trước khi coi một mẫu kiểu là xong: `tsc` qua chưa đủ.
 
 See [US-1.2](sprints/stories/US-1.2-core-db-schema-transition-audit-log.md) › Implementation notes.
+
+## 8. CLI shadcn 4.21 không nhận preset `radix-nova` và thêm gói bằng dải `^` bản mới nhất
+
+**What happened (0.2.0)**: Khi `shadcn init` ở US-1.3, lệnh `pnpm dlx shadcn@4.21.0 init --preset radix-nova` theo skill `shadcn` (`cli.md`) báo `Invalid preset: radix-nova. Available presets: nova, vega, …`. Chạy được với `--base radix --preset nova`; `components.json` vẫn ghi `"style": "radix-nova"`. Cả `init` lẫn `add` tự cài gói vào `apps/web/package.json` bằng dải `^` và bản mới nhất, trái quy ước ghim bản chính xác (CONTEXT D22). Ba gói còn mới hơn 2 tuần: `lucide-react` ra cùng ngày, `radix-ui` 3 ngày, `shadcn` 1 ngày. `init` cũng thêm chính gói `shadcn` (để import `shadcn/tailwind.css`), và `add sonner` thêm `next-themes`.
+
+**Why**: CLI 4.21 tách nền (`--base radix|base`) khỏi tên preset, còn tài liệu của skill vẫn ghi cú pháp cũ. CLI luôn cài bản mới nhất của gói, không đọc quy ước ghim của repo.
+
+**How to avoid**:
+- Chạy `pnpm dlx shadcn@<bản đã ghim> init --help` trước khi init để xem cờ thật. Với repo này: `--base radix --preset nova --no-monorepo`.
+- Sau mỗi `init`/`add`, xem `git diff apps/web/package.json`, đổi mọi `^x.y.z` thành bản chính xác đã phát hành ít nhất 2 tuần (`npm view <gói> time --json`), rồi `pnpm install`. `pnpm add --save-exact` không ghi đè dải đã có; sửa tay trong `package.json`.
+- Primitive sinh ra là mã của repo: đọc lại từng file. Ở US-1.3 đã sửa `sonner.tsx` (bỏ `next-themes`), `use-mobile.ts` (setState trong effect bị react-hooks v7 chặn), chuỗi trợ năng tiếng Anh trong `sheet.tsx`/`sidebar.tsx`. Mọi chỗ sửa ghi ở [DESIGN.md](../DESIGN.md) §6.
+
+See [CONTEXT.md D26](CONTEXT.md).

@@ -16,8 +16,10 @@
     "noEmit": true,
     "jsx": "react-jsx",
 
-    /* @srm/shared from source (mirrors resolve.alias in vite.config.ts) */
+    /* @srm/shared from source and @/ for src (mirror resolve.alias in vite.config.ts).
+       No baseUrl: deprecated in TypeScript 6. */
     "paths": {
+      "@/*": ["./src/*"],
       "@srm/shared": ["../../packages/shared/index.ts"],
       "@srm/shared/*": ["../../packages/shared/*/index.ts"]
     },

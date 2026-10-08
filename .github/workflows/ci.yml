@@ -61,6 +61,18 @@ jobs:
             exit 1
           fi
 
+      # The web client types come from the API's OpenAPI document (CONTEXT D26). Both files are
+      # committed; any change means an endpoint changed without `pnpm api:sync`. No services needed.
+      - name: OpenAPI document and web client types match the API
+        run: |
+          pnpm api:sync
+          changes=$(git status --porcelain apps/web/src/shared/api)
+          if [ -n "$changes" ]; then
+            echo "$changes"
+            echo "::error::API changed without regenerating the client: run 'pnpm api:sync' and commit apps/web/src/shared/api"
+            exit 1
+          fi
+
       - name: Lint
         run: pnpm lint
 

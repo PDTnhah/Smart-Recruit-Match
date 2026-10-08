@@ -118,6 +118,10 @@ services:
       PORT: "3000"
       LOG_LEVEL: ${LOG_LEVEL:-info}
       DATABASE_URL: *database-url
+      # Refresh tokens and access-token signing key (CONTEXT D25).
+      REDIS_URL: redis://redis:6379
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?set JWT_ACCESS_SECRET (32+ chars) in deploy/.env}
+      REFRESH_TOKEN_TTL_DAYS: ${REFRESH_TOKEN_TTL_DAYS:-7}
       # Object storage contract (read by the API from US-1.6).
       MINIO_ENDPOINT: ${MINIO_ENDPOINT:?set MINIO_ENDPOINT in deploy/.env}
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
