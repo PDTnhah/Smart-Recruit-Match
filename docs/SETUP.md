@@ -94,6 +94,8 @@ Chạy tại gốc repo:
 | `pnpm depcruise` | Kiểm tra ranh giới module của `apps/api/src` |
 | `pnpm depcruise:fixture` | Chứng minh luật ranh giới còn bắt được vi phạm (fixture cố ý) |
 | `pnpm --filter @srm/api dev` | Chạy API ở `localhost:3000` (tsc watch + node watch) |
+| `pnpm --filter @srm/api db:generate` | Sinh migration SQL từ `apps/api/src/db/schema` vào `apps/api/drizzle/` (build `@srm/shared` trước) |
+| `pnpm --filter @srm/api db:migrate` | Áp migration lên DB ở `DATABASE_URL` |
 | `pnpm --filter @srm/web dev` | Chạy web ở `localhost:5173`, proxy `/api` sang `localhost:3000` |
 | `pnpm docs:validate` / `docs:sync` / `docs:status` | Lệnh koni-docs ([docs/README.md](README.md)) |
 | `ai-service/.venv/bin/ruff check ai-service` | Lint AI Service |
@@ -139,9 +141,23 @@ MINIO_CONSOLE_HOST_PORT=9001
 MAILPIT_SMTP_HOST_PORT=1025
 MAILPIT_UI_HOST_PORT=8025
 
+# Core Backend database (added in v0.1.1, CONTEXT D24)
+# Compose tự ghép DATABASE_URL cho migrate và api từ POSTGRES_*, nên mật khẩu phải an toàn trong URL.
+# Chỉ tự đặt khi chạy API hoặc db:migrate ngoài Docker (cổng theo POSTGRES_HOST_PORT):
+# DATABASE_URL=postgres://srm:change-me-postgres@localhost:5432/srm
+
 # Core Backend (added in v0.1.0)
 # Mức log pino: fatal | error | warn | info | debug | trace | silent
 LOG_LEVEL=info
 ```
 
-API chạy ngoài Docker (`pnpm --filter @srm/api dev`) đọc `PORT` (mặc định 3000) và `LOG_LEVEL` từ môi trường của shell. Biến kết nối DB thêm ở US-1.2.
+API chạy ngoài Docker (`pnpm --filter @srm/api dev`) đọc `PORT` (mặc định 3000), `LOG_LEVEL` và `DATABASE_URL` (bắt buộc) từ môi trường của shell. Dựng `postgres` bằng compose rồi áp migration trước lần chạy đầu:
+
+```bash
+docker compose -f deploy/docker-compose.yml up -d --wait postgres
+export DATABASE_URL=postgres://srm:change-me-postgres@localhost:5432/srm   # cổng theo POSTGRES_HOST_PORT
+pnpm --filter @srm/api db:migrate
+pnpm --filter @srm/api dev
+```
+
+Sửa schema trong `apps/api/src/db/schema/` thì chạy `pnpm --filter @srm/api db:generate` và commit file SQL sinh ra. CI kiểm migration có khớp schema không. Có hai làn chạy song song thì rebase lên nhánh đã có migration mới nhất rồi mới sinh ([LESSONS §6](LESSONS.md)).

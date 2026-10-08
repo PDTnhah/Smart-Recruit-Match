@@ -8,9 +8,9 @@ Hệ thống giúp Trung tâm quan hệ doanh nghiệp của trường ghép sin
 
 ## Trạng thái
 
-- Đã có khung monorepo (US-1.1, `VERSION` 0.1.0): `apps/api`, `apps/web`, `packages/shared`, `ai-service`, Docker Compose, CI, cổng koni-harness. Chưa có nghiệp vụ. 37 story của 6 epic nằm trong `docs/sprints/stories/` ([CONTEXT D21](docs/CONTEXT.md)). Sprint đang mở: `sprint-2026-W41`.
+- Đã có khung monorepo (US-1.1, 0.1.0): `apps/api`, `apps/web`, `packages/shared`, `ai-service`, Docker Compose, CI, cổng koni-harness. Đã có lược đồ `core`, bảng chuyển trạng thái của đợt/JD/CV, `transitionTo` và nhật ký append-only (US-1.2, 0.1.1). Chưa có endpoint nghiệp vụ. 37 story của 6 epic nằm trong `docs/sprints/stories/` ([CONTEXT D21](docs/CONTEXT.md)). Sprint đang mở: `sprint-2026-W41`.
 - Lộ trình: xong trong tháng 12/2026, hai làn chạy song song bằng agent ([sprints/README › Lộ trình](docs/sprints/README.md#lộ-trình), [CONTEXT D20](docs/CONTEXT.md)).
-- Bước tiếp theo: W42 gồm US-1.2, US-1.3 (làn A) và US-5.1 (làn B). Khi bắt đầu một story, đọc lại file của nó và thêm khối *Story refresh* nếu spec đã đổi.
+- Bước tiếp theo: W42 gồm US-1.3 (làn A, rebase lên US-1.2) và US-5.1 (làn B). Khi bắt đầu một story, đọc lại file của nó và thêm khối *Story refresh* nếu spec đã đổi.
 - Việc đang làm của người dùng hiện tại nằm ở `.active-context.md`. Đọc file này khi bắt đầu phiên, nếu có.
 
 ## Tài liệu
@@ -72,6 +72,8 @@ pnpm depcruise                         # ranh giới module (Nguyên tắc 13)
 pnpm depcruise:fixture                 # luật ranh giới còn bắt được vi phạm
 pnpm --filter @srm/api dev             # API ở :3000
 pnpm --filter @srm/web dev             # web ở :5173, proxy /api → :3000
+pnpm --filter @srm/api db:generate     # sinh migration SQL từ src/db/schema; commit cả apps/api/drizzle (LESSONS §6)
+pnpm --filter @srm/api db:migrate      # áp migration lên DATABASE_URL (API ngoài Docker cần biến này)
 ai-service/.venv/bin/ruff check ai-service && ai-service/.venv/bin/pytest ai-service
 docker compose -f deploy/docker-compose.yml up -d --build --wait   # cả hệ thống, web ở :8080
 sh .koni-harness/gate-runner.sh --phase release-commit            # cổng trước commit ship version

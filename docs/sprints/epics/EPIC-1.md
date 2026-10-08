@@ -51,7 +51,7 @@ Lộ trình chung ở [sprints/README › Lộ trình](../README.md#lộ-trình)
 | Story | Điểm | Tuần | Làn | Phụ thuộc |
 |---|---|---|---|---|
 | US-1.1 | 5 | T1 (W41) | A | – |
-| US-1.2 | 5 | T2 (W42) | A | US-1.1 |
+| US-1.2 | 5 | T1 (W41, kéo sớm từ T2) | A | US-1.1 |
 | US-1.3 | 8 | T2 (W42) | A | US-1.1 |
 | US-1.4 | 5 | T3 (W43) | A | US-1.2, US-1.3 |
 | US-1.5 | 8 | T3 (W43) | A | US-1.2, US-1.3 |
@@ -96,7 +96,7 @@ Lộ trình chung ở [sprints/README › Lộ trình](../README.md#lộ-trình)
 | ID | Title | Goal | Status | Version |
 |---|---|---|---|---|
 | US-1.1 | Scaffold monorepo, Docker Compose, CI | Chạy toàn bộ hạ tầng bằng một lệnh; CI và cổng commit hoạt động | 👀 review | — |
-| US-1.2 | Lược đồ DB lõi, `transitionTo`, nhật ký thao tác | Mọi thay đổi trạng thái đi qua một hàm, có audit trong cùng giao dịch | 📋 backlog | — |
+| US-1.2 | Lược đồ DB lõi, `transitionTo`, nhật ký thao tác | Mọi thay đổi trạng thái đi qua một hàm, có audit trong cùng giao dịch | 👀 review | — |
 | US-1.3 | Đăng nhập, phân quyền, DESIGN.md, khung giao diện | Bốn vai trò đăng nhập và thấy đúng cổng của mình | 📋 backlog | — |
 | US-1.4 | Tạo và cấu hình đợt thực tập | Trung tâm tạo đợt với tham số và mốc; đợt tự chuyển trạng thái theo mốc | 📋 backlog | — |
 | US-1.5 | Doanh nghiệp, tài khoản HR, đăng và duyệt JD | HR đăng JD; Trung tâm duyệt JD | 📋 backlog | — |

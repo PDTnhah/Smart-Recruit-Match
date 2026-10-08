@@ -2,11 +2,11 @@
 id: US-1.2
 title: "Lược đồ DB lõi, `transitionTo`, nhật ký thao tác"
 epic: EPIC-1
-status: in-progress
+status: review
 priority: P0
 points: 5
 sprint: sprint-2026-W41
-version_shipped:
+version_shipped: 0.1.1
 prd_ref: [FR-7, NFR-5]
 arch_ref: [AD-4, AD-8, AD-9]
 depends_on: [US-1.1]
@@ -45,37 +45,37 @@ Phạm vi bảng theo EPIC-1 › *Object map*: `campaigns`, `companies`, `users`
 
 ## Acceptance criteria
 
-- [ ] **AC-1** — Drizzle schema trong `apps/api/src/db/` khai báo schema PostgreSQL `core` với 7 bảng theo ARCH › *Các bảng chính*: `campaigns`, `companies`, `users`, `students`, `job_descriptions`, `cvs`, `audit_logs`. Các bảng có vòng đời (`campaigns`, `job_descriptions`, `cvs`) có cột `status` và `row_version integer not null default 0`. Ràng buộc: `unique(users.email)`, `unique(students.student_code)`, `index(job_descriptions.campaign_id, status)`, `users.role` chỉ nhận `CENTER`/`STUDENT`/`HR`/`ADMIN` (CHECK), user `HR` bắt buộc có `company_id` và user `STUDENT` bắt buộc có `student_id` (CHECK). File migration SQL do drizzle-kit sinh nằm trong `apps/api/drizzle/` và áp dụng được lên DB rỗng.
-- [ ] **AC-2** — `packages/shared/states/` export kiểu trạng thái và bảng chuyển cho đợt, JD, CV, cùng hàm thuần `canTransition(machine, from, to)`. Bảng chuyển cho phép **đúng** các mũi tên của PRD › *Vòng đời trạng thái* (đợt, JD) và vòng đời CV ở *Dev notes*; mọi cặp khác bị từ chối. Unit test duyệt hết mọi cặp `(from, to)` của từng vòng đời.
-- [ ] **AC-3** — **Given** một bản ghi ở trạng thái A với `row_version = n`, **When** gọi `transitionTo` sang B (cặp A→B hợp lệ) với `expectedRowVersion = n`, actor và lý do, **Then** `status = B`, `row_version = n + 1` **And** `core.audit_logs` có đúng một dòng mới (`actor_id`, `action`, `entity`, `entity_id`, `before.status = A`, `after.status = B`, lý do, `at`) được ghi trong cùng giao dịch.
-- [ ] **AC-4** — **Given** cặp A→C không có trong bảng chuyển, **When** gọi `transitionTo` sang C, **Then** hàm ném lỗi mã `INVALID_TRANSITION` (API trả `422`) **And** bản ghi không đổi, `row_version` không tăng, không có dòng audit mới.
-- [ ] **AC-5** — **Given** hai yêu cầu đồng thời cùng chuyển một bản ghi với cùng `expectedRowVersion`, **When** cả hai chạy song song, **Then** đúng một yêu cầu thành công, yêu cầu còn lại nhận `409 Conflict` **And** chỉ có một dòng audit.
-- [ ] **AC-6** — **Given** `transitionTo` nhận một hàm kiểm tra điều kiện nghiệp vụ (guard) và guard trả về không đạt kèm mã lý do, **When** gọi chuyển trạng thái, **Then** hàm ném lỗi mã `TRANSITION_CONDITION_FAILED` (API trả `422`, có mã lý do) **And** không có thay đổi hay dòng audit nào. Guard chạy bên trong cùng giao dịch, sau khi đã khóa dòng.
-- [ ] **AC-7** — **Given** việc ghi audit thất bại (test cố ý làm lỗi lệnh insert audit), **When** gọi `transitionTo`, **Then** cả giao dịch rollback: trạng thái và `row_version` giữ nguyên.
-- [ ] **AC-8** — **Given** `core.audit_logs` đã có dữ liệu, **When** bất kỳ tài khoản DB nào, kể cả tài khoản của ứng dụng, chạy `UPDATE`, `DELETE` hoặc `TRUNCATE` lên bảng này, **Then** PostgreSQL từ chối (trigger `BEFORE UPDATE OR DELETE` và `BEFORE TRUNCATE` ném lỗi) **And** `INSERT` vẫn chạy được.
-- [ ] **AC-9** — `apps/api/test/helpers/` có helper dùng lại cho các story sau: tạo bản ghi ở một trạng thái bất kỳ, gọi chuyển trạng thái rồi đọc audit cuối cùng, chạy hai thao tác đồng thời để kiểm `409`. Integration test của story này dùng chính các helper đó.
+- [x] **AC-1** — Drizzle schema trong `apps/api/src/db/` khai báo schema PostgreSQL `core` với 7 bảng theo ARCH › *Các bảng chính*: `campaigns`, `companies`, `users`, `students`, `job_descriptions`, `cvs`, `audit_logs`. Các bảng có vòng đời (`campaigns`, `job_descriptions`, `cvs`) có cột `status` và `row_version integer not null default 0`. Ràng buộc: `unique(users.email)`, `unique(students.student_code)`, `index(job_descriptions.campaign_id, status)`, `users.role` chỉ nhận `CENTER`/`STUDENT`/`HR`/`ADMIN` (CHECK), user `HR` bắt buộc có `company_id` và user `STUDENT` bắt buộc có `student_id` (CHECK). File migration SQL do drizzle-kit sinh nằm trong `apps/api/drizzle/` và áp dụng được lên DB rỗng.
+- [x] **AC-2** — `packages/shared/states/` export kiểu trạng thái và bảng chuyển cho đợt, JD, CV, cùng hàm thuần `canTransition(machine, from, to)`. Bảng chuyển cho phép **đúng** các mũi tên của PRD › *Vòng đời trạng thái* (đợt, JD) và vòng đời CV ở *Dev notes*; mọi cặp khác bị từ chối. Unit test duyệt hết mọi cặp `(from, to)` của từng vòng đời.
+- [x] **AC-3** — **Given** một bản ghi ở trạng thái A với `row_version = n`, **When** gọi `transitionTo` sang B (cặp A→B hợp lệ) với `expectedRowVersion = n`, actor và lý do, **Then** `status = B`, `row_version = n + 1` **And** `core.audit_logs` có đúng một dòng mới (`actor_id`, `action`, `entity`, `entity_id`, `before.status = A`, `after.status = B`, lý do, `at`) được ghi trong cùng giao dịch.
+- [x] **AC-4** — **Given** cặp A→C không có trong bảng chuyển, **When** gọi `transitionTo` sang C, **Then** hàm ném lỗi mã `INVALID_TRANSITION` (API trả `422`) **And** bản ghi không đổi, `row_version` không tăng, không có dòng audit mới.
+- [x] **AC-5** — **Given** hai yêu cầu đồng thời cùng chuyển một bản ghi với cùng `expectedRowVersion`, **When** cả hai chạy song song, **Then** đúng một yêu cầu thành công, yêu cầu còn lại nhận `409 Conflict` **And** chỉ có một dòng audit.
+- [x] **AC-6** — **Given** `transitionTo` nhận một hàm kiểm tra điều kiện nghiệp vụ (guard) và guard trả về không đạt kèm mã lý do, **When** gọi chuyển trạng thái, **Then** hàm ném lỗi mã `TRANSITION_CONDITION_FAILED` (API trả `422`, có mã lý do) **And** không có thay đổi hay dòng audit nào. Guard chạy bên trong cùng giao dịch, sau khi đã khóa dòng.
+- [x] **AC-7** — **Given** việc ghi audit thất bại (test cố ý làm lỗi lệnh insert audit), **When** gọi `transitionTo`, **Then** cả giao dịch rollback: trạng thái và `row_version` giữ nguyên.
+- [x] **AC-8** — **Given** `core.audit_logs` đã có dữ liệu, **When** bất kỳ tài khoản DB nào, kể cả tài khoản của ứng dụng, chạy `UPDATE`, `DELETE` hoặc `TRUNCATE` lên bảng này, **Then** PostgreSQL từ chối (trigger `BEFORE UPDATE OR DELETE` và `BEFORE TRUNCATE` ném lỗi) **And** `INSERT` vẫn chạy được.
+- [x] **AC-9** — `apps/api/test/helpers/` có helper dùng lại cho các story sau: tạo bản ghi ở một trạng thái bất kỳ, gọi chuyển trạng thái rồi đọc audit cuối cùng, chạy hai thao tác đồng thời để kiểm `409`. Integration test của story này dùng chính các helper đó.
 
 ## Tasks
 
-- [ ] **TASK-1.2.1** — Drizzle schema và migration đầu tiên của `core` (AC: 1)
-  - [ ] Subtask 1.2.1.1 — `apps/api/src/db/schema/` mỗi bảng một file, gom ở `apps/api/src/db/schema/index.ts`; dùng `pgSchema('core')`.
-  - [ ] Subtask 1.2.1.2 — `apps/api/drizzle.config.ts`; script sinh và áp migration trong `apps/api/package.json`; commit file SQL vào `apps/api/drizzle/`.
-  - [ ] Subtask 1.2.1.3 — Migration bật extension `pgcrypto` (cột `cvs.pii` mã hóa ở US-2.4 cần nó).
-  - [ ] Subtask 1.2.1.4 — `apps/api/src/db/db.module.ts`: provider kết nối Drizzle; thêm kiểm tra DB vào `GET /api/health`.
-- [ ] **TASK-1.2.2** — Bảng chuyển trạng thái dùng chung (AC: 2)
-  - [ ] Subtask 1.2.2.1 — `packages/shared/states/machine.ts`: kiểu `StateMachine<S>` và `canTransition`.
-  - [ ] Subtask 1.2.2.2 — `packages/shared/states/campaign.ts`, `job-description.ts`, `cv.ts`: union literal trạng thái + bảng chuyển.
-  - [ ] Subtask 1.2.2.3 — `packages/shared/schemas/roles.ts`: hằng `ROLES` dùng cho CHECK của `users.role` và cho US-1.3.
-- [ ] **TASK-1.2.3** — Module `audit` (AC: 3, 7, 8)
-  - [ ] Subtask 1.2.3.1 — `apps/api/src/modules/audit/application/audit.service.ts`: `record(tx, entry)` chỉ insert, nhận giao dịch của bên gọi; module chỉ export `AuditService`.
-  - [ ] Subtask 1.2.3.2 — Migration SQL thủ công: trigger chặn `UPDATE`/`DELETE`/`TRUNCATE` trên `core.audit_logs`.
-- [ ] **TASK-1.2.4** — Hàm `transitionTo` (AC: 3, 4, 5, 6, 7)
-  - [ ] Subtask 1.2.4.1 — `apps/api/src/common/state/transition-to.ts`: mở giao dịch hoặc nhận giao dịch của bên gọi; `SELECT … FOR UPDATE`; `canTransition`; guard; `UPDATE … WHERE id AND row_version`; `AuditService.record`.
-  - [ ] Subtask 1.2.4.2 — `apps/api/src/common/errors/`: lỗi `INVALID_TRANSITION`, `TRANSITION_CONDITION_FAILED`, `ROW_VERSION_CONFLICT` và exception filter chuyển thành `422`/`409` với body `{ code, message }`.
-- [ ] **TASK-1.2.5** — Test (AC: 2–9)
-  - [ ] Subtask 1.2.5.1 — `packages/shared/states/__tests__/`: unit test bảng chuyển, duyệt mọi cặp.
-  - [ ] Subtask 1.2.5.2 — `apps/api/test/helpers/state.ts`: helper ở AC-9.
-  - [ ] Subtask 1.2.5.3 — `apps/api/test/integration/transition-to.int-spec.ts`, `audit-log-append-only.int-spec.ts`, `core-schema.int-spec.ts` (testcontainers từ US-1.1).
+- [x] **TASK-1.2.1** — Drizzle schema và migration đầu tiên của `core` (AC: 1)
+  - [x] Subtask 1.2.1.1 — `apps/api/src/db/schema/` mỗi bảng một file, gom ở `apps/api/src/db/schema/index.ts`; dùng `pgSchema('core')`.
+  - [x] Subtask 1.2.1.2 — `apps/api/drizzle.config.ts`; script sinh và áp migration trong `apps/api/package.json`; commit file SQL vào `apps/api/drizzle/`.
+  - [x] Subtask 1.2.1.3 — Migration bật extension `pgcrypto` (cột `cvs.pii` mã hóa ở US-2.4 cần nó).
+  - [x] Subtask 1.2.1.4 — `apps/api/src/db/db.module.ts`: provider kết nối Drizzle; thêm kiểm tra DB vào `GET /api/health`.
+- [x] **TASK-1.2.2** — Bảng chuyển trạng thái dùng chung (AC: 2)
+  - [x] Subtask 1.2.2.1 — `packages/shared/states/machine.ts`: kiểu `StateMachine<S>` và `canTransition`.
+  - [x] Subtask 1.2.2.2 — `packages/shared/states/campaign.ts`, `job-description.ts`, `cv.ts`: union literal trạng thái + bảng chuyển.
+  - [x] Subtask 1.2.2.3 — `packages/shared/schemas/roles.ts`: hằng `ROLES` dùng cho CHECK của `users.role` và cho US-1.3.
+- [x] **TASK-1.2.3** — Module `audit` (AC: 3, 7, 8)
+  - [x] Subtask 1.2.3.1 — `apps/api/src/modules/audit/application/audit.service.ts`: `record(tx, entry)` chỉ insert, nhận giao dịch của bên gọi; module chỉ export `AuditService`.
+  - [x] Subtask 1.2.3.2 — Migration SQL thủ công: trigger chặn `UPDATE`/`DELETE`/`TRUNCATE` trên `core.audit_logs`.
+- [x] **TASK-1.2.4** — Hàm `transitionTo` (AC: 3, 4, 5, 6, 7)
+  - [x] Subtask 1.2.4.1 — `apps/api/src/common/state/transition-to.ts`: mở giao dịch hoặc nhận giao dịch của bên gọi; `SELECT … FOR UPDATE`; `canTransition`; guard; `UPDATE … WHERE id AND row_version`; `AuditService.record`.
+  - [x] Subtask 1.2.4.2 — `apps/api/src/common/errors/`: lỗi `INVALID_TRANSITION`, `TRANSITION_CONDITION_FAILED`, `ROW_VERSION_CONFLICT` và exception filter chuyển thành `422`/`409` với body `{ code, message }`.
+- [x] **TASK-1.2.5** — Test (AC: 2–9)
+  - [x] Subtask 1.2.5.1 — `packages/shared/states/__tests__/`: unit test bảng chuyển, duyệt mọi cặp.
+  - [x] Subtask 1.2.5.2 — `apps/api/test/helpers/state.ts`: helper ở AC-9.
+  - [x] Subtask 1.2.5.3 — `apps/api/test/integration/transition-to.int-spec.ts`, `audit-log-append-only.int-spec.ts`, `core-schema.int-spec.ts` (testcontainers từ US-1.1).
 
 ## Dev notes
 
@@ -134,41 +134,77 @@ Phạm vi bảng theo EPIC-1 › *Object map*: `campaigns`, `companies`, `users`
 
 | AC | Command |
 |---|---|
-| AC-1 | `apps/api/test/integration/core-schema.int-spec.ts` › "AD-9: migrations apply on empty DB and create core tables with constraints" |
-| AC-2 | `packages/shared/states/__tests__/campaign.spec.ts` › "GĐ0: campaign machine allows only PRD transitions"; `job-description.spec.ts` › "GĐ1: JD machine allows only PRD transitions"; `cv.spec.ts` › "GĐ2: CV machine allows only listed transitions" |
-| AC-3 | `apps/api/test/integration/transition-to.int-spec.ts` › "AD-8: valid transition bumps row_version and writes one audit row in same transaction" |
-| AC-4 | `transition-to.int-spec.ts` › "AD-8: invalid transition is rejected with INVALID_TRANSITION and no audit row" |
-| AC-5 | `transition-to.int-spec.ts` › "AD-8: concurrent transitions with same row_version yield exactly one 409" |
-| AC-6 | `transition-to.int-spec.ts` › "AD-8: failing guard rejects with TRANSITION_CONDITION_FAILED and no change" |
+| AC-1 | `pnpm --filter @srm/api test -- test/integration/core-schema.int-spec.ts` › "AD-9: migrations apply on empty DB and create core tables with constraints" (DB trống riêng, 7 bảng, `pgcrypto`, index, `row_version`, ràng buộc theo tên, chạy lại không đổi gì); `pnpm --filter @srm/api db:generate` in `No schema changes` |
+| AC-2 | `pnpm --filter @srm/shared test` › "GĐ0: campaign machine allows only PRD transitions", "GĐ1: JD machine allows only PRD transitions", "GĐ2: CV machine allows only listed transitions" (duyệt mọi cặp so với cạnh viết tay từ PRD) |
+| AC-3 | `pnpm --filter @srm/api test -- test/integration/transition-to.int-spec.ts` › "AD-8: valid transition bumps row_version and writes one audit row in same transaction" (cùng `xmin`) |
+| AC-4 | `transition-to.int-spec.ts` › "AD-8: invalid transition is rejected with INVALID_TRANSITION and no audit row"; HTTP `422`: `pnpm --filter @srm/api test:unit -- domain-error.filter` |
+| AC-5 | `transition-to.int-spec.ts` › "AD-8: concurrent transitions with same row_version yield exactly one 409"; HTTP `409`: `domain-error.filter.spec.ts` |
+| AC-6 | `transition-to.int-spec.ts` › "AD-8: failing guard rejects with TRANSITION_CONDITION_FAILED and no change" (guard thấy dòng đã khóa: `FOR UPDATE NOWAIT` từ connection khác ra `55P03`) |
 | AC-7 | `transition-to.int-spec.ts` › "BR-10: audit insert failure rolls back the state change" |
-| AC-8 | `apps/api/test/integration/audit-log-append-only.int-spec.ts` › "BR-10: UPDATE, DELETE and TRUNCATE on audit_logs are rejected by the database" |
-| AC-9 | `rg -l "test/helpers/state" apps/api/test/integration` ra ít nhất `transition-to.int-spec.ts` |
-| Ranh giới | `rg -n "set\(\{\s*status" apps/api/src --type ts` chỉ ra `apps/api/src/common/state/transition-to.ts` |
-
-Lệnh chạy: các file trên chạy bằng script `pnpm test` / `pnpm --filter <package> test` do US-1.1 tạo; ghi lệnh đầy đủ vào bảng này khi US-1.1 xong (AGENTS › *Lệnh*).
+| AC-8 | `pnpm --filter @srm/api test -- test/integration/audit-log-append-only.int-spec.ts` › "BR-10: UPDATE, DELETE and TRUNCATE on audit_logs are rejected by the database" (superuser chủ bảng, role thường có `GRANT ALL`, superuser ở `session_replication_role = replica`) |
+| AC-9 | `rg -l "helpers/state" apps/api/test/integration` ra `transition-to.int-spec.ts` (import tương đối là `../helpers/state.js`, nên chuỗi `test/helpers/state` không xuất hiện) |
+| Ranh giới | `rg -n "set\(\{\s*status" apps/api/src --type ts` chỉ ra `apps/api/src/common/state/transition-to.ts`; `pnpm depcruise && pnpm depcruise:fixture` |
+| Deploy | `docker compose -f deploy/docker-compose.yml up -d --build --wait` thoát 0 sau khi `migrate` thoát 0; `curl -fsS http://localhost:8080/api/health` có `"database":{"status":"up"}` |
 
 ## Changelog entry
 
 ### Added
-- Lược đồ `core` đầu tiên bằng Drizzle: `campaigns`, `companies`, `users`, `students`, `job_descriptions`, `cvs`, `audit_logs`, kèm migration SQL.
-- `packages/shared/states`: bảng chuyển trạng thái của đợt, JD, CV dùng chung cho web và API.
-- `transitionTo`: kiểm tra bảng chuyển và điều kiện, khóa lạc quan bằng `row_version` (trả `409` khi xung đột), ghi nhật ký trong cùng giao dịch.
-- Nhật ký thao tác chỉ ghi thêm: trigger chặn `UPDATE`/`DELETE`/`TRUNCATE` trên `audit_logs` (BR-10).
+- Lược đồ `core` đầu tiên bằng Drizzle (`drizzle-orm` 0.45.3, `drizzle-kit` 0.31.11): `campaigns`, `companies`, `users`, `students`, `job_descriptions`, `cvs`, `audit_logs`, kèm migration SQL trong `apps/api/drizzle/`. Cột `status` có CHECK lấy từ bảng chuyển dùng chung; CHECK vai trò, HR ↔ `company_id`, STUDENT ↔ `student_id`, email chữ thường.
+- `packages/shared/states`: bảng chuyển trạng thái của đợt, JD, CV dùng chung cho web và API; `packages/shared/schemas`: `ROLES`, `ACTOR_KINDS`, `ApiErrorSchema`.
+- `transitionTo` (`StateTransitionService`): khóa dòng, kiểm `row_version` (lệch thì trả `409`), kiểm bảng chuyển và điều kiện (sai thì trả `422`), ghi nhật ký trong cùng giao dịch. Exception filter trả body `{ code, message, details }`.
+- Nhật ký thao tác chỉ ghi thêm: trigger `ENABLE ALWAYS` chặn `UPDATE`/`DELETE`/`TRUNCATE` trên `audit_logs` (BR-10); cột `reason`, `actor_kind` (CONTEXT D24).
+- Docker Compose có service `migrate` chạy một lần trước `api`; biến `DATABASE_URL`; `GET /api/health` kiểm thêm DB.
+- Helper test dùng lại cho các story sau (`apps/api/test/helpers/`); CI kiểm migration khớp schema.
 
 **Commit**:
 
 ## Implementation notes
 
-_Chưa bắt đầu._
+**2026-10-08 — nhánh `us-1.2`.** Plan đã duyệt; các rủi ro được kiểm trước khi code (Story refresh).
+
+**Quyết định trong lúc làm** (CONTEXT D24):
+- `transitionTo` nhận `lifecycle` (`campaignLifecycle`, `jobDescriptionLifecycle`, `cvLifecycle` trong `apps/api/src/db/lifecycles.ts`) thay vì `table` và `machine` riêng, để không ghép nhầm bảng với bảng chuyển của vòng đời khác. Entity trong audit lấy từ `machine.name` (`campaign`, `job_description`, `cv`).
+- Thứ tự kiểm: khóa dòng → `row_version` → bảng chuyển → guard → `UPDATE … WHERE row_version` → audit. Kiểm đột biến: bỏ bước so `row_version` thì 2 test đỏ, vì bên thua nhận nhầm `422`.
+- `expectedRowVersion` bắt buộc với actor `USER`; actor `SYSTEM` (scheduler ở US-1.4) được bỏ trống vì đã khóa dòng.
+- `updated_at` dùng `$onUpdate(now())` trong helper cột, nên mọi lệnh update qua Drizzle đều cập nhật theo đồng hồ của DB.
+- Lỗi domain (`apps/api/src/common/errors/`) không import NestJS, nên code `domain/` ném được. Filter ném lại khi không ở HTTP, để consumer RabbitMQ (AD-5) nhận đúng lỗi gốc.
+- Kiểu Drizzle: tham số khai kiểu cụ thể `LifecycleTable`, không dùng generic. Bản generic phải ép kiểu, và ESLint lại báo phép ép thừa (LESSONS §7).
+- `packages/shared` có Jest riêng (cùng phiên bản với api), nên `pnpm test` chạy cả test bảng chuyển.
+- Kiểm `drizzle-kit generate` trong CI bằng `git status --porcelain`, không dùng `git diff --exit-code`, vì migration bị quên là file mới chưa được track (LESSONS §6).
+
+**Kiểm chứng đã chạy (Node 22, Docker 29.7, Compose v5.5):** `pnpm typecheck`, `pnpm lint`, `pnpm build`, `pnpm depcruise`, `pnpm depcruise:fixture` đều qua. `pnpm test`: shared 10 test, api 35 test (unit + integration). Có ba lần kiểm đột biến: thêm cạnh thừa vào bảng chuyển đợt → test GĐ0 đỏ; bỏ bước so `row_version` → 2 test đỏ; bỏ `ENABLE ALWAYS` → test `replica` đỏ. Compose: `up -d --build --wait` từ DB trống thoát 0, `migrate` in `applied migrations from /app/drizzle`, `/api/health` có `database: up`; chạy `up` lần hai không áp lại migration. Mô phỏng sửa schema mà quên sinh migration: `db:generate` sinh file mới, bước CI sẽ báo lỗi.
+
+**Việc tồn đọng / cần người dùng chốt** (từ `/code-review`, chưa sửa trong story này):
+1. **Chủ bảng vẫn tắt được trigger.** API và `migrate` đều kết nối bằng superuser `POSTGRES_USER`, là chủ `audit_logs`. Tài khoản này chạy được `ALTER TABLE … DISABLE TRIGGER` hoặc `DROP`. AC-8 chỉ yêu cầu chặn DML nên đã đạt. Muốn bịt hẳn thì API dùng một role không phải chủ bảng, chỉ có `INSERT`/`SELECT` trên `audit_logs`. Đề xuất làm cùng lúc tách role DB ở US-2.1.
+2. **Quy tắc "chỉ `transitionTo` đổi `status`"** chỉ được kiểm bằng `rg` theo AD-8. `.set(patch)` hoặc SQL thô không bị bắt. Có thể thêm trigger "đổi `status` thì `row_version` phải tăng đúng 1" làm lớp chặn ở DB (Nguyên tắc 11).
+3. **Chuyển trạng thái lặp lại** (message được giao lại, đích đã đạt) đang trả `INVALID_TRANSITION`. Theo AD-5, chống xử lý trùng nằm ở `job_id` (US-2.1), nên chưa thêm nhánh no-op.
+4. **Append-only và NFR-2** (xóa hoặc ẩn danh dữ liệu cá nhân sau thời hạn): trigger chặn mọi `UPDATE`/`DELETE`, kể cả ẩn danh hóa. Hiện audit chỉ chứa ID và trạng thái, không có PII. Cần chốt chính sách trước khi story nào đó ghi dữ liệu cá nhân vào `before`/`after`.
+
+Lessons: §6 (migrator bỏ qua migration có `when` cũ hơn), §7 (kiểu Drizzle cho hàm dùng chung nhiều bảng).
 
 ## Files modified
 
-_Chưa bắt đầu._
+- **Gốc repo:** `AGENTS.md` (Trạng thái, Lệnh), `DEPLOY.md` (service `migrate`, mục *Migration cơ sở dữ liệu*, `DATABASE_URL`), `pnpm-lock.yaml`, `.github/workflows/ci.yml` (bước kiểm migration), `scripts/check-depcruise-fixture.sh` (comment).
+- **`packages/shared/`:**
+  - Mới: `schemas/{roles,errors,audit}.ts`, `states/{machine,campaign,job-description,cv}.ts`, `states/__tests__/{pairs,machine.spec,campaign.spec,job-description.spec,cv.spec}.ts`, `jest.config.cjs`.
+  - Sửa: `schemas/index.ts`, `states/index.ts`, `package.json` (script `test`, Jest), `tsconfig.json`, `tsconfig.build.json`.
+- **`apps/api/`:**
+  - Cấu hình: `package.json` (`drizzle-orm`, `drizzle-kit`, `db:generate`, `db:migrate`, `files` có `drizzle`), `tsconfig.json`, mới `drizzle.config.ts`.
+  - Migration: `drizzle/0000_core_schema.sql`, `drizzle/0001_audit_append_only.sql`, `drizzle/meta/*`.
+  - DB: `src/db/schema/{core,columns,campaigns,companies,students,users,job-descriptions,cvs,audit-logs,index}.ts`, `src/db/{db.module,tokens,types,migrate,lifecycles}.ts`, `src/db/migrations-journal.spec.ts`.
+  - `src/common/errors/{domain-error,domain-error.filter,index}.ts`, `domain-error.filter.spec.ts`; `src/common/state/{transition-to,state-transition.service,state.module,index}.ts`.
+  - `src/modules/audit/{audit.module,index}.ts`, `application/audit.service.ts`, `domain/{actor,audit-entry}.ts`.
+  - Sửa: `src/app.module.ts` (`DbModule`, `APP_FILTER`), `src/common/config/env.ts` (`DATABASE_URL`), `src/health/{health.controller,health.module,health.controller.spec}.ts`; mới `src/health/database.health.ts`.
+  - Test: `test/setup/global-setup.ts` (chạy migration), `test/helpers/{db,factories,state}.ts`, `test/integration/{core-schema,transition-to,audit-log-append-only}.int-spec.ts`.
+  - Xóa `.gitkeep` ở `src/db/`, `src/modules/`, `drizzle/`.
+- **`deploy/`:** `docker-compose.yml` (service `migrate`, `DATABASE_URL`), `.env.example`.
+- **`docs/`:** `ARCHITECTURE.md`, `CONTEXT.md` (D24), `LESSONS.md` (§6, §7), `SETUP.md`, `CHANGELOG.md`, `sprints/sprint-2026-W41.md`, `sprints/stories/US-1.2-…md`, `sprints/STATUS.md`.
 
 ## Cross-references
 
 - [PRD FR-7, NFR-5](../../PRD.md#functional-requirements)
 - [Epic EPIC-1](../epics/EPIC-1.md)
 - [ARCHITECTURE AD-4, AD-8, AD-9](../../ARCHITECTURE.md#architecture-decisions)
-- [CONTEXT D4, D8, D9](../../CONTEXT.md)
+- [CONTEXT D4, D8, D9, D24](../../CONTEXT.md)
+- [LESSONS §6, §7](../../LESSONS.md)
 - [CHANGELOG](../../CHANGELOG.md)

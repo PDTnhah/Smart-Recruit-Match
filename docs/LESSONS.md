@@ -73,3 +73,32 @@ See [CONTEXT.md D23](CONTEXT.md).
 - Fixture vi phạm phải kiểm **từng vi phạm mong đợi** (luật + file nguồn + đích), không chỉ kiểm mã thoát khác 0. Xem `scripts/check-depcruise-fixture.sh`.
 
 See [CONTEXT.md D22](CONTEXT.md).
+
+## 6. Migrator của drizzle bỏ qua migration có mốc thời gian cũ hơn mà không báo lỗi
+
+**What happened (0.1.1)**: Khi chuẩn bị US-1.2, đọc mã `migrate()` của `drizzle-orm` 0.45.3 (`pg-core/dialect`) để chọn cách áp migration. Hàm này đọc `created_at` của migration cuối cùng trong `drizzle.__drizzle_migrations`, rồi chỉ chạy những migration có `when` (mốc mili giây trong `drizzle/meta/_journal.json`) lớn hơn mốc đó. Nó không so theo tên file hay hash.
+
+**Why**: Hai làn chạy song song có thể cùng sinh migration. Nhánh A sinh `0002` lúc 10:00, nhánh B sinh `0002` lúc 09:00. Nếu A merge và deploy trước, migration của B có `when` cũ hơn nên bị bỏ qua mãi mãi: DB thiếu bảng, không có lỗi nào. Máy dev cũng gặp nếu từng áp migration của một nhánh khác.
+
+**How to avoid**:
+- Giữ luật ở [sprints/README › Chạy song song](sprints/README.md#chạy-song-song): mỗi đợt chỉ một story sinh migration; story còn lại rebase lên nhánh đã merge rồi mới chạy `db:generate`.
+- Không sửa, xóa hay đổi thứ tự file migration đã chạy ở bất kỳ đâu. Cần đổi thì sinh migration mới.
+- Unit test `apps/api/src/db/migrations-journal.spec.ts` kiểm `idx` và `when` tăng chặt. Merge sai thứ tự sẽ làm test đỏ.
+- Máy dev bị lệch thì xóa volume (`docker compose … down -v`) rồi `up` lại.
+- Kiểm "đã sinh migration chưa" bằng `git status --porcelain apps/api/drizzle` (bước CI). `git diff --exit-code` không thấy file mới chưa được track.
+
+See [CONTEXT.md D24](CONTEXT.md).
+
+## 7. Hàm dùng chung cho nhiều bảng Drizzle: khai kiểu cụ thể, đừng dùng generic `T extends PgTable`
+
+**What happened (0.1.1)**: `transitionTo` nhận bảng theo cấu trúc (có `id`, `status`, `rowVersion`). Bản đầu khai `<T extends LifecycleTable>(table: T)`: `tsc` báo lỗi ở `.from(table)` (`TableLikeHasEmptySelection<T> extends true ? DrizzleTypeError…`) và ở `.set({ status })`. Ép `as PgTable` thì qua `tsc`, nhưng ESLint (`no-unnecessary-type-assertion` trong `recommendedTypeChecked`) lại báo phép ép là thừa. Helper test dùng `TABLES[kind]` với `K` generic cũng gặp đúng lỗi đó.
+
+**Why**: Kiểu điều kiện của Drizzle không rút gọn được khi bảng là tham số generic hoặc phép tra chỉ mục generic. Với một kiểu cụ thể (`LifecycleTable`), TypeScript rút gọn được, nên không cần ép.
+
+**How to avoid**:
+- Khai tham số là kiểu cụ thể: `table: LifecycleTable`, hoặc `const table: LifecycleTable = TABLES[kind]`. Không dùng `T extends …` cho bảng.
+- Ràng buộc cột bằng `PgColumn<ColumnBaseConfig<'number' | 'string' | 'date', string>>`. Bảng thiếu cột hoặc cột sai kiểu bị `tsc` chặn ngay ở chỗ gọi.
+- Kết quả `select` trên cột khai theo cấu trúc có kiểu `unknown`. Ép một lần sang kiểu dòng cụ thể; đây là chỗ ép duy nhất cần giữ.
+- Chạy `pnpm lint` trước khi coi một mẫu kiểu là xong: `tsc` qua chưa đủ.
+
+See [US-1.2](sprints/stories/US-1.2-core-db-schema-transition-audit-log.md) › Implementation notes.

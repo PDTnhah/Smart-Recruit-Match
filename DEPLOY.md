@@ -13,7 +13,7 @@
 # Tại gốc repo, làm một lần:
 cp deploy/.env.example deploy/.env      # rồi đổi mọi mật khẩu
 
-# Dựng và chờ đủ 7 service healthy:
+# Dựng, áp migration DB và chờ đủ 7 service healthy:
 docker compose -f deploy/docker-compose.yml up -d --build --wait
 docker compose -f deploy/docker-compose.yml ps
 
@@ -27,7 +27,8 @@ Compose tự đọc `deploy/.env`, vì thư mục project là thư mục chứa 
 | Service | Image | Cổng trên máy (mặc định) | Ghi chú |
 |---|---|---|---|
 | `nginx` | build từ `deploy/nginx.Dockerfile` | `NGINX_PORT` (8080) | Phục vụ web, proxy `/api`. SSE `/api/events/stream` không buffer |
-| `api` | build từ `apps/api/Dockerfile` | – (qua nginx) | NestJS. Chờ `postgres`, `redis` healthy rồi mới chạy |
+| `migrate` | build từ `apps/api/Dockerfile` (cùng image `api`) | – | Chạy một lần mỗi lần `up`: áp migration SQL rồi thoát với mã 0 ([CONTEXT D24](docs/CONTEXT.md)) |
+| `api` | build từ `apps/api/Dockerfile` | – (qua nginx) | NestJS. Chờ `migrate` thoát thành công và `postgres`, `redis` healthy rồi mới chạy |
 | `postgres` | `pgvector/pgvector:pg16` | 127.0.0.1:5432 | Cùng image với testcontainers |
 | `redis` | `redis:7.4-alpine` | 127.0.0.1:6379 | Bật AOF |
 | `rabbitmq` | `rabbitmq:4.3-management-alpine` | 127.0.0.1:5672, UI 15672 | `hostname` cố định để giữ dữ liệu |
@@ -35,6 +36,18 @@ Compose tự đọc `deploy/.env`, vì thư mục project là thư mục chứa 
 | `mailpit` | `axllent/mailpit:v1.31` | 127.0.0.1:1025 (SMTP), UI 8025 | Bắt email khi phát triển |
 
 Cổng hạ tầng chỉ mở trên `127.0.0.1`. Nếu cổng đã bị chiếm, đổi biến `*_HOST_PORT` trong `deploy/.env`.
+
+## Migration cơ sở dữ liệu
+
+Service `migrate` áp các file SQL trong `apps/api/drizzle/` (sinh bằng drizzle-kit, cùng migration tay như trigger của `audit_logs`) bằng migrator của Drizzle, rồi thoát. Migration đã áp được ghi trong bảng `drizzle.__drizzle_migrations`, nên `up` lần sau chỉ áp phần mới. `--wait` chờ `migrate` thoát với mã 0, vì `api` phụ thuộc vào nó bằng `service_completed_successfully`.
+
+```bash
+docker compose -f deploy/docker-compose.yml logs migrate     # "migrate: applied migrations from /app/drizzle"
+```
+
+- Migration lỗi thì `migrate` thoát khác 0, `api` không khởi động và `up --wait` báo `service "migrate" didn't complete successfully`. Đọc log ở lệnh trên.
+- Code có migration mới thì phải build lại image (`up -d --build`), vì migration nằm trong image.
+- Migrator chỉ áp migration có mốc thời gian mới hơn migration cuối đã áp. Không sửa hay đổi thứ tự file migration đã chạy ([LESSONS §6](docs/LESSONS.md)).
 
 ## Dừng, dữ liệu và làm sạch
 
@@ -56,6 +69,7 @@ Nguồn: `deploy/.env` (sao từ [`deploy/.env.example`](deploy/.env.example)). 
 | `POSTGRES_USER` | Required | Tự đặt | Superuser tạo lúc khởi tạo volume `pgdata` |
 | `POSTGRES_PASSWORD` | Required | Tự đặt, mật khẩu mạnh | Đổi sau khi khởi tạo thì phải `ALTER USER` |
 | `POSTGRES_DB` | Required | Tự đặt | Database mặc định |
+| `DATABASE_URL` | – (compose tự ghép) | `postgres://POSTGRES_USER:POSTGRES_PASSWORD@postgres:5432/POSTGRES_DB` | Service `migrate` và `api` đọc. Vì được ghép thành URL, `POSTGRES_PASSWORD` chỉ nên gồm chữ, số và `-_.~`. Chạy API ngoài Docker thì tự đặt, host `localhost` và cổng `POSTGRES_HOST_PORT` |
 | `RABBITMQ_DEFAULT_USER` | Required | Tự đặt | User tạo lúc khởi tạo volume `rabbitmqdata` |
 | `RABBITMQ_DEFAULT_PASS` | Required | Tự đặt, mật khẩu mạnh | |
 | `MINIO_ENDPOINT` | Required | `http://minio:9000` với service đi kèm; hoặc URL của MinIO/S3 ngoài | API đọc từ US-1.6. Ngoài Docker dùng `http://localhost:9000` |

@@ -8,6 +8,6 @@
     "isolatedModules": true,
     "types": ["node", "jest"]
   },
-  "include": ["src", "test", "jest.config.cjs"],
+  "include": ["src", "test", "jest.config.cjs", "drizzle.config.ts"],
   "exclude": ["dist", "node_modules", "test/fixtures"]
 }
