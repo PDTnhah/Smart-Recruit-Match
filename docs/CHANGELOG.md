@@ -28,7 +28,7 @@ Lần ship code đầu tiên (US-1.1). Repo có khung chạy được: monorepo 
 - Frontend dùng shadcn/ui + Tailwind CSS thay cho Ant Design (CONTEXT D14).
 - ARCHITECTURE › Docker Compose: service `minio` dùng `cgr.dev/chainguard/minio` vì `minio/minio` đã bị xóa khỏi Docker Hub (CONTEXT D23).
 
-**Commit**:
+**Commit**: ae8c373
 
 ---
 
