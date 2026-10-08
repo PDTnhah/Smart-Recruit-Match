@@ -23,7 +23,7 @@ US-1.2. Có lược đồ `core` đầu tiên và cơ chế chuyển trạng th�
 - ARCHITECTURE › *Các bảng chính*, › *Các module* (`audit` ghi trong giao dịch, không dùng interceptor), › *Quản lý trạng thái*, › *Docker Compose*.
 - Sprint `sprint-2026-W41` kéo thêm US-1.2.
 
-**Commit**:
+**Commit**: b1f8b17
 
 ---
 

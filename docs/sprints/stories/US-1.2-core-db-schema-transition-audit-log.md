@@ -11,7 +11,7 @@ prd_ref: [FR-7, NFR-5]
 arch_ref: [AD-4, AD-8, AD-9]
 depends_on: [US-1.1]
 assignee: PDTnhah
-commit:
+commit: b1f8b171adb5d5805ed74d68200909622baf8103
 created: 2026-10-07
 updated: 2026-10-08
 ---
@@ -156,7 +156,7 @@ Phạm vi bảng theo EPIC-1 › *Object map*: `campaigns`, `companies`, `users`
 - Docker Compose có service `migrate` chạy một lần trước `api`; biến `DATABASE_URL`; `GET /api/health` kiểm thêm DB.
 - Helper test dùng lại cho các story sau (`apps/api/test/helpers/`); CI kiểm migration khớp schema.
 
-**Commit**:
+**Commit**: b1f8b17
 
 ## Implementation notes
 
