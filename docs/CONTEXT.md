@@ -382,3 +382,29 @@
 
 **Date**: 2026-10-08
 **Version**: 0.1.0
+
+### D24. Lược đồ `core` đầu tiên, cột của `audit_logs` và cách áp migration (US-1.2)
+
+**Context**: US-1.2 tạo lược đồ `core` và `transitionTo`, nhưng ARCH › *Các bảng chính* còn thiếu vài chỗ. `audit_logs` không có cột lý do, trong khi `transitionTo(…, reason)` và BR-10 đều cần lý do. `actor_id` chỉ trỏ tới người dùng, trong khi US-1.4 cần actor hệ thống cho scheduler. Spec cũng chưa nói migration được áp lên DB như thế nào khi chạy Docker Compose.
+
+**Decision** (người dùng chốt ba mục đầu):
+- `audit_logs` thêm `reason text` và `actor_kind` (`USER` | `SYSTEM`, có CHECK). `actor_id` để NULL khi `SYSTEM` và bắt buộc có khi `USER`: CHECK `(actor_kind = 'USER') = (actor_id IS NOT NULL)`. Không có FK tới `users`, để audit còn nguyên khi dữ liệu người dùng bị xóa theo thời hạn.
+- Bảng chuyển trạng thái chỉ gồm mũi tên của PRD › *Vòng đời trạng thái* (đợt, JD) và chuỗi CV `PENDING_ANALYSIS → PENDING_CONFIRMATION → CONFIRMED`. Story nào cần cạnh khác thì hỏi trước khi thêm.
+- Docker Compose có service `migrate` chạy một lần: dùng cùng image với `api`, chạy `node dist/db/migrate.js` (migrator của `drizzle-orm`). `api` chờ bằng `depends_on: condition: service_completed_successfully`, nên `up --wait` cũng chờ migrate thoát với mã 0.
+- Theo đề xuất ở *Dev notes* của US-1.2: khóa chính `bigint generated always as identity`; `row_version integer not null default 0` cho `campaigns`, `job_descriptions`, `cvs`; `students.gpa numeric(4,2)`; cột `status` lưu dạng `text` kèm CHECK, danh sách giá trị sinh từ `packages/shared/states`; không có `users.sso_subject`.
+- `users` có thêm `full_name`, `is_active`, `password_hash` cho phép NULL. CHECK theo cả hai chiều: `(role = 'HR') = (company_id IS NOT NULL)`, `(role = 'STUDENT') = (student_id IS NOT NULL)`.
+- Trigger chặn `UPDATE`/`DELETE`/`TRUNCATE` trên `audit_logs` được đặt `ENABLE ALWAYS`, nên vẫn chạy khi superuser đặt `session_replication_role = replica`.
+- Ghim `drizzle-orm` 0.45.3 và `drizzle-kit` 0.31.11, là bản stable mới nhất; dòng 1.0 còn RC.
+
+**Rationale**: Vì lý do và loại actor là dữ liệu cần lọc khi viết báo cáo truy vết (NFR-5), để riêng cột thì truy vấn được, còn nhét vào JSON thì khó. Một service migrate riêng không bị đua khi chạy nhiều instance API, và lỗi migration hiện rõ trong `docker compose up` thay vì làm API khởi động lỗi. CHECK cho `status` và vai trò đặt quy tắc ở tầng DB theo Nguyên tắc 11. Thêm sẵn các cột `users` mà US-1.3 cần để US-1.3 không phải sinh migration trong cùng đợt.
+
+**Alternatives considered**:
+- Lưu lý do và actor hệ thống trong `after` (JSONB) — loại vì khó truy vấn và không ràng buộc được bằng CHECK.
+- API tự chạy migrate khi khởi động — loại vì nhiều instance có thể chạy migrate cùng lúc.
+- Chỉ có lệnh migrate chạy tay — loại vì phá yêu cầu "một lệnh chạy cả hệ thống" (EPIC-1).
+- PostgreSQL `ENUM` cho `status` — loại vì thêm giá trị vào enum khó hơn sửa một CHECK.
+
+**Impact**: ARCHITECTURE › *Các bảng chính*, › *Các module* (`audit`), › *Docker Compose*; `deploy/docker-compose.yml`; `DEPLOY.md`, `docs/SETUP.md`, `deploy/.env.example` (`DATABASE_URL`); story US-1.2 (*Story refresh*); US-1.3, US-1.4 dùng các cột `users`, actor `SYSTEM`.
+
+**Date**: 2026-10-08
+**Version**: 0.1.1

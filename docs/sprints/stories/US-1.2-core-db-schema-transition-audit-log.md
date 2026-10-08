@@ -2,19 +2,32 @@
 id: US-1.2
 title: "Lược đồ DB lõi, `transitionTo`, nhật ký thao tác"
 epic: EPIC-1
-status: backlog
+status: in-progress
 priority: P0
 points: 5
-sprint:
+sprint: sprint-2026-W41
 version_shipped:
 prd_ref: [FR-7, NFR-5]
 arch_ref: [AD-4, AD-8, AD-9]
 depends_on: [US-1.1]
-assignee:
+assignee: PDTnhah
 commit:
 created: 2026-10-07
-updated: 2026-10-07
+updated: 2026-10-08
 ---
+
+## Story refresh — 2026-10-08
+
+Đọc lại story vào ngày 2026-10-08 trên nhánh `us-1.2` (US-1.1 đã merge vào `main`). Các quyết định sau được chốt vào story; số AC giữ nguyên:
+
+- **Sprint**: kéo story vào `sprint-2026-W41`, vì US-1.1 xong sớm. Lộ trình gốc đặt story ở T2 (W42).
+- **Cột của `audit_logs`** ([CONTEXT D24](../../CONTEXT.md)): thêm `reason text` và `actor_kind` (`USER` | `SYSTEM`, có CHECK). `actor_id` để NULL khi `SYSTEM` và bắt buộc có khi `USER`. Lý do: US-1.4 cần actor hệ thống cho scheduler.
+- **Bảng chuyển**: chỉ gồm mũi tên PRD (đợt, JD) và chuỗi CV ở *Dev notes*. Không thêm cạnh nào spec chưa nói.
+- **Áp migration khi deploy**: service `migrate` trong Docker Compose chạy một lần (`node dist/db/migrate.js`, cùng image với api). `api` chờ nó bằng `service_completed_successfully`.
+- **Các đề xuất ở *Dev notes* được giữ**: khóa chính `bigint` identity, `students.gpa numeric(4,2)`, `row_version` cho cả `campaigns` và `cvs`, không có `users.sso_subject`, tên trạng thái tiếng Anh, mã lỗi `422`/`409`.
+- **Bổ sung để US-1.3 không phải sinh migration**: `users.full_name`, `users.is_active`, `password_hash` cho phép NULL (HR được mời ở US-1.5). CHECK vai trò theo cả hai chiều: chỉ HR có `company_id`, chỉ STUDENT có `student_id`.
+- **Phiên bản ghim**: `drizzle-orm` 0.45.3, `drizzle-kit` 0.31.11 (bản stable mới nhất; 1.0 còn RC).
+- **Rủi ro đã kiểm trước khi code**: trigger append-only dùng `ENABLE ALWAYS`, vì API trong compose kết nối bằng superuser. Migrator của drizzle chỉ áp migration có `when` mới hơn migration cuối đã áp, nên thêm test kiểm `when` tăng dần. `files` của `apps/api` phải có `drizzle`, nếu không image production sẽ thiếu migration.
 
 ## Goal
 
@@ -28,7 +41,7 @@ AD-8 ([CONTEXT D8](../../CONTEXT.md)): mỗi vòng đời có kiểu trạng th�
 
 Phạm vi bảng theo EPIC-1 › *Object map*: `campaigns`, `companies`, `users`, `students`, `job_descriptions`, `cvs`, `audit_logs`. Vòng đời làm ở đây gồm đợt, JD, CV (PRD › *Vòng đời trạng thái*). Bảng chuyển của hồ sơ ứng tuyển thuộc US-3.3, của đề cử thuộc EPIC-5 (EPIC-1 › *Out of scope*).
 
-**Lessons applied**: none — LESSONS.md chỉ có §1 (nạp skill cho Claude Code), không liên quan lược đồ DB; đọc lại khi bắt đầu story.
+**Lessons applied**: §2 — chạy `koni-docs sync` chỉ khi trạng thái thật sự đổi, sau đó xem diff của PRD và epic; §5 — `drizzle-orm` giờ được cài thật, nên chạy lại `pnpm depcruise:fixture` để chắc luật `domain/ → drizzle-orm` vẫn bắt được vi phạm.
 
 ## Acceptance criteria
 
