@@ -10,7 +10,7 @@ goal: "Ship US-1.1: monorepo pnpm, Docker Compose chạy cả hạ tầng bằng
 
 | US     | Title                                 | Epic   | Pri | Points | Status    | Story file                                                                                                     |
 | ------ | ------------------------------------- | ------ | --- | ------ | --------- | -------------------------------------------------------------------------------------------------------------- |
-| US-1.1 | Scaffold monorepo, Docker Compose, CI | EPIC-1 | P0  | 5      | 🚧 in-progress | [stories/US-1.1-scaffold-monorepo-docker-compose-ci.md](stories/US-1.1-scaffold-monorepo-docker-compose-ci.md) |
+| US-1.1 | Scaffold monorepo, Docker Compose, CI | EPIC-1 | P0  | 5      | 👀 review | [stories/US-1.1-scaffold-monorepo-docker-compose-ci.md](stories/US-1.1-scaffold-monorepo-docker-compose-ci.md) |
 
 > **Convention**: AC + Tasks live inside each story file. This sprint file lists planned
 > stories at a glance only. Design + decision docs cross-linked at the bottom.

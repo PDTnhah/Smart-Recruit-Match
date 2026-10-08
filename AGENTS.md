@@ -8,9 +8,9 @@ Hệ thống giúp Trung tâm quan hệ doanh nghiệp của trường ghép sin
 
 ## Trạng thái
 
-- Mới có tài liệu, **chưa có code**. `VERSION` là 0.0.0. Đã tách 37 story cho 6 epic (`docs/sprints/epics/`); cả 37 file story đã có trong `docs/sprints/stories/`, ở `backlog` ([CONTEXT D21](docs/CONTEXT.md)). Chưa mở sprint.
+- Đã có khung monorepo (US-1.1, `VERSION` 0.1.0): `apps/api`, `apps/web`, `packages/shared`, `ai-service`, Docker Compose, CI, cổng koni-harness. Chưa có nghiệp vụ. 37 story của 6 epic nằm trong `docs/sprints/stories/` ([CONTEXT D21](docs/CONTEXT.md)). Sprint đang mở: `sprint-2026-W41`.
 - Lộ trình: xong trong tháng 12/2026, hai làn chạy song song bằng agent ([sprints/README › Lộ trình](docs/sprints/README.md#lộ-trình), [CONTEXT D20](docs/CONTEXT.md)).
-- Bước tiếp theo: mở `sprint-2026-W41` rồi bắt đầu US-1.1. Khi bắt đầu một story, đọc lại file của nó và thêm khối *Story refresh* nếu spec đã đổi.
+- Bước tiếp theo: W42 gồm US-1.2, US-1.3 (làn A) và US-5.1 (làn B). Khi bắt đầu một story, đọc lại file của nó và thêm khối *Story refresh* nếu spec đã đổi.
 - Việc đang làm của người dùng hiện tại nằm ở `.active-context.md`. Đọc file này khi bắt đầu phiên, nếu có.
 
 ## Tài liệu
@@ -60,15 +60,25 @@ Không thêm thư viện ngoài danh sách ở ARCH › Tech stack và *Thư vi�
 
 ## Lệnh
 
-Chưa có code. Điền lệnh build/test/dev sau khi scaffold; không đoán lệnh không có trong `package.json` hoặc `pyproject.toml`.
-
-Lệnh tài liệu dùng được ngay (danh sách đủ ở [docs/README.md](docs/README.md)):
+Chạy tại gốc repo, sau `nvm use` (Node 22, `.nvmrc`) và `pnpm install`. Đừng đoán lệnh không có trong `package.json` hoặc `pyproject.toml`. Cài đặt máy: [docs/SETUP.md](docs/SETUP.md); Docker Compose: [DEPLOY.md](DEPLOY.md).
 
 ```bash
-npx -y -p @koniverse/koni-docs koni-docs validate --docs-path docs/
-npx -y -p @koniverse/koni-docs koni-docs sync --docs-path docs/
-npx -y -p @koniverse/koni-docs koni-docs status --docs-path docs/
+pnpm typecheck                         # build @srm/shared rồi tsc mọi package
+pnpm lint                              # ESLint (api, web, shared)
+pnpm test                              # Jest api: unit + integration (testcontainers, cần Docker)
+pnpm --filter @srm/api test:unit       # unit test, không cần Docker
+pnpm build                             # build shared → api, web
+pnpm depcruise                         # ranh giới module (Nguyên tắc 13)
+pnpm depcruise:fixture                 # luật ranh giới còn bắt được vi phạm
+pnpm --filter @srm/api dev             # API ở :3000
+pnpm --filter @srm/web dev             # web ở :5173, proxy /api → :3000
+ai-service/.venv/bin/ruff check ai-service && ai-service/.venv/bin/pytest ai-service
+docker compose -f deploy/docker-compose.yml up -d --build --wait   # cả hệ thống, web ở :8080
+sh .koni-harness/gate-runner.sh --phase release-commit            # cổng trước commit ship version
+pnpm docs:sync && pnpm docs:status && pnpm docs:validate          # koni-docs (đọc LESSONS §2)
 ```
+
+Tên package dùng với `pnpm --filter`: `@srm/api`, `@srm/web`, `@srm/shared`.
 
 ## Nguyên tắc bất biến
 

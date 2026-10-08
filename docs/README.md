@@ -15,7 +15,7 @@ Tài liệu theo cấu trúc koni-docs. Tên file tiếng Anh, nội dung tiến
 | [SETUP.md](SETUP.md) | Cài môi trường phát triển | Thêm công cụ hoặc biến môi trường |
 | [sprints/](sprints/README.md) | Epic, story, sprint; `STATUS.md` tự sinh | Theo vòng đời story |
 
-Sẽ thêm khi cần: `DESIGN.md` ở gốc repo (design system, trước màn hình đầu tiên), `docs/design/` (spec giao diện theo story), `docs/tests/` (test case theo epic, báo cáo chạy test), `DEPLOY.md` và `.env.example` ở gốc repo (khi có biến môi trường đầu tiên).
+Ngoài `docs/`: [`DEPLOY.md`](../DEPLOY.md) ở gốc repo (chạy Docker Compose, bảng biến môi trường) và [`deploy/.env.example`](../deploy/.env.example) (mẫu biến môi trường, theo ARCHITECTURE › Project structure). Sẽ thêm khi cần: `DESIGN.md` ở gốc repo (design system, trước màn hình đầu tiên), `docs/design/` (spec giao diện theo story), `docs/tests/` (test case theo epic, báo cáo chạy test).
 
 ## Quy ước
 
@@ -33,7 +33,7 @@ Sẽ thêm khi cần: `DESIGN.md` ở gốc repo (design system, trước màn h
 [ ] PRD cập nhật nếu phạm vi đổi; BRIEF cập nhật nếu tầm nhìn/phạm vi đổi
 [ ] CONTEXT.md có mục mới nếu vừa ra quyết định
 [ ] LESSONS.md có mục mới, hoặc story ghi "Lessons: none new — <lý do>"
-[ ] Biến môi trường mới: SETUP.md + DEPLOY.md + .env.example trong cùng commit (RULE-11)
+[ ] Biến môi trường mới: SETUP.md + DEPLOY.md + deploy/.env.example trong cùng commit (RULE-11)
 [ ] koni-docs sync → status → validate không lỗi
 [ ] .active-context.md cập nhật (khối koni-docs:auto-update)
 [ ] Commit message tiếng Anh, có prefix feat:/fix:/chore:/docs:/style:/refactor:/test: (RULE-14)
@@ -41,11 +41,11 @@ Sẽ thêm khi cần: `DESIGN.md` ở gốc repo (design system, trước màn h
 
 ## Lệnh koni-docs
 
-Chưa có `package.json` nên chạy qua `npx` (sau khi scaffold sẽ thêm `@koniverse/koni-docs` làm devDependency):
+`@koniverse/koni-docs` là devDependency ở gốc repo (ghim 0.12.0, xem LESSONS §2). Chạy sau `pnpm install`:
 
 ```bash
-npx -y -p @koniverse/koni-docs koni-docs validate --docs-path docs/   # kiểm tra tham chiếu ID
-npx -y -p @koniverse/koni-docs koni-docs sync --docs-path docs/       # lan trạng thái story lên epic, PRD, sprint
-npx -y -p @koniverse/koni-docs koni-docs status --docs-path docs/     # sinh lại sprints/STATUS.md
-npx -y -p @koniverse/koni-docs koni-docs preview docs --watch         # xem tài liệu trên trình duyệt
+pnpm docs:validate                       # kiểm tra tham chiếu ID
+pnpm docs:sync                           # lan trạng thái story lên epic, PRD, sprint (đọc LESSONS §2 trước)
+pnpm docs:status                         # sinh lại sprints/STATUS.md
+pnpm exec koni-docs preview docs --watch # xem tài liệu trên trình duyệt
 ```

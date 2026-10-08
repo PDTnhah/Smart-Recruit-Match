@@ -325,3 +325,60 @@
 
 **Date**: 2026-10-07
 **Version**: 0.0.0
+
+---
+
+## Phase 3 — Thực hiện EPIC-1 (2026-10-08)
+
+### D22. Công cụ và phiên bản cho khung monorepo (US-1.1)
+
+**Context**: US-1.1 dựng monorepo, nhưng ARCHITECTURE chưa chốt công cụ lint, cách quản lý gói Python, driver PostgreSQL, tên package và vị trí file môi trường. AGENTS cấm thêm thư viện ngoài danh sách khi chưa hỏi. Lúc làm (10/2026) đã có TypeScript 7, NestJS 12 và pnpm 12, đều ra sau khi tài liệu được viết.
+
+**Decision** (người dùng chốt các mục công cụ):
+- Lint: ESLint 10 (flat config) + typescript-eslint, dùng bộ `recommendedTypeChecked`; web thêm `eslint-plugin-react-hooks` và `eslint-plugin-react-refresh`. Không dùng Prettier. Python dùng ruff (ghim bản), test bằng pytest.
+- Python: `pyproject.toml` + `pip install -e ".[dev]"`, không có lockfile. CI chạy Python 3.12.
+- Driver PostgreSQL: `pg` (node-postgres). US-1.2 dùng qua `drizzle-orm/node-postgres`.
+- Tên package: `@srm/api`, `@srm/web`, `@srm/shared`.
+- File môi trường: `deploy/.env.example`; compose đọc `deploy/.env`. `DEPLOY.md` đặt ở gốc repo.
+- Ghim phiên bản:
+  - pnpm 10.34.6. pnpm 12 mới ra (26/08/2026) và chưa được kiểm chứng.
+  - TypeScript 6.0.3, vì typescript-eslint 8.71 yêu cầu `typescript <6.1` và ts-jest yêu cầu `<7`.
+  - NestJS 11.2.7, vì nestjs-zod 5.5 chỉ hỗ trợ `@nestjs/common` 10–11.
+  - Node ≥ 22.12 (`.nvmrc` = 22).
+- Không dùng `@nestjs/cli`, vì gói này kéo theo TypeScript 5.9 riêng và sẽ build lệch phiên bản. Build bằng `tsc -p tsconfig.build.json`; chạy dev bằng `apps/api/scripts/dev.mjs` (`tsc --watch` + `node --watch`).
+- `@srm/shared` build ra CommonJS (`dist/`), api dùng bản build. Web và Jest trỏ thẳng vào source qua alias của Vite, `paths` trong tsconfig và `moduleNameMapper`, nên không phải build lại khi sửa.
+- Quy ước module: file export công khai của một module NestJS là `modules/<m>/index.ts`. dependency-cruiser cấm module khác import thẳng vào bên trong.
+- Hook Claude Code của koni-harness: `matcher: "Bash"` + `if: "Bash(git commit*)"` và gọi `scripts/claude-commit-gate.sh` (LESSONS §3), không dùng snippet trong `adapters.md`.
+
+**Rationale**: Vì ESLint và ruff là mặc định của NestJS/Vite và đã có trong `.gitignore`, ít cấu hình nhất. Các phiên bản được chọn là bộ mới nhất mà mọi công cụ cùng hỗ trợ; lên bản mới hơn thì typescript-eslint, ts-jest hoặc nestjs-zod sẽ hỏng ngay.
+
+**Alternatives considered**:
+- Biome thay ESLint — loại vì thiếu một số luật react-hooks và lệch mặc định của NestJS/Vite.
+- uv thay pip — loại để không thêm công cụ; có thể xem lại khi AI Service cần ghim các gói nặng (torch, sentence-transformers).
+- TypeScript 7 / NestJS 12 — loại tạm thời vì toolchain chưa tương thích. Xem lại khi typescript-eslint và nestjs-zod hỗ trợ.
+
+**Impact**: ARCHITECTURE › *Thư viện chính*, › *CI*, › *Kiểu kiến trúc*; `AGENTS.md` › *Lệnh*; `docs/SETUP.md`; `DEPLOY.md`.
+
+**Date**: 2026-10-08
+**Version**: 0.1.0
+
+### D23. Image MinIO chuyển sang Chainguard; ứng dụng chỉ biết biến `MINIO_*`
+
+**Context**: ARCHITECTURE › Docker Compose ghi image `minio/minio`. Đến 10/2026 image này không còn pull được: MinIO ngừng phát hành image community từ cuối 2025, đưa repo vào chế độ bảo trì, rồi xóa repo trên Docker Hub khoảng 11/09/2026. `quay.io/minio/minio` cũng không còn pull được (đã kiểm bằng `docker manifest inspect`).
+
+**Decision**:
+- Service `minio` dùng `cgr.dev/chainguard/minio`. Đây vẫn là mã MinIO, do Chainguard build lại từ source, miễn phí ở tag `latest`, nên ghim theo digest. Image có sẵn `mc`, nên healthcheck dùng `mc ready local`.
+- Ứng dụng chỉ đọc `MINIO_ENDPOINT`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY`, `MINIO_BUCKET`, không phụ thuộc server cụ thể. Compose map access/secret key thành tài khoản root của service `minio`. Muốn dùng MinIO hay S3 bên ngoài thì chỉ cần đổi `deploy/.env`.
+- Integration test cần MinIO (US-1.6) dùng cùng image và digest.
+
+**Rationale**: Vì đây là thay đổi nhỏ nhất mà vẫn giữ nguyên API và hành vi MinIO, có nguồn được vá bảo mật thường xuyên. Tách cấu hình qua biến `MINIO_*` thì lần sau đổi nhà cung cấp không phải sửa code.
+
+**Alternatives considered**:
+- `pgsty/silo` (fork MinIO) — loại vì là dự án nhỏ, không có cam kết bảo trì.
+- RustFS, SeaweedFS, Garage — loại vì phải đổi biến, cấu hình hoặc chấp nhận dự án còn non; giữ làm phương án dự phòng.
+- Không chạy object storage trong compose — loại vì phá yêu cầu "một lệnh chạy cả hệ thống" (EPIC-1) và testcontainers vẫn cần một image.
+
+**Impact**: ARCHITECTURE › Docker Compose; `deploy/docker-compose.yml`, `deploy/.env.example`, `DEPLOY.md`; story US-1.1 (*Story refresh*), US-1.6; LESSONS §4.
+
+**Date**: 2026-10-08
+**Version**: 0.1.0
