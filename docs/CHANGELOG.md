@@ -6,6 +6,27 @@ Lịch sử phát hành của Smart Recruit Match. Mỗi commit ship code tăng 
 
 ---
 
+## [0.1.1] — 2026-10-08 — Lược đồ DB lõi, `transitionTo`, nhật ký thao tác — v0.1.1
+
+US-1.2. Có lược đồ `core` đầu tiên và cơ chế chuyển trạng thái dùng chung: mọi thay đổi trạng thái của đợt, JD, CV đi qua `transitionTo`, có khóa lạc quan và nhật ký chỉ ghi thêm trong cùng giao dịch. Chưa có endpoint nghiệp vụ.
+
+### Added
+- Lược đồ `core` bằng Drizzle (`drizzle-orm` 0.45.3, `drizzle-kit` 0.31.11): `campaigns`, `companies`, `users`, `students`, `job_descriptions`, `cvs`, `audit_logs`, kèm migration SQL trong `apps/api/drizzle/`. Cột `status` có CHECK lấy từ bảng chuyển dùng chung; CHECK vai trò, HR ↔ `company_id`, STUDENT ↔ `student_id`, email chữ thường.
+- `packages/shared/states`: bảng chuyển trạng thái của đợt, JD, CV dùng chung cho web và API; `packages/shared/schemas`: `ROLES`, `ACTOR_KINDS`, `ApiErrorSchema`. `packages/shared` có unit test riêng (Jest).
+- `transitionTo` (`StateTransitionService`): khóa dòng, kiểm `row_version` (lệch thì trả `409`), kiểm bảng chuyển và điều kiện (sai thì trả `422`), ghi nhật ký trong cùng giao dịch. Exception filter trả body `{ code, message, details }`.
+- Nhật ký thao tác chỉ ghi thêm: trigger `ENABLE ALWAYS` chặn `UPDATE`/`DELETE`/`TRUNCATE` trên `audit_logs` (BR-10); cột `reason`, `actor_kind` (CONTEXT D24).
+- Docker Compose có service `migrate` chạy một lần trước `api`; biến `DATABASE_URL`; `GET /api/health` kiểm thêm kết nối DB.
+- Helper test dùng lại cho các story sau (`apps/api/test/helpers/`); CI kiểm migration khớp schema (`db:generate` không sinh file mới).
+- CONTEXT D24; LESSONS §6 (migrator bỏ qua migration có mốc thời gian cũ hơn), §7 (kiểu Drizzle cho hàm dùng chung nhiều bảng).
+
+### Changed
+- ARCHITECTURE › *Các bảng chính*, › *Các module* (`audit` ghi trong giao dịch, không dùng interceptor), › *Quản lý trạng thái*, › *Docker Compose*.
+- Sprint `sprint-2026-W41` kéo thêm US-1.2.
+
+**Commit**: b1f8b17
+
+---
+
 ## [0.1.0] — 2026-10-08 — Scaffold monorepo, Docker Compose, CI — v0.1.0
 
 Lần ship code đầu tiên (US-1.1). Repo có khung chạy được: monorepo pnpm, Docker Compose dựng cả hạ tầng bằng một lệnh, CI GitHub Actions và cổng commit koni-harness. Chưa có nghiệp vụ. Gộp luôn các thay đổi tài liệu trước đó, vốn nằm ở `[Unreleased]`.

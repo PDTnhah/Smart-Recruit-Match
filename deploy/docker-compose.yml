@@ -14,6 +14,14 @@ x-healthcheck: &healthcheck
   retries: 12
   start_period: 20s
 
+# The api and migrate services run the same image.
+x-api-build: &api-build
+  context: ..
+  dockerfile: apps/api/Dockerfile
+
+# Composed from POSTGRES_*; the password must be URL-safe (DEPLOY.md).
+x-database-url: &database-url postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+
 services:
   postgres:
     # Same image as the testcontainers setup (apps/api/test/setup/images.ts).
@@ -90,21 +98,34 @@ services:
       <<: *healthcheck
       test: ["CMD", "/mailpit", "readyz"]
 
+  # One-shot: applies the SQL migrations in apps/api/drizzle, then exits (CONTEXT D24). Because api
+  # depends on it with service_completed_successfully, `up --wait` waits for it to exit 0.
+  migrate:
+    build: *api-build
+    command: ["node", "dist/db/migrate.js"]
+    restart: "no"
+    environment:
+      DATABASE_URL: *database-url
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   api:
-    build:
-      context: ..
-      dockerfile: apps/api/Dockerfile
+    build: *api-build
     restart: unless-stopped
     environment:
       NODE_ENV: production
       PORT: "3000"
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      DATABASE_URL: *database-url
       # Object storage contract (read by the API from US-1.6).
       MINIO_ENDPOINT: ${MINIO_ENDPOINT:?set MINIO_ENDPOINT in deploy/.env}
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
       MINIO_BUCKET: ${MINIO_BUCKET:?set MINIO_BUCKET in deploy/.env}
     depends_on:
+      migrate:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       redis:

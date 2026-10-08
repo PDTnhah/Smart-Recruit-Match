@@ -1,6 +1,6 @@
 {
   "name": "@srm/shared",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Zod schemas, state types and message contracts shared by apps/web and apps/api",
   "main": "./dist/index.js",
@@ -29,9 +29,15 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test": "jest"
   },
   "dependencies": {
     "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/jest": "30.0.0",
+    "jest": "30.5.2",
+    "ts-jest": "29.4.14"
   }
 }

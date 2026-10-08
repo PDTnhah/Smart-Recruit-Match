@@ -1,18 +1,17 @@
 # Sprint Status
 
 > **AUTO-GENERATED** by `koni-docs status`. Do not hand-edit (RULE-5).
-> Last generated: 2026-10-08 09:27:47 UTC
+> Last generated: 2026-10-08 10:30:33 UTC
 > Total stories: 37
 
 ## ⏰ Deadlines (0)
 
 _No stories carry an explicit deadline._
 
-## 📋 Backlog (36)
+## 📋 Backlog (35)
 
 | ID | Title | Epic | Pri | Points | Sprint | Assignee |
 |---|---|---|---|---|---|---|
-| US-1.2 | Lược đồ DB lõi, `transitionTo`, nhật ký thao tác | EPIC-1 | P0 | 5 | — | — |
 | US-1.3 | Đăng nhập, phân quyền, DESIGN.md, khung giao diện | EPIC-1 | P0 | 8 | — | — |
 | US-1.4 | Tạo và cấu hình đợt thực tập | EPIC-1 | P0 | 5 | — | — |
 | US-1.5 | Doanh nghiệp, tài khoản HR, đăng và duyệt JD | EPIC-1 | P0 | 8 | — | — |
@@ -57,11 +56,12 @@ _No stories_
 
 _No stories_
 
-## 👀 Review (1)
+## 👀 Review (2)
 
 | ID | Title | Epic | Pri | Points | Sprint | Assignee |
 |---|---|---|---|---|---|---|
 | US-1.1 | Scaffold monorepo, Docker Compose, CI | EPIC-1 | P0 | 5 | sprint-2026-W41 | PDTnhah |
+| US-1.2 | Lược đồ DB lõi, `transitionTo`, nhật ký thao tác | EPIC-1 | P0 | 5 | sprint-2026-W41 | PDTnhah |
 
 ## ✅ Done (0)
 
@@ -79,10 +79,10 @@ _No stories_
 
 ## Summary
 
-- 📋 **Backlog**: 36
+- 📋 **Backlog**: 35
 - 🟢 **Ready**: 0
 - 🟡 **In Progress**: 0
-- 👀 **Review**: 1
+- 👀 **Review**: 2
 - ✅ **Done**: 0
 - 🚫 **Blocked**: 0
 - 🗑️ **Deprecated**: 0

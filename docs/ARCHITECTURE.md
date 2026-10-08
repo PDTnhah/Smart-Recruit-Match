@@ -128,7 +128,7 @@ Module gọi nhau qua service đã export hoặc phát sự kiện qua `@nestjs/
 | `interview` | Lịch phỏng vấn, kết quả, Dự bị, lời mời, xác nhận | GĐ9 |
 | `notification` | Email (nodemailer + template), thông báo trong app, SSE (`@Sse()` của NestJS, Redis pub/sub khi chạy nhiều instance) | PRD › Thông báo |
 | `reporting` | Dashboard, xuất Excel/PDF | GĐ10, PRD › Success Criteria |
-| `audit` | Nhật ký thao tác (NestJS interceptor + bảng append-only) | BR-10, BR-17 |
+| `audit` | Nhật ký thao tác: `AuditService.record(tx, …)` ghi trong cùng giao dịch với thay đổi nghiệp vụ, không dùng interceptor vì interceptor chạy ngoài giao dịch; bảng append-only (CONTEXT D24) | BR-10, BR-17 |
 | `aigateway` | Phát job sang RabbitMQ, nhận kết quả, chống xử lý trùng, theo dõi trạng thái job | – |
 
 #### Quản lý trạng thái
@@ -136,6 +136,8 @@ Module gọi nhau qua service đã export hoặc phát sự kiện qua `@nestjs/
 Mỗi đối tượng có vòng đời (đợt, JD, hồ sơ ứng tuyển, đề cử…) dùng kiểu trạng thái (union literal hoặc `enum`) kèm **bảng chuyển trạng thái hợp lệ** trong `domain/`. Các kiểu này đặt trong `packages/shared` để frontend hiển thị và ẩn/hiện nút đúng theo cùng một định nghĩa. Mọi thay đổi đi qua một hàm duy nhất kiểu `transitionTo(newState, actor, reason)`: kiểm tra chuyển hợp lệ, kiểm tra điều kiện nghiệp vụ, ghi nhật ký — trong cùng một giao dịch.
 
 Chống ghi đè đồng thời (VD: HR duyệt trong lúc Trung tâm điều chỉnh) bằng optimistic locking: cột `row_version`, câu lệnh `UPDATE … SET …, row_version = row_version + 1 WHERE id = $1 AND row_version = $2`; không có dòng nào bị cập nhật → trả `409 Conflict`. Thao tác chạy phân bổ khóa dòng của đợt bằng `SELECT … FOR UPDATE`. Không cần thư viện state machine (XState…) — bảng chuyển trạng thái tự viết là đủ.
+
+Hiện thực (US-1.2): bảng chuyển nằm ở `packages/shared/states/`; hàm `transitionTo` ở `apps/api/src/common/state/` (module gọi qua `StateTransitionService`). Thứ tự trong giao dịch: `SELECT … FOR UPDATE` → so `row_version` (lệch → `409 ROW_VERSION_CONFLICT`) → kiểm bảng chuyển (`422 INVALID_TRANSITION`) → guard nghiệp vụ (`422 TRANSITION_CONDITION_FAILED`) → `UPDATE … WHERE row_version = n` → ghi `audit_logs`. So `row_version` trước bảng chuyển để yêu cầu thua trong một cuộc đua nhận `409`, không nhận nhầm `422`.
 
 #### Allocation Engine
 
@@ -408,13 +410,13 @@ Nên đặt giới hạn chi tiêu trên trang quản lý Claude API và theo d�
 
 | Bảng | Thực thể PRD | Cột chính | Ràng buộc / chỉ mục |
 |---|---|---|---|
-| `campaigns` | DOT_THUC_TAP | id, name, status, phase_deadlines JSONB, config JSONB | – |
+| `campaigns` | DOT_THUC_TAP | id, name, status, phase_deadlines JSONB, config JSONB, row_version | CHECK(status) |
 | `companies` | DOANH_NGHIEP | id, name, field, address, contact | – |
-| `users` | TAI_KHOAN_HR + tài khoản khác | id, email, password_hash / sso_subject, role, company_id, student_id | unique(email) |
+| `users` | TAI_KHOAN_HR + tài khoản khác | id, email, password_hash, full_name, role, company_id, student_id, is_active (sso_subject thêm khi làm SSO) | unique(email); unique(student_id); CHECK(role); chỉ HR có company_id, chỉ STUDENT có student_id (CHECK) |
 | `students` | SINH_VIEN | id, student_code, full_name, major, cohort, gpa | unique(student_code) |
 | `skills` | Danh mục kỹ năng | id, canonical_name, aliases TEXT[], group | unique(canonical_name) |
 | `job_descriptions` | JD | id, campaign_id, company_id, title, position_group, raw_text, file_key, requirements JSONB, quota, exam_blueprint JSONB, version, status, row_version | index(campaign_id, status) |
-| `cvs` | CV | id, student_id, campaign_id, file_key, profile JSONB, pii JSONB (mã hóa), profile_masked JSONB, version, status, hidden_text_flag | unique một CV hiệu lực: partial unique(student_id, campaign_id) WHERE active |
+| `cvs` | CV | id, student_id, campaign_id, file_key, profile JSONB, pii JSONB (mã hóa), profile_masked JSONB, version, status, hidden_text_flag, row_version | unique một CV hiệu lực: partial unique(student_id, campaign_id) WHERE active; CHECK(status) |
 | `match_results` | KET_QUA_PHU_HOP | cv_id, jd_id, cv_version, jd_version, eligible, ineligible_reasons JSONB, criteria JSONB, s_cv, prompt_version, model | unique(cv_id, jd_id, cv_version, jd_version, prompt_version); index(jd_id, s_cv DESC) |
 | `preferences` | NGUYEN_VONG | id, campaign_id, student_id, jd_id, rank, status | unique(student_id, jd_id); unique(campaign_id, student_id, rank) |
 | `question_banks` | – | id, jd_id / position_group, blueprint JSONB, version, locked_at | – |
@@ -428,10 +430,12 @@ Nên đặt giới hạn chi tiêu trên trang quản lý Claude API và theo d�
 | `interviews` | PHONG_VAN | nomination_id, scheduled_at, mode, location, result, note | – |
 | `offers` | – | nomination_id, sent_at, expires_at, response, responded_at | – |
 | `notifications` | – | id, user_id, type, payload JSONB, read_at | index(user_id, read_at) |
-| `audit_logs` | NHAT_KY | id, actor_id, action, entity, entity_id, before JSONB, after JSONB, at | chỉ thêm, không sửa/xóa |
+| `audit_logs` | NHAT_KY | id, actor_kind (`USER`/`SYSTEM`), actor_id, action, entity, entity_id, before JSONB, after JSONB, reason, at | chỉ thêm: trigger `ENABLE ALWAYS` chặn UPDATE/DELETE/TRUNCATE; CHECK actor_id có khi và chỉ khi `USER`; index(entity, entity_id, at); không FK tới users (CONTEXT D24) |
 | `ai.embeddings` | – | owner_type (cv/jd/question/skill/essay), owner_id, version, model, embedding vector(1024) | index HNSW (vector_cosine_ops) |
 | `ai.llm_calls` | – | id, job_id, agent, prompt_version, model, effort, input_tokens, cache_read_tokens, cache_write_tokens, output_tokens, cost_usd, latency_ms, stop_reason, log_key, created_at | index(agent, created_at) |
 | `ai.jobs` | – | job_id, type, status, attempts, last_error, created_at, finished_at | PK(job_id) — chống xử lý trùng |
+
+Quy ước chung của schema `core` (US-1.2, CONTEXT D24): khóa chính `bigint generated always as identity`; cột `status` là `text` kèm CHECK, danh sách giá trị sinh từ `packages/shared/states`; bảng có vòng đời có `row_version integer not null default 0`. Cột `pii` của `cvs` thêm ở US-2.4, cột `active` và partial unique index ở US-1.6.
 
 Prompt và phản hồi đầy đủ của từng lần gọi LLM lưu thành file JSON trên MinIO (`log_key`), không lưu trong DB để DB gọn.
 
@@ -624,6 +628,7 @@ REST, mô tả bằng OpenAPI.
 | Service | Image / build | Ghi chú |
 |---|---|---|
 | `nginx` | nginx | Phục vụ file build của frontend, reverse proxy `/api` |
+| `migrate` | build từ `apps/api/` (cùng image `api`) | Chạy một lần: áp migration SQL (`node dist/db/migrate.js`) rồi thoát; `api` chờ bằng `service_completed_successfully` (CONTEXT D24) |
 | `api` | build từ `apps/api/` | NestJS (Node.js LTS) |
 | `ai-worker` | build từ `ai-service/` | FastStream worker; chạy được nhiều bản sao |
 | `ai-api` | build từ `ai-service/` | FastAPI (health, quản trị, chatbot) |

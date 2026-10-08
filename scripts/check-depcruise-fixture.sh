@@ -10,8 +10,8 @@ if [ "$status" -eq 0 ]; then
   echo "check-depcruise-fixture: expected violations but depcruise passed" >&2
   exit 1
 fi
-# Each expected violation, as "<rule>: <from> → <to fragment>". A resolved package (@nestjs/common)
-# and an unresolved one (drizzle-orm) are both listed: they take different paths in the cruiser.
+# Each expected violation, as "<rule>: <from> → <to fragment>". Both packages resolve into
+# node_modules/.pnpm/… since US-1.2 installed drizzle-orm; the edge must still be reported (LESSONS §5).
 for expected in \
   'domain-no-framework: .*alpha/domain/scoring.ts → .*@nestjs/common' \
   'domain-no-framework: .*alpha/domain/scoring.ts → .*drizzle-orm' \
