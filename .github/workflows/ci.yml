@@ -1,0 +1,92 @@
+# CI for the monorepo (ARCHITECTURE › CI, US-1.1 AC-4). Any failing step fails its job.
+# The TS ↔ Python message-contract check joins in US-2.1.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
+
+jobs:
+  node:
+    name: TypeScript (typecheck, lint, test, build, boundaries)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+
+      - name: Enable pnpm (corepack, version from package.json)
+        run: |
+          corepack enable
+          pnpm --version
+
+      - name: Locate pnpm store
+        id: pnpm-store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v6
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: pnpm-store-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: pnpm-store-${{ runner.os }}-
+
+      - name: Install (once for the whole monorepo)
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      # Includes the integration project: testcontainers uses the runner's Docker.
+      - name: Test (unit + integration)
+        run: pnpm test
+
+      - name: Build web
+        run: pnpm --filter @srm/web build
+
+      - name: Module boundaries (dependency-cruiser)
+        run: pnpm depcruise
+
+      - name: Boundary rules still fire on the violation fixture
+        run: pnpm depcruise:fixture
+
+  python:
+    name: AI Service (ruff, pytest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: ai-service
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: ai-service/pyproject.toml
+
+      - name: Install
+        run: pip install -e ".[dev]"
+
+      - name: Lint
+        run: ruff check .
+
+      # Tests use fixtures only; no ANTHROPIC_API_KEY in CI (AGENTS › Gọi Claude API).
+      - name: Test
+        run: pytest

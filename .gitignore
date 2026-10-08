@@ -11,6 +11,7 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
+*.egg-info/
 
 # Environment
 .env
@@ -30,3 +31,7 @@ Thumbs.db
 # Link to .agents/skills, created per machine (docs/SETUP.md) — CONTEXT D18
 .claude/skills
 .claude/settings.local.json
+# >>> koni-harness >>>
+.koni-harness/loop-state
+.koni-harness/worktrees/
+# <<< koni-harness <<<

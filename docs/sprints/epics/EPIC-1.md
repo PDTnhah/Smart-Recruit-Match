@@ -95,7 +95,7 @@ Lộ trình chung ở [sprints/README › Lộ trình](../README.md#lộ-trình)
 
 | ID | Title | Goal | Status | Version |
 |---|---|---|---|---|
-| US-1.1 | Scaffold monorepo, Docker Compose, CI | Chạy toàn bộ hạ tầng bằng một lệnh; CI và cổng commit hoạt động | 📋 backlog | — |
+| US-1.1 | Scaffold monorepo, Docker Compose, CI | Chạy toàn bộ hạ tầng bằng một lệnh; CI và cổng commit hoạt động | 👀 review | — |
 | US-1.2 | Lược đồ DB lõi, `transitionTo`, nhật ký thao tác | Mọi thay đổi trạng thái đi qua một hàm, có audit trong cùng giao dịch | 📋 backlog | — |
 | US-1.3 | Đăng nhập, phân quyền, DESIGN.md, khung giao diện | Bốn vai trò đăng nhập và thấy đúng cổng của mình | 📋 backlog | — |
 | US-1.4 | Tạo và cấu hình đợt thực tập | Trung tâm tạo đợt với tham số và mốc; đợt tự chuyển trạng thái theo mốc | 📋 backlog | — |

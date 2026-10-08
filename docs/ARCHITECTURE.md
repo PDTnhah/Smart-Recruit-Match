@@ -111,7 +111,7 @@ Dùng **Server-Sent Events** (`GET /api/events/stream`) cho: thông báo, tiến
 - `domain/` — kiểu dữ liệu, enum trạng thái, bảng chuyển trạng thái, quy tắc tính toán. Viết bằng TypeScript thuần, không phụ thuộc NestJS hay CSDL, nên test nhanh và dễ;
 - `infrastructure/` — truy vấn Drizzle, adapter RabbitMQ/MinIO.
 
-Module gọi nhau qua service đã export hoặc phát sự kiện qua `@nestjs/event-emitter`; không module nào truy vấn thẳng bảng của module khác. Dùng dependency-cruiser trong CI để chặn import vượt ranh giới.
+Module gọi nhau qua service đã export hoặc phát sự kiện qua `@nestjs/event-emitter`; không module nào truy vấn thẳng bảng của module khác. File công khai của mỗi module là `modules/<m>/index.ts`: module khác chỉ import qua file này, không import thẳng vào `api/`, `application/`, `domain/`, `infrastructure/` của nó (CONTEXT D22). Dùng dependency-cruiser trong CI để chặn import vượt ranh giới.
 
 #### Các module
 
@@ -191,7 +191,7 @@ export function deferredAcceptance({ preferences, capacity, compareAt }: Allocat
 | Nhu cầu | Thư viện | Ghi chú |
 |---|---|---|
 | Framework | NestJS (adapter Express) | Module, DI, guard, interceptor, pipe |
-| ORM, migration | Drizzle ORM + drizzle-kit | Gần SQL, kiểu dữ liệu suy ra từ schema; hỗ trợ partial index (BR-08), JSONB, `FOR UPDATE`, giao dịch. File migration SQL được commit vào repo |
+| ORM, migration | Drizzle ORM + drizzle-kit; driver `pg` (node-postgres) | Gần SQL, kiểu dữ liệu suy ra từ schema; hỗ trợ partial index (BR-08), JSONB, `FOR UPDATE`, giao dịch. File migration SQL được commit vào repo |
 | Kiểm tra dữ liệu, OpenAPI | Zod + nestjs-zod, @nestjs/swagger | Một Zod schema dùng cho cả validate request và sinh tài liệu OpenAPI |
 | Xác thực, phân quyền | @nestjs/jwt + passport-jwt; guard `@Roles()` tự viết | Kiểm tra cấp bản ghi (HR chỉ xem JD của công ty mình) đặt trong service |
 | RabbitMQ | @golevelup/nestjs-rabbitmq | Gửi/nhận JSON thuần qua exchange/queue tự khai báo, trao đổi dễ với Python (transport RMQ mặc định của NestJS bọc message theo định dạng riêng) |
@@ -201,7 +201,8 @@ export function deferredAcceptance({ preferences, capacity, compareAt }: Allocat
 | Email | nodemailer + template Handlebars | – |
 | Xuất báo cáo | exceljs; pdfmake | – |
 | Log, giám sát | nestjs-pino; @nestjs/terminus (health check); prom-client | – |
-| Kiểm thử | Jest + Supertest; fast-check; testcontainers | – |
+| Kiểm thử | Jest + ts-jest + Supertest; fast-check; testcontainers | Jest chia hai project: `unit` (`src/**/*.spec.ts`) và `integration` (`test/integration/**/*.int-spec.ts`, có testcontainers) |
+| Lint | ESLint + typescript-eslint (`recommendedTypeChecked`) | Chung cho api, web, shared; AI Service dùng ruff (CONTEXT D22) |
 | Ranh giới module | dependency-cruiser | Chạy trong CI |
 
 Phương án ORM khác: **Prisma** phổ biến và dễ học hơn, nhưng một số tính năng PostgreSQL mà thiết kế này dựa vào (partial unique index, `SELECT … FOR UPDATE`) thường phải viết SQL tay. Nếu nhóm đã quen Prisma vẫn dùng được, chỉ cần viết các phần đó bằng SQL trong migration và `$queryRaw`.
@@ -629,7 +630,7 @@ REST, mô tả bằng OpenAPI.
 | `postgres` | pgvector/pgvector | Có sẵn extension pgvector |
 | `redis` | redis | – |
 | `rabbitmq` | rabbitmq:management | Có giao diện quản lý |
-| `minio` | minio/minio | – |
+| `minio` | cgr.dev/chainguard/minio (ghim digest) | `minio/minio` đã bị xóa khỏi Docker Hub (CONTEXT D23); ứng dụng chỉ đọc biến `MINIO_*` |
 | `mailpit` | axllent/mailpit | Bắt email khi phát triển |
 
 Mô hình `bge-m3` chạy trên CPU được với quy mô đồ án (cần khoảng 2–4 GB RAM); có GPU thì nhanh hơn nhưng không bắt buộc.
@@ -642,7 +643,7 @@ Mô hình `bge-m3` chạy trên CPU được với quy mô đồ án (cần kho�
 
 ### CI
 
-GitHub Actions: `pnpm install` một lần cho cả monorepo; typecheck, lint, test backend (có testcontainers) và build frontend; kiểm tra ranh giới module (dependency-cruiser); kiểm tra hợp đồng message TS ↔ Python; lint + test AI Service (dùng fixture, không gọi API thật). Bộ đánh giá AI với API thật chạy thủ công khi đổi prompt.
+GitHub Actions (`.github/workflows/ci.yml`): `pnpm install` một lần cho cả monorepo; typecheck, lint (ESLint), test backend (có testcontainers) và build frontend; kiểm tra ranh giới module (dependency-cruiser, kèm fixture vi phạm chứng minh luật có hiệu lực); kiểm tra hợp đồng message TS ↔ Python (từ US-2.1); lint (ruff) + test (pytest) AI Service (dùng fixture, không gọi API thật). Bộ đánh giá AI với API thật chạy thủ công khi đổi prompt.
 
 ---
 
@@ -701,8 +702,12 @@ Smart-Recruit-Match/
 │   ├── evals/                   # dữ liệu gán nhãn + script đánh giá
 │   └── tests/
 ├── simulation/                  # sinh dữ liệu giả lập, so sánh thuật toán phân bổ
-├── deploy/                      # docker-compose.yml, nginx.conf, .env.example
+├── deploy/                      # docker-compose.yml, nginx.conf, nginx.Dockerfile, .env.example
 ├── docs/
+├── scripts/                     # script kiểm tra dùng trong CI và hook (depcruise fixture, commit gate)
+├── .koni-harness/               # cổng commit koni-harness (vendored)
+├── .github/workflows/ci.yml
+├── DEPLOY.md                    # biến môi trường, chạy Docker Compose
 ├── package.json
 └── pnpm-workspace.yaml          # khai báo apps/*, packages/*
 ```
