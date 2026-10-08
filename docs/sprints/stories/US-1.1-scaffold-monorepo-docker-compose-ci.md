@@ -2,17 +2,30 @@
 id: US-1.1
 title: "Scaffold monorepo, Docker Compose, CI"
 epic: EPIC-1
-status: backlog
+status: in-progress
 priority: P0
 points: 5
-sprint:
+sprint: sprint-2026-W41
 version_shipped:
 arch_ref: [AD-3]
-assignee:
+assignee: PDTnhah
 commit:
 created: 2026-10-07
-updated: 2026-10-07
+updated: 2026-10-08
 ---
+
+## Story refresh — 2026-10-08
+
+Đọc lại story vào ngày 2026-10-08 trên nhánh `us-1.1`, so với spec và môi trường hiện tại. Các quyết định sau được chốt vào story; số AC giữ nguyên:
+
+- **Image MinIO** ([CONTEXT D23](../../CONTEXT.md)): `minio/minio` đã bị xóa khỏi Docker Hub, `quay.io/minio/minio` cũng không còn pull được. Service `minio` dùng `cgr.dev/chainguard/minio`, vẫn là mã MinIO gốc, ghim theo digest. API chỉ đọc `MINIO_ENDPOINT`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY`, `MINIO_BUCKET`, nên trỏ sang MinIO hay S3 bên ngoài thì chỉ cần đổi `.env`. AC-2 vẫn yêu cầu đủ 7 service.
+- **Công cụ và phiên bản** ([CONTEXT D22](../../CONTEXT.md)): người dùng đã chốt các mục mà *Architecture constraints* để ngỏ:
+  - Lint: ESLint + typescript-eslint cho TypeScript, ruff cho Python.
+  - Python: `pyproject.toml` + `pip install -e ".[dev]"`.
+  - Driver PostgreSQL: `pg`.
+  - Vị trí file: `deploy/.env.example`, `DEPLOY.md` ở gốc repo.
+  - Phiên bản ghim: pnpm 10, TypeScript 6.0, NestJS 11. Lý do: typescript-eslint chưa hỗ trợ TypeScript 7, nestjs-zod chưa hỗ trợ NestJS 12.
+- **Hook Claude Code** (LESSONS §3): snippet trong `koni-harness/references/adapters.md` không chạy. Story dùng `matcher: "Bash"` + `if: "Bash(git commit*)"` + `|| exit 2`.
 
 ## Goal
 
