@@ -11,7 +11,7 @@ prd_ref: [FR-1, NFR-1, NFR-13]
 arch_ref: [AD-14]
 depends_on: [US-1.1, US-1.2]
 assignee:
-commit:
+commit: 340e62e690eb36e84bf2ae97b81c0c13e12c32b7
 created: 2026-10-07
 updated: 2026-10-08
 ---
@@ -187,7 +187,7 @@ Mục thật nằm ở [CHANGELOG › 0.2.0](../../CHANGELOG.md). Tóm tắt:
 - Quản trị tạo tài khoản Trung tâm, Quản trị, Sinh viên; seed dữ liệu dev; helper `loginAs` cho test phân quyền.
 - `DESIGN.md` và shadcn/ui; khung ba cổng `/sv`, `/hr`, `/admin` và trang đăng nhập tiếng Việt, cổng sinh viên dùng được trên điện thoại.
 
-**Commit**:
+**Commit**: 340e62e
 
 ## Implementation notes
 

@@ -28,7 +28,7 @@ US-1.3. Bốn vai trò đăng nhập được và chỉ vào được cổng c�
 - ARCHITECTURE › *Frontend*, › *Tech stack*, › *Thư viện chính* (bỏ passport-jwt), › *Redis* (khóa `auth:refresh:{sha256}`), › *Security architecture*, › *Open architecture questions* (đã chốt Radix).
 - Sprint `sprint-2026-W41` kéo thêm US-1.3.
 
-**Commit**:
+**Commit**: 340e62e
 
 ---
 
