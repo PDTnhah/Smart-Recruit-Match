@@ -1,7 +1,8 @@
 // Minimal valid rows for the core tables. Test files share one database and run in parallel,
 // so every unique column gets a fresh value.
 import type { Database } from '../../src/db/types.js';
-import { campaigns, companies, cvs, jobDescriptions, students } from '../../src/db/schema/index.js';
+import type { Role } from '@srm/shared';
+import { campaigns, companies, cvs, jobDescriptions, students, users } from '../../src/db/schema/index.js';
 
 let sequence = 0;
 
@@ -58,6 +59,18 @@ export async function createCv(db: Database, values: Partial<typeof cvs.$inferIn
   const [row] = await db
     .insert(cvs)
     .values({ fileKey: uniqueValue('cv-files/cv'), ...values, studentId, campaignId })
+    .returning();
+  return row!;
+}
+
+/** A `users` row. HR needs `companyId` and STUDENT needs `studentId` (users CHECKs). */
+export async function createUser(
+  db: Database,
+  values: Partial<typeof users.$inferInsert> & { role: Role },
+) {
+  const [row] = await db
+    .insert(users)
+    .values({ email: `${uniqueValue('user')}@test.local`, fullName: 'Người dùng thử', ...values })
     .returning();
   return row!;
 }

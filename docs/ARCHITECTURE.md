@@ -47,7 +47,7 @@ flowchart TB
 
 | Lớp | Công nghệ | Lý do chọn |
 |---|---|---|
-| Frontend | React 19 + TypeScript + Vite; Tailwind CSS + shadcn/ui; TanStack Query; TanStack Table; React Router; React Hook Form + Zod; shadcn Chart (Recharts); react-pdf; dnd-kit | shadcn/ui đưa component vào repo dưới dạng mã nguồn nên tùy biến được, dùng token màu ngữ nghĩa thống nhất với DESIGN.md và là chuẩn review UI của quy trình koni (CONTEXT D14); TanStack Table cho các bảng dữ liệu ở màn quản trị; TanStack Query quản lý dữ liệu từ server gọn |
+| Frontend | React 19 + TypeScript + Vite; Tailwind CSS + shadcn/ui (Radix); TanStack Query; TanStack Table; React Router; React Hook Form + Zod; date-fns; openapi-typescript + openapi-fetch; shadcn Chart (Recharts); react-pdf; dnd-kit | shadcn/ui đưa component vào repo dưới dạng mã nguồn nên tùy biến được, dùng token màu ngữ nghĩa thống nhất với DESIGN.md và là chuẩn review UI của quy trình koni (CONTEXT D14); TanStack Table cho các bảng dữ liệu ở màn quản trị; TanStack Query quản lý dữ liệu từ server gọn |
 | Core Backend | Node.js LTS + TypeScript (strict) + NestJS; Drizzle ORM + drizzle-kit (migration); Zod (nestjs-zod); @nestjs/swagger; @golevelup/nestjs-rabbitmq; ioredis; chi tiết ở mục *Thư viện chính* (Component architecture › Core Backend) | NestJS có module, dependency injection, guard, interceptor — đủ cấu trúc cho nghiệp vụ nhiều trạng thái và phân quyền; cùng ngôn ngữ với frontend nên dùng chung được kiểu dữ liệu và schema kiểm tra |
 | Monorepo | pnpm workspaces; gói `packages/shared` | Frontend và backend dùng chung Zod schema, enum trạng thái, kiểu DTO |
 | AI Service | Python 3.12+; FastAPI; FastStream (RabbitMQ); Anthropic Python SDK; Pydantic v2; PyMuPDF, python-docx; sentence-transformers; RapidFuzz; Jinja2 | Hệ sinh thái AI tốt nhất ở Python: đọc PDF, embedding, viết script đánh giá |
@@ -77,9 +77,9 @@ Kiến trúc logic (các module, agent, CSDL, hàng đợi) bên dưới giữ n
 
 #### Cấu trúc
 
-Một ứng dụng SPA duy nhất, điều hướng theo vai trò (`/sv/*`, `/hr/*`, `/admin/*`), dùng chung thư viện component và API client. Zod schema trong `packages/shared` được dùng cho cả kiểm tra form ở frontend lẫn kiểm tra request ở backend; API client sinh từ OpenAPI của backend (orval hoặc openapi-typescript) để không lệch kiểu dữ liệu. Phòng thi là một route riêng với layout tối giản.
+Một ứng dụng SPA duy nhất, điều hướng theo vai trò (`/sv/*`, `/hr/*`, `/admin/*`), dùng chung thư viện component và API client. Zod schema trong `packages/shared` được dùng cho cả kiểm tra form ở frontend lẫn kiểm tra request ở backend; API client: openapi-typescript sinh kiểu từ OpenAPI của backend, openapi-fetch gọi API và tự refresh access token một lần khi gặp `401` ([CONTEXT D26](CONTEXT.md)), để không lệch kiểu dữ liệu. Phòng thi là một route riêng với layout tối giản.
 
-Giao diện dựng bằng shadcn/ui + Tailwind CSS: component sinh bằng CLI vào `apps/web/src/components/ui/` và sửa trực tiếp được; màu, chữ, khoảng cách lấy từ token ngữ nghĩa theo `DESIGN.md` (tạo trong EPIC-1, trước màn hình đầu tiên). Chuỗi giao diện tiếng Việt; component ngày giờ dùng locale `vi` của date-fns.
+Giao diện dựng bằng shadcn/ui (nền Radix, preset `radix-nova`, CONTEXT D26) + Tailwind CSS: component sinh bằng CLI vào `apps/web/src/components/ui/` và sửa trực tiếp được; màu, chữ, khoảng cách lấy từ token ngữ nghĩa theo `DESIGN.md` (tạo trong EPIC-1, trước màn hình đầu tiên). Chuỗi giao diện tiếng Việt; component ngày giờ dùng locale `vi` của date-fns.
 
 #### Màn hình theo cổng
 
@@ -195,7 +195,7 @@ export function deferredAcceptance({ preferences, capacity, compareAt }: Allocat
 | Framework | NestJS (adapter Express) | Module, DI, guard, interceptor, pipe |
 | ORM, migration | Drizzle ORM + drizzle-kit; driver `pg` (node-postgres) | Gần SQL, kiểu dữ liệu suy ra từ schema; hỗ trợ partial index (BR-08), JSONB, `FOR UPDATE`, giao dịch. File migration SQL được commit vào repo |
 | Kiểm tra dữ liệu, OpenAPI | Zod + nestjs-zod, @nestjs/swagger | Một Zod schema dùng cho cả validate request và sinh tài liệu OpenAPI |
-| Xác thực, phân quyền | @nestjs/jwt + passport-jwt; guard `@Roles()` tự viết | Kiểm tra cấp bản ghi (HR chỉ xem JD của công ty mình) đặt trong service |
+| Xác thực, phân quyền | @nestjs/jwt; một guard global `AccessGuard` tự viết (`@Public()`, `@Roles()`), không dùng passport ([CONTEXT D25](CONTEXT.md)) | Kiểm tra cấp bản ghi (HR chỉ xem JD của công ty mình) đặt trong service, qua `common/auth/record-access.ts` |
 | RabbitMQ | @golevelup/nestjs-rabbitmq | Gửi/nhận JSON thuần qua exchange/queue tự khai báo, trao đổi dễ với Python (transport RMQ mặc định của NestJS bọc message theo định dạng riêng) |
 | Redis | ioredis | – |
 | Lưu file | @aws-sdk/client-s3 + @aws-sdk/s3-request-presigner (trỏ tới MinIO); multer; file-type | file-type đọc "magic bytes" để kiểm tra MIME thật |
@@ -448,6 +448,7 @@ Prompt và phản hồi đầy đủ của từng lần gọi LLM lưu thành fi
 | `competition:{jdId}` | Số NV hiện có | hết giai đoạn chọn NV |
 | `lock:allocation:{campaignId}` | Khóa khi đang chạy phân bổ | vài phút |
 | `ratelimit:{userId}:{route}` | Giới hạn tần suất gọi API | 1 phút |
+| `auth:refresh:{sha256}` | ID người dùng của một refresh token; khóa là SHA-256 của token, xóa bằng `GETDEL` khi xoay vòng ([CONTEXT D25](CONTEXT.md)) | `REFRESH_TOKEN_TTL_DAYS` (7 ngày) |
 
 ### Lưu trữ file và thời hạn dữ liệu
 
@@ -610,7 +611,7 @@ REST, mô tả bằng OpenAPI.
 
 | Nhóm | Biện pháp |
 |---|---|
-| Xác thực | JWT (access token 15 phút, refresh token trong cookie httpOnly); SSO của trường qua OIDC (tùy chọn); tài khoản HR do Trung tâm mời |
+| Xác thực | JWT HS256 (access token 15 phút); refresh token ngẫu nhiên trong cookie `HttpOnly`, `Secure`, `SameSite=Strict`, `Path=/api/auth`, xoay vòng mỗi lần dùng, Redis chỉ lưu hash; mật khẩu băm bằng `scrypt` ([CONTEXT D25](CONTEXT.md)); SSO của trường qua OIDC ngoài phạm vi (CONTEXT D20); tài khoản HR do Trung tâm mời |
 | Phân quyền | RBAC (`CENTER`, `STUDENT`, `HR`, `ADMIN`) + kiểm tra cấp bản ghi: HR chỉ xem đề cử thuộc JD của công ty mình (BR-11), SV chỉ xem dữ liệu của mình |
 | Dữ liệu cá nhân | TLS; mã hóa file trên MinIO; cột PII mã hóa (pgcrypto); che PII trước khi chấm; tài khoản DB của AI Service chỉ đọc view đã che; xóa dữ liệu theo thời hạn (mục *Lưu trữ file và thời hạn dữ liệu*) |
 | Gửi dữ liệu cho LLM | Chỉ bước phân tích CV cần gửi CV đầy đủ (có thể che trước SĐT, email bằng regex); các bước chấm chỉ gửi dữ liệu đã che. Đọc kỹ điều khoản xử lý dữ liệu của nhà cung cấp LLM (thời gian lưu, có dùng để huấn luyện không) và ghi vào phần đồng ý của SV |
@@ -762,6 +763,6 @@ Mỗi quyết định có một mã AD-N; lý do đầy đủ ở mục D tươn
 ## Open architecture questions
 
 - [ ] Q8 (PRD): dùng Claude API hay mô hình mở tự host — quyết định có giữ AD-10 hay không.
-- [ ] shadcn/ui dùng nền Radix hay Base UI — chốt khi chạy `shadcn init`.
+- [x] shadcn/ui dùng nền Radix hay Base UI — chốt Radix ([CONTEXT D26](CONTEXT.md), US-1.3).
 - [ ] Heatmap NV/chỉ tiêu (FR-33): bảng tô màu bằng token hay thêm thư viện biểu đồ có heatmap.
 - [ ] Có tích hợp SSO của trường qua OIDC hay chỉ dùng tài khoản nội bộ.

@@ -6,6 +6,32 @@ Lịch sử phát hành của Smart Recruit Match. Mỗi commit ship code tăng 
 
 ---
 
+## [0.2.0] — 2026-10-08 — Đăng nhập, phân quyền, DESIGN.md, khung giao diện — v0.2.0
+
+US-1.3. Bốn vai trò đăng nhập được và chỉ vào được cổng của mình. Mỗi API kiểm tra vai trò bằng một guard mặc định từ chối, và kiểm tra quyền trên từng bản ghi qua một helper dùng chung. Web có design system (`DESIGN.md` + shadcn/ui) và khung ba cổng `/sv`, `/hr`, `/admin`; chưa có màn nghiệp vụ.
+
+### Added
+- Đăng nhập bằng email và mật khẩu (`POST /api/auth/login`): access token JWT HS256 15 phút; refresh token ngẫu nhiên trong cookie `HttpOnly`, `Secure`, `SameSite=Strict`, `Path=/api/auth`, Redis lưu hash, xoay vòng mỗi lần `POST /api/auth/refresh`; `POST /api/auth/logout` thu hồi; `GET /api/me`. Mật khẩu băm bằng `scrypt` của Node. Email sai và mật khẩu sai trả cùng một `401` (CONTEXT D25).
+- Phân quyền theo vai trò `CENTER`, `STUDENT`, `HR`, `ADMIN`: guard global `AccessGuard` (`@Public()`, `@Roles()`, `@CurrentUser()`), route thiếu khai báo bị từ chối; helper `assertRecordAccess`/`recordScopeWhere` trả `404` cho bản ghi ngoài phạm vi (BR-11). Test duyệt mọi route bằng `DiscoveryService`.
+- Quản trị tài khoản: `POST`/`GET /api/admin/users` (chỉ `ADMIN`) tạo tài khoản Trung tâm, Quản trị, Sinh viên với mật khẩu ban đầu; HR bị từ chối `422`, email trùng `409`. Module `student` với `StudentService.createStudent`.
+- Seed dữ liệu dev `pnpm --filter @srm/api db:seed` (một tài khoản mỗi vai trò, hai công ty, hai sinh viên; chạy lại không tạo trùng). Helper test `createAuthTestApp`/`loginAs` và fixture hai công ty cho test IDOR.
+- Mọi lỗi API cùng một dạng `{ code, message, details? }` qua `ApiExceptionFilter`; request validate bằng DTO nestjs-zod sinh từ schema dùng chung; mã lỗi mới trong `packages/shared/schemas/errors.ts`.
+- OpenAPI từ `@nestjs/swagger` + nestjs-zod (`/api/docs` ngoài production); `pnpm api:sync` xuất `openapi.json` và sinh kiểu client (openapi-typescript). CI kiểm hai file này khớp với API.
+- `DESIGN.md`: token màu đã kiểm tương phản, chữ, khoảng cách, breakpoint và checklist 360 px, primitive shadcn, bốn trạng thái của mọi màn, form, chuỗi tiếng Việt, ngày giờ với date-fns `vi`.
+- Web: Tailwind CSS 4, shadcn/ui nền Radix (`components.json`, 16 primitive); React Router; TanStack Query; trang đăng nhập (React Hook Form + schema dùng chung); khung cổng sinh viên có thanh điều hướng dưới trên điện thoại, cổng HR và Trung tâm có thanh bên; access token chỉ giữ trong bộ nhớ, client tự refresh một lần khi gặp `401` (CONTEXT D26).
+- Biến môi trường `JWT_ACCESS_SECRET` (bắt buộc), `REFRESH_TOKEN_TTL_DAYS`, `REDIS_URL`, `SEED_PASSWORD`; integration test có thêm container Redis.
+- CONTEXT D25, D26; LESSONS §8.
+
+### Changed
+- `AppModule` không đọc biến môi trường lúc import; `main.ts` và test dùng chung `configureApp`. Log request che `Authorization`, `Cookie`, `Set-Cookie`.
+- `GET /api/health` được đánh dấu `@Public()`.
+- ARCHITECTURE › *Frontend*, › *Tech stack*, › *Thư viện chính* (bỏ passport-jwt), › *Redis* (khóa `auth:refresh:{sha256}`), › *Security architecture*, › *Open architecture questions* (đã chốt Radix).
+- Sprint `sprint-2026-W41` kéo thêm US-1.3.
+
+**Commit**:
+
+---
+
 ## [0.1.1] — 2026-10-08 — Lược đồ DB lõi, `transitionTo`, nhật ký thao tác — v0.1.1
 
 US-1.2. Có lược đồ `core` đầu tiên và cơ chế chuyển trạng thái dùng chung: mọi thay đổi trạng thái của đợt, JD, CV đi qua `transitionTo`, có khóa lạc quan và nhật ký chỉ ghi thêm trong cùng giao dịch. Chưa có endpoint nghiệp vụ.

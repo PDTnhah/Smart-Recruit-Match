@@ -14,4 +14,7 @@ else
 fi
 # `git [global options] commit`, not preceded by a path character (so .git/hooks/pre-commit does not match).
 printf '%s\n' "$cmd" | grep -Eq '(^|[^[:alnum:]_./-])git([[:space:]]+-[^[:space:]]+([[:space:]]+[^-[:space:]][^[:space:]]*)?)*[[:space:]]+commit([^[:alnum:]_-]|$)' || exit 0
-sh "$(git rev-parse --show-toplevel)/.koni-harness/gate-runner.sh" --phase work-commit >&2 || exit 2
+# The hook runs in the session's current directory; checks use repo-relative paths
+# (e.g. .koni-harness/secret-allow), so run the gate from the repo root.
+cd "$(git rev-parse --show-toplevel)" || exit 2
+sh .koni-harness/gate-runner.sh --phase work-commit >&2 || exit 2

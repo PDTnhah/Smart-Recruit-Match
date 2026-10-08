@@ -41,4 +41,10 @@ export default defineConfig(
     extends: [reactHooks.configs.flat['recommended-latest'], reactRefresh.configs.vite],
     languageOptions: { globals: globals.browser },
   },
+  {
+    // shadcn primitives export variants (buttonVariants) and hooks (useSidebar) next to components
+    // by design (CONTEXT D26); hot reload of these files only falls back to a full reload.
+    files: ['apps/web/src/components/ui/**/*.tsx'],
+    rules: { 'react-refresh/only-export-components': 'off' },
+  },
 );

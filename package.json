@@ -1,6 +1,6 @@
 {
   "name": "smart-recruit-match",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "private": true,
   "description": "Smart Recruit Match — monorepo (apps/api, apps/web, packages/shared, ai-service)",
   "packageManager": "pnpm@10.34.6",
@@ -14,6 +14,7 @@
     "test": "pnpm -r test",
     "depcruise": "depcruise apps/api/src --config .dependency-cruiser.cjs",
     "depcruise:fixture": "sh scripts/check-depcruise-fixture.sh",
+    "api:sync": "pnpm --filter @srm/shared build && pnpm --filter @srm/api openapi:export && pnpm --filter @srm/web api:gen",
     "docs:validate": "koni-docs validate --docs-path docs/",
     "docs:sync": "koni-docs sync --docs-path docs/",
     "docs:status": "koni-docs status --docs-path docs/"

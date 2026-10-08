@@ -408,3 +408,56 @@
 
 **Date**: 2026-10-08
 **Version**: 0.1.1
+
+### D25. Xác thực, phân quyền và refresh token (US-1.3)
+
+**Context**: US-1.3 dựng đăng nhập và phân quyền cho bốn vai trò. ARCH › *Security architecture* chỉ nêu access token 15 phút, refresh token trong cookie httpOnly và RBAC bốn vai trò. Spec chưa nói: thời hạn và nơi lưu refresh token, cách băm mật khẩu, mã lỗi khi sai vai trò hay khi bản ghi ngoài phạm vi, cổng của `ADMIN`, và tài khoản do ADMIN tạo lấy mật khẩu từ đâu. ARCH › *Thư viện chính* ghi `@nestjs/jwt + passport-jwt` nhưng không có `cookie-parser`, bcrypt hay argon2.
+
+**Decision** (người dùng chốt ngày 2026-10-08):
+- Access token: JWT HS256 ký bằng `JWT_ACCESS_SECRET`, hết hạn sau 15 phút, chứa `sub`, `role` và `company_id` hoặc `student_id`. Guard chỉ đọc token, không truy vấn DB.
+- Refresh token: chuỗi ngẫu nhiên 32 byte trong cookie `srm_refresh` (`HttpOnly`, `Secure`, `SameSite=Strict`, `Path=/api/auth`). Redis lưu SHA-256 của chuỗi ở khóa `auth:refresh:{sha256}`, giá trị là `userId`, TTL 7 ngày (`REFRESH_TOKEN_TTL_DAYS`). Mỗi lần refresh xóa khóa bằng `GETDEL` rồi phát token mới, nên token đã dùng, đã thu hồi hay đã hết hạn đều trả `401`. Đăng xuất xóa khóa.
+- Không dùng passport. Một guard global `AccessGuard` kiểm theo thứ tự: `@Public()` → access token (`401`) → `@Roles()` (`403`). Route thiếu cả hai decorator bị từ chối (`403`) và test duyệt route bằng `DiscoveryService` báo đỏ.
+- Sai vai trò trả `403`. Bản ghi ngoài phạm vi trả `404`, như khi bản ghi không tồn tại. Kiểm tra cấp bản ghi nằm trong service, qua helper `common/auth/record-access.ts`.
+- Băm mật khẩu bằng `scrypt` của `node:crypto` (N = 2^15, r = 8, p = 1). Email không tồn tại vẫn chạy một lần băm để thời gian phản hồi không lộ email nào đã có tài khoản.
+- Đọc cookie bằng cách tự tách header `Cookie`, không thêm `cookie-parser`.
+- `ADMIN` dùng chung cổng `/admin/*` với `CENTER`, menu khác nhau.
+- ADMIN tạo từng tài khoản `CENTER`, `ADMIN`, `STUDENT` và nhập mật khẩu ban đầu (8–128 ký tự). Tài khoản `HR` chỉ vào qua lời mời (US-1.5). Bản demo dùng seed.
+- Mọi lỗi HTTP trả cùng dạng `ApiError` (`{ code, message, details? }`) qua một filter duy nhất `ApiExceptionFilter`: lỗi miền giữ mã của nó, `HttpException` của Nest thành `HTTP_<status>`, lỗi khác ghi log và trả `500 INTERNAL_ERROR`. Mã mới: `UNAUTHENTICATED`, `INVALID_CREDENTIALS`, `FORBIDDEN`, `VALIDATION_FAILED`, `EMAIL_TAKEN`, `STUDENT_CODE_TAKEN`, `ROLE_NOT_ALLOWED`, `INTERNAL_ERROR`.
+- `JWT_ACCESS_SECRET` bắt buộc, ít nhất 32 ký tự; API từ chối giá trị bắt đầu bằng `change-me`, để không ai chạy hệ thống bằng khóa mẫu công khai.
+
+**Rationale**: Vì access token ngắn hạn và guard không truy vấn DB thì mỗi request rẻ, còn refresh token trong Redis cho phép thu hồi và từ chối token đã dùng mà không cần bảng mới (story không sinh migration trong đợt chạy song song). Lưu hash thay vì chuỗi gốc thì lộ dữ liệu Redis cũng không dùng được token. Guard tự viết trên `@nestjs/jwt` ngắn hơn một strategy passport và kiểm soát được mã lỗi. Một guard thay cho hai giúp thứ tự kiểm tra không phụ thuộc thứ tự đăng ký provider. Trả `404` cho bản ghi ngoài phạm vi để không lộ bản ghi nào tồn tại (BR-11). `scrypt` có sẵn trong Node nên không thêm thư viện.
+
+**Alternatives considered**:
+- Refresh token là JWT có `jti` — loại vì cần thêm một khóa ký mà không lợi gì hơn chuỗi ngẫu nhiên.
+- Bảng `refresh_tokens` trong PostgreSQL — loại vì phải sinh migration, trong khi Redis đã có trong compose.
+- passport + passport-jwt — loại vì thêm hai gói mà không dùng tính năng nào của passport.
+- bcrypt hoặc argon2 — loại vì cần thêm gói native; `scrypt` đủ mạnh và có sẵn.
+- Trả `403` cho bản ghi ngoài phạm vi — loại vì cho kẻ dò biết bản ghi có tồn tại.
+- Thu hồi cả chuỗi refresh token khi thấy một token cũ bị dùng lại — hoãn: cần lưu thêm token đã dùng và nhóm token theo phiên. Hiện token dùng lại chỉ bị từ chối; kẻ lấy được token và refresh trước người dùng vẫn giữ được phiên tới khi hết hạn. Xem lại khi review bảo mật (skill koni-qc) yêu cầu hoặc trước khi mở demo ra ngoài.
+
+**Impact**: ARCHITECTURE › *Security architecture*, › *Redis* (khóa `auth:refresh:{sha256}`), › *Thư viện chính* (bỏ `passport-jwt`); `deploy/docker-compose.yml`, `deploy/.env.example`, `DEPLOY.md`, `docs/SETUP.md` (`REDIS_URL`, `JWT_ACCESS_SECRET`, `REFRESH_TOKEN_TTL_DAYS`, `SEED_PASSWORD`); story US-1.3 (*Story refresh*); US-1.4…US-1.7, US-5.3, US-5.4 dùng `@Roles()`, `record-access.ts` và `loginAs`.
+
+**Date**: 2026-10-08
+**Version**: 0.2.0
+
+### D26. Nền shadcn/ui, API client và thư viện web (US-1.3)
+
+**Context**: AD-14 chọn shadcn/ui + Tailwind CSS nhưng để mở câu hỏi nền Radix hay Base UI (ARCH › *Open architecture questions*). ARCH › *Frontend* ghi API client sinh từ OpenAPI bằng "orval hoặc openapi-typescript". `apps/web` lúc này mới có React và Vite.
+
+**Decision** (người dùng chốt ngày 2026-10-08):
+- shadcn/ui dùng nền **Radix**, preset `radix-nova`, chạy bằng CLI `shadcn` 4.21.0. Component sinh vào `apps/web/src/components/ui/`.
+- API client: **openapi-typescript** sinh kiểu từ `openapi.json` (do API xuất bằng `@nestjs/swagger` + nestjs-zod), **openapi-fetch** gọi API. Middleware của openapi-fetch gắn access token và tự refresh một lần khi gặp `401`. Hook TanStack Query viết tay, mỏng.
+- Ghim phiên bản web: `react-router` 8.4.0, `@tanstack/react-query` 5.103.2, `react-hook-form` 7.88.0, `@hookform/resolvers` 5.9.1, `date-fns` 4.4.0, `tailwindcss` và `@tailwindcss/vite` 4.3.3, `openapi-typescript` 7.13.0, `openapi-fetch` 0.17.0. Chỉ chọn bản đã phát hành ít nhất 2 tuần.
+- Access token chỉ giữ trong bộ nhớ, không ghi `localStorage`. Khi tải trang, web gọi refresh một lần để lấy lại token từ cookie.
+
+**Rationale**: Vì Radix là nền lâu năm của shadcn, nhiều ví dụ và tài liệu nhất, agent ít viết sai API hơn; skill koni-qc cũng đối chiếu a11y theo Radix. openapi-typescript chỉ sinh một file kiểu, không sinh code runtime, nên diff nhỏ; openapi-fetch khoảng 6 KB và có middleware đúng chỗ cần cho refresh một lần. Giữ token trong bộ nhớ thì script độc hại (XSS) không đọc được token từ storage.
+
+**Alternatives considered**:
+- Base UI — loại vì mới hơn, ít ví dụ, dễ lẫn cú pháp với Radix khi agent viết code.
+- orval — loại vì sinh nhiều code và cấu hình hơn; hook sinh sẵn chưa cần ở giai đoạn này.
+- Lưu access token trong `localStorage` — loại vì lộ token khi bị XSS.
+
+**Impact**: ARCHITECTURE › *Frontend*, › *Open architecture questions* (đã chốt nền shadcn), › *Thư viện chính* (thêm `openapi-fetch`); `apps/web/components.json`; `DESIGN.md`; story US-1.3 (*Story refresh*); mọi story có giao diện.
+
+**Date**: 2026-10-08
+**Version**: 0.2.0

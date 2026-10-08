@@ -15,11 +15,14 @@ interface JsonResponse {
 export class DomainErrorFilter implements ExceptionFilter<DomainError> {
   catch(error: DomainError, host: ArgumentsHost): void {
     if (host.getType() !== 'http') throw error;
-    const body: ApiError = {
-      code: error.code,
-      message: error.message,
-      ...(error.details ? { details: error.details } : {}),
-    };
-    host.switchToHttp().getResponse<JsonResponse>().status(error.httpStatus).json(body);
+    host.switchToHttp().getResponse<JsonResponse>().status(error.httpStatus).json(domainErrorBody(error));
   }
+}
+
+export function domainErrorBody(error: DomainError): ApiError {
+  return {
+    code: error.code,
+    message: error.message,
+    ...(error.details ? { details: error.details } : {}),
+  };
 }
