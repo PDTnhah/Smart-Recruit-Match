@@ -158,12 +158,16 @@ REFRESH_TOKEN_TTL_DAYS=7
 # Mật khẩu của các tài khoản do db:seed tạo (chỉ dữ liệu dev/test):
 # SEED_PASSWORD=Srm-Dev-12345
 
+# Scheduled jobs (added in v0.3.0, CONTEXT D27)
+# Tác vụ định kỳ của API (chuyển pha đợt khi qua mốc). Integration test tự đặt false.
+SCHEDULER_ENABLED=true
+
 # Core Backend (added in v0.1.0)
 # Mức log pino: fatal | error | warn | info | debug | trace | silent
 LOG_LEVEL=info
 ```
 
-API chạy ngoài Docker (`pnpm --filter @srm/api dev`) đọc `PORT` (mặc định 3000), `LOG_LEVEL`, `REFRESH_TOKEN_TTL_DAYS` và các biến bắt buộc `DATABASE_URL`, `REDIS_URL`, `JWT_ACCESS_SECRET` từ môi trường của shell. Dựng `postgres` và `redis` bằng compose, áp migration và seed trước lần chạy đầu:
+API chạy ngoài Docker (`pnpm --filter @srm/api dev`) đọc `PORT` (mặc định 3000), `LOG_LEVEL`, `REFRESH_TOKEN_TTL_DAYS`, `SCHEDULER_ENABLED` (mặc định `true`) và các biến bắt buộc `DATABASE_URL`, `REDIS_URL`, `JWT_ACCESS_SECRET` từ môi trường của shell. Dựng `postgres` và `redis` bằng compose, áp migration và seed trước lần chạy đầu:
 
 ```bash
 docker compose -f deploy/docker-compose.yml up -d --wait postgres redis

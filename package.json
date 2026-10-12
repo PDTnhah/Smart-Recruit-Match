@@ -1,6 +1,6 @@
 {
   "name": "smart-recruit-match",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "Smart Recruit Match — monorepo (apps/api, apps/web, packages/shared, ai-service)",
   "packageManager": "pnpm@10.34.6",

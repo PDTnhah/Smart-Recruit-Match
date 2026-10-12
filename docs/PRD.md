@@ -780,7 +780,7 @@ erDiagram
 | ID | Requirement | Priority | Status | Epic |
 |----|-------------|----------|--------|------|
 | FR-1 | Đăng nhập; phân quyền theo vai trò (Cán bộ Trung tâm, Sinh viên, HR, Quản trị) và kiểm tra quyền cấp bản ghi (BR-11) | P0 | 👀 review | EPIC-1 |
-| FR-2 | Tạo và cấu hình đợt thực tập: đối tượng, mốc thời gian từng giai đoạn, tham số đợt; trạng thái đợt chuyển theo mốc và chỉ cho phép thao tác tương ứng (UC-01, GĐ0) | P0 | 🚧 in-progress | EPIC-1 |
+| FR-2 | Tạo và cấu hình đợt thực tập: đối tượng, mốc thời gian từng giai đoạn, tham số đợt; trạng thái đợt chuyển theo mốc và chỉ cho phép thao tác tương ứng (UC-01, GĐ0) | P0 | 👀 review | EPIC-1 |
 | FR-3 | Quản lý doanh nghiệp tham gia đợt, mời và cấp tài khoản HR (UC-02) | P0 | 📋 backlog | EPIC-1 |
 | FR-4 | HR đăng JD theo form hoặc file PDF/DOCX, kèm vị trí, chỉ tiêu, địa điểm, hình thức, thời gian, phụ cấp (UC-20, GĐ1) | P0 | 📋 backlog | EPIC-1 |
 | FR-5 | Cán bộ Trung tâm duyệt JD (UC-03, BR-02) | P0 | 📋 backlog | EPIC-1 |
@@ -880,7 +880,7 @@ Mỗi epic tương ứng một giai đoạn trong [ARCHITECTURE.md › Implement
 | US-1.1 | Scaffold monorepo, Docker Compose, CI | 👀 review | — |
 | US-1.2 | Lược đồ DB lõi, `transitionTo`, nhật ký thao tác | ✅ done | 0.1.1 |
 | US-1.3 | Đăng nhập, phân quyền, DESIGN.md, khung giao diện | 👀 review | 0.2.0 |
-| US-1.4 | Tạo và cấu hình đợt thực tập | 🚧 in-progress | — |
+| US-1.4 | Tạo và cấu hình đợt thực tập | 👀 review | 0.3.0 |
 | US-1.5 | Doanh nghiệp, tài khoản HR, đăng và duyệt JD | 📋 backlog | — |
 | US-1.6 | Đồng ý xử lý dữ liệu và nộp CV | 📋 backlog | — |
 | US-1.7 | Thông báo trong app, SSE, email, nhắc hạn | 📋 backlog | — |

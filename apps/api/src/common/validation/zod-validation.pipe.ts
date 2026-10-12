@@ -2,12 +2,11 @@ import { type ArgumentMetadata, Injectable, type PipeTransform } from '@nestjs/c
 import { createZodValidationPipe } from 'nestjs-zod';
 import { ZodError } from 'zod';
 import { ValidationFailedError } from '../errors/index.js';
+import { validationIssues } from './validation-issues.js';
 
 function toValidationFailed(error: unknown): Error {
   if (!(error instanceof ZodError)) return error instanceof Error ? error : new Error(String(error));
-  return new ValidationFailedError(
-    error.issues.map((issue) => ({ path: issue.path.join('.'), message: issue.message })),
-  );
+  return new ValidationFailedError(validationIssues(error));
 }
 
 // strictSchemaDeclaration: a body, query or params argument not typed with a Zod DTO is a server

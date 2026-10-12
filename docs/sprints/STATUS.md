@@ -1,7 +1,7 @@
 # Sprint Status
 
 > **AUTO-GENERATED** by `koni-docs status`. Do not hand-edit (RULE-5).
-> Last generated: 2026-10-12 16:00:48 UTC
+> Last generated: 2026-10-12 16:49:45 UTC
 > Total stories: 37
 
 ## ⏰ Deadlines (0)
@@ -50,18 +50,17 @@ _No stories carry an explicit deadline._
 
 _No stories_
 
-## 🟡 In Progress (1)
+## 🟡 In Progress (0)
 
-| ID | Title | Epic | Pri | Points | Sprint | Assignee |
-|---|---|---|---|---|---|---|
-| US-1.4 | Tạo và cấu hình đợt thực tập | EPIC-1 | P0 | 5 | sprint-2026-W42 | PDTnhah |
+_No stories_
 
-## 👀 Review (2)
+## 👀 Review (3)
 
 | ID | Title | Epic | Pri | Points | Sprint | Assignee |
 |---|---|---|---|---|---|---|
 | US-1.1 | Scaffold monorepo, Docker Compose, CI | EPIC-1 | P0 | 5 | sprint-2026-W42 | PDTnhah |
 | US-1.3 | Đăng nhập, phân quyền, DESIGN.md, khung giao diện | EPIC-1 | P0 | 8 | sprint-2026-W42 | PDTnhah |
+| US-1.4 | Tạo và cấu hình đợt thực tập | EPIC-1 | P0 | 5 | sprint-2026-W42 | PDTnhah |
 
 ## ✅ Done (1)
 
@@ -83,12 +82,12 @@ _No stories_
 
 - 📋 **Backlog**: 33
 - 🟢 **Ready**: 0
-- 🟡 **In Progress**: 1
-- 👀 **Review**: 2
+- 🟡 **In Progress**: 0
+- 👀 **Review**: 3
 - ✅ **Done**: 1
 - 🚫 **Blocked**: 0
 - 🗑️ **Deprecated**: 0
 
-✓ WIP: 1/3 stories in-progress.
+✓ WIP: 0/3 stories in-progress.
 
 ✓ No overdue stories.

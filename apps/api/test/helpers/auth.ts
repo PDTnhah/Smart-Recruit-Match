@@ -3,7 +3,7 @@
 //   const { agent } = await t.loginAs('HR', { companyId: other.id });
 //   await agent.get(`/api/job-descriptions/${jd.id}`).expect(404);
 import type { INestApplication, ModuleMetadata, Type } from '@nestjs/common';
-import { Test } from '@nestjs/testing';
+import { Test, type TestingModuleBuilder } from '@nestjs/testing';
 import { API_PREFIX, AuthSessionSchema, type Role } from '@srm/shared';
 import request from 'supertest';
 import type { App } from 'supertest/types';
@@ -63,13 +63,16 @@ export interface AuthTestAppOptions {
   /** Test-only controllers, e.g. a resource for record-access checks. */
   controllers?: Type[];
   imports?: ModuleMetadata['imports'];
+  /** Provider overrides, e.g. `(b) => b.overrideProvider(Clock).useValue(fakeClock)`. */
+  configure?: (builder: TestingModuleBuilder) => TestingModuleBuilder;
 }
 
 export async function createAuthTestApp(options: AuthTestAppOptions = {}): Promise<AuthTestApp> {
-  const moduleRef = await Test.createTestingModule({
+  const builder = Test.createTestingModule({
     imports: [AppModule, ...(options.imports ?? [])],
     controllers: options.controllers ?? [],
-  }).compile();
+  });
+  const moduleRef = await (options.configure ?? ((b: TestingModuleBuilder) => b))(builder).compile();
   const app = moduleRef.createNestApplication<INestApplication<App>>({ logger: false });
   configureApp(app, { NODE_ENV: 'test' });
   await app.init();

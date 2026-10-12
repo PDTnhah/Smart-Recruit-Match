@@ -70,7 +70,7 @@ Lộ trình chung ở [sprints/README › Lộ trình](../README.md#lộ-trình)
 | FR | Story | Status |
 |----|-------|--------|
 | FR-1 | US-1.3 | 👀 review |
-| FR-2 | US-1.4 | 🚧 in-progress |
+| FR-2 | US-1.4 | 👀 review |
 | FR-3 | US-1.5 | 📋 backlog |
 | FR-4 | US-1.5 | 📋 backlog |
 | FR-5 | US-1.5 | 📋 backlog |
@@ -98,7 +98,7 @@ Lộ trình chung ở [sprints/README › Lộ trình](../README.md#lộ-trình)
 | US-1.1 | Scaffold monorepo, Docker Compose, CI | Chạy toàn bộ hạ tầng bằng một lệnh; CI và cổng commit hoạt động | 👀 review | — |
 | US-1.2 | Lược đồ DB lõi, `transitionTo`, nhật ký thao tác | Mọi thay đổi trạng thái đi qua một hàm, có audit trong cùng giao dịch | ✅ done | 0.1.1 |
 | US-1.3 | Đăng nhập, phân quyền, DESIGN.md, khung giao diện | Bốn vai trò đăng nhập và thấy đúng cổng của mình | 👀 review | 0.2.0 |
-| US-1.4 | Tạo và cấu hình đợt thực tập | Trung tâm tạo đợt với tham số và mốc; đợt tự chuyển trạng thái theo mốc | 🚧 in-progress | — |
+| US-1.4 | Tạo và cấu hình đợt thực tập | Trung tâm tạo đợt với tham số và mốc; đợt tự chuyển trạng thái theo mốc | 👀 review | 0.3.0 |
 | US-1.5 | Doanh nghiệp, tài khoản HR, đăng và duyệt JD | HR đăng JD; Trung tâm duyệt JD | 📋 backlog | — |
 | US-1.6 | Đồng ý xử lý dữ liệu và nộp CV | Sinh viên đồng ý điều khoản và nộp CV có phiên bản | 📋 backlog | — |
 | US-1.7 | Thông báo trong app, SSE, email, nhắc hạn | Người dùng nhận thông báo theo sự kiện nghiệp vụ | 📋 backlog | — |

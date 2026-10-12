@@ -42,6 +42,8 @@ export default async function globalSetup(): Promise<void> {
   process.env.REDIS_URL = `redis://${redis.value.getHost()}:${redis.value.getMappedPort(REDIS_PORT)}`;
   process.env.JWT_ACCESS_SECRET = 'integration-test-access-secret-0123456789';
   process.env.LOG_LEVEL = 'silent';
+  // The cron must not move campaigns created by other test files; scheduler tests call runOnce().
+  process.env.SCHEDULER_ENABLED = 'false';
   try {
     await runMigrations(process.env.DATABASE_URL);
   } catch (error) {

@@ -2,24 +2,33 @@ import type { Portal } from '@srm/shared';
 import type { ReactNode } from 'react';
 import { createBrowserRouter, Navigate, type RouteObject } from 'react-router';
 import { RequirePortal, RootRedirect } from '@/app/guards/require-portal';
+import { RequireRole } from '@/app/guards/require-role';
 import { PortalSidebarLayout } from '@/app/layouts/portal-sidebar-layout';
 import { StudentLayout } from '@/app/layouts/student-layout';
 import { ComingSoonPage, PortalHomePage } from '@/app/pages/portal-pages';
 import { LoginPage } from '@/features/auth/login-page';
+import { CampaignListPage } from '@/features/center/campaigns/campaign-list-page';
+import { CampaignCreatePage, CampaignEditPage } from '@/features/center/campaigns/campaign-pages';
 
 // Routes by portal (DESIGN.md §12). A story that ships a screen adds its route next to the
 // `:section` placeholder of its portal.
 
-function portalRoute(portal: Portal, layout: ReactNode): RouteObject {
+function portalRoute(portal: Portal, layout: ReactNode, pages: RouteObject[] = []): RouteObject {
   return {
     path: portal,
     element: <RequirePortal portal={portal}>{layout}</RequirePortal>,
     children: [
       { index: true, element: <PortalHomePage portal={portal} /> },
+      // Static segments outrank `:section`, so a shipped screen replaces its placeholder.
+      ...pages,
       { path: ':section', element: <ComingSoonPage portal={portal} /> },
       { path: '*', element: <Navigate to={portal} replace /> },
     ],
   };
+}
+
+function centerOnly(page: ReactNode): ReactNode {
+  return <RequireRole roles={['CENTER']}>{page}</RequireRole>;
 }
 
 export const router = createBrowserRouter([
@@ -27,6 +36,11 @@ export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
   portalRoute('/sv', <StudentLayout />),
   portalRoute('/hr', <PortalSidebarLayout portal="/hr" />),
-  portalRoute('/admin', <PortalSidebarLayout portal="/admin" />),
+  portalRoute('/admin', <PortalSidebarLayout portal="/admin" />, [
+    // US-1.4: campaign setup belongs to CENTER only (ADMIN reads campaigns through the API).
+    { path: 'campaigns', element: centerOnly(<CampaignListPage />) },
+    { path: 'campaigns/new', element: centerOnly(<CampaignCreatePage />) },
+    { path: 'campaigns/:id', element: centerOnly(<CampaignEditPage />) },
+  ]),
   { path: '*', element: <Navigate to="/" replace /> },
 ]);

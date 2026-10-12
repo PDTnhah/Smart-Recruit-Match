@@ -47,7 +47,7 @@ flowchart TB
 
 | Lớp | Công nghệ | Lý do chọn |
 |---|---|---|
-| Frontend | React 19 + TypeScript + Vite; Tailwind CSS + shadcn/ui (Radix); TanStack Query; TanStack Table; React Router; React Hook Form + Zod; date-fns; openapi-typescript + openapi-fetch; shadcn Chart (Recharts); react-pdf; dnd-kit | shadcn/ui đưa component vào repo dưới dạng mã nguồn nên tùy biến được, dùng token màu ngữ nghĩa thống nhất với DESIGN.md và là chuẩn review UI của quy trình koni (CONTEXT D14); TanStack Table cho các bảng dữ liệu ở màn quản trị; TanStack Query quản lý dữ liệu từ server gọn |
+| Frontend | React 19 + TypeScript + Vite; Tailwind CSS + shadcn/ui (Radix); TanStack Query; TanStack Table; React Router; React Hook Form + Zod; date-fns; react-day-picker (Calendar của shadcn, [CONTEXT D27](CONTEXT.md)); openapi-typescript + openapi-fetch; shadcn Chart (Recharts); react-pdf; dnd-kit | shadcn/ui đưa component vào repo dưới dạng mã nguồn nên tùy biến được, dùng token màu ngữ nghĩa thống nhất với DESIGN.md và là chuẩn review UI của quy trình koni (CONTEXT D14); TanStack Table cho các bảng dữ liệu ở màn quản trị; TanStack Query quản lý dữ liệu từ server gọn |
 | Core Backend | Node.js LTS + TypeScript (strict) + NestJS; Drizzle ORM + drizzle-kit (migration); Zod (nestjs-zod); @nestjs/swagger; @golevelup/nestjs-rabbitmq; ioredis; chi tiết ở mục *Thư viện chính* (Component architecture › Core Backend) | NestJS có module, dependency injection, guard, interceptor — đủ cấu trúc cho nghiệp vụ nhiều trạng thái và phân quyền; cùng ngôn ngữ với frontend nên dùng chung được kiểu dữ liệu và schema kiểm tra |
 | Monorepo | pnpm workspaces; gói `packages/shared` | Frontend và backend dùng chung Zod schema, enum trạng thái, kiểu DTO |
 | AI Service | Python 3.12+; FastAPI; FastStream (RabbitMQ); Anthropic Python SDK; Pydantic v2; PyMuPDF, python-docx; sentence-transformers; RapidFuzz; Jinja2 | Hệ sinh thái AI tốt nhất ở Python: đọc PDF, embedding, viết script đánh giá |
@@ -118,7 +118,7 @@ Module gọi nhau qua service đã export hoặc phát sự kiện qua `@nestjs/
 | Module | Trách nhiệm | Ánh xạ nghiệp vụ |
 |---|---|---|
 | `iam` | Đăng nhập, JWT, vai trò, tài khoản HR, SSO trường (tùy chọn) | PRD › Personas |
-| `campaign` | Đợt thực tập, tham số cấu hình, trạng thái đợt, mốc thời gian | GĐ0 |
+| `campaign` | Đợt thực tập, tham số cấu hình, trạng thái đợt, mốc thời gian. Export `CampaignService.assertPhase` (kiểm tra pha, tính cả mốc) và `getSettings`; phát `campaign.opened`, `campaign.phase_changed` sau khi commit ([CONTEXT D27](CONTEXT.md)) | GĐ0 |
 | `company` | Doanh nghiệp, JD, yêu cầu chuẩn hóa, phiên bản JD | GĐ1 |
 | `student` | Sinh viên, CV, hồ sơ năng lực, đồng ý xử lý dữ liệu | GĐ2 |
 | `matching` | Lọc điều kiện cứng, gửi job chấm, lưu kết quả, **tính S_cv theo trọng số**, shortlist, mức cạnh tranh, nguyện vọng | GĐ3, GĐ4 |
@@ -188,6 +188,13 @@ export function deferredAcceptance({ preferences, capacity, compareAt }: Allocat
 
 `@nestjs/schedule` (cron) + advisory lock của PostgreSQL (`pg_try_advisory_lock`) để nhiều instance không chạy trùng: chuyển trạng thái đợt theo mốc thời gian, hủy NV quá hạn làm test, nhắc HR trước hạn SLA, hết hạn T_offer, hết hạn Dự bị. Email được ghi vào bảng `notifications` trước (outbox) rồi gửi bằng tác vụ nền, gửi lỗi thì thử lại.
 
+Từ US-1.4 ([CONTEXT D27](CONTEXT.md)):
+
+- Mỗi tác vụ chạy trong `withAdvisoryLock(pool, key, fn)` (`apps/api/src/common/scheduling/advisory-lock.ts`). Hàm này giữ khóa trên một kết nối riêng và trả `{ acquired: false }` ngay khi instance khác đang giữ. Mỗi tác vụ có một khóa trong `ADVISORY_LOCK_KEYS`.
+- Mọi phép tính theo giờ đọc `Clock` inject được (`apps/api/src/common/clock/`), không gọi `new Date()` hay `Date.now()` trực tiếp. Test dùng `FakeClock` (`apps/api/test/helpers/fake-clock.ts`).
+- Biến `SCHEDULER_ENABLED` (mặc định `true`) bật/tắt cron. Integration test đặt `false` và gọi `runOnce()` của tác vụ.
+- Chuyển pha đợt: chạy mỗi phút; mỗi lần chuyển đi qua `transitionTo` với actor `SYSTEM` và `row_version` đã đọc lúc quét. Đợt trễ nhiều mốc được chuyển lần lượt từng pha.
+
 #### Thư viện chính
 
 | Nhu cầu | Thư viện | Ghi chú |
@@ -199,7 +206,7 @@ export function deferredAcceptance({ preferences, capacity, compareAt }: Allocat
 | RabbitMQ | @golevelup/nestjs-rabbitmq | Gửi/nhận JSON thuần qua exchange/queue tự khai báo, trao đổi dễ với Python (transport RMQ mặc định của NestJS bọc message theo định dạng riêng) |
 | Redis | ioredis | – |
 | Lưu file | @aws-sdk/client-s3 + @aws-sdk/s3-request-presigner (trỏ tới MinIO); multer; file-type | file-type đọc "magic bytes" để kiểm tra MIME thật |
-| Lập lịch, sự kiện | @nestjs/schedule, @nestjs/event-emitter | – |
+| Lập lịch, sự kiện | @nestjs/schedule, @nestjs/event-emitter | Dòng cho NestJS 11 (6.x, 3.x). Bản 12.x chỉ có ESM, Jest của API không nạp được ([LESSONS §9](LESSONS.md)) |
 | Email | nodemailer + template Handlebars | – |
 | Xuất báo cáo | exceljs; pdfmake | – |
 | Log, giám sát | nestjs-pino; @nestjs/terminus (health check); prom-client | – |
@@ -410,7 +417,7 @@ Nên đặt giới hạn chi tiêu trên trang quản lý Claude API và theo d�
 
 | Bảng | Thực thể PRD | Cột chính | Ràng buộc / chỉ mục |
 |---|---|---|---|
-| `campaigns` | DOT_THUC_TAP | id, name, status, phase_deadlines JSONB, config JSONB, row_version | CHECK(status) |
+| `campaigns` | DOT_THUC_TAP | id, name, status, phase_deadlines JSONB (`intake_end`, `preference_end`, `testing_end`), config JSONB (tham số GĐ0 và `target`: `cohorts`, `majors`), row_version | CHECK(status) |
 | `companies` | DOANH_NGHIEP | id, name, field, address, contact | – |
 | `users` | TAI_KHOAN_HR + tài khoản khác | id, email, password_hash, full_name, role, company_id, student_id, is_active (sso_subject thêm khi làm SSO) | unique(email); unique(student_id); CHECK(role); chỉ HR có company_id, chỉ STUDENT có student_id (CHECK) |
 | `students` | SINH_VIEN | id, student_code, full_name, major, cohort, gpa | unique(student_code) |
@@ -602,8 +609,8 @@ REST, mô tả bằng OpenAPI.
 |---|---|
 | Sinh viên | `POST /api/cvs` (multipart) · `GET /api/cvs/me/profile` · `PUT /api/cvs/me/profile/confirm` · `GET /api/me/shortlist` · `PUT /api/me/preferences` · `POST /api/preferences/{id}/exam/start` · `PUT /api/exam-sessions/{id}/answers` · `POST /api/exam-sessions/{id}/submit` · `POST /api/exam-answers/{id}/appeal` · `POST /api/offers/{id}/accept` |
 | HR | `POST /api/jds` · `PUT /api/jds/{id}/requirements/confirm` · `GET /api/jds/{id}/question-bank/sample` · `GET /api/jds/{id}/nominations` · `POST /api/nominations/{id}/decision` · `POST /api/interviews` · `PUT /api/interviews/{id}/result` |
-| Trung tâm | `POST /api/campaigns` · `POST /api/campaigns/{id}/matching-runs` · `POST /api/campaigns/{id}/allocation-rounds` · `GET /api/allocation-rounds/{id}` · `PATCH /api/allocation-rounds/{id}/nominations` · `POST /api/allocation-rounds/{id}/publish` · `GET /api/campaigns/{id}/reports` |
-| Chung | `GET /api/events/stream` (SSE) · `GET /api/files/{id}/url` (URL tạm có hạn) |
+| Trung tâm | `POST /api/campaigns` · `PATCH /api/campaigns/{id}` · `POST /api/campaigns/{id}/open` · `POST /api/campaigns/{id}/matching-runs` · `POST /api/campaigns/{id}/allocation-rounds` · `GET /api/allocation-rounds/{id}` · `PATCH /api/allocation-rounds/{id}/nominations` · `POST /api/allocation-rounds/{id}/publish` · `GET /api/campaigns/{id}/reports` |
+| Chung | `GET /api/campaigns` · `GET /api/campaigns/{id}` (đợt người gọi tham gia) · `GET /api/events/stream` (SSE) · `GET /api/files/{id}/url` (URL tạm có hạn) |
 
 ---
 
