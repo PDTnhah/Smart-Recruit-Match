@@ -27,7 +27,7 @@ US-1.4. Trung tâm tạo và cấu hình đợt thực tập, rồi mở đợt.
 - ARCHITECTURE › *Tech stack*, › *Các module*, › *Thư viện chính*, › *Tác vụ định kỳ*, › *Các bảng chính*, › API; DESIGN.md §6; DEPLOY.md, SETUP.md, `deploy/.env.example`, `deploy/docker-compose.yml` (`SCHEDULER_ENABLED`).
 - Sprint `sprint-2026-W41` đóng; `sprint-2026-W42` mở với US-1.4 (kéo sớm từ W43), US-1.1 và US-1.3 chuyển sang.
 
-**Commit**:
+**Commit**: 928c04c
 
 ---
 

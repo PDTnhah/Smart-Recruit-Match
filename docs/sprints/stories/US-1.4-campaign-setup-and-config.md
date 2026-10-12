@@ -11,7 +11,7 @@ prd_ref: [FR-2]
 arch_ref: [AD-8]
 depends_on: [US-1.2, US-1.3]
 assignee: PDTnhah
-commit:
+commit: 928c04c367039477ed9287f80c28f476d90d084d
 created: 2026-10-07
 updated: 2026-10-12
 ---
@@ -157,7 +157,7 @@ Lệnh chạy toàn bộ: `pnpm typecheck && pnpm lint && pnpm test` (integratio
 - Kiểm tra pha của đợt cho các thao tác nghiệp vụ: thao tác sai giai đoạn bị từ chối `409`.
 - Màn "Đợt thực tập" ở cổng Trung tâm.
 
-**Commit**:
+**Commit**: 928c04c
 
 ## Implementation notes
 
