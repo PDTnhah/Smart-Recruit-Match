@@ -2,18 +2,34 @@
 id: US-1.4
 title: "Tạo và cấu hình đợt thực tập"
 epic: EPIC-1
-status: backlog
+status: in-progress
 priority: P0
 points: 5
-sprint:
+sprint: sprint-2026-W42
 version_shipped:
 prd_ref: [FR-2]
+arch_ref: [AD-8]
 depends_on: [US-1.2, US-1.3]
-assignee:
+assignee: PDTnhah
 commit:
 created: 2026-10-07
-updated: 2026-10-07
+updated: 2026-10-12
 ---
+
+## Story refresh — 2026-10-12
+
+Đọc lại story vào ngày 2026-10-12 trên nhánh `us-1.4` (tách từ `dev`, đã có US-1.2 và US-1.3). Các quyết định sau được chốt vào story; số AC giữ nguyên ([CONTEXT D27](../../CONTEXT.md)):
+
+- **Sprint**: story vào `sprint-2026-W42`. Lộ trình gốc đặt story ở T3 (W43); US-1.2 và US-1.3 xong sớm.
+- **Các đề xuất ở *Dev notes* được giữ** (người dùng chốt): đối tượng lưu ở `campaigns.config.target` (`cohorts`, `majors`); STUDENT thấy đợt đã rời `DRAFT` có target khớp cả khóa lẫn ngành của mình, HR thấy mọi đợt đã rời `DRAFT`, CENTER và ADMIN thấy tất cả; khóa tên, đối tượng và tham số khi đợt rời `DRAFT`; một mốc `intake_end` cho cả JD và CV; `n_nv` = 3 (Q1) và `k` = 1,5 (Q3) là tham số, Q1 và Q3 vẫn để mở.
+- **Gia hạn mốc (AC-4)**: sau `DRAFT` được lùi mọi mốc chưa tới, kể cả mốc kết thúc của pha đang chạy (ví dụ gia hạn nộp CV). Chỉ được lùi về sau, giữ thứ tự tăng dần, bắt buộc kèm lý do. Mốc đã qua không sửa được.
+- **`assertPhase` tính cả mốc**: từ chối khi trạng thái không nằm trong danh sách cho phép, hoặc khi mốc kết thúc của pha hiện tại đã qua mà tác vụ định kỳ chưa kịp chuyển. Như vậy story sau không phải tự so giờ với mốc (Goal). Hàm nhận thêm giao dịch của bên gọi để đọc đợt với `FOR SHARE`.
+- **Không có vòng phụ thuộc `campaign` ↔ `student`**: US-1.6 cho `student` gọi `CampaignService.assertPhase`, nên `campaign` không import `student`. Module `campaign` khai cổng `StudentAudienceLookup`; `StudentModule` đăng ký `StudentService.findAudience` khi khởi động. Chưa có ai đăng ký thì STUDENT không thấy đợt nào.
+- **Tên khóa**: trường cấp cao của API viết camelCase như các API đã có (`rowVersion`, `phaseDeadlines`, `target`, `config`); khóa trong JSONB viết snake_case như *Dev notes* (`intake_end`, `n_nv`…). API trả `target` ở cấp cao, DB lưu ở `config.target`.
+- **Tác vụ định kỳ**: chạy mỗi phút; biến môi trường `SCHEDULER_ENABLED` (mặc định `true`) để integration test tắt cron và gọi thẳng `runOnce()`. Đợt trễ nhiều mốc được chuyển lần lượt từng pha trong một lần chạy, mỗi pha một dòng audit và một sự kiện.
+- **Chọn ngày giờ (AC-9)**: Calendar của shadcn với `react-day-picker` 10.0.1 và locale `vi` của date-fns (người dùng chốt; thêm vào ARCH › *Tech stack*).
+- **Phiên bản ghim**: `@nestjs/schedule` 12.0.2, `@nestjs/event-emitter` 12.0.1 (cả hai nhận NestJS 11), `react-day-picker` 10.0.1. Chỉ chọn bản đã phát hành ít nhất 2 tuần.
+- **Version**: 0.3.0.
 
 ## Goal
 
@@ -27,7 +43,7 @@ ARCH › *Các module*: module `campaign` lo đợt, tham số, trạng thái v�
 
 Bảng chuyển và `transitionTo` có từ US-1.2 (AD-8). Story này thêm phần quyết định *khi nào* chuyển. Mọi lần chuyển, kể cả do hệ thống tự làm, đều đi qua `transitionTo` và có audit. Tham số đợt được các story sau đọc: N_NV (US-3.3), θ_cv (US-3.1), θ_test, α, β (US-4.4), k, R_max (US-5.2, US-5.5), T_test (US-4.3), SLA_HR (US-5.3), T_offer (US-5.4).
 
-**Lessons applied**: none — LESSONS.md chỉ có §1 (nạp skill), không liên quan cấu hình đợt; đọc lại khi bắt đầu story.
+**Lessons applied**: §5 — chạy lại `pnpm depcruise` và `pnpm depcruise:fixture` sau khi thêm module `campaign`; §6 — story không sinh migration (bảng có từ US-1.2), kiểm `git status --porcelain apps/api/drizzle` rỗng sau `db:generate`; §7 — repository khai kiểu bảng cụ thể, chạy `pnpm lint` chứ không chỉ `tsc`; §8 — sau `shadcn add` đổi dải `^` thành bản chính xác đủ 2 tuần, đọc lại file sinh ra và ghi chỗ sửa vào `DESIGN.md` §6.
 
 ## Acceptance criteria
 
@@ -137,7 +153,7 @@ Lệnh chạy: các file test trên chạy bằng script `pnpm test` / `pnpm --f
 
 ## Implementation notes
 
-_Chưa bắt đầu._
+Bắt đầu 2026-10-12 trên nhánh `us-1.4`.
 
 ## Files modified
 

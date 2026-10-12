@@ -8,9 +8,9 @@ Hệ thống giúp Trung tâm quan hệ doanh nghiệp của trường ghép sin
 
 ## Trạng thái
 
-- Đã có khung monorepo (US-1.1, 0.1.0): `apps/api`, `apps/web`, `packages/shared`, `ai-service`, Docker Compose, CI, cổng koni-harness. Đã có lược đồ `core`, bảng chuyển trạng thái của đợt/JD/CV, `transitionTo` và nhật ký append-only (US-1.2, 0.1.1). Chưa có endpoint nghiệp vụ. 37 story của 6 epic nằm trong `docs/sprints/stories/` ([CONTEXT D21](docs/CONTEXT.md)). Sprint đang mở: `sprint-2026-W41`.
+- Đã có khung monorepo (US-1.1, 0.1.0): `apps/api`, `apps/web`, `packages/shared`, `ai-service`, Docker Compose, CI, cổng koni-harness. Đã có lược đồ `core`, bảng chuyển trạng thái của đợt/JD/CV, `transitionTo` và nhật ký append-only (US-1.2, 0.1.1). Đã có đăng nhập, phân quyền, `DESIGN.md` và khung ba cổng (US-1.3, 0.2.0). 37 story của 6 epic nằm trong `docs/sprints/stories/` ([CONTEXT D21](docs/CONTEXT.md)). Sprint đang mở: `sprint-2026-W42`.
 - Lộ trình: xong trong tháng 12/2026, hai làn chạy song song bằng agent ([sprints/README › Lộ trình](docs/sprints/README.md#lộ-trình), [CONTEXT D20](docs/CONTEXT.md)).
-- Bước tiếp theo: W42 gồm US-1.3 (làn A, rebase lên US-1.2) và US-5.1 (làn B). Khi bắt đầu một story, đọc lại file của nó và thêm khối *Story refresh* nếu spec đã đổi.
+- Đang làm: US-1.4 (module `campaign`, kéo từ W43). US-1.1 và US-1.3 chờ kiểm chứng CI và kiểm tay. Bước tiếp theo: US-1.5 (rebase lên US-1.4) và US-5.1 (làn B). Khi bắt đầu một story, đọc lại file của nó và thêm khối *Story refresh* nếu spec đã đổi.
 - Việc đang làm của người dùng hiện tại nằm ở `.active-context.md`. Đọc file này khi bắt đầu phiên, nếu có.
 
 ## Tài liệu

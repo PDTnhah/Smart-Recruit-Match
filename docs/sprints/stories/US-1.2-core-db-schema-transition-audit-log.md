@@ -2,7 +2,7 @@
 id: US-1.2
 title: "Lược đồ DB lõi, `transitionTo`, nhật ký thao tác"
 epic: EPIC-1
-status: review
+status: done
 priority: P0
 points: 5
 sprint: sprint-2026-W41

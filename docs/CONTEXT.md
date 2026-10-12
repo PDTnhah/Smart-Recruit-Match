@@ -461,3 +461,32 @@
 
 **Date**: 2026-10-08
 **Version**: 0.2.0
+
+### D27. Đợt thực tập: đối tượng, phạm vi đọc, khóa tham số, gia hạn mốc và kiểm tra pha (US-1.4)
+
+**Context**: US-1.4 tạo module `campaign`. *Dev notes* của story có các đề xuất cần hỏi trước khi chốt: đối tượng của đợt (khóa, ngành) không có cột ở ARCH › *Các bảng chính*; "đợt mình tham gia" (EPIC-1 › *RBAC additions*) chưa được định nghĩa; PRD chỉ nói không tự đổi trọng số trong một đợt đang chạy; một mốc `intake_end` gộp cả JD và CV. AC-4 cho "lùi mốc của giai đoạn chưa bắt đầu" nhưng không nói mốc của pha đang chạy có được gia hạn hay không. Goal nói story sau "không phải tự xử lý mốc thời gian", còn tác vụ định kỳ chạy mỗi phút, nên giữa lúc qua mốc và lúc đợt chuyển pha có một khoảng trễ. US-1.6 cho module `student` gọi `CampaignService.assertPhase`, trong khi để lọc đợt cho sinh viên thì `campaign` lại cần khóa và ngành của sinh viên. Calendar của shadcn cần `react-day-picker`, gói này chưa có trong ARCH › *Tech stack*.
+
+**Decision** (người dùng chốt bốn mục đầu ngày 2026-10-12):
+- Đối tượng lưu ở `campaigns.config.target` (`cohorts`, `majors`, mỗi danh sách có ít nhất một giá trị). API trả nó ở trường `target` cấp cao. Không thêm cột, nên story không sinh migration.
+- Phạm vi đọc: CENTER và ADMIN thấy mọi đợt; HR thấy mọi đợt đã rời `DRAFT` (chưa có bảng nối doanh nghiệp với đợt); STUDENT thấy đợt đã rời `DRAFT` có `target` chứa cả khóa lẫn ngành của mình. Đợt ngoài phạm vi trả `404`. Chỉ CENTER được tạo, sửa và mở đợt.
+- Khi đợt rời `DRAFT`: sửa tên, đối tượng hay tham số đều trả `409 CAMPAIGN_CONFIG_LOCKED`. Được lùi mọi mốc chưa tới, kể cả mốc kết thúc của pha đang chạy. Mốc chỉ được lùi về sau, phải giữ thứ tự tăng dần, bắt buộc kèm lý do và ghi audit. Mốc đã qua thì không sửa được.
+- Một mốc `intake_end` cho cả JD và CV. `n_nv` = 3 (Q1) và `k` = 1,5 (Q3) là tham số mặc định; Q1 và Q3 vẫn để mở trong PRD.
+- Chọn ngày giờ bằng Calendar của shadcn với `react-day-picker` và locale `vi` của date-fns.
+- `CampaignService.assertPhase(campaignId, allowed)` từ chối (`409 CAMPAIGN_PHASE_MISMATCH`) khi trạng thái không nằm trong `allowed`, **hoặc** khi mốc kết thúc của pha hiện tại đã qua mà tác vụ định kỳ chưa chuyển. Hàm nhận thêm giao dịch của bên gọi, khi đó đọc đợt với `FOR SHARE` để đợt không đổi pha trước khi bên gọi commit.
+- Module `campaign` không import `student`. Nó khai cổng `StudentAudienceLookup` (`studentId → { cohort, major }`), và `StudentModule` đăng ký `StudentService.findAudience` lúc khởi động. Chưa có ai đăng ký thì STUDENT không thấy đợt nào.
+- Tác vụ định kỳ chạy mỗi phút, giữ `pg_try_advisory_lock` trên một kết nối riêng qua helper `withAdvisoryLock` (khóa đăng ký ở `ADVISORY_LOCK_KEYS`). Mỗi lần chuyển pha đi qua `transitionTo` với actor `SYSTEM` và `row_version` đã đọc. Đợt trễ nhiều mốc được chuyển lần lượt từng pha. Biến `SCHEDULER_ENABLED` (mặc định `true`) cho phép tắt cron; integration test tắt cron và gọi thẳng `runOnce()`.
+- Sự kiện `campaign.opened` và `campaign.phase_changed` (`campaignId`, `from`, `to`) được phát qua `@nestjs/event-emitter` sau khi giao dịch commit, cho cả chuyển thủ công lẫn tự động. Giờ hiện tại lấy qua `Clock` inject được (`apps/api/src/common/clock/`); test dùng `FakeClock`.
+
+**Rationale**: Vì đối tượng chỉ được đọc cùng tham số và bị khóa cùng tham số, để trong `config` thì không cần migration trong đợt mà US-1.5 sinh migration. Cho gia hạn cả mốc của pha đang chạy vì gia hạn nộp CV là nhu cầu hay gặp nhất, còn chỉ cho lùi về sau thì không ai bị thiệt so với lịch đã công bố. `assertPhase` tính cả mốc để nộp bài không lọt vào khoảng trễ của tác vụ định kỳ, và để story sau không lặp lại việc so giờ. Cổng đăng ký giữ phụ thuộc một chiều `student → campaign`; nếu import ngược thì NestJS cần `forwardRef` và dependency-cruiser báo vòng.
+
+**Alternatives considered**:
+- Thêm cột `target`, `cohorts`, `majors` cho `campaigns` — loại vì cần migration trong đợt mà US-1.5 đã giữ quyền sinh migration.
+- Chỉ cho lùi mốc của pha chưa bắt đầu (đọc đúng chữ AC-4) — người dùng chọn cho lùi mọi mốc chưa tới.
+- `assertPhase` chỉ so trạng thái — loại vì thao tác vẫn lọt trong tối đa một phút sau mốc.
+- `campaign` import `student` hoặc dùng `forwardRef` — loại vì tạo vòng phụ thuộc khi US-1.6 thêm chiều ngược lại.
+- Ô `datetime-local` của trình duyệt — loại vì không theo locale `vi` của date-fns như AC-9 yêu cầu.
+
+**Impact**: ARCHITECTURE › *Tech stack* (`react-day-picker`), › *Các bảng chính* (`config.target`), › *Tác vụ định kỳ*, › *Các module* (sự kiện của `campaign`); `deploy/.env.example`, `DEPLOY.md`, `docs/SETUP.md` (`SCHEDULER_ENABLED`); story US-1.4 (*Story refresh*); US-1.5, US-1.6, US-3.2, US-3.3 dùng `assertPhase` và `campaign.phase_changed`; US-1.7, US-4.3 dùng `Clock`, `FakeClock`, `withAdvisoryLock`.
+
+**Date**: 2026-10-12
+**Version**: 0.3.0
