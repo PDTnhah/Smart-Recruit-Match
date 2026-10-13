@@ -53,6 +53,14 @@ export const NewPasswordSchema = z
   .min(8, { error: 'Mật khẩu cần ít nhất 8 ký tự' })
   .max(128, { error: 'Mật khẩu tối đa 128 ký tự' });
 
+/** Body of `POST /api/auth/accept-invitation`: an invited HR sets a password (US-1.5, CONTEXT D28). */
+export const AcceptInvitationRequestSchema = z.object({
+  token: z.string().min(1, { error: 'Thiếu mã lời mời' }).max(4096),
+  password: NewPasswordSchema,
+});
+
+export type AcceptInvitationRequest = z.infer<typeof AcceptInvitationRequestSchema>;
+
 export const StudentProfileInputSchema = z.object({
   studentCode: z.string().trim().min(1, { error: 'Vui lòng nhập mã sinh viên' }).max(32),
   major: z.string().trim().min(1, { error: 'Vui lòng nhập ngành' }).max(200),

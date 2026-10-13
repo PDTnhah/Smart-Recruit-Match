@@ -156,6 +156,51 @@ export class CampaignConfigLockedError extends DomainError {
   }
 }
 
+// Companies, HR invitations, JDs and file uploads (US-1.5, CONTEXT D28).
+
+/** The invitation token is malformed, expired, signed with another key, or already used. */
+export class InvitationInvalidError extends DomainError {
+  readonly code = 'INVITATION_INVALID';
+  readonly httpStatus = 422;
+
+  constructor() {
+    super('The invitation link is invalid, expired or already used');
+  }
+}
+
+/** Only a DRAFT JD can be edited or get a new file; after submission the content is frozen. */
+export class JdNotEditableError extends DomainError {
+  readonly code = 'JD_NOT_EDITABLE';
+  readonly httpStatus = 409;
+
+  constructor(id: number, status: string) {
+    super(`job_description ${id} is ${status}; only a DRAFT can be edited`, { id, status });
+  }
+}
+
+/** The upload exceeded the size limit; multer stopped reading it before it reached storage. */
+export class FileTooLargeError extends DomainError {
+  readonly code = 'FILE_TOO_LARGE';
+  readonly httpStatus = 413;
+
+  constructor(maxBytes: number) {
+    super(`The file is larger than ${maxBytes} bytes`, { maxBytes });
+  }
+}
+
+/** The file content (magic bytes) is not one of the allowed types, whatever its name says. */
+export class UnsupportedFileTypeError extends DomainError {
+  readonly code = 'UNSUPPORTED_FILE_TYPE';
+  readonly httpStatus = 415;
+
+  constructor(allowed: readonly string[], detected?: string) {
+    super(`Only ${allowed.join(', ')} files are accepted`, {
+      allowed: [...allowed],
+      ...(detected ? { detected } : {}),
+    });
+  }
+}
+
 /**
  * The action belongs to another phase of the campaign (FR-2): the status is not one of `allowed`,
  * or the deadline ending the current phase has passed before the scheduler moved the campaign.

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { CAMPAIGN_STATES, type CampaignStatus } from '../states/campaign.js';
+import { RowVersionSchema } from './common.js';
 
 // Campaign setup (FR-2, PRD GĐ0, CONTEXT D27). The web form and the API validate with these
 // schemas. Keys inside `phaseDeadlines` and `config` are snake_case: they are stored as-is in
@@ -203,8 +204,6 @@ const CampaignNameSchema = z
   .trim()
   .min(1, { error: 'Vui lòng nhập tên đợt' })
   .max(200, { error: 'Tên đợt tối đa 200 ký tự' });
-
-const RowVersionSchema = z.number().int().min(0);
 
 /** Body of `POST /api/campaigns`. Parameters left out take the PRD defaults (AC-1). */
 export const CreateCampaignRequestSchema = z.object({
