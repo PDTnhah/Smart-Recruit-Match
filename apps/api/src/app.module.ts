@@ -8,10 +8,12 @@ import { AuthModule } from './common/auth/index.js';
 import { ClockModule } from './common/clock/index.js';
 import { loadEnv } from './common/config/env.js';
 import { ApiExceptionFilter } from './common/errors/index.js';
+import { StorageModule } from './common/storage/index.js';
 import { ZodRequestValidationPipe } from './common/validation/zod-validation.pipe.js';
 import { DbModule } from './db/db.module.js';
 import { HealthModule } from './health/health.module.js';
 import { CampaignModule } from './modules/campaign/index.js';
+import { CompanyModule } from './modules/company/index.js';
 import { IamModule } from './modules/iam/index.js';
 import { RedisModule } from './redis/redis.module.js';
 
@@ -40,9 +42,11 @@ import { RedisModule } from './redis/redis.module.js';
     RedisModule,
     ClockModule,
     AuthModule,
+    StorageModule,
     HealthModule,
     IamModule,
     CampaignModule,
+    CompanyModule,
   ],
   providers: [
     { provide: APP_PIPE, useClass: ZodRequestValidationPipe },

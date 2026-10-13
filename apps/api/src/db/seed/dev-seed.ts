@@ -1,14 +1,14 @@
 // Dev/test seed (US-1.3 AC-8): one account per role, two companies with one HR each, two students,
-// and one draft campaign for the center screen (US-1.4).
+// one draft campaign for the center screen (US-1.4), and one JD awaiting approval (US-1.5).
 // Idempotent: running it again creates nothing new and leaves existing passwords alone.
 // Usage: DATABASE_URL=… [SEED_PASSWORD=…] pnpm --filter @srm/api db:seed
 import { drizzle } from 'drizzle-orm/node-postgres';
-import { eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { Pool } from 'pg';
 import { DEFAULT_CAMPAIGN_CONFIG, type Role } from '@srm/shared';
 import { hashPassword } from '../../modules/iam/index.js';
 import * as schema from '../schema/index.js';
-import { campaigns, companies, students, users } from '../schema/index.js';
+import { campaigns, companies, jobDescriptions, students, users } from '../schema/index.js';
 import type { Database } from '../types.js';
 
 /** Default password of every seeded account when SEED_PASSWORD is not set (docs/SETUP.md). */
@@ -25,6 +25,26 @@ export const SEED_STUDENTS = [
 export const SEED_CAMPAIGN = {
   name: 'Đợt thực tập mẫu HK1 2026–2027',
   target: { cohorts: ['K66'], majors: ['Công nghệ thông tin', 'Khoa học máy tính'] },
+} as const;
+
+/**
+ * A JD of Alpha already in PENDING_APPROVAL with sample requirements, so the center's "Duyệt JD"
+ * screen can be shown before US-2.3 lets HR confirm requirements (milestone M1, CONTEXT D28).
+ * Inserted directly in that state: dev data only, never a path production code takes (AD-8).
+ */
+export const SEED_JD = {
+  company: 'Công ty Demo Alpha',
+  title: 'Thực tập sinh Backend (JD mẫu)',
+  quota: 3,
+  location: 'Cầu Giấy, Hà Nội',
+  workMode: 'HYBRID',
+  internshipPeriod: '01/2027 – 04/2027',
+  allowance: '3 triệu đồng/tháng',
+  rawText: 'Tham gia phát triển API bằng NestJS và PostgreSQL; viết test tự động.',
+  requirements: {
+    must_have: [{ skill: 'TypeScript', level: 'basic' }, { skill: 'SQL', level: 'basic' }],
+    nice_to_have: [{ skill: 'NestJS' }],
+  },
 } as const;
 
 interface SeedAccount {
@@ -79,10 +99,36 @@ export async function seedDev(db: Database, password: string = DEFAULT_SEED_PASS
 
     // campaigns.name is not unique either; look the seed campaign up by name.
     const [campaign] = await tx.select({ id: campaigns.id }).from(campaigns).where(eq(campaigns.name, SEED_CAMPAIGN.name));
-    if (!campaign) {
-      await tx.insert(campaigns).values({
-        name: SEED_CAMPAIGN.name,
-        config: { ...DEFAULT_CAMPAIGN_CONFIG, target: SEED_CAMPAIGN.target },
+    const campaignId =
+      campaign?.id ??
+      (
+        await tx
+          .insert(campaigns)
+          .values({ name: SEED_CAMPAIGN.name, config: { ...DEFAULT_CAMPAIGN_CONFIG, target: SEED_CAMPAIGN.target } })
+          .returning({ id: campaigns.id })
+      )[0]?.id;
+    if (campaignId === undefined) throw new Error('seed: could not create the campaign');
+
+    // job_descriptions.title is not unique; look the seed JD up by company and title.
+    const jdCompanyId = companyIds.get(SEED_JD.company);
+    if (jdCompanyId === undefined) throw new Error(`seed: company ${SEED_JD.company} missing`);
+    const [jd] = await tx
+      .select({ id: jobDescriptions.id })
+      .from(jobDescriptions)
+      .where(and(eq(jobDescriptions.companyId, jdCompanyId), eq(jobDescriptions.title, SEED_JD.title)));
+    if (!jd) {
+      await tx.insert(jobDescriptions).values({
+        title: SEED_JD.title,
+        quota: SEED_JD.quota,
+        location: SEED_JD.location,
+        workMode: SEED_JD.workMode,
+        internshipPeriod: SEED_JD.internshipPeriod,
+        allowance: SEED_JD.allowance,
+        rawText: SEED_JD.rawText,
+        requirements: SEED_JD.requirements,
+        campaignId,
+        companyId: jdCompanyId,
+        status: 'PENDING_APPROVAL',
       });
     }
   });
