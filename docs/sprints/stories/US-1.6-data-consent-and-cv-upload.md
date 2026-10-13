@@ -12,9 +12,21 @@ depends_on: [US-1.4]
 assignee:
 commit:
 created: 2026-10-07
-updated: 2026-10-07
+updated: 2026-10-13
 external_deps: [llm_provider_data_terms]
 ---
+
+## Story refresh — 2026-10-13 (từ US-1.5)
+
+Ghi lúc US-1.5 làm xong. Khi bắt đầu story này, đọc lại ([CONTEXT D28, D29](../../CONTEXT.md)).
+
+- **Dùng lại `apps/api/src/common/storage/`:**
+  - `StorageService.put(BUCKETS.CV_FILES, key, buffer, mime)`: SSE-S3 sẵn; bucket `cv-files` đã được tạo.
+  - `SingleFileUpload()` cho controller: 5 MB, tên file UTF-8 (LESSONS §13).
+  - `detectDocument()` (PDF/DOCX theo magic bytes, `415` nếu sai), `displayFileName()`, `requireFile()`.
+- **File của sinh viên.** Đăng ký resolver `cv` vào `FileAccessRegistry` (cùng mẫu `JdService.onModuleInit`), rồi thêm `STUDENT` vào `@Roles` của `FilesController`. Sinh viên chỉ lấy được URL file của chính mình.
+- **Tải file qua nginx.** URL tạm đi qua nginx (`/cv-files/` đã được proxy). `MINIO_PUBLIC_ENDPOINT` mặc định là địa chỉ web.
+- **Test.** testcontainers đã có MinIO (biến `MINIO_*` đặt ở `test/setup/global-setup.ts`). Helper ở `test/helpers/jd.ts` (`testS3`, `fixtureFile`) và fixture `test/fixtures/files/` dùng lại được.
 
 ## Goal
 

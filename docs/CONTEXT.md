@@ -566,3 +566,52 @@ Ngoài ra, compose chỉ có một biến `MINIO_BUCKET`, trong khi ARCH ghi hai
 
 **Date**: 2026-10-13
 **Version**: 0.4.0
+
+### D29. Thu hồi link mời cũ, tải file qua nginx, bucket lúc khởi động (revision of D28)
+
+**Context**: Review US-1.5 (`/code-review`) tìm ra ba chỗ D28 chưa đủ:
+
+1. Token mời không lưu gì. Mời lại một HR chưa kích hoạt thì cấp token mới, nhưng các token cũ vẫn dùng được tới khi có người đặt mật khẩu hoặc hết 7 ngày. Ai nhận nhầm link đầu tiên vẫn chiếm được tài khoản.
+2. Compose ký URL tải file với `http://localhost:9000`, còn cổng MinIO chỉ mở trên `127.0.0.1` của máy chủ. Trình duyệt ở máy khác không mở được file.
+3. D28 ghi "API tạo bucket khi khởi động", nhưng code chỉ tạo ở lần tải file đầu tiên. Một MinIO thiếu KMS chỉ lộ ra khi HR tải file.
+
+**Decision**:
+
+- **Nonce lời mời.**
+  - `users.invitation_nonce` (text, nullable). Mỗi lần mời hoặc mời lại sinh một nonce ngẫu nhiên 24 byte, lưu vào cột này và đưa vào token (claim `nonce`).
+  - Nhận lời mời chỉ thành công khi nonce của token bằng nonce trong DB. Cùng câu lệnh đó đặt mật khẩu và xóa nonce.
+  - Mời lại nên link cũ hết hiệu lực ngay. Mời lại cũng cập nhật họ tên theo lần mời mới, ghi audit có before/after.
+  - Vẫn không có bảng mới.
+- **Tải file qua nginx.**
+  - nginx chuyển `/jd-files/` và `/cv-files/` tới `minio:9000`, giữ nguyên header `Host` vì chữ ký URL gồm cả host.
+  - `MINIO_PUBLIC_ENDPOINT` mặc định là địa chỉ web (`http://localhost:<NGINX_PORT>`). Máy chủ thật đặt bằng địa chỉ công khai của site.
+  - Cổng MinIO không cần mở ra ngoài. Request không có chữ ký hợp lệ vẫn bị MinIO trả `403`.
+  - Dùng S3 bên ngoài thì `MINIO_PUBLIC_ENDPOINT` là địa chỉ của dịch vụ đó.
+- **Bucket lúc khởi động.**
+  - `onApplicationBootstrap` tạo bucket và đặt mã hóa mặc định, nhưng không chặn app. Lỗi được ghi log ngay lúc khởi động.
+  - Lần tải file sau thử lại.
+  - Export OpenAPI (dựng app mà không khởi động) vẫn không cần MinIO.
+- **Đợt HR không thấy.** HR tạo JD trong đợt còn `DRAFT` nhận `404 ENTITY_NOT_FOUND` như đợt không tồn tại, theo phạm vi đọc của D27. Không trả `409` kèm trạng thái đợt. AC-4 (`409 CAMPAIGN_PHASE_MISMATCH`) vẫn áp cho đợt HR thấy được nhưng không ở `INTAKE`, hoặc đã qua `intake_end`.
+- **PATCH người liên hệ.** Gộp từng trường: trường không gửi giữ nguyên, `null` hoặc `''` thì xóa.
+
+**Rationale**:
+
+- Nonce là trạng thái tối thiểu để thu hồi link mà không cần bảng `invitations`. Nonce trong DB không giả được token, vì token còn cần khóa ký.
+- Tải file cùng origin với web thì chỉ cần mở một cổng ra ngoài, và URL ký đúng host người dùng thấy.
+- Kiểm bucket lúc khởi động mà không chặn app: lỗi cấu hình lộ ra ngay khi deploy, nhưng API vẫn chạy được các phần không dùng file.
+
+**Alternatives considered**:
+- **Bảng `invitations` lưu hash token:** loại vì một cột đã đủ.
+- **Ký URL bằng host lấy từ request:** loại vì tin header `Host` của client để ký là không an toàn, và API không biết địa chỉ công khai sau proxy.
+- **Mở cổng MinIO ra ngoài:** loại vì phải mở thêm một cổng và một chứng chỉ TLS.
+- **Health check của API phụ thuộc MinIO:** loại vì chạy `--scale minio=0` với S3 ngoài, hay chạy API ngoài Docker không có MinIO, sẽ làm API "unhealthy".
+
+**Impact**:
+- Migration `0002_company_jd_invitations` (cột `invitation_nonce`).
+- `deploy/nginx.conf`, `deploy/docker-compose.yml`, `deploy/.env.example`, `DEPLOY.md`, `docs/SETUP.md` (`MINIO_PUBLIC_ENDPOINT`).
+- ARCHITECTURE: *Các bảng chính*, *Lưu trữ file*, *Docker Compose*.
+- US-1.6 (CV dùng cùng proxy `/cv-files/`).
+- US-1.7: email mời dùng link mới nhất; link cũ hết hiệu lực khi mời lại.
+
+**Date**: 2026-10-13
+**Version**: 0.4.0

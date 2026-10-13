@@ -13,8 +13,17 @@ depends_on: [US-1.2, US-1.3]
 assignee:
 commit:
 created: 2026-10-07
-updated: 2026-10-07
+updated: 2026-10-13
 ---
+
+## Story refresh — 2026-10-13 (từ US-1.5)
+
+Ghi lúc US-1.5 làm xong. Khi bắt đầu story này, đọc lại ([CONTEXT D28, D29](../../CONTEXT.md)).
+
+- **Sự kiện `hr.invited`** (export từ `modules/iam`): `{ userId, companyId, email, fullName, invitationPath, expiresAt }`.
+  - `invitationPath` là đường dẫn tương đối `/accept-invitation#<token>`. Email phải ghép địa chỉ web vào trước; cần một biến cấu hình mới, ghi theo RULE-11.
+  - Mỗi lần mời lại phát một sự kiện mới, và link cũ hết hiệu lực. Email chỉ được gửi link của sự kiện mới nhất.
+- **`jd.submitted`, `jd.approved`** (export từ `modules/company`) chưa có thông báo nào trong PRD › *Thông báo*.
 
 ## Goal
 
