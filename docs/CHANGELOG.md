@@ -59,7 +59,7 @@ US-1.5. Trung tâm khai báo doanh nghiệp và mời HR. HR nhận lời mời,
   - *Story refresh* cho US-1.6, US-1.7, US-2.3 (US-2.3 AC-4 không chuyển trạng thái nữa).
 - **Sprint:** US-1.5 vào `sprint-2026-W42` (kéo sớm từ W43).
 
-**Commit**:
+**Commit**: c0ceee4 (chuỗi 10 commit 7b5b364…c0ceee4)
 
 ---
 

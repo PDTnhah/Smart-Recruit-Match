@@ -11,7 +11,7 @@ prd_ref: [FR-3, FR-4, FR-5]
 arch_ref: [AD-6, AD-8]
 depends_on: [US-1.2, US-1.3, US-1.4]
 assignee: PDTnhah
-commit:
+commit: c0ceee41f7478279e6d72c137e8d40b0f9aeeaa3
 created: 2026-10-07
 updated: 2026-10-13
 ---
@@ -235,7 +235,7 @@ Các bước:
 - Tải file qua URL tạm có hạn 5 phút, qua nginx. HR chỉ thấy JD của công ty mình.
 - Màn "Doanh nghiệp", "Duyệt JD" ở cổng Trung tâm; "JD của tôi" ở cổng HR; trang nhận lời mời.
 
-**Commit**:
+**Commit**: c0ceee4 (chuỗi 10 commit 7b5b364…c0ceee4)
 
 ## Implementation notes
 
