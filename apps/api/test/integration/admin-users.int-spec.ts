@@ -1,12 +1,13 @@
 // US-1.3 AC-7 (account administration) and AC-8 (idempotent dev seed).
 import { ApiErrorSchema, AuthSessionSchema, UserListSchema, UserSummarySchema } from '@srm/shared';
 import { eq, inArray } from 'drizzle-orm';
-import { campaigns, companies, students, users } from '../../src/db/schema/index.js';
+import { campaigns, companies, jobDescriptions, students, users } from '../../src/db/schema/index.js';
 import {
   DEFAULT_SEED_PASSWORD,
   SEED_ACCOUNTS,
   SEED_CAMPAIGN,
   SEED_COMPANIES,
+  SEED_JD,
   SEED_STUDENTS,
   seedDev,
 } from '../../src/db/seed/dev-seed.js';
@@ -170,6 +171,15 @@ describe('US-1.3 AC-8: dev seed', () => {
     const seededCampaigns = await t.db.select().from(campaigns).where(eq(campaigns.name, SEED_CAMPAIGN.name));
     expect(seededCampaigns).toHaveLength(1);
     expect(seededCampaigns[0]).toMatchObject({ status: 'DRAFT', config: { target: SEED_CAMPAIGN.target, n_nv: 3 } });
+    // One JD of Alpha awaiting approval, for the center's approval screen (US-1.5, CONTEXT D28).
+    const seededJds = await t.db.select().from(jobDescriptions).where(eq(jobDescriptions.title, SEED_JD.title));
+    expect(seededJds).toHaveLength(1);
+    expect(seededJds[0]).toMatchObject({
+      status: 'PENDING_APPROVAL',
+      campaignId: seededCampaigns[0]!.id,
+      requirements: SEED_JD.requirements,
+      workMode: 'HYBRID',
+    });
 
     for (const email of emails) {
       await t.http().post(api('auth/login')).send({ email, password: DEFAULT_SEED_PASSWORD }).expect(200);
