@@ -121,12 +121,18 @@ RABBITMQ_DEFAULT_USER=srm
 RABBITMQ_DEFAULT_PASS=change-me-rabbitmq
 
 # Object storage — MinIO hoặc S3 tương thích (added in v0.1.0, CONTEXT D23)
-# Service minio đi kèm dùng ACCESS_KEY/SECRET_KEY làm tài khoản root. API đọc các biến này từ US-1.6.
+# Service minio đi kèm dùng ACCESS_KEY/SECRET_KEY làm tài khoản root.
 # Chạy API ngoài Docker thì đặt MINIO_ENDPOINT=http://localhost:9000.
+# API tạo bucket jd-files, cv-files ở lần tải file đầu tiên, mã hóa mọi object bằng SSE-S3 (v0.4.0, CONTEXT D28).
 MINIO_ENDPOINT=http://minio:9000
 MINIO_ACCESS_KEY=srm-minio
 MINIO_SECRET_KEY=change-me-minio
-MINIO_BUCKET=srm-files
+# Địa chỉ trình duyệt mở web, dùng để ký URL tải file (hạn 5 phút); nginx chuyển /jd-files/, /cv-files/ sang MinIO.
+# Mặc định http://localhost:<NGINX_PORT>. Chạy API ngoài Docker (web ở :5173) thì đặt http://localhost:9000.
+MINIO_PUBLIC_ENDPOINT=http://localhost:8080
+# Khóa mã hóa của service minio (bắt buộc, v0.4.0): `srm-key:` + `openssl rand -base64 32`.
+# Mất hoặc đổi khóa thì không đọc được file đã lưu.
+MINIO_KMS_SECRET_KEY=
 
 # Web entry point (added in v0.1.0)
 # Cổng nginx trên máy.

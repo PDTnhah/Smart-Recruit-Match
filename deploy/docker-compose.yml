@@ -79,6 +79,8 @@ services:
     environment:
       MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:?set MINIO_ACCESS_KEY in deploy/.env}
       MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:?set MINIO_SECRET_KEY in deploy/.env}
+      # Server-side encryption of CV/JD files (SSE-S3) needs a KMS key (CONTEXT D28).
+      MINIO_KMS_SECRET_KEY: ${MINIO_KMS_SECRET_KEY:?set MINIO_KMS_SECRET_KEY in deploy/.env (see DEPLOY.md)}
     volumes:
       - miniodata:/data
     ports:
@@ -124,11 +126,13 @@ services:
       REFRESH_TOKEN_TTL_DAYS: ${REFRESH_TOKEN_TTL_DAYS:-7}
       # Cron jobs such as campaign phase changes by deadline (CONTEXT D27).
       SCHEDULER_ENABLED: ${SCHEDULER_ENABLED:-true}
-      # Object storage contract (read by the API from US-1.6).
+      # Original CV/JD files; buckets jd-files and cv-files are created on first upload (CONTEXT D28).
       MINIO_ENDPOINT: ${MINIO_ENDPOINT:?set MINIO_ENDPOINT in deploy/.env}
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
-      MINIO_BUCKET: ${MINIO_BUCKET:?set MINIO_BUCKET in deploy/.env}
+      # Presigned download URLs are signed for this address, the one browsers reach: by default the
+      # web origin, where nginx forwards /jd-files/ and /cv-files/ to minio (CONTEXT D29).
+      MINIO_PUBLIC_ENDPOINT: ${MINIO_PUBLIC_ENDPOINT:-http://localhost:${NGINX_PORT:-8080}}
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -136,6 +140,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      # No minio dependency: buckets are created on the first upload, and an external S3 runs
+      # with `--scale minio=0` (DEPLOY.md).
     healthcheck:
       <<: *healthcheck
       test:
