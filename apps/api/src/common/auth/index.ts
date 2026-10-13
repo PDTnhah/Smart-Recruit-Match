@@ -2,6 +2,11 @@ export { AuthModule } from './auth.module.js';
 export { AccessTokenService } from './access-token.service.js';
 export { AccessGuard } from './access.guard.js';
 export {
+  type InvitationClaims,
+  InvitationTokenService,
+  type SignedInvitation,
+} from './invitation-token.service.js';
+export {
   AccessTokenClaimsSchema,
   authUserFromRow,
   type AccessTokenClaims,
