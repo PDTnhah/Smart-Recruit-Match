@@ -15,6 +15,13 @@
       "when": 1791455258022,
       "tag": "0001_audit_append_only",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791908917805,
+      "tag": "0002_company_jd_invitations",
+      "breakpoints": true
     }
   ]
 }

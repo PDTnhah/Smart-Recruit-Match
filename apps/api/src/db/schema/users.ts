@@ -14,6 +14,9 @@ export const users = core.table(
     email: text('email').notNull().unique(),
     // Null until an invited HR sets a password (US-1.5).
     passwordHash: text('password_hash'),
+    // Random value of the latest HR invitation, also carried by its token. A re-invite replaces it,
+    // so earlier links stop working; accepting clears it (CONTEXT D29).
+    invitationNonce: text('invitation_nonce'),
     fullName: text('full_name'),
     role: text('role').$type<Role>().notNull(),
     companyId: ref('company_id').references(() => companies.id),
