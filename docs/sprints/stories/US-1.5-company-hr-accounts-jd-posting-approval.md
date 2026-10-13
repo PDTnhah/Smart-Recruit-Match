@@ -2,18 +2,61 @@
 id: US-1.5
 title: "Doanh nghiệp, tài khoản HR, đăng và duyệt JD"
 epic: EPIC-1
-status: backlog
+status: in-progress
 priority: P0
 points: 8
-sprint:
+sprint: sprint-2026-W42
 version_shipped:
 prd_ref: [FR-3, FR-4, FR-5]
-depends_on: [US-1.2, US-1.3]
-assignee:
+arch_ref: [AD-6, AD-8]
+depends_on: [US-1.2, US-1.3, US-1.4]
+assignee: PDTnhah
 commit:
 created: 2026-10-07
-updated: 2026-10-07
+updated: 2026-10-13
 ---
+
+## Story refresh — 2026-10-13
+
+Đọc lại story ngày 2026-10-13 trên nhánh `us-1.5`, tách từ `dev` sau khi US-1.4 merge. Các quyết định dưới đây được chốt vào story, số AC giữ nguyên ([CONTEXT D28](../../CONTEXT.md)).
+
+**Sprint và version:** story vào `sprint-2026-W42`, version 0.4.0.
+
+**Người dùng chốt bảy điểm mở ở *Dev notes*:**
+
+- **Mốc M1:** dùng dữ liệu seed, không thêm cạnh tắt.
+  - `dev-seed` thêm một JD ở `PENDING_APPROVAL`, có `requirements` mẫu, để demo màn "Duyệt JD".
+  - Test duyệt tạo JD sẵn ở trạng thái này.
+- **Lúc JD rời `DRAFT`:** khi HR nộp, JD chuyển ngay `DRAFT → PENDING_HR_CONFIRMATION`. US-2.3 AC-4 phải sửa: chỉ lưu `requirements`, không chuyển trạng thái.
+- **Từ chối JD:** Trung tâm chỉ duyệt, không có cạnh trả về.
+- **Cột FR-4:** `job_descriptions` thêm `location`, `work_mode` (CHECK `ONSITE`/`HYBRID`/`REMOTE`), `internship_period`, `allowance` và `file_name` (tên file gốc để hiển thị).
+- **Doanh nghiệp:** doanh nghiệp do Trung tâm tạo coi như đã duyệt. Doanh nghiệp tham gia một đợt khi có JD trong đợt đó.
+- **Token mời:**
+  - JWT với `aud = hr-invite`, hạn 7 ngày, không có bảng mới.
+  - Chỉ dùng được một lần, vì sau khi đặt mật khẩu thì `password_hash` không còn rỗng.
+  - Mời lại một email đã là HR **chưa kích hoạt của cùng công ty** thì cấp link mới thay vì trả `409`. Nhờ vậy link hết hạn vẫn thay được.
+- **File:**
+  - `{id}` của `GET /api/files/{id}/url` có dạng `<owner>:<id>` (`jd:12`).
+  - File JD gửi qua endpoint riêng `PUT /api/jds/{id}/file` (multipart, kèm `rowVersion`), sau khi tạo JD bằng `POST /api/jds` dạng JSON.
+
+**Quyết định kỹ thuật:**
+
+- **Bucket:**
+  - Tên cố định theo ARCH: `jd-files`, `cv-files`. Bỏ biến `MINIO_BUCKET`, vì API chưa từng đọc nó.
+  - Service `minio` cần `MINIO_KMS_SECRET_KEY`, nếu không thì mã hóa phía server không chạy. Đã thử trên image Chainguard ngày 2026-10-13: object ghi vào có `Encryption: SSE-S3`.
+  - `MINIO_PUBLIC_ENDPOINT` (không bắt buộc) là host trình duyệt dùng. URL ký sẵn được ký với host này.
+- **Thư viện:**
+  - `@aws-sdk/client-s3` và `@aws-sdk/s3-request-presigner` ghim 3.1142.0.
+  - `file-type` ghim 16.5.4, vì từ bản 17 gói chỉ có ESM, Jest của API không nạp được (LESSONS §9).
+  - multer dùng qua `FileInterceptor` của `@nestjs/platform-express`.
+- **Kiểm quyền file:** `FileAccessRegistry` ở `common/storage`. Mỗi module đăng ký resolver cho loại file của mình, cùng mẫu cổng `StudentAudienceLookup` ở D27.
+- **Pha của đợt:** mọi thao tác ghi JD của HR (tạo, sửa, tải file, nộp) gọi `assertPhase(…, ['INTAKE'])`. Thao tác duyệt không kiểm pha.
+- **Guard duyệt (BR-02):** `requirements` phải có, mã lý do `REQUIREMENTS_NOT_CONFIRMED`.
+- **Lời mời:**
+  - Đường dẫn mời là `/accept-invitation#<token>`, nên token không đi vào log của server.
+  - Nhận lời mời xong thì HR đăng nhập luôn.
+- **Mã lỗi mới:** `INVITATION_INVALID` (422), `UNSUPPORTED_FILE_TYPE` (415), `FILE_TOO_LARGE` (413), `JD_NOT_EDITABLE` (409).
+- **File 6 MB trong test:** sinh lúc chạy test, không commit vào `test/fixtures/files/`.
 
 ## Goal
 
@@ -27,7 +70,14 @@ Vòng đời JD theo PRD: *Nháp → Chờ HR xác nhận yêu cầu → Chờ T
 
 ARCH › *Các module*: module `company` lo doanh nghiệp, JD, yêu cầu chuẩn hóa, phiên bản JD. ARCH › *Security architecture* › *Tải file*: kiểm tra MIME thật, không tin phần mở rộng, tối đa 5 MB. ARCH › *Lưu trữ file*: bucket `jd-files` bật mã hóa phía server, tải qua URL tạm có hạn 5 phút. Thư viện theo ARCH › *Thư viện chính*: `@aws-sdk/client-s3`, `@aws-sdk/s3-request-presigner`, multer, file-type.
 
-**Lessons applied**: none — LESSONS.md chỉ có §1 (nạp skill), không liên quan doanh nghiệp, JD hay lưu file; đọc lại khi bắt đầu story.
+**Lessons applied**:
+- §2: xem `git diff --stat` sau `koni-docs sync`.
+- §4: MinIO trong testcontainers dùng cùng image Chainguard ghim digest như compose.
+- §6: story duy nhất sinh migration trong đợt; sinh sau khi rebase lên US-1.4.
+- §7: hàm Drizzle dùng chung khai kiểu cụ thể.
+- §8: `shadcn add` thì ghim lại bản gói và đọc lại file sinh ra.
+- §9: kiểm `npm view <gói> type` trước khi thêm gói; vì vậy `file-type` ghim bản 16 (CommonJS).
+- §10: kiểm tra chéo trường dùng `superRefine(fn, { when })`.
 
 ## Acceptance criteria
 
