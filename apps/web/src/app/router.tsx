@@ -1,4 +1,4 @@
-import type { Portal } from '@srm/shared';
+import { ACCEPT_INVITATION_PATH, type Portal } from '@srm/shared';
 import type { ReactNode } from 'react';
 import { createBrowserRouter, Navigate, type RouteObject } from 'react-router';
 import { RequirePortal, RootRedirect } from '@/app/guards/require-portal';
@@ -6,9 +6,16 @@ import { RequireRole } from '@/app/guards/require-role';
 import { PortalSidebarLayout } from '@/app/layouts/portal-sidebar-layout';
 import { StudentLayout } from '@/app/layouts/student-layout';
 import { ComingSoonPage, PortalHomePage } from '@/app/pages/portal-pages';
+import { AcceptInvitationPage } from '@/features/auth/accept-invitation-page';
 import { LoginPage } from '@/features/auth/login-page';
 import { CampaignListPage } from '@/features/center/campaigns/campaign-list-page';
 import { CampaignCreatePage, CampaignEditPage } from '@/features/center/campaigns/campaign-pages';
+import { CompanyListPage } from '@/features/center/companies/company-list-page';
+import { CompanyCreatePage, CompanyDetailPage } from '@/features/center/companies/company-pages';
+import { JdApprovalDetailPage } from '@/features/center/jd-approval/jd-approval-detail-page';
+import { JdApprovalListPage } from '@/features/center/jd-approval/jd-approval-list-page';
+import { HrJdListPage } from '@/features/hr/jds/hr-jd-list-page';
+import { HrJdCreatePage, HrJdDetailPage } from '@/features/hr/jds/hr-jd-pages';
 
 // Routes by portal (DESIGN.md §12). A story that ships a screen adds its route next to the
 // `:section` placeholder of its portal.
@@ -34,13 +41,26 @@ function centerOnly(page: ReactNode): ReactNode {
 export const router = createBrowserRouter([
   { path: '/', element: <RootRedirect /> },
   { path: '/login', element: <LoginPage /> },
+  // US-1.5: invited HR sets a password; public, outside the portals (DESIGN.md §12).
+  { path: ACCEPT_INVITATION_PATH, element: <AcceptInvitationPage /> },
   portalRoute('/sv', <StudentLayout />),
-  portalRoute('/hr', <PortalSidebarLayout portal="/hr" />),
+  portalRoute('/hr', <PortalSidebarLayout portal="/hr" />, [
+    // US-1.5: "JD của tôi" (the /hr portal is HR-only).
+    { path: 'job-descriptions', element: <HrJdListPage /> },
+    { path: 'job-descriptions/new', element: <HrJdCreatePage /> },
+    { path: 'job-descriptions/:id', element: <HrJdDetailPage /> },
+  ]),
   portalRoute('/admin', <PortalSidebarLayout portal="/admin" />, [
     // US-1.4: campaign setup belongs to CENTER only (ADMIN reads campaigns through the API).
     { path: 'campaigns', element: centerOnly(<CampaignListPage />) },
     { path: 'campaigns/new', element: centerOnly(<CampaignCreatePage />) },
     { path: 'campaigns/:id', element: centerOnly(<CampaignEditPage />) },
+    // US-1.5: companies and HR invitations, JD approval.
+    { path: 'companies', element: centerOnly(<CompanyListPage />) },
+    { path: 'companies/new', element: centerOnly(<CompanyCreatePage />) },
+    { path: 'companies/:id', element: centerOnly(<CompanyDetailPage />) },
+    { path: 'job-descriptions', element: centerOnly(<JdApprovalListPage />) },
+    { path: 'job-descriptions/:id', element: centerOnly(<JdApprovalDetailPage />) },
   ]),
   { path: '*', element: <Navigate to="/" replace /> },
 ]);

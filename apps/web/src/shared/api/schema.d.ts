@@ -4,6 +4,22 @@
  */
 
 export interface paths {
+    "/api/files/{id}/url": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["FilesController_url"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/health": {
         parameters: {
             query?: never;
@@ -30,6 +46,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["AuthController_login"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/accept-invitation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AuthController_acceptInvitation"];
         delete?: never;
         options?: never;
         head?: never;
@@ -148,10 +180,160 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/companies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["CompanyController_list"];
+        put?: never;
+        post: operations["CompanyController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/companies/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["CompanyController_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["CompanyController_update"];
+        trace?: never;
+    };
+    "/api/companies/{id}/hr-invitations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["CompanyController_inviteHr"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/companies/{id}/hr-accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["CompanyController_listHrAccounts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["JdController_list"];
+        put?: never;
+        post: operations["JdController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jds/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["JdController_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["JdController_update"];
+        trace?: never;
+    };
+    "/api/jds/{id}/file": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["JdController_attachFile"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jds/{id}/submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["JdController_submit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jds/{id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["JdController_approve"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        FileUrlDto_Output: {
+            /** Format: uri */
+            url: string;
+            /** Format: date-time */
+            expiresAt: string;
+        };
         LoginRequestDto: {
             /** Format: email */
             email: string;
@@ -169,6 +351,10 @@ export interface components {
                 companyId: number | null;
                 studentId: number | null;
             };
+        };
+        AcceptInvitationRequestDto: {
+            token: string;
+            password: string;
         };
         MeDto_Output: {
             id: number;
@@ -378,6 +564,163 @@ export interface components {
         OpenCampaignRequestDto: {
             rowVersion: number;
         };
+        CreateCompanyRequestDto: {
+            name: string;
+            field?: string | null;
+            address?: string | null;
+            contact?: {
+                name?: string | null;
+                email?: string | null;
+                phone?: string | null;
+            };
+        };
+        CompanyDto_Output: {
+            id: number;
+            name: string;
+            field: string[];
+            address: string[];
+            contact: {
+                name: string | null;
+                email: string | null;
+                phone: string | null;
+            };
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        CompanyListDto_Output: {
+            items: {
+                id: number;
+                name: string;
+                field: string | null;
+                address: string | null;
+                contact: {
+                    name: string | null;
+                    email: string | null;
+                    phone: string | null;
+                };
+                /** Format: date-time */
+                createdAt: string;
+                /** Format: date-time */
+                updatedAt: string;
+            }[];
+        };
+        UpdateCompanyRequestDto: {
+            name?: string;
+            field?: string | null;
+            address?: string | null;
+            contact?: {
+                name?: string | null;
+                email?: string | null;
+                phone?: string | null;
+            };
+        };
+        InviteHrRequestDto: {
+            /** Format: email */
+            email: string;
+            fullName: string;
+        };
+        HrInvitationDto_Output: {
+            account: {
+                id: number;
+                email: string;
+                fullName: string | null;
+                /** @enum {string} */
+                status: "PENDING" | "ACTIVE";
+            };
+            invitationPath: string;
+            /** Format: date-time */
+            expiresAt: string;
+        };
+        HrAccountListDto_Output: {
+            items: {
+                id: number;
+                email: string;
+                fullName: string | null;
+                /** @enum {string} */
+                status: "PENDING" | "ACTIVE";
+            }[];
+        };
+        CreateJdRequestDto: {
+            campaignId: number;
+            title: string;
+            quota: number;
+            location: string;
+            /** @enum {string} */
+            workMode: "ONSITE" | "HYBRID" | "REMOTE";
+            internshipPeriod: string;
+            allowance?: string | null;
+            description?: string | null;
+        };
+        JobDescriptionDto_Output: {
+            id: number;
+            campaignId: number;
+            companyId: number;
+            companyName: string;
+            title: string;
+            quota: number;
+            location: string[];
+            /** @enum {string|null} */
+            workMode: "ONSITE" | "HYBRID" | "REMOTE" | null;
+            internshipPeriod: string[];
+            allowance: string[];
+            description: string[];
+            file: {
+                name: string;
+            } | null;
+            /** @enum {string} */
+            status: "DRAFT" | "PENDING_HR_CONFIRMATION" | "PENDING_APPROVAL" | "APPROVED" | "RECRUITING" | "FILLED" | "CLOSED";
+            version: number;
+            rowVersion: number;
+            requirementsReady: boolean;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        JdListDto_Output: {
+            items: {
+                id: number;
+                campaignId: number;
+                companyId: number;
+                companyName: string;
+                title: string;
+                quota: number;
+                location: string | null;
+                /** @enum {string|null} */
+                workMode: "ONSITE" | "HYBRID" | "REMOTE" | null;
+                internshipPeriod: string | null;
+                allowance: string | null;
+                description: string | null;
+                file: {
+                    name: string;
+                } | null;
+                /** @enum {string} */
+                status: "DRAFT" | "PENDING_HR_CONFIRMATION" | "PENDING_APPROVAL" | "APPROVED" | "RECRUITING" | "FILLED" | "CLOSED";
+                version: number;
+                rowVersion: number;
+                requirementsReady: boolean;
+                /** Format: date-time */
+                createdAt: string;
+                /** Format: date-time */
+                updatedAt: string;
+            }[];
+        };
+        UpdateJdRequestDto: {
+            rowVersion: number;
+            title?: string;
+            quota?: number;
+            location?: string;
+            /** @enum {string} */
+            workMode?: "ONSITE" | "HYBRID" | "REMOTE";
+            internshipPeriod?: string;
+            allowance?: string | null;
+            description?: string | null;
+        };
+        JdActionRequestDto: {
+            rowVersion: number;
+        };
     };
     responses: never;
     parameters: never;
@@ -387,6 +730,27 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    FilesController_url: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FileUrlDto_Output"];
+                };
+            };
+        };
+    };
     HealthController_check: {
         parameters: {
             query?: never;
@@ -515,6 +879,29 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["LoginRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthSessionDto_Output"];
+                };
+            };
+        };
+    };
+    AuthController_acceptInvitation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AcceptInvitationRequestDto"];
             };
         };
         responses: {
@@ -738,6 +1125,310 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CampaignDto_Output"];
+                };
+            };
+        };
+    };
+    CompanyController_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanyListDto_Output"];
+                };
+            };
+        };
+    };
+    CompanyController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateCompanyRequestDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanyDto_Output"];
+                };
+            };
+        };
+    };
+    CompanyController_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanyDto_Output"];
+                };
+            };
+        };
+    };
+    CompanyController_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateCompanyRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanyDto_Output"];
+                };
+            };
+        };
+    };
+    CompanyController_inviteHr: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InviteHrRequestDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HrInvitationDto_Output"];
+                };
+            };
+        };
+    };
+    CompanyController_listHrAccounts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HrAccountListDto_Output"];
+                };
+            };
+        };
+    };
+    JdController_list: {
+        parameters: {
+            query?: {
+                campaignId?: number;
+                status?: "DRAFT" | "PENDING_HR_CONFIRMATION" | "PENDING_APPROVAL" | "APPROVED" | "RECRUITING" | "FILLED" | "CLOSED";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JdListDto_Output"];
+                };
+            };
+        };
+    };
+    JdController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateJdRequestDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobDescriptionDto_Output"];
+                };
+            };
+        };
+    };
+    JdController_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobDescriptionDto_Output"];
+                };
+            };
+        };
+    };
+    JdController_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateJdRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobDescriptionDto_Output"];
+                };
+            };
+        };
+    };
+    JdController_attachFile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                    rowVersion: number;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobDescriptionDto_Output"];
+                };
+            };
+        };
+    };
+    JdController_submit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JdActionRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobDescriptionDto_Output"];
+                };
+            };
+        };
+    };
+    JdController_approve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JdActionRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobDescriptionDto_Output"];
                 };
             };
         };
