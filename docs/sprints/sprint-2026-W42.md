@@ -7,12 +7,12 @@ goal: 'Ship US-1.4: Trung tâm tạo và cấu hình đợt thực tập, đợt
 ---
 ## Sprint scope
 
-| US     | Title                                             | Epic   | Pri | Points | Status         | Carry    | Story file                                                                                                             |
-| ------ | ------------------------------------------------- | ------ | --- | ------ | -------------- | -------- | ---------------------------------------------------------------------------------------------------------------------- |
-| US-1.1 | Scaffold monorepo, Docker Compose, CI             | EPIC-1 | P0  | 5      | 👀 review      | from W41 | [stories/US-1.1-scaffold-monorepo-docker-compose-ci.md](stories/US-1.1-scaffold-monorepo-docker-compose-ci.md)         |
-| US-1.3 | Đăng nhập, phân quyền, DESIGN.md, khung giao diện | EPIC-1 | P0  | 8      | 👀 review      | from W41 | [stories/US-1.3-auth-rbac-design-system-app-shell.md](stories/US-1.3-auth-rbac-design-system-app-shell.md)             |
-| US-1.4 | Tạo và cấu hình đợt thực tập                      | EPIC-1 | P0  | 5      | 👀 review      | new      | [stories/US-1.4-campaign-setup-and-config.md](stories/US-1.4-campaign-setup-and-config.md)                             |
-| US-1.5 | Doanh nghiệp, tài khoản HR, đăng và duyệt JD      | EPIC-1 | P0  | 8      | 🚧 in-progress | new      | [stories/US-1.5-company-hr-accounts-jd-posting-approval.md](stories/US-1.5-company-hr-accounts-jd-posting-approval.md) |
+| US     | Title                                             | Epic   | Pri | Points | Status    | Carry    | Story file                                                                                                             |
+| ------ | ------------------------------------------------- | ------ | --- | ------ | --------- | -------- | ---------------------------------------------------------------------------------------------------------------------- |
+| US-1.1 | Scaffold monorepo, Docker Compose, CI             | EPIC-1 | P0  | 5      | 👀 review | from W41 | [stories/US-1.1-scaffold-monorepo-docker-compose-ci.md](stories/US-1.1-scaffold-monorepo-docker-compose-ci.md)         |
+| US-1.3 | Đăng nhập, phân quyền, DESIGN.md, khung giao diện | EPIC-1 | P0  | 8      | 👀 review | from W41 | [stories/US-1.3-auth-rbac-design-system-app-shell.md](stories/US-1.3-auth-rbac-design-system-app-shell.md)             |
+| US-1.4 | Tạo và cấu hình đợt thực tập                      | EPIC-1 | P0  | 5      | 👀 review | new      | [stories/US-1.4-campaign-setup-and-config.md](stories/US-1.4-campaign-setup-and-config.md)                             |
+| US-1.5 | Doanh nghiệp, tài khoản HR, đăng và duyệt JD      | EPIC-1 | P0  | 8      | 👀 review | new      | [stories/US-1.5-company-hr-accounts-jd-posting-approval.md](stories/US-1.5-company-hr-accounts-jd-posting-approval.md) |
 
 > **Convention**: AC + Tasks live inside each story file. This sprint file lists planned
 > stories at a glance only. Design + decision docs cross-linked at the bottom.

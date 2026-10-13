@@ -6,6 +6,63 @@ Lịch sử phát hành của Smart Recruit Match. Mỗi commit ship code tăng 
 
 ---
 
+## [0.4.0] — 2026-10-13 — Doanh nghiệp, tài khoản HR, đăng và duyệt JD — v0.4.0
+
+US-1.5. Trung tâm khai báo doanh nghiệp và mời HR. HR nhận lời mời, đăng JD bằng form hoặc file PDF/DOCX, rồi nộp. Trung tâm duyệt JD. File gốc lưu mã hóa trên MinIO, tải qua URL tạm 5 phút. Lớp lưu file và kiểm tra file tải lên dùng lại được cho CV (US-1.6). Không có lời gọi LLM nào.
+
+### Added
+- **Doanh nghiệp** (chỉ Trung tâm, có nhật ký thao tác): `POST`/`GET /api/companies`, `GET`/`PATCH /api/companies/{id}`. Doanh nghiệp do Trung tâm tạo coi như đã duyệt. PATCH người liên hệ gộp từng trường.
+- **Mời HR:**
+  - `POST /api/companies/{id}/hr-invitations` tạo tài khoản HR chưa có mật khẩu và trả đường dẫn mời `/accept-invitation#<token>` (JWT `aud = hr-invite`, hạn 7 ngày). Đường dẫn để Trung tâm gửi tay tới khi có email (US-1.7).
+  - Mời lại một HR chưa kích hoạt thì cấp link mới, cập nhật họ tên, và link cũ hết hiệu lực (nonce trong `users.invitation_nonce`).
+  - `GET /api/companies/{id}/hr-accounts`.
+  - Sự kiện `hr.invited`.
+- **Nhận lời mời:** `POST /api/auth/accept-invitation` đặt mật khẩu và đăng nhập luôn. Token đã dùng, đã bị thay, hết hạn hoặc sai chữ ký thì trả `422 INVITATION_INVALID`.
+- **JD:**
+  - HR tạo bằng `POST /api/jds`, có các trường FR-4: vị trí, chỉ tiêu, địa điểm, hình thức `ONSITE`/`HYBRID`/`REMOTE`, thời gian thực tập, phụ cấp, mô tả. `company_id` lấy từ token. Đợt phải ở `INTAKE` (`409 CAMPAIGN_PHASE_MISMATCH`); đợt HR không thấy thì `404`.
+  - Sửa nháp bằng `PATCH /api/jds/{id}`: kiểm `row_version`; JD đã nộp thì `409 JD_NOT_EDITABLE`.
+  - Nộp bằng `POST /api/jds/{id}/submit`: `DRAFT → PENDING_HR_CONFIRMATION` qua `transitionTo`; thiếu cả mô tả lẫn file thì `422`. Sự kiện `jd.submitted`.
+  - `GET /api/jds` (HR chỉ thấy JD của công ty mình; Trung tâm lọc được theo đợt và trạng thái), `GET /api/jds/{id}`. JD ngoài phạm vi trả `404` (BR-11).
+- **File JD:**
+  - `PUT /api/jds/{id}/file` (multipart) nhận PDF hoặc DOCX tối đa 5 MB.
+  - Loại file kiểm bằng magic bytes (`415 UNSUPPORTED_FILE_TYPE`). File quá cỡ bị chặn ở multer (`413 FILE_TOO_LARGE`), không ghi gì vào MinIO.
+  - Object được mã hóa SSE-S3 trong bucket `jd-files`. Tên file tiếng Việt giữ nguyên.
+- **Duyệt JD:** `POST /api/jds/{id}/approve` (Trung tâm): `PENDING_APPROVAL → APPROVED` qua `transitionTo`, có guard BR-02 (yêu cầu chuẩn hóa đã có). Hai lần duyệt đồng thời chỉ một lần thành công. Sự kiện `jd.approved`.
+- **URL file:** `GET /api/files/{id}/url` (`id` = `jd:12`) trả URL ký sẵn hạn 5 phút, tải qua nginx (`/jd-files/`, `/cv-files/`). Quyền kiểm theo bản ghi chủ sở hữu, qua `FileAccessRegistry`.
+- **Lớp lưu file dùng chung** `apps/api/src/common/storage/`: `StorageService` (bucket `jd-files`, `cv-files` tạo lúc khởi động, SSE-S3), `SingleFileUpload()`, `detectDocument()`, `FileAccessRegistry`.
+- **Giao diện:**
+  - Cổng Trung tâm: "Doanh nghiệp" (danh sách, tạo/sửa, mời HR, sao chép đường dẫn mời, tạo lại link mời) và "Duyệt JD" (lọc theo đợt, chi tiết, xem file gốc, duyệt có xác nhận).
+  - Cổng HR: "JD của tôi" (danh sách kèm trạng thái và nhãn "Chờ phân tích", form nhập tay và tải file, nộp có xác nhận).
+  - Trang nhận lời mời. Primitive mới: `select`.
+- **Dữ liệu và tài liệu:**
+  - Migration `0002_company_jd_invitations`: cột FR-4 và `file_name` của `job_descriptions` (CHECK `work_mode`, cặp `file_key`/`file_name`); `users.invitation_nonce`.
+  - Seed dev có một JD của Alpha ở `PENDING_APPROVAL` để demo màn duyệt (mốc M1).
+  - CONTEXT D28, D29; LESSONS §11 (`testTimeout` trong `projects` bị bỏ qua), §12 (`FOR UPDATE OF` với bảng có schema), §13 (multer đọc tên file theo latin1), bổ sung §9 (`file-type` chỉ có ESM).
+
+### Changed
+- `apps/api`: thêm `@aws-sdk/client-s3`, `@aws-sdk/s3-request-presigner` 3.1142.0, `file-type` 16.5.4.
+- **Cấu hình:**
+  - Thêm `MINIO_KMS_SECRET_KEY` (bắt buộc với service `minio`) và `MINIO_PUBLIC_ENDPOINT` (mặc định là địa chỉ web); bỏ `MINIO_BUCKET`. `deploy/.env` cũ cần thêm `MINIO_KMS_SECRET_KEY`.
+  - nginx chuyển `/jd-files/`, `/cv-files/` tới MinIO.
+- **Test:**
+  - Integration test có MinIO trong testcontainers (cùng digest với compose).
+  - Timeout 120 giây của integration test nay mới có hiệu lực (đặt qua `setupFilesAfterEnv`).
+  - `core-schema.int-spec.ts` đếm migration theo `_journal.json`.
+- **Code:**
+  - `CampaignService` dùng `emitSafely()` (`common/events`) và `userActor()` (`audit`).
+  - `AuthService.issue` mở cho service trong module.
+  - Builder Zod dùng chung ở `packages/shared/schemas/common.ts`.
+- **Tài liệu:**
+  - ARCHITECTURE: *Các module*, *Thư viện chính*, *Các bảng chính*, *Lưu trữ file*, *API architecture*, *Docker Compose*.
+  - DESIGN.md §6 (`select`, badge trạng thái JD); DEPLOY.md, SETUP.md.
+  - Menu đổi tên thành "JD của tôi" (HR) và "Duyệt JD" (Trung tâm).
+  - *Story refresh* cho US-1.6, US-1.7, US-2.3 (US-2.3 AC-4 không chuyển trạng thái nữa).
+- **Sprint:** US-1.5 vào `sprint-2026-W42` (kéo sớm từ W43).
+
+**Commit**:
+
+---
+
 ## [0.3.0] — 2026-10-12 — Tạo và cấu hình đợt thực tập — v0.3.0
 
 US-1.4. Trung tâm tạo và cấu hình đợt thực tập, rồi mở đợt. Đợt tự chuyển giai đoạn khi qua mốc. Các story sau kiểm tra pha bằng một hàm của module `campaign` và đọc tham số qua service của nó.
