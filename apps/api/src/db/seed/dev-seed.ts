@@ -1,13 +1,14 @@
-// Dev/test seed (US-1.3 AC-8): one account per role, two companies with one HR each, two students.
+// Dev/test seed (US-1.3 AC-8): one account per role, two companies with one HR each, two students,
+// and one draft campaign for the center screen (US-1.4).
 // Idempotent: running it again creates nothing new and leaves existing passwords alone.
 // Usage: DATABASE_URL=… [SEED_PASSWORD=…] pnpm --filter @srm/api db:seed
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { eq, inArray } from 'drizzle-orm';
 import { Pool } from 'pg';
-import type { Role } from '@srm/shared';
+import { DEFAULT_CAMPAIGN_CONFIG, type Role } from '@srm/shared';
 import { hashPassword } from '../../modules/iam/index.js';
 import * as schema from '../schema/index.js';
-import { companies, students, users } from '../schema/index.js';
+import { campaigns, companies, students, users } from '../schema/index.js';
 import type { Database } from '../types.js';
 
 /** Default password of every seeded account when SEED_PASSWORD is not set (docs/SETUP.md). */
@@ -19,6 +20,12 @@ export const SEED_STUDENTS = [
   { studentCode: 'SV-DEMO-001', fullName: 'Sinh viên Demo Một', major: 'Công nghệ thông tin', cohort: 'K66', gpa: 3.2 },
   { studentCode: 'SV-DEMO-002', fullName: 'Sinh viên Demo Hai', major: 'Khoa học máy tính', cohort: 'K66', gpa: 3.6 },
 ] as const;
+
+/** A draft without deadlines: the center sets them in the UI before opening it. */
+export const SEED_CAMPAIGN = {
+  name: 'Đợt thực tập mẫu HK1 2026–2027',
+  target: { cohorts: ['K66'], majors: ['Công nghệ thông tin', 'Khoa học máy tính'] },
+} as const;
 
 interface SeedAccount {
   email: string;
@@ -69,6 +76,15 @@ export async function seedDev(db: Database, password: string = DEFAULT_SEED_PASS
         })),
       )
       .onConflictDoNothing({ target: users.email });
+
+    // campaigns.name is not unique either; look the seed campaign up by name.
+    const [campaign] = await tx.select({ id: campaigns.id }).from(campaigns).where(eq(campaigns.name, SEED_CAMPAIGN.name));
+    if (!campaign) {
+      await tx.insert(campaigns).values({
+        name: SEED_CAMPAIGN.name,
+        config: { ...DEFAULT_CAMPAIGN_CONFIG, target: SEED_CAMPAIGN.target },
+      });
+    }
   });
 }
 

@@ -14,6 +14,9 @@ export const API_ERROR_CODES = [
   'EMAIL_TAKEN',
   'STUDENT_CODE_TAKEN',
   'ROLE_NOT_ALLOWED',
+  // Campaign setup and phase checks (US-1.4, CONTEXT D27).
+  'CAMPAIGN_CONFIG_LOCKED',
+  'CAMPAIGN_PHASE_MISMATCH',
   'INTERNAL_ERROR',
 ] as const;
 

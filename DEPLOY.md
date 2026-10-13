@@ -88,6 +88,7 @@ Nguồn: `deploy/.env` (sao từ [`deploy/.env.example`](deploy/.env.example)). 
 | `JWT_ACCESS_SECRET` | Required | Chuỗi ngẫu nhiên ≥ 32 ký tự (`openssl rand -base64 48`) | Khóa ký access token HS256 (CONTEXT D25). Đổi khóa thì mọi người phải đăng nhập lại trong vòng 15 phút |
 | `REFRESH_TOKEN_TTL_DAYS` | Optional (7) | Tự đặt, 1–90 | Thời hạn refresh token (cookie httpOnly, Redis lưu hash) |
 | `REDIS_URL` | – (compose đặt `redis://redis:6379`) | | Chạy API ngoài Docker thì tự đặt, host `localhost` và cổng `REDIS_HOST_PORT` |
+| `SCHEDULER_ENABLED` | Optional (`true`) | `true`/`false` | Bật tác vụ định kỳ của API, như chuyển pha đợt khi qua mốc (CONTEXT D27). Chạy nhiều instance vẫn để `true`: advisory lock của PostgreSQL chỉ cho một instance chạy mỗi tác vụ |
 | `SEED_PASSWORD` | Optional (`Srm-Dev-12345`) | Tự đặt | Chỉ cho `pnpm --filter @srm/api db:seed` (dữ liệu dev/test), không dùng trong compose |
 | `LOG_LEVEL` | Optional (`info`) | `fatal`/`error`/`warn`/`info`/`debug`/`trace`/`silent` | Mức log pino của API |
 | `PORT`, `NODE_ENV` | – | Đặt sẵn trong `deploy/docker-compose.yml` (`3000`, `production`) | API đọc và kiểm bằng Zod (`apps/api/src/common/config/env.ts`); không cần khai báo trong `.env` |

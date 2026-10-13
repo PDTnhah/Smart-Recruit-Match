@@ -20,6 +20,11 @@ export function formatDateTime(value: DateInput): string {
   return format(toDate(value), 'dd/MM/yyyy HH:mm', { locale: vi });
 }
 
+/** 14:05 (24-hour clock) */
+export function formatTime(value: DateInput): string {
+  return format(toDate(value), 'HH:mm', { locale: vi });
+}
+
 /** 3 phút trước, 2 ngày nữa */
 export function formatRelative(value: DateInput): string {
   return formatDistanceToNow(toDate(value), { addSuffix: true, locale: vi });

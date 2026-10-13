@@ -22,4 +22,10 @@ describe('environment (CONTEXT D25)', () => {
     expect(() => loadEnv({ ...base, REDIS_URL: undefined })).toThrow('REDIS_URL');
     expect(() => loadEnv({ ...base, REDIS_URL: 'http://localhost:6379' })).toThrow('REDIS_URL');
   });
+
+  it('runs scheduled jobs unless SCHEDULER_ENABLED is false (CONTEXT D27)', () => {
+    expect(loadEnv(base).SCHEDULER_ENABLED).toBe(true);
+    expect(loadEnv({ ...base, SCHEDULER_ENABLED: 'false' }).SCHEDULER_ENABLED).toBe(false);
+    expect(() => loadEnv({ ...base, SCHEDULER_ENABLED: 'maybe' })).toThrow('SCHEDULER_ENABLED');
+  });
 });

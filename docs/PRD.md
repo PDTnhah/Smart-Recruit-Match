@@ -779,13 +779,13 @@ erDiagram
 
 | ID | Requirement | Priority | Status | Epic |
 |----|-------------|----------|--------|------|
-| FR-1 | Đăng nhập; phân quyền theo vai trò (Cán bộ Trung tâm, Sinh viên, HR, Quản trị) và kiểm tra quyền cấp bản ghi (BR-11) | P0 | 📋 backlog | EPIC-1 |
-| FR-2 | Tạo và cấu hình đợt thực tập: đối tượng, mốc thời gian từng giai đoạn, tham số đợt; trạng thái đợt chuyển theo mốc và chỉ cho phép thao tác tương ứng (UC-01, GĐ0) | P0 | 📋 backlog | EPIC-1 |
+| FR-1 | Đăng nhập; phân quyền theo vai trò (Cán bộ Trung tâm, Sinh viên, HR, Quản trị) và kiểm tra quyền cấp bản ghi (BR-11) | P0 | 👀 review | EPIC-1 |
+| FR-2 | Tạo và cấu hình đợt thực tập: đối tượng, mốc thời gian từng giai đoạn, tham số đợt; trạng thái đợt chuyển theo mốc và chỉ cho phép thao tác tương ứng (UC-01, GĐ0) | P0 | 👀 review | EPIC-1 |
 | FR-3 | Quản lý doanh nghiệp tham gia đợt, mời và cấp tài khoản HR (UC-02) | P0 | 📋 backlog | EPIC-1 |
 | FR-4 | HR đăng JD theo form hoặc file PDF/DOCX, kèm vị trí, chỉ tiêu, địa điểm, hình thức, thời gian, phụ cấp (UC-20, GĐ1) | P0 | 📋 backlog | EPIC-1 |
 | FR-5 | Cán bộ Trung tâm duyệt JD (UC-03, BR-02) | P0 | 📋 backlog | EPIC-1 |
 | FR-6 | Sinh viên đồng ý điều khoản xử lý dữ liệu cá nhân; nộp và cập nhật CV (PDF/DOCX), mỗi lần cập nhật tạo phiên bản mới, tối đa 1 CV hiệu lực mỗi đợt (UC-10, BR-01, GĐ2) | P0 | 📋 backlog | EPIC-1 |
-| FR-7 | Nhật ký thao tác chỉ ghi thêm cho mọi thay đổi trạng thái và điều chỉnh thủ công (BR-10) | P0 | 📋 backlog | EPIC-1 |
+| FR-7 | Nhật ký thao tác chỉ ghi thêm cho mọi thay đổi trạng thái và điều chỉnh thủ công (BR-10) | P0 | ✅ done | EPIC-1 |
 | FR-8 | Thông báo trong ứng dụng và email theo sự kiện nghiệp vụ, nhắc hạn tự động (UC-35, mục *Thông báo*) | P1 | 📋 backlog | EPIC-1 |
 | FR-9 | AI phân tích JD thành yêu cầu chuẩn hóa: kỹ năng bắt buộc/bổ trợ có mức độ và trọng số, điều kiện cứng, nhóm vị trí (UC-30, GĐ1) | P0 | 📋 backlog | EPIC-2 |
 | FR-10 | HR xem, sửa và xác nhận yêu cầu chuẩn hóa; sửa sau khi đã mở test phải tạo phiên bản mới và chấm lại (UC-21, BR-02, BR-18) | P0 | 📋 backlog | EPIC-2 |
@@ -878,9 +878,9 @@ Mỗi epic tương ứng một giai đoạn trong [ARCHITECTURE.md › Implement
 | Story | Title | Status | Version |
 |-------|-------|--------|---------|
 | US-1.1 | Scaffold monorepo, Docker Compose, CI | 👀 review | — |
-| US-1.2 | Lược đồ DB lõi, `transitionTo`, nhật ký thao tác | 👀 review | — |
-| US-1.3 | Đăng nhập, phân quyền, DESIGN.md, khung giao diện | 👀 review | — |
-| US-1.4 | Tạo và cấu hình đợt thực tập | 📋 backlog | — |
+| US-1.2 | Lược đồ DB lõi, `transitionTo`, nhật ký thao tác | ✅ done | 0.1.1 |
+| US-1.3 | Đăng nhập, phân quyền, DESIGN.md, khung giao diện | 👀 review | 0.2.0 |
+| US-1.4 | Tạo và cấu hình đợt thực tập | 👀 review | 0.3.0 |
 | US-1.5 | Doanh nghiệp, tài khoản HR, đăng và duyệt JD | 📋 backlog | — |
 | US-1.6 | Đồng ý xử lý dữ liệu và nộp CV | 📋 backlog | — |
 | US-1.7 | Thông báo trong app, SSE, email, nhắc hạn | 📋 backlog | — |

@@ -100,6 +100,11 @@ Nền Radix, preset `radix-nova`, base color `neutral`, icon `lucide-react` (CON
 | `avatar` | Tài khoản trong menu | Luôn có `AvatarFallback` (chữ cái đầu) |
 | `separator` | Ngăn cách | Không dùng `<hr>` hay `border-t` tự viết |
 | `tooltip` | Nhãn của nút chỉ có icon | `TooltipProvider` đặt ở `app/providers.tsx` |
+| `table` | Bảng dữ liệu ở cổng HR, Trung tâm (danh sách đợt) | Primitive đã bọc `overflow-x-auto`. Cột thao tác có tiêu đề `sr-only`. Bảng cần sắp xếp, phân trang thì thêm TanStack Table |
+| `badge` | Trạng thái (đợt, JD, hồ sơ…), giá trị ngắn | Luôn có chữ. Trạng thái đợt dùng biến thể có sẵn: nháp `outline`, đang chạy `default`, đã đóng `secondary`. Chưa thêm token màu trạng thái (§2) |
+| `alert-dialog` | Xác nhận hành động khó đảo ngược (mở đợt) | Luôn có `AlertDialogTitle`. Nút xác nhận là `Button` thường để hộp thoại mở tới khi request xong và hiện lỗi bên trong |
+| `popover`, `calendar` | Chọn ngày (`react-day-picker`) | `locale={vi}` của date-fns; giờ nhập bằng `Input type="time"` cạnh nút chọn ngày. **Đã sửa:** `calendar` thêm `pointer-coarse:[--cell-size:--spacing(11)]` cho ô ngày 44 px |
+| `textarea` | Lý do, ghi chú nhiều dòng | Luôn nằm trong `Field` |
 
 ## 7. Bốn trạng thái của mọi màn
 

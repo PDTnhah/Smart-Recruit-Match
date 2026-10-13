@@ -1,6 +1,6 @@
 {
   "name": "@srm/api",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "Core Backend — NestJS modular monolith",
   "files": [
@@ -24,8 +24,10 @@
   "dependencies": {
     "@nestjs/common": "11.2.7",
     "@nestjs/core": "11.2.7",
+    "@nestjs/event-emitter": "3.1.0",
     "@nestjs/jwt": "11.0.2",
     "@nestjs/platform-express": "11.2.7",
+    "@nestjs/schedule": "6.1.3",
     "@nestjs/swagger": "11.4.7",
     "@nestjs/terminus": "11.1.1",
     "@srm/shared": "workspace:*",

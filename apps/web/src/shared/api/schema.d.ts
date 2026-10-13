@@ -100,6 +100,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/campaigns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["CampaignController_list"];
+        put?: never;
+        post: operations["CampaignController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/campaigns/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["CampaignController_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["CampaignController_update"];
+        trace?: never;
+    };
+    "/api/campaigns/{id}/open": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["CampaignController_open"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -166,6 +214,169 @@ export interface components {
                 studentId: number | null;
                 isActive: boolean;
             }[];
+        };
+        CreateCampaignRequestDto: {
+            name: string;
+            target: {
+                cohorts: string[];
+                majors: string[];
+            };
+            /** @default {} */
+            phaseDeadlines: {
+                /** Format: date-time */
+                intake_end?: string | null;
+                /** Format: date-time */
+                preference_end?: string | null;
+                /** Format: date-time */
+                testing_end?: string | null;
+            };
+            /** @default {} */
+            config: {
+                /** @default 3 */
+                n_nv: number;
+                /** @default 50 */
+                theta_cv: number;
+                /** @default 40 */
+                theta_test: number;
+                /** @default 0.4 */
+                alpha: number;
+                /** @default 0.6 */
+                beta: number;
+                /** @default 1.5 */
+                k: number;
+                /** @default 3 */
+                r_max: number;
+                /** @default 45 */
+                t_test_minutes: number;
+                /** @default 5 */
+                sla_hr_business_days: number;
+                /** @default 3 */
+                t_offer_days: number;
+            };
+        };
+        CampaignDto_Output: {
+            id: number;
+            name: string;
+            /** @enum {string} */
+            status: "DRAFT" | "INTAKE" | "PREFERENCE_SELECTION" | "TESTING" | "ALLOCATION_REVIEW" | "SUPPLEMENTARY" | "CLOSED";
+            target: {
+                cohorts: string[];
+                majors: string[];
+            };
+            phaseDeadlines: {
+                /** Format: date-time */
+                intake_end?: string;
+                /** Format: date-time */
+                preference_end?: string;
+                /** Format: date-time */
+                testing_end?: string;
+            };
+            config: {
+                /** @default 3 */
+                n_nv: number;
+                /** @default 50 */
+                theta_cv: number;
+                /** @default 40 */
+                theta_test: number;
+                /** @default 0.4 */
+                alpha: number;
+                /** @default 0.6 */
+                beta: number;
+                /** @default 1.5 */
+                k: number;
+                /** @default 3 */
+                r_max: number;
+                /** @default 45 */
+                t_test_minutes: number;
+                /** @default 5 */
+                sla_hr_business_days: number;
+                /** @default 3 */
+                t_offer_days: number;
+            };
+            rowVersion: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        CampaignListDto_Output: {
+            items: {
+                id: number;
+                name: string;
+                /** @enum {string} */
+                status: "DRAFT" | "INTAKE" | "PREFERENCE_SELECTION" | "TESTING" | "ALLOCATION_REVIEW" | "SUPPLEMENTARY" | "CLOSED";
+                target: {
+                    cohorts: string[];
+                    majors: string[];
+                };
+                phaseDeadlines: {
+                    /** Format: date-time */
+                    intake_end?: string;
+                    /** Format: date-time */
+                    preference_end?: string;
+                    /** Format: date-time */
+                    testing_end?: string;
+                };
+                config: {
+                    /** @default 3 */
+                    n_nv: number;
+                    /** @default 50 */
+                    theta_cv: number;
+                    /** @default 40 */
+                    theta_test: number;
+                    /** @default 0.4 */
+                    alpha: number;
+                    /** @default 0.6 */
+                    beta: number;
+                    /** @default 1.5 */
+                    k: number;
+                    /** @default 3 */
+                    r_max: number;
+                    /** @default 45 */
+                    t_test_minutes: number;
+                    /** @default 5 */
+                    sla_hr_business_days: number;
+                    /** @default 3 */
+                    t_offer_days: number;
+                };
+                rowVersion: number;
+                /** Format: date-time */
+                createdAt: string;
+                /** Format: date-time */
+                updatedAt: string;
+            }[];
+        };
+        UpdateCampaignRequestDto: {
+            rowVersion: number;
+            name?: string;
+            target?: {
+                cohorts: string[];
+                majors: string[];
+            };
+            phaseDeadlines?: {
+                /** Format: date-time */
+                intake_end?: string | null;
+                /** Format: date-time */
+                preference_end?: string | null;
+                /** Format: date-time */
+                testing_end?: string | null;
+            };
+            config?: {
+                n_nv?: number;
+                theta_cv?: number;
+                theta_test?: number;
+                alpha?: number;
+                beta?: number;
+                k?: number;
+                r_max?: number;
+                t_test_minutes?: number;
+                sla_hr_business_days?: number;
+                t_offer_days?: number;
+            };
+            reason?: string;
+        };
+        OpenCampaignRequestDto: {
+            rowVersion: number;
         };
     };
     responses: never;
@@ -414,6 +625,119 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserSummaryDto_Output"];
+                };
+            };
+        };
+    };
+    CampaignController_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CampaignListDto_Output"];
+                };
+            };
+        };
+    };
+    CampaignController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateCampaignRequestDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CampaignDto_Output"];
+                };
+            };
+        };
+    };
+    CampaignController_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CampaignDto_Output"];
+                };
+            };
+        };
+    };
+    CampaignController_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateCampaignRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CampaignDto_Output"];
+                };
+            };
+        };
+    };
+    CampaignController_open: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OpenCampaignRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CampaignDto_Output"];
                 };
             };
         };

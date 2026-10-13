@@ -17,6 +17,9 @@ const EnvSchema = z.object({
       error: 'still the example placeholder; generate one with `openssl rand -base64 48`',
     }),
   REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().min(1).max(90).default(7),
+  // Cron jobs such as the campaign phase scheduler (CONTEXT D27). Integration tests turn them off
+  // and call `runOnce()` themselves.
+  SCHEDULER_ENABLED: z.stringbool().default(true),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

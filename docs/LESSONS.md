@@ -30,6 +30,7 @@ See [CONTEXT.md D18](CONTEXT.md).
 - Nếu giữ diff của `sync`, sửa `created`/`updated` về dạng `YYYY-MM-DD`.
 - Cảnh báo `NFR-x not found` là nhiễu. NFR trong `prd_ref` vẫn hợp lệ theo frontmatter-spec.
 - `status` và `validate` không gặp vấn đề này: `status` chỉ ghi `STATUS.md`, `validate` chỉ đọc.
+- (0.3.0) `validate` và `sync` chỉ tìm file sprint trong `docs/sprints/`, không tìm trong `archive/`. Chuyển sprint đã đóng vào `archive/` thì story còn trỏ `sprint:` tới nó sẽ báo `not_found`. Giữ sprint đã đóng ở `docs/sprints/` với `status: closed`.
 
 See [CONTEXT.md D21](CONTEXT.md).
 
@@ -113,6 +114,33 @@ See [US-1.2](sprints/stories/US-1.2-core-db-schema-transition-audit-log.md) › 
 **How to avoid**:
 - Chạy `pnpm dlx shadcn@<bản đã ghim> init --help` trước khi init để xem cờ thật. Với repo này: `--base radix --preset nova --no-monorepo`.
 - Sau mỗi `init`/`add`, xem `git diff apps/web/package.json`, đổi mọi `^x.y.z` thành bản chính xác đã phát hành ít nhất 2 tuần (`npm view <gói> time --json`), rồi `pnpm install`. `pnpm add --save-exact` không ghi đè dải đã có; sửa tay trong `package.json`.
+- `add` một primitive phụ thuộc file đã sửa (như `button.tsx`) thì CLI hỏi ghi đè và dừng ở đó khi không có ai trả lời, nên các file sau không được tạo. Chạy `yes n | head -20 | pnpm dlx shadcn@4.21.0 add … --cwd apps/web` để trả lời "không" cho mọi câu hỏi ghi đè (0.3.0, US-1.4).
 - Primitive sinh ra là mã của repo: đọc lại từng file. Ở US-1.3 đã sửa `sonner.tsx` (bỏ `next-themes`), `use-mobile.ts` (setState trong effect bị react-hooks v7 chặn), chuỗi trợ năng tiếng Anh trong `sheet.tsx`/`sidebar.tsx`. Mọi chỗ sửa ghi ở [DESIGN.md](../DESIGN.md) §6.
 
 See [CONTEXT.md D26](CONTEXT.md).
+
+## 9. `@nestjs/schedule` 12 và `@nestjs/event-emitter` 12 chỉ có ESM: Jest của API không nạp được
+
+**What happened (0.3.0)**: US-1.4 cài `@nestjs/schedule` 12.0.2 và `@nestjs/event-emitter` 12.0.1, bản mới nhất, nhận peer `@nestjs/common ^11 || ^12`. `tsc` và ESLint qua. Integration test thì đỏ cả 7 file dựng `AppModule`: `Must use import to load ES Module: …/@nestjs/event-emitter/dist/index.js`.
+
+**Why**: Từ bản 12, hai gói này có `"type": "module"`. API build ra CommonJS (`module: nodenext`, `package.json` không có `"type"`). Node 22.12+ chạy được `require()` một module ESM, nhưng runtime của Jest 30 chỉ hỗ trợ việc đó từ Node 24.9. Peer `^11` không có nghĩa là gói chạy được với một app CommonJS.
+
+**How to avoid**:
+- Với NestJS 11, dùng dòng gói cùng thời: `@nestjs/schedule` 6.x, `@nestjs/event-emitter` 3.x. Repo ghim 6.1.3 và 3.1.0.
+- Trước khi thêm một gói `@nestjs/*`, kiểm `npm view <gói>@<bản> type`: có `"module"` thì không dùng được với API này.
+- Sau khi thêm gói, chạy `pnpm --filter @srm/api test` (cả integration), không chỉ `typecheck` và `lint`.
+
+See [US-1.4](sprints/stories/US-1.4-campaign-setup-and-config.md) › Implementation notes.
+
+## 10. Zod 4 bỏ qua `refine`/`superRefine` của object khi trường khác đã lỗi
+
+**What happened (0.3.0)**: Schema tham số đợt kiểm α + β = 1 bằng `superRefine` trên object. Gửi α = 0,5, β = 0,6 cùng k = 0,5 thì API chỉ báo lỗi `config.k`, không báo `config.beta`. Người dùng sửa k xong mới thấy lỗi α + β.
+
+**Why**: Zod 4 chỉ chạy kiểm tra của object khi chưa có lỗi nào trước đó. Truyền `{ when }` thì kiểm tra chạy theo điều kiện riêng. Nhưng nếu một trường gặp lỗi chặn (ví dụ `.int()` với 1,5, mã `invalid_type`), Zod bỏ qua cả `when` và không chạy kiểm tra.
+
+**How to avoid**:
+- Kiểm tra chéo trường trong form dùng `superRefine(fn, { when })`, với `when` chỉ xét lỗi của các trường mà nó đọc. Xem `whenValid` trong `packages/shared/schemas/campaign.ts`.
+- Test schema có ca gửi lỗi chéo cùng lỗi của trường khác, để chắc lỗi chéo vẫn hiện.
+- Không trông đợi lỗi chéo khi một trường nó đọc đang sai kiểu.
+
+See [US-1.4](sprints/stories/US-1.4-campaign-setup-and-config.md) › Implementation notes.

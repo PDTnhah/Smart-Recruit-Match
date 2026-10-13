@@ -1,10 +1,11 @@
 // US-1.3 AC-7 (account administration) and AC-8 (idempotent dev seed).
 import { ApiErrorSchema, AuthSessionSchema, UserListSchema, UserSummarySchema } from '@srm/shared';
 import { eq, inArray } from 'drizzle-orm';
-import { companies, students, users } from '../../src/db/schema/index.js';
+import { campaigns, companies, students, users } from '../../src/db/schema/index.js';
 import {
   DEFAULT_SEED_PASSWORD,
   SEED_ACCOUNTS,
+  SEED_CAMPAIGN,
   SEED_COMPANIES,
   SEED_STUDENTS,
   seedDev,
@@ -165,6 +166,10 @@ describe('US-1.3 AC-8: dev seed', () => {
     // Each HR belongs to a different seeded company.
     const hrCompanies = seededUsers.filter((user) => user.role === 'HR').map((user) => user.companyId);
     expect(new Set(hrCompanies)).toEqual(new Set(seededCompanies.map((company) => company.id)));
+    // One draft campaign whose stored config parses (US-1.4).
+    const seededCampaigns = await t.db.select().from(campaigns).where(eq(campaigns.name, SEED_CAMPAIGN.name));
+    expect(seededCampaigns).toHaveLength(1);
+    expect(seededCampaigns[0]).toMatchObject({ status: 'DRAFT', config: { target: SEED_CAMPAIGN.target, n_nv: 3 } });
 
     for (const email of emails) {
       await t.http().post(api('auth/login')).send({ email, password: DEFAULT_SEED_PASSWORD }).expect(200);

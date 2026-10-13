@@ -28,10 +28,14 @@ export async function createStudent(db: Database, values: Partial<typeof student
   return row!;
 }
 
+/** Target stored in campaigns.config.target by default (CONTEXT D27). */
+export const TEST_CAMPAIGN_TARGET = { cohorts: ['K66'], majors: ['CNTT'] };
+
+/** A campaign whose config parses (target + PRD defaults) and with no deadlines unless given. */
 export async function createCampaign(db: Database, values: Partial<typeof campaigns.$inferInsert> = {}) {
   const [row] = await db
     .insert(campaigns)
-    .values({ name: uniqueValue('campaign'), ...values })
+    .values({ name: uniqueValue('campaign'), config: { target: TEST_CAMPAIGN_TARGET }, ...values })
     .returning();
   return row!;
 }

@@ -139,3 +139,37 @@ export class RoleNotAllowedError extends DomainError {
     super(message, { role });
   }
 }
+
+// Campaign setup and phase checks (US-1.4, CONTEXT D27).
+
+/** The campaign has left DRAFT: name, target and parameters are locked; past deadlines too. */
+export class CampaignConfigLockedError extends DomainError {
+  readonly code = 'CAMPAIGN_CONFIG_LOCKED';
+  readonly httpStatus = 409;
+
+  constructor(campaignId: number, status: string, fields: string[]) {
+    super(`campaign ${campaignId} is ${status}; ${fields.join(', ')} can no longer change`, {
+      campaignId,
+      status,
+      fields,
+    });
+  }
+}
+
+/**
+ * The action belongs to another phase of the campaign (FR-2): the status is not one of `allowed`,
+ * or the deadline ending the current phase has passed before the scheduler moved the campaign.
+ */
+export class CampaignPhaseMismatchError extends DomainError {
+  readonly code = 'CAMPAIGN_PHASE_MISMATCH';
+  readonly httpStatus = 409;
+
+  constructor(campaignId: number, status: string, allowed: readonly string[], phaseEndedAt?: string) {
+    super(
+      phaseEndedAt
+        ? `campaign ${campaignId}: phase ${status} ended at ${phaseEndedAt}`
+        : `campaign ${campaignId} is ${status}; this action needs ${allowed.join(' or ')}`,
+      { campaignId, status, allowed: [...allowed], ...(phaseEndedAt ? { phaseEndedAt } : {}) },
+    );
+  }
+}

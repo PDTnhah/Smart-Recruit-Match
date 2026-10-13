@@ -1,8 +1,8 @@
 ---
 id: sprint-2026-W41
-status: in-progress
-start: 2026-10-05T00:00:00.000Z
-end: 2026-10-11T00:00:00.000Z
+status: closed
+start: 2026-10-05
+end: 2026-10-11
 goal: 'Ship US-1.1: monorepo pnpm, Docker Compose chạy cả hạ tầng bằng một lệnh, CI và cổng commit koni-harness (v0.1.0)'
 ---
 ## Sprint scope
@@ -10,7 +10,7 @@ goal: 'Ship US-1.1: monorepo pnpm, Docker Compose chạy cả hạ tầng bằng
 | US     | Title                                             | Epic   | Pri | Points | Status    | Story file                                                                                                     |
 | ------ | ------------------------------------------------- | ------ | --- | ------ | --------- | -------------------------------------------------------------------------------------------------------------- |
 | US-1.1 | Scaffold monorepo, Docker Compose, CI             | EPIC-1 | P0  | 5      | 👀 review | [stories/US-1.1-scaffold-monorepo-docker-compose-ci.md](stories/US-1.1-scaffold-monorepo-docker-compose-ci.md) |
-| US-1.2 | Lược đồ DB lõi, `transitionTo`, nhật ký thao tác  | EPIC-1 | P0  | 5      | 👀 review | [stories/US-1.2-core-db-schema-transition-audit-log.md](stories/US-1.2-core-db-schema-transition-audit-log.md) |
+| US-1.2 | Lược đồ DB lõi, `transitionTo`, nhật ký thao tác  | EPIC-1 | P0  | 5      | ✅ done   | [stories/US-1.2-core-db-schema-transition-audit-log.md](stories/US-1.2-core-db-schema-transition-audit-log.md) |
 | US-1.3 | Đăng nhập, phân quyền, DESIGN.md, khung giao diện | EPIC-1 | P0  | 8      | 👀 review | [stories/US-1.3-auth-rbac-design-system-app-shell.md](stories/US-1.3-auth-rbac-design-system-app-shell.md)     |
 
 > **Convention**: AC + Tasks live inside each story file. This sprint file lists planned
@@ -41,7 +41,27 @@ Tuần đầu của lộ trình 13 tuần (T1 trong [sprints/README › Lộ tr�
 
 ## Retrospective
 
-*Điền khi đóng sprint.*
+Đóng ngày 2026-10-12. Sprint ship ba version: 0.1.0 (US-1.1), 0.1.1 (US-1.2), 0.2.0 (US-1.3), tổng 18 điểm so với 5 điểm kế hoạch.
+
+### What went well
+
+- Khung monorepo, cổng commit và hạ tầng test xong sớm, nên kéo được US-1.2 và US-1.3 từ W42 vào sprint.
+- Các helper dùng lại (`transitionTo`, `loginAs`, fixture IDOR, test duyệt route) có sẵn trước khi EPIC-1 cần tới.
+
+### What didn't
+
+- US-1.1 (AC-4: CI xanh trên GitHub) và US-1.3 (AC-4 phía web, AC-11, AC-12, AC-13: kiểm tay trong trình duyệt) chưa kiểm chứng xong, nên còn ở `review`.
+
+### Followups
+
+- Kiểm tay US-1.3 theo *Verification commands* của story và xem lần chạy CI gần nhất của `dev` để đóng US-1.1, US-1.3.
+
+## Carry-overs to W42
+
+| US | Lý do | Từ sprint |
+|---|---|---|
+| US-1.1 | `review`: chờ xác nhận CI xanh (AC-4) | W41 |
+| US-1.3 | `review`: chờ kiểm tay AC-4 (web), AC-11, AC-12, AC-13 | W41 |
 
 ## Cross-references
 

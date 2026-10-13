@@ -6,6 +6,31 @@ Lịch sử phát hành của Smart Recruit Match. Mỗi commit ship code tăng 
 
 ---
 
+## [0.3.0] — 2026-10-12 — Tạo và cấu hình đợt thực tập — v0.3.0
+
+US-1.4. Trung tâm tạo và cấu hình đợt thực tập, rồi mở đợt. Đợt tự chuyển giai đoạn khi qua mốc. Các story sau kiểm tra pha bằng một hàm của module `campaign` và đọc tham số qua service của nó.
+
+### Added
+- Trung tâm tạo và cấu hình đợt thực tập: đối tượng (khóa, ngành), ba mốc thời gian (`intake_end`, `preference_end`, `testing_end`) và tham số N_NV, θ_cv, θ_test, α, β, k, R_max, T_test, SLA_HR, T_offer. Tham số bỏ trống nhận giá trị mặc định theo PRD GĐ0. API `POST`/`GET /api/campaigns`, `GET`/`PATCH /api/campaigns/{id}`, `POST /api/campaigns/{id}/open`. Tạo, sửa, mở đợt đều ghi nhật ký thao tác. Sửa đợt kiểm `row_version` (lệch thì `409`).
+- Schema dùng chung `packages/shared/schemas/campaign.ts` cho form và API: α + β = 1 so theo số nguyên ×100, θ trong [0, 100], số nguyên dương, k ≥ 1, mốc tăng dần; lỗi trả về theo từng trường.
+- Khi đợt đã rời nháp: tên, đối tượng và tham số bị khóa (`409 CAMPAIGN_CONFIG_LOCKED`); chỉ được lùi các mốc chưa tới, kèm lý do. Mở đợt khi thiếu mốc hoặc có mốc đã qua thì trả `422`.
+- Phạm vi đọc: Trung tâm và Quản trị thấy mọi đợt; HR thấy đợt đã mở; sinh viên thấy đợt đã mở có khóa và ngành của mình. Đợt ngoài phạm vi trả `404`.
+- Tác vụ định kỳ chuyển pha theo mốc mỗi phút (`@nestjs/schedule` + `pg_try_advisory_lock`), qua `transitionTo` với actor `SYSTEM`, chạy lại không tạo thêm thay đổi. Sự kiện `campaign.opened` và `campaign.phase_changed` (`@nestjs/event-emitter`) phát sau khi commit.
+- `CampaignService.assertPhase`: thao tác sai pha, hoặc sau mốc kết thúc pha, bị từ chối `409 CAMPAIGN_PHASE_MISMATCH`. US-1.5, US-1.6 dùng hàm này.
+- Hạ tầng dùng lại: `Clock`/`FakeClock`, `withAdvisoryLock` + `ADVISORY_LOCK_KEYS`, biến môi trường `SCHEDULER_ENABLED`, option `configure` của `createAuthTestApp`, helper `parseOrFail` cho lỗi `400` theo trường.
+- Màn "Đợt thực tập" ở cổng Trung tâm: danh sách kèm trạng thái và mốc kế tiếp, form ba phần (đối tượng, mốc thời gian, tham số), chọn ngày bằng Calendar locale `vi`, hộp thoại mở đợt, tham số chỉ đọc khi đã khóa. Primitive mới: `table`, `badge`, `alert-dialog`, `popover`, `calendar`, `textarea`.
+- Seed dev có một đợt nháp mẫu.
+- CONTEXT D27; LESSONS §9 (gói NestJS 12 chỉ có ESM), §10 (Zod 4 bỏ qua refine của object khi có lỗi trường).
+
+### Changed
+- `apps/api`: thêm `@nestjs/schedule` 6.1.3, `@nestjs/event-emitter` 3.1.0. `apps/web`: thêm `react-day-picker` 10.0.1.
+- ARCHITECTURE › *Tech stack*, › *Các module*, › *Thư viện chính*, › *Tác vụ định kỳ*, › *Các bảng chính*, › API; DESIGN.md §6; DEPLOY.md, SETUP.md, `deploy/.env.example`, `deploy/docker-compose.yml` (`SCHEDULER_ENABLED`).
+- Sprint `sprint-2026-W41` đóng; `sprint-2026-W42` mở với US-1.4 (kéo sớm từ W43), US-1.1 và US-1.3 chuyển sang.
+
+**Commit**: 928c04c
+
+---
+
 ## [0.2.0] — 2026-10-08 — Đăng nhập, phân quyền, DESIGN.md, khung giao diện — v0.2.0
 
 US-1.3. Bốn vai trò đăng nhập được và chỉ vào được cổng của mình. Mỗi API kiểm tra vai trò bằng một guard mặc định từ chối, và kiểm tra quyền trên từng bản ghi qua một helper dùng chung. Web có design system (`DESIGN.md` + shadcn/ui) và khung ba cổng `/sv`, `/hr`, `/admin`; chưa có màn nghiệp vụ.

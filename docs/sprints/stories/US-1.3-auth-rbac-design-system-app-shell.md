@@ -5,12 +5,12 @@ epic: EPIC-1
 status: review
 priority: P0
 points: 8
-sprint: sprint-2026-W41
+sprint: sprint-2026-W42
 version_shipped: 0.2.0
 prd_ref: [FR-1, NFR-1, NFR-13]
 arch_ref: [AD-14]
 depends_on: [US-1.1, US-1.2]
-assignee:
+assignee: PDTnhah
 commit: 340e62e690eb36e84bf2ae97b81c0c13e12c32b7
 created: 2026-10-07
 updated: 2026-10-08

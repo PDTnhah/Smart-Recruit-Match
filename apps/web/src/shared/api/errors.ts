@@ -32,6 +32,8 @@ const MESSAGES: Record<ApiErrorCode, string> = {
   EMAIL_TAKEN: 'Email này đã có tài khoản.',
   STUDENT_CODE_TAKEN: 'Mã sinh viên này đã tồn tại.',
   ROLE_NOT_ALLOWED: 'Không thể tạo tài khoản với vai trò này.',
+  CAMPAIGN_CONFIG_LOCKED: 'Đợt đã mở nên không sửa được mục này. Chỉ được lùi các mốc chưa tới.',
+  CAMPAIGN_PHASE_MISMATCH: 'Thao tác này không làm được ở giai đoạn hiện tại của đợt.',
   INTERNAL_ERROR: 'Hệ thống đang gặp sự cố. Thử lại sau ít phút.',
 };
 
