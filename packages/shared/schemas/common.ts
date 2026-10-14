@@ -15,6 +15,10 @@ export const RowVersionFieldSchema = z
   .regex(/^\d{1,9}$/, { error: 'rowVersion phải là số nguyên không âm' })
   .transform(Number);
 
+/** A record id sent as a multipart text field: digits only, no leading zero, then a number. */
+export const IdFieldSchema = (error: string) =>
+  z.string({ error }).trim().regex(/^[1-9]\d{0,9}$/, { error }).transform(Number);
+
 /** Optional free text: trimmed, at most `max` characters; `null` clears it in a patch. */
 export const optionalText = (label: string, max: number) =>
   z

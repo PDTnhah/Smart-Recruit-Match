@@ -8,7 +8,7 @@ export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 /** Lifetime of a presigned download URL: 5 minutes. */
 export const FILE_URL_TTL_SECONDS = 5 * 60;
 
-/** Owners of stored files. `cv` joins in US-1.6. */
+/** Owners of stored files: JD originals (US-1.5) and CV versions (US-1.6). */
 export const FILE_OWNER_TYPES = ['jd', 'cv'] as const;
 
 export type FileOwnerType = (typeof FILE_OWNER_TYPES)[number];

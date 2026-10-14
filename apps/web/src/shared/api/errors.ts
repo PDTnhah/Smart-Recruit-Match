@@ -38,6 +38,9 @@ const MESSAGES: Record<ApiErrorCode, string> = {
   JD_NOT_EDITABLE: 'JD đã được nộp nên không sửa được nữa.',
   FILE_TOO_LARGE: 'File lớn hơn 5 MB. Chọn file nhỏ hơn rồi tải lại.',
   UNSUPPORTED_FILE_TYPE: 'Chỉ nhận file PDF hoặc DOCX. Nội dung file này không phải PDF hay DOCX.',
+  CONSENT_REQUIRED: 'Cần đồng ý điều khoản xử lý dữ liệu của đợt này trước khi nộp CV.',
+  TERMS_OUTDATED: 'Điều khoản vừa được cập nhật. Tải lại trang, đọc bản mới rồi đồng ý lại.',
+  CV_SUBMISSION_CONFLICT: 'Một CV khác vừa được nộp cùng lúc. Tải lại trang để xem phiên bản mới nhất.',
   INTERNAL_ERROR: 'Hệ thống đang gặp sự cố. Thử lại sau ít phút.',
 };
 
