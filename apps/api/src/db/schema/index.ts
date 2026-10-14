@@ -6,4 +6,5 @@ export * from './students.js';
 export * from './users.js';
 export * from './job-descriptions.js';
 export * from './cvs.js';
+export * from './consents.js';
 export * from './audit-logs.js';

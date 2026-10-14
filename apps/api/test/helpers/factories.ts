@@ -62,7 +62,7 @@ export async function createCv(db: Database, values: Partial<typeof cvs.$inferIn
   ]);
   const [row] = await db
     .insert(cvs)
-    .values({ fileKey: uniqueValue('cv-files/cv'), ...values, studentId, campaignId })
+    .values({ fileKey: uniqueValue('cv-files/cv'), fileName: 'cv.pdf', ...values, studentId, campaignId })
     .returning();
   return row!;
 }
