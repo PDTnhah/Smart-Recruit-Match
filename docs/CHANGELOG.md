@@ -50,7 +50,7 @@ US-1.6. Sinh viên đọc và đồng ý điều khoản xử lý dữ liệu c�
   - DESIGN.md §6: `progress`, badge trạng thái CV.
 - **Sprint:** US-1.6 vào `sprint-2026-W42` (kéo sớm từ W44).
 
-**Commit**:
+**Commit**: e76ed9f (chuỗi 7 commit b538e96…e76ed9f)
 
 ---
 

@@ -11,7 +11,7 @@ prd_ref: [FR-6, NFR-2]
 arch_ref: [AD-8, AD-10]
 depends_on: [US-1.4]
 assignee: PDTnhah
-commit:
+commit: e76ed9fb1510455ee8d8899ac7393f2d3cd4aeb7
 created: 2026-10-07
 updated: 2026-10-14
 external_deps: [llm_provider_data_terms]
@@ -210,7 +210,7 @@ Các bước, ở chế độ thiết bị cảm ứng rộng 360 px (DESIGN.md 
 - Mỗi sinh viên tối đa 1 CV hiệu lực mỗi đợt, đảm bảo bằng partial unique index (BR-01).
 - Màn "Hồ sơ" ở cổng sinh viên, dùng được trên điện thoại.
 
-**Commit**:
+**Commit**: e76ed9f (chuỗi 7 commit b538e96…e76ed9f)
 
 ## Implementation notes
 
