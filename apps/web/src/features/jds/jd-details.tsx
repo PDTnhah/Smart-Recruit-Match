@@ -1,9 +1,9 @@
-import type { JobDescription } from '@srm/shared';
+import { fileId, type JobDescription } from '@srm/shared';
 import type { ReactNode } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatDateTime } from '@/lib/format';
+import { ViewFileButton } from '@/shared/files/view-file-button';
 import { WORK_MODE_LABELS } from './labels';
-import { ViewFileButton } from './view-file-button';
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -51,7 +51,7 @@ export function JdDetails({ jd, showCompany = false }: { jd: JobDescription; sho
             <p className="text-sm text-muted-foreground">Không có mô tả nhập tay.</p>
           )}
           {jd.file ? (
-            <ViewFileButton jdId={jd.id} fileName={jd.file.name} />
+            <ViewFileButton fileId={fileId('jd', jd.id)} label={`Xem file gốc: ${jd.file.name}`} />
           ) : (
             <p className="text-sm text-muted-foreground">Không có file gốc.</p>
           )}

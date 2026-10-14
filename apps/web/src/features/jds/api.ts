@@ -1,7 +1,5 @@
 import {
   type CreateJdRequest,
-  fileId,
-  FileUrlSchema,
   JdListSchema,
   type JobDescription,
   JobDescriptionSchema,
@@ -115,10 +113,4 @@ export function useApproveJd(id: number) {
       ),
     onSuccess: store,
   });
-}
-
-/** A presigned download URL of the JD's original file, valid 5 minutes (AC-9). */
-export async function fetchJdFileUrl(jdId: number): Promise<string> {
-  const result = await api.GET('/api/files/{id}/url', { params: { path: { id: fileId('jd', jdId) } } });
-  return FileUrlSchema.parse(unwrap(result)).url;
 }

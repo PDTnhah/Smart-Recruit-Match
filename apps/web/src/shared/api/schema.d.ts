@@ -132,6 +132,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/me/consents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ConsentController_list"];
+        put?: never;
+        post: operations["ConsentController_accept"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cvs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["CvController_submit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cvs/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["CvController_listMine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/campaigns": {
         parameters: {
             query?: never;
@@ -399,6 +447,49 @@ export interface components {
                 companyId: number | null;
                 studentId: number | null;
                 isActive: boolean;
+            }[];
+        };
+        ConsentListDto_Output: {
+            currentTermsVersion: number;
+            items: {
+                campaignId: number;
+                termsVersion: number;
+                /** Format: date-time */
+                acceptedAt: string;
+            }[];
+        };
+        AcceptConsentRequestDto: {
+            campaignId: number;
+            termsVersion: number;
+        };
+        ConsentDto_Output: {
+            campaignId: number;
+            termsVersion: number;
+            /** Format: date-time */
+            acceptedAt: string;
+        };
+        CvDto_Output: {
+            id: number;
+            campaignId: number;
+            version: number;
+            /** @enum {string} */
+            status: "PENDING_ANALYSIS" | "PENDING_CONFIRMATION" | "CONFIRMED";
+            active: boolean;
+            fileName: string;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        CvListDto_Output: {
+            items: {
+                id: number;
+                campaignId: number;
+                version: number;
+                /** @enum {string} */
+                status: "PENDING_ANALYSIS" | "PENDING_CONFIRMATION" | "CONFIRMED";
+                active: boolean;
+                fileName: string;
+                /** Format: date-time */
+                createdAt: string;
             }[];
         };
         CreateCampaignRequestDto: {
@@ -1012,6 +1103,96 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserSummaryDto_Output"];
+                };
+            };
+        };
+    };
+    ConsentController_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsentListDto_Output"];
+                };
+            };
+        };
+    };
+    ConsentController_accept: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AcceptConsentRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsentDto_Output"];
+                };
+            };
+        };
+    };
+    CvController_submit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                    campaignId: number;
+                };
+            };
+        };
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CvDto_Output"];
+                };
+            };
+        };
+    };
+    CvController_listMine: {
+        parameters: {
+            query?: {
+                campaignId?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CvListDto_Output"];
                 };
             };
         };
