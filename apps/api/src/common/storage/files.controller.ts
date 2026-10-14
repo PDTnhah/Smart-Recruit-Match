@@ -11,8 +11,9 @@ class FileUrlDto extends createZodDto(FileUrlSchema) {}
 
 /**
  * `GET /api/files/{id}/url` (ARCHITECTURE › API architecture): a presigned URL valid for 5
- * minutes, for files the caller may see. `{id}` is `<owner>:<record id>` (CONTEXT D28). STUDENT
- * joins with CV files in US-1.6.
+ * minutes, for files the caller may see. `{id}` is `<owner>:<record id>` (CONTEXT D28). The owning
+ * module's resolver applies record-level access: a student reaches only their own CV versions
+ * (US-1.6, CONTEXT D30).
  */
 @ApiTags('files')
 @Controller('files')
@@ -22,7 +23,7 @@ export class FilesController {
     private readonly storage: StorageService,
   ) {}
 
-  @Roles('HR', 'CENTER')
+  @Roles('HR', 'CENTER', 'STUDENT')
   @Get(':id/url')
   @Header('Cache-Control', 'no-store')
   @ZodResponse({ status: 200, type: FileUrlDto })
