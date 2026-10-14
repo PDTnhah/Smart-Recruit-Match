@@ -120,7 +120,7 @@ Module gọi nhau qua service đã export hoặc phát sự kiện qua `@nestjs/
 | `iam` | Đăng nhập, JWT, vai trò, tài khoản HR, SSO trường (tùy chọn). Export `InvitationService`: mời HR (token JWT `aud = hr-invite` mang nonce của lần mời mới nhất, hạn 7 ngày), nhận lời mời, danh sách HR của công ty; phát `hr.invited` sau khi commit ([CONTEXT D28, D29](CONTEXT.md)) | PRD › Personas |
 | `campaign` | Đợt thực tập, tham số cấu hình, trạng thái đợt, mốc thời gian. Export `CampaignService.assertPhase` (kiểm tra pha, tính cả mốc) và `getSettings`; phát `campaign.opened`, `campaign.phase_changed` sau khi commit ([CONTEXT D27](CONTEXT.md)) | GĐ0 |
 | `company` | Doanh nghiệp, JD, yêu cầu chuẩn hóa, phiên bản JD. Mời HR qua `InvitationService` của `iam`; kiểm pha bằng `CampaignService.assertPhase`; đăng ký resolver `jd` vào `FileAccessRegistry`; phát `jd.submitted`, `jd.approved` sau khi commit ([CONTEXT D28](CONTEXT.md)) | GĐ1 |
-| `student` | Sinh viên, CV, hồ sơ năng lực, đồng ý xử lý dữ liệu | GĐ2 |
+| `student` | Sinh viên, CV, hồ sơ năng lực, đồng ý xử lý dữ liệu. Ghi đồng ý theo đợt và phiên bản điều khoản (`packages/shared/consent/`, kèm SHA-256 của văn bản); mỗi lần nộp CV là một dòng `cvs` mới, dòng cũ mất `active`. Export `ConsentService.hasConsent`, `CvService`; đăng ký resolver `cv` vào `FileAccessRegistry`; phát `cv.submitted` (`cvId`, `cvVersion`, `campaignId`, `studentId`) sau khi commit ([CONTEXT D30](CONTEXT.md)) | GĐ2 |
 | `matching` | Lọc điều kiện cứng, gửi job chấm, lưu kết quả, **tính S_cv theo trọng số**, shortlist, mức cạnh tranh, nguyện vọng | GĐ3, GĐ4 |
 | `assessment` | Ngân hàng câu hỏi, ma trận đề, phiên thi, rút đề, chấm trắc nghiệm, nhận kết quả chấm tự luận, phúc khảo, **tính S_test, S_final** | GĐ5, GĐ6 |
 | `allocation` | Thuật toán Deferred Acceptance, vòng phân bổ, snapshot, dự thảo/công bố, điều chỉnh thủ công | GĐ7, GĐ10 |
@@ -423,7 +423,8 @@ Nên đặt giới hạn chi tiêu trên trang quản lý Claude API và theo d�
 | `students` | SINH_VIEN | id, student_code, full_name, major, cohort, gpa | unique(student_code) |
 | `skills` | Danh mục kỹ năng | id, canonical_name, aliases TEXT[], group | unique(canonical_name) |
 | `job_descriptions` | JD | id, campaign_id, company_id, title, position_group, location, work_mode, internship_period, allowance, raw_text, file_key, file_name, requirements JSONB, quota, exam_blueprint JSONB, version, status, row_version | index(campaign_id, status); CHECK(work_mode ∈ ONSITE/HYBRID/REMOTE); `file_key` và `file_name` cùng có hoặc cùng rỗng (CONTEXT D28) |
-| `cvs` | CV | id, student_id, campaign_id, file_key, profile JSONB, pii JSONB (mã hóa), profile_masked JSONB, version, status, hidden_text_flag, row_version | unique một CV hiệu lực: partial unique(student_id, campaign_id) WHERE active; CHECK(status) |
+| `cvs` | CV | id, student_id, campaign_id, file_key, file_name, profile JSONB, pii JSONB (mã hóa), profile_masked JSONB, version, status, active, hidden_text_flag, row_version. Mỗi phiên bản một dòng ([CONTEXT D30](CONTEXT.md)) | unique một CV hiệu lực: partial unique(student_id, campaign_id) WHERE active; unique(student_id, campaign_id, version); CHECK(status), CHECK(version > 0) |
+| `consents` | – | id, student_id, campaign_id, terms_version, terms_sha256, accepted_at | unique(student_id, campaign_id, terms_version); CHECK(terms_version > 0), CHECK(terms_sha256 là hex 64 ký tự) |
 | `match_results` | KET_QUA_PHU_HOP | cv_id, jd_id, cv_version, jd_version, eligible, ineligible_reasons JSONB, criteria JSONB, s_cv, prompt_version, model | unique(cv_id, jd_id, cv_version, jd_version, prompt_version); index(jd_id, s_cv DESC) |
 | `preferences` | NGUYEN_VONG | id, campaign_id, student_id, jd_id, rank, status | unique(student_id, jd_id); unique(campaign_id, student_id, rank) |
 | `question_banks` | – | id, jd_id / position_group, blueprint JSONB, version, locked_at | – |
@@ -442,7 +443,7 @@ Nên đặt giới hạn chi tiêu trên trang quản lý Claude API và theo d�
 | `ai.llm_calls` | – | id, job_id, agent, prompt_version, model, effort, input_tokens, cache_read_tokens, cache_write_tokens, output_tokens, cost_usd, latency_ms, stop_reason, log_key, created_at | index(agent, created_at) |
 | `ai.jobs` | – | job_id, type, status, attempts, last_error, created_at, finished_at | PK(job_id) — chống xử lý trùng |
 
-Quy ước chung của schema `core` (US-1.2, CONTEXT D24): khóa chính `bigint generated always as identity`; cột `status` là `text` kèm CHECK, danh sách giá trị sinh từ `packages/shared/states`; bảng có vòng đời có `row_version integer not null default 0`. Cột `pii` của `cvs` thêm ở US-2.4, cột `active` và partial unique index ở US-1.6.
+Quy ước chung của schema `core` (US-1.2, CONTEXT D24): khóa chính `bigint generated always as identity`; cột `status` là `text` kèm CHECK, danh sách giá trị sinh từ `packages/shared/states`; bảng có vòng đời có `row_version integer not null default 0`. Cột `pii` của `cvs` thêm ở US-2.4; cột `active`, `file_name`, partial unique index và bảng `consents` có từ US-1.6 (migration `0003`).
 
 Prompt và phản hồi đầy đủ của từng lần gọi LLM lưu thành file JSON trên MinIO (`log_key`), không lưu trong DB để DB gọn.
 
@@ -462,7 +463,7 @@ Prompt và phản hồi đầy đủ của từng lần gọi LLM lưu thành fi
 - Bucket MinIO: `cv-files`, `jd-files` (bật mã hóa phía server), `llm-logs`, `reports`. Tải file qua URL tạm có hạn 5 phút.
 - Mã hóa SSE-S3: API đặt mã hóa mặc định cho `jd-files`, `cv-files` khi khởi động (không chặn app, thử lại ở lần ghi) và gửi `ServerSideEncryption: AES256` với mọi object; service `minio` cần `MINIO_KMS_SECRET_KEY` ([CONTEXT D28, D29](CONTEXT.md)).
 - URL tạm được ký với `MINIO_PUBLIC_ENDPOINT` (mặc định là địa chỉ web); nginx chuyển `/jd-files/`, `/cv-files/` tới MinIO nên cổng MinIO không cần mở ra ngoài. `{id}` của `GET /api/files/{id}/url` có dạng `jd:12`, `cv:457`; module sở hữu bản ghi kiểm quyền qua `FileAccessRegistry`.
-- Sau khi đóng đợt X tháng (Trung tâm cấu hình): xóa file CV gốc và PII; giữ dữ liệu đã ẩn danh để thống kê và đánh giá mô hình.
+- Sau khi đóng đợt 12 tháng (ghi trong điều khoản v1 mà sinh viên đồng ý, [CONTEXT D30](CONTEXT.md); đổi con số thì ra điều khoản v2): xóa file CV gốc và PII; giữ dữ liệu đã ẩn danh để thống kê và đánh giá mô hình. Chưa có story nào làm việc xóa này.
 - Sao lưu: `pg_dump` hằng ngày; bật versioning cho MinIO.
 
 ---
@@ -609,7 +610,7 @@ REST, mô tả bằng OpenAPI.
 
 | Nhóm | Endpoint tiêu biểu |
 |---|---|
-| Sinh viên | `POST /api/cvs` (multipart) · `GET /api/cvs/me/profile` · `PUT /api/cvs/me/profile/confirm` · `GET /api/me/shortlist` · `PUT /api/me/preferences` · `POST /api/preferences/{id}/exam/start` · `PUT /api/exam-sessions/{id}/answers` · `POST /api/exam-sessions/{id}/submit` · `POST /api/exam-answers/{id}/appeal` · `POST /api/offers/{id}/accept` |
+| Sinh viên | `GET /api/me/consents` · `POST /api/me/consents` (đồng ý điều khoản cho một đợt) · `POST /api/cvs` (multipart, `202`) · `GET /api/cvs/me` (mọi phiên bản CV) · `GET /api/cvs/me/profile` · `PUT /api/cvs/me/profile/confirm` · `GET /api/me/shortlist` · `PUT /api/me/preferences` · `POST /api/preferences/{id}/exam/start` · `PUT /api/exam-sessions/{id}/answers` · `POST /api/exam-sessions/{id}/submit` · `POST /api/exam-answers/{id}/appeal` · `POST /api/offers/{id}/accept` |
 | HR | `POST /api/jds` · `PATCH /api/jds/{id}` · `PUT /api/jds/{id}/file` (multipart) · `POST /api/jds/{id}/submit` · `PUT /api/jds/{id}/requirements/confirm` · `GET /api/jds/{id}/question-bank/sample` · `GET /api/jds/{id}/nominations` · `POST /api/nominations/{id}/decision` · `POST /api/interviews` · `PUT /api/interviews/{id}/result` |
 | Trung tâm | `POST /api/campaigns` · `PATCH /api/campaigns/{id}` · `POST /api/campaigns/{id}/open` · `POST /api/companies` · `PATCH /api/companies/{id}` · `POST /api/companies/{id}/hr-invitations` · `GET /api/companies/{id}/hr-accounts` · `POST /api/jds/{id}/approve` · `POST /api/campaigns/{id}/matching-runs` · `POST /api/campaigns/{id}/allocation-rounds` · `GET /api/allocation-rounds/{id}` · `PATCH /api/allocation-rounds/{id}/nominations` · `POST /api/allocation-rounds/{id}/publish` · `GET /api/campaigns/{id}/reports` |
 | Chung | `POST /api/auth/accept-invitation` (HR được mời đặt mật khẩu) · `GET /api/jds` · `GET /api/jds/{id}` (HR: JD của công ty mình; Trung tâm: mọi JD) · `GET /api/campaigns` · `GET /api/campaigns/{id}` (đợt người gọi tham gia) · `GET /api/events/stream` (SSE) · `GET /api/files/{id}/url` (URL tạm có hạn) |
