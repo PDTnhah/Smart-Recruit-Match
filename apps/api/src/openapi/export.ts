@@ -1,6 +1,6 @@
 // Writes the API's OpenAPI document to apps/web/src/shared/api/openapi.json, from which the web
 // client types are generated (US-1.3 TASK-1.3.7, CONTEXT D26). The app is built but never listens;
-// pg and ioredis connect lazily, so no database or Redis is needed. CI checks the file is current.
+// pg, ioredis and the S3 client connect lazily, so no database, Redis or MinIO is needed. CI checks the file is current.
 import 'reflect-metadata';
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -16,6 +16,9 @@ const PLACEHOLDER_ENV: Record<string, string> = {
   DATABASE_URL: 'postgres://openapi:openapi@localhost:5432/openapi',
   REDIS_URL: 'redis://localhost:6379',
   JWT_ACCESS_SECRET: 'openapi-export-placeholder-secret-0000000',
+  MINIO_ENDPOINT: 'http://localhost:9000',
+  MINIO_ACCESS_KEY: 'openapi',
+  MINIO_SECRET_KEY: 'openapi-placeholder',
   LOG_LEVEL: 'silent',
 };
 

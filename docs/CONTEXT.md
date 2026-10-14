@@ -490,3 +490,128 @@
 
 **Date**: 2026-10-12
 **Version**: 0.3.0
+
+### D28. Doanh nghiệp, lời mời HR, JD và lưu file (US-1.5)
+
+**Context**: *Dev notes* của US-1.5 có tám điểm spec còn mở:
+
+1. **Mốc M1.** Mốc M1 (cuối T4) ghi "HR đăng JD được duyệt". Nhưng vòng đời JD buộc HR xác nhận yêu cầu chuẩn hóa (US-2.3, T5) trước khi Trung tâm duyệt.
+2. **Lúc JD rời `DRAFT`.** PRD không có trạng thái "chờ phân tích". Bản nháp US-2.3 AC-4 chuyển *Nháp → Chờ HR xác nhận* khi nhận kết quả phân tích.
+3. **Từ chối JD.** Vòng đời JD không có cạnh để Trung tâm từ chối hay trả JD về.
+4. **Cột FR-4.** `job_descriptions` không có cột cho địa điểm, hình thức, thời gian thực tập, phụ cấp.
+5. **Duyệt doanh nghiệp.** `companies` không có cột trạng thái duyệt.
+6. **Doanh nghiệp tham gia đợt.** Không có bảng nối doanh nghiệp với đợt.
+7. **Token mời.** Chưa có cách lưu và kiểm tra token mời HR.
+8. **File id.** ARCH không có bảng `files`, nên `{id}` của `GET /api/files/{id}/url` chưa có nghĩa.
+
+Ngoài ra, compose chỉ có một biến `MINIO_BUCKET`, trong khi ARCH ghi hai bucket `jd-files` và `cv-files`. Không có KMS thì MinIO không mã hóa phía server được. Ký URL bằng endpoint nội bộ `minio:9000` thì trình duyệt không mở được URL. Gói `file-type` từ bản 17 chỉ có ESM.
+
+**Decision** (người dùng chốt bảy mục đầu ngày 2026-10-13):
+
+- **M1:** đạt bằng dữ liệu seed, không thêm cạnh tắt. `dev-seed` có một JD ở `PENDING_APPROVAL` kèm `requirements` mẫu.
+- **Nộp JD:** HR nộp thì JD chuyển ngay `DRAFT → PENDING_HR_CONFIRMATION` qua `transitionTo`. JD chưa có `requirements` thì giao diện hiện nhãn "Chờ phân tích". US-2.3 chỉ lưu `requirements`, không chuyển trạng thái khi nhận kết quả phân tích.
+- **Từ chối JD:** Trung tâm chỉ duyệt (`PENDING_APPROVAL → APPROVED`), không thêm cạnh trả về.
+- **Cột FR-4:** `job_descriptions` thêm `location`, `work_mode` (CHECK `ONSITE`/`HYBRID`/`REMOTE`), `internship_period`, `allowance` và `file_name`.
+  - Các cột nullable ở DB.
+  - API bắt buộc các trường của FR-4, trừ phụ cấp.
+- **Doanh nghiệp:**
+  - Doanh nghiệp do Trung tâm tạo coi như đã duyệt. Không có luồng tự đăng ký.
+  - Doanh nghiệp tham gia một đợt khi có JD trong đợt đó.
+- **Token mời:**
+  - JWT HS256 ký bằng khóa của access token, `aud = hr-invite`, hạn 7 ngày. Không có bảng mới.
+  - Token chỉ dùng được một lần. Câu lệnh đặt mật khẩu có điều kiện `password_hash IS NULL`.
+  - Token mời không có `role`, nên guard của access token từ chối nó.
+  - Mời lại email của một HR chưa kích hoạt trong cùng công ty thì cấp token mới. Các trường hợp email đã có khác trả `409 EMAIL_TAKEN`.
+  - Đường dẫn mời là `/accept-invitation#<token>`. Phần sau `#` không gửi lên server nên không vào log.
+  - Nhận lời mời trả session luôn.
+- **File:**
+  - `{id}` có dạng `<owner>:<id>` (`jd:12`, `cv:457`).
+  - `FileAccessRegistry` ở `common/storage` giữ resolver cho từng loại chủ sở hữu, do module sở hữu dữ liệu đăng ký (`company` cho `jd`, US-1.6 cho `cv`). Resolver áp quyền cấp bản ghi và trả `404` khi ngoài phạm vi.
+  - File JD gửi qua `PUT /api/jds/{id}/file` (multipart, kèm `rowVersion`), tách khỏi `POST /api/jds` (JSON).
+- **MinIO:**
+  - Bucket cố định `jd-files`, `cv-files`, bỏ `MINIO_BUCKET`.
+  - API tạo bucket khi khởi động, đặt mã hóa mặc định SSE-S3, và gửi `ServerSideEncryption: AES256` với mọi object.
+  - Service `minio` cần `MINIO_KMS_SECRET_KEY`.
+  - URL ký sẵn ký với `MINIO_PUBLIC_ENDPOINT` (mặc định bằng `MINIO_ENDPOINT`), hạn 5 phút. Mốc ký lấy từ `Clock`.
+- **Thư viện:** `@aws-sdk/client-s3` và `@aws-sdk/s3-request-presigner` 3.1142.0; `file-type` 16.5.4 (bản CommonJS cuối); multer dùng qua `FileInterceptor` của `@nestjs/platform-express`. MIME kiểm bằng magic bytes, không tin phần mở rộng. Giới hạn 5 MB đặt ở multer, nên file lớn bị chặn trước khi đọc hết vào bộ nhớ hay ghi MinIO.
+- **Pha của đợt:** mọi thao tác ghi JD của HR (tạo, sửa, tải file, nộp) gọi `assertPhase(…, ['INTAKE'])` trong giao dịch. Thao tác duyệt không kiểm pha.
+- **Guard duyệt (BR-02):** `requirements` phải có. Chỉ qua bước HR xác nhận thì JD mới tới được `PENDING_APPROVAL`, nên đây là lớp phòng thủ thêm.
+- **Sự kiện:** `hr.invited`, `jd.submitted`, `jd.approved` phát qua `@nestjs/event-emitter` sau khi commit.
+
+**Rationale**:
+
+- Không thêm cạnh tắt và không thêm trạng thái "chờ phân tích", nên vòng đời JD giữ đúng PRD.
+- Chuyển trạng thái ngay khi nộp thì việc nộp có audit, và HR không sửa được JD đang chờ phân tích.
+- Token không lưu bảng vẫn chỉ dùng được một lần, vì trạng thái "đã dùng" chính là cột mật khẩu.
+- Endpoint file riêng giữ `POST /api/jds` là JSON thuần, kiểm bằng schema dùng chung như mọi endpoint khác. US-1.6 dùng lại cùng interceptor.
+- Registry giữ `common` không phụ thuộc module nghiệp vụ (Nguyên tắc 13).
+- Từ bản 17, `file-type` là ESM, mà Jest của API không nạp được ESM (LESSONS §9).
+
+**Alternatives considered**:
+- **Cạnh tạm `PENDING_HR_CONFIRMATION → PENDING_APPROVAL` cho M1:** loại vì là code tạm, US-2.3 phải gỡ.
+- **Giữ `DRAFT` khi nộp, thêm cột `submitted_at`:** loại vì phải khóa sửa bằng cột riêng, ngoài bảng chuyển trạng thái.
+- **Bảng `invitations` lưu hash token:** loại vì không cần với một luồng mời đơn giản.
+- **Một `POST /api/jds` nhận cả JSON lẫn multipart:** loại vì hai dạng body khó kiểm bằng một schema.
+- **Tự viết kiểm tra magic bytes:** loại vì nhận DOCX phải đọc mục trong file zip, `file-type` đã làm việc này.
+- **Gọi `import()` động cho `file-type` 22:** loại vì Jest cần `--experimental-vm-modules`.
+
+**Impact**:
+- ARCHITECTURE: *Các bảng chính* (cột mới của `job_descriptions`), *Lưu trữ file* (KMS, endpoint công khai), *API architecture*, *Các module* (`company`, `iam`, `FileAccessRegistry`), *Thư viện chính*.
+- `deploy/.env.example`, `deploy/docker-compose.yml`, `DEPLOY.md`, `docs/SETUP.md`: biến `MINIO_*`.
+- Story US-1.5: *Story refresh*.
+- US-1.6: dùng `StorageService`, `upload-validation.ts`, `FileAccessRegistry` (`cv`).
+- US-1.7: nghe `hr.invited`, ghép base URL cho email.
+- US-2.3: AC-4 không chuyển trạng thái.
+- US-4.1: nghe `jd.approved`.
+
+**Date**: 2026-10-13
+**Version**: 0.4.0
+
+### D29. Thu hồi link mời cũ, tải file qua nginx, bucket lúc khởi động (revision of D28)
+
+**Context**: Review US-1.5 (`/code-review`) tìm ra ba chỗ D28 chưa đủ:
+
+1. Token mời không lưu gì. Mời lại một HR chưa kích hoạt thì cấp token mới, nhưng các token cũ vẫn dùng được tới khi có người đặt mật khẩu hoặc hết 7 ngày. Ai nhận nhầm link đầu tiên vẫn chiếm được tài khoản.
+2. Compose ký URL tải file với `http://localhost:9000`, còn cổng MinIO chỉ mở trên `127.0.0.1` của máy chủ. Trình duyệt ở máy khác không mở được file.
+3. D28 ghi "API tạo bucket khi khởi động", nhưng code chỉ tạo ở lần tải file đầu tiên. Một MinIO thiếu KMS chỉ lộ ra khi HR tải file.
+
+**Decision**:
+
+- **Nonce lời mời.**
+  - `users.invitation_nonce` (text, nullable). Mỗi lần mời hoặc mời lại sinh một nonce ngẫu nhiên 24 byte, lưu vào cột này và đưa vào token (claim `nonce`).
+  - Nhận lời mời chỉ thành công khi nonce của token bằng nonce trong DB. Cùng câu lệnh đó đặt mật khẩu và xóa nonce.
+  - Mời lại nên link cũ hết hiệu lực ngay. Mời lại cũng cập nhật họ tên theo lần mời mới, ghi audit có before/after.
+  - Vẫn không có bảng mới.
+- **Tải file qua nginx.**
+  - nginx chuyển `/jd-files/` và `/cv-files/` tới `minio:9000`, giữ nguyên header `Host` vì chữ ký URL gồm cả host.
+  - `MINIO_PUBLIC_ENDPOINT` mặc định là địa chỉ web (`http://localhost:<NGINX_PORT>`). Máy chủ thật đặt bằng địa chỉ công khai của site.
+  - Cổng MinIO không cần mở ra ngoài. Request không có chữ ký hợp lệ vẫn bị MinIO trả `403`.
+  - Dùng S3 bên ngoài thì `MINIO_PUBLIC_ENDPOINT` là địa chỉ của dịch vụ đó.
+- **Bucket lúc khởi động.**
+  - `onApplicationBootstrap` tạo bucket và đặt mã hóa mặc định, nhưng không chặn app. Lỗi được ghi log ngay lúc khởi động.
+  - Lần tải file sau thử lại.
+  - Export OpenAPI (dựng app mà không khởi động) vẫn không cần MinIO.
+- **Đợt HR không thấy.** HR tạo JD trong đợt còn `DRAFT` nhận `404 ENTITY_NOT_FOUND` như đợt không tồn tại, theo phạm vi đọc của D27. Không trả `409` kèm trạng thái đợt. AC-4 (`409 CAMPAIGN_PHASE_MISMATCH`) vẫn áp cho đợt HR thấy được nhưng không ở `INTAKE`, hoặc đã qua `intake_end`.
+- **PATCH người liên hệ.** Gộp từng trường: trường không gửi giữ nguyên, `null` hoặc `''` thì xóa.
+
+**Rationale**:
+
+- Nonce là trạng thái tối thiểu để thu hồi link mà không cần bảng `invitations`. Nonce trong DB không giả được token, vì token còn cần khóa ký.
+- Tải file cùng origin với web thì chỉ cần mở một cổng ra ngoài, và URL ký đúng host người dùng thấy.
+- Kiểm bucket lúc khởi động mà không chặn app: lỗi cấu hình lộ ra ngay khi deploy, nhưng API vẫn chạy được các phần không dùng file.
+
+**Alternatives considered**:
+- **Bảng `invitations` lưu hash token:** loại vì một cột đã đủ.
+- **Ký URL bằng host lấy từ request:** loại vì tin header `Host` của client để ký là không an toàn, và API không biết địa chỉ công khai sau proxy.
+- **Mở cổng MinIO ra ngoài:** loại vì phải mở thêm một cổng và một chứng chỉ TLS.
+- **Health check của API phụ thuộc MinIO:** loại vì chạy `--scale minio=0` với S3 ngoài, hay chạy API ngoài Docker không có MinIO, sẽ làm API "unhealthy".
+
+**Impact**:
+- Migration `0002_company_jd_invitations` (cột `invitation_nonce`).
+- `deploy/nginx.conf`, `deploy/docker-compose.yml`, `deploy/.env.example`, `DEPLOY.md`, `docs/SETUP.md` (`MINIO_PUBLIC_ENDPOINT`).
+- ARCHITECTURE: *Các bảng chính*, *Lưu trữ file*, *Docker Compose*.
+- US-1.6 (CV dùng cùng proxy `/cv-files/`).
+- US-1.7: email mời dùng link mới nhất; link cũ hết hiệu lực khi mời lại.
+
+**Date**: 2026-10-13
+**Version**: 0.4.0

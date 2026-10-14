@@ -12,8 +12,16 @@ depends_on: [US-1.5, US-2.2]
 assignee:
 commit:
 created: 2026-10-07
-updated: 2026-10-07
+updated: 2026-10-13
 ---
+
+## Story refresh — 2026-10-13 (từ US-1.5)
+
+Ghi lúc US-1.5 làm xong. Khi bắt đầu story này, đọc lại và chốt với người dùng ([CONTEXT D28](../../CONTEXT.md)).
+
+- **AC-4 phải sửa.** JD đã ở `PENDING_HR_CONFIRMATION` ngay khi HR nộp (US-1.5). Khi nhận kết quả phân tích, `company` chỉ lưu `requirements` và `position_group`, không chuyển trạng thái. Giao diện thôi hiện nhãn "Chờ phân tích" khi `requirements` có giá trị (`requirementsReady` trong API).
+- **Đầu vào.** Nghe sự kiện `jd.submitted` (`{ jdId, campaignId, companyId, version }`, export từ `modules/company`). Nội dung JD nằm ở `raw_text` (mô tả nhập tay) và/hoặc file gốc trong bucket `jd-files` (`file_key`, `file_name`; PDF hoặc DOCX đã kiểm bằng magic bytes).
+- **Cạnh `PENDING_HR_CONFIRMATION → PENDING_APPROVAL`** do story này làm. Guard duyệt của US-1.5 yêu cầu `requirements` khác null (BR-02).
 
 ## Goal
 

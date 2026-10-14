@@ -4,6 +4,9 @@ const base = {
   DATABASE_URL: 'postgres://srm:srm@localhost:5432/srm',
   REDIS_URL: 'redis://localhost:6379',
   JWT_ACCESS_SECRET: 'test-only-jwt-secret-with-enough-length-0123',
+  MINIO_ENDPOINT: 'http://localhost:9000',
+  MINIO_ACCESS_KEY: 'srm-minio',
+  MINIO_SECRET_KEY: 'test-only-minio-secret',
 };
 
 describe('environment (CONTEXT D25)', () => {
@@ -21,6 +24,16 @@ describe('environment (CONTEXT D25)', () => {
   it('requires REDIS_URL with a redis scheme', () => {
     expect(() => loadEnv({ ...base, REDIS_URL: undefined })).toThrow('REDIS_URL');
     expect(() => loadEnv({ ...base, REDIS_URL: 'http://localhost:6379' })).toThrow('REDIS_URL');
+  });
+
+  it('requires the MinIO endpoint and keys; the public endpoint is optional (CONTEXT D28)', () => {
+    expect(loadEnv(base).MINIO_PUBLIC_ENDPOINT).toBeUndefined();
+    expect(loadEnv({ ...base, MINIO_PUBLIC_ENDPOINT: 'https://files.example.edu' }).MINIO_PUBLIC_ENDPOINT).toBe(
+      'https://files.example.edu',
+    );
+    expect(() => loadEnv({ ...base, MINIO_ENDPOINT: undefined })).toThrow('MINIO_ENDPOINT');
+    expect(() => loadEnv({ ...base, MINIO_ENDPOINT: 'minio:9000' })).toThrow('MINIO_ENDPOINT');
+    expect(() => loadEnv({ ...base, MINIO_SECRET_KEY: 'short' })).toThrow('MINIO_SECRET_KEY');
   });
 
   it('runs scheduled jobs unless SCHEDULER_ENABLED is false (CONTEXT D27)', () => {

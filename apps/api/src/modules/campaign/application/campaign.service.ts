@@ -20,6 +20,7 @@ import {
 } from '@srm/shared';
 import type { AuthUser } from '../../../common/auth/index.js';
 import { Clock } from '../../../common/clock/index.js';
+import { emitSafely } from '../../../common/events/index.js';
 import {
   CampaignConfigLockedError,
   CampaignPhaseMismatchError,
@@ -32,7 +33,7 @@ import { parseOrFail } from '../../../common/validation/validation-issues.js';
 import { campaignLifecycle } from '../../../db/lifecycles.js';
 import { DRIZZLE } from '../../../db/tokens.js';
 import type { Database, DbTx } from '../../../db/types.js';
-import { type Actor, AuditService, SYSTEM_ACTOR } from '../../audit/index.js';
+import { type Actor, AuditService, SYSTEM_ACTOR, userActor } from '../../audit/index.js';
 import { CAMPAIGN_AUDIT_ACTIONS } from '../domain/audit-actions.js';
 import { checkDeadlineExtension } from '../domain/deadline-change.js';
 import {
@@ -281,13 +282,8 @@ export class CampaignService {
     } satisfies CampaignPhaseChangedEvent);
   }
 
-  /** The change is committed already; a throwing listener must not turn it into an error response. */
   private publish(event: string, payload: object): void {
-    try {
-      this.events.emit(event, payload);
-    } catch (error) {
-      this.logger.error(`listener of ${event} failed: ${error instanceof Error ? error.message : String(error)}`);
-    }
+    emitSafely(this.events, this.logger, event, payload);
   }
 }
 
@@ -363,8 +359,4 @@ function toCampaign(record: CampaignRecord): Campaign {
     createdAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString(),
   };
-}
-
-function userActor(user: AuthUser): Actor {
-  return { kind: 'USER', userId: user.userId };
 }

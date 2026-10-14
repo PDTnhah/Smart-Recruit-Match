@@ -9,7 +9,8 @@ import type { Database } from '../../../db/types.js';
 import { dummyPasswordHash, verifyPassword } from '../domain/password.js';
 import { REFRESH_TOKEN_STORE, type RefreshTokenStore } from '../infrastructure/refresh-token.store.js';
 
-const ACCOUNT_COLUMNS = {
+/** Columns of an account as AuthService reads it; InvitationService returns the same shape. */
+export const ACCOUNT_COLUMNS = {
   id: users.id,
   email: users.email,
   fullName: users.fullName,
@@ -20,7 +21,7 @@ const ACCOUNT_COLUMNS = {
   passwordHash: users.passwordHash,
 };
 
-interface AccountRow {
+export interface AccountRow {
   id: number;
   email: string;
   fullName: string | null;
@@ -82,7 +83,8 @@ export class AuthService {
     return row;
   }
 
-  private async issue(account: AccountRow): Promise<IssuedSession> {
+  /** Signs an access token and a refresh token for an account that may log in. */
+  async issue(account: AccountRow): Promise<IssuedSession> {
     const user = authUserFromRow(account);
     // The users CHECKs pair HR with a company and STUDENT with a student, so this cannot happen.
     if (!user) throw new Error(`users ${account.id} breaks the role/scope pairing`);

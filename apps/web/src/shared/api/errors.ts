@@ -34,6 +34,10 @@ const MESSAGES: Record<ApiErrorCode, string> = {
   ROLE_NOT_ALLOWED: 'Không thể tạo tài khoản với vai trò này.',
   CAMPAIGN_CONFIG_LOCKED: 'Đợt đã mở nên không sửa được mục này. Chỉ được lùi các mốc chưa tới.',
   CAMPAIGN_PHASE_MISMATCH: 'Thao tác này không làm được ở giai đoạn hiện tại của đợt.',
+  INVITATION_INVALID: 'Liên kết mời không hợp lệ, đã hết hạn hoặc đã được dùng. Liên hệ Trung tâm để nhận liên kết mới.',
+  JD_NOT_EDITABLE: 'JD đã được nộp nên không sửa được nữa.',
+  FILE_TOO_LARGE: 'File lớn hơn 5 MB. Chọn file nhỏ hơn rồi tải lại.',
+  UNSUPPORTED_FILE_TYPE: 'Chỉ nhận file PDF hoặc DOCX. Nội dung file này không phải PDF hay DOCX.',
   INTERNAL_ERROR: 'Hệ thống đang gặp sự cố. Thử lại sau ít phút.',
 };
 
@@ -46,6 +50,8 @@ export function apiErrorMessage(error: unknown): string {
   if (error instanceof ApiRequestError) {
     const code = error.body?.code;
     if (code && isApiErrorCode(code)) return MESSAGES[code];
+    // nginx refuses bodies over 6 MB before the API sees them, with an HTML 413 page.
+    if (error.status === 413) return MESSAGES.FILE_TOO_LARGE;
     if (error.status >= 500) return 'Hệ thống đang gặp sự cố. Thử lại sau ít phút.';
     return 'Yêu cầu không thực hiện được. Thử lại sau.';
   }

@@ -20,6 +20,13 @@ const EnvSchema = z.object({
   // Cron jobs such as the campaign phase scheduler (CONTEXT D27). Integration tests turn them off
   // and call `runOnce()` themselves.
   SCHEDULER_ENABLED: z.stringbool().default(true),
+  // Object storage (CONTEXT D23, D28). Buckets are fixed (`jd-files`, `cv-files`) and created by the
+  // API on first write. MINIO_PUBLIC_ENDPOINT is the address browsers use for presigned URLs; a
+  // signature covers the host, so it must be signed for that host (default: MINIO_ENDPOINT).
+  MINIO_ENDPOINT: z.url({ protocol: /^https?$/ }),
+  MINIO_ACCESS_KEY: z.string().min(3),
+  MINIO_SECRET_KEY: z.string().min(8),
+  MINIO_PUBLIC_ENDPOINT: z.url({ protocol: /^https?$/ }).optional(),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

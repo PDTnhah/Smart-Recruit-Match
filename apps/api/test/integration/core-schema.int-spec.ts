@@ -1,8 +1,17 @@
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import { Client } from 'pg';
 import { runMigrations } from '../../src/db/migrate.js';
 import { databaseUrl } from '../helpers/db.js';
 
 const CORE_TABLES = ['audit_logs', 'campaigns', 'companies', 'cvs', 'job_descriptions', 'students', 'users'];
+
+/** Migrations in apps/api/drizzle; each one applied leaves one row in drizzle.__drizzle_migrations. */
+const MIGRATION_COUNT = (
+  JSON.parse(readFileSync(path.resolve(__dirname, '../../drizzle/meta/_journal.json'), 'utf8')) as {
+    entries: unknown[];
+  }
+).entries.length;
 
 /** Expects `query` to fail with the given SQLSTATE and constraint name. */
 async function expectViolation(promise: Promise<unknown>, code: string, constraint: string): Promise<void> {
@@ -41,17 +50,17 @@ describe('AD-9: migrations apply on empty DB and create core tables with constra
     expect(rows.map((r) => r.table_name)).toEqual(CORE_TABLES);
   });
 
-  it('enables pgcrypto and records both migrations', async () => {
+  it('enables pgcrypto and records every migration', async () => {
     const ext = await client.query("SELECT 1 FROM pg_extension WHERE extname = 'pgcrypto'");
     expect(ext.rowCount).toBe(1);
     const applied = await client.query<{ n: string }>('SELECT count(*) AS n FROM drizzle.__drizzle_migrations');
-    expect(Number(applied.rows[0]!.n)).toBe(2);
+    expect(Number(applied.rows[0]!.n)).toBe(MIGRATION_COUNT);
   });
 
   it('is a no-op when run again', async () => {
     await runMigrations(url);
     const applied = await client.query<{ n: string }>('SELECT count(*) AS n FROM drizzle.__drizzle_migrations');
-    expect(Number(applied.rows[0]!.n)).toBe(2);
+    expect(Number(applied.rows[0]!.n)).toBe(MIGRATION_COUNT);
   });
 
   it('gives every lifecycle table row_version default 0', async () => {
@@ -158,6 +167,23 @@ describe('AD-9: migrations apply on empty DB and create core tables with constra
         "INSERT INTO core.campaigns (name) VALUES ('Đợt 1') RETURNING status, row_version",
       );
       expect(rows[0]).toEqual({ status: 'DRAFT', row_version: 0 });
+    });
+
+    it('FR-4: accepts only ONSITE, HYBRID, REMOTE as job_descriptions.work_mode, and a file key with its name (US-1.5)', async () => {
+      const campaignId = (
+        await client.query<{ id: number }>("INSERT INTO core.campaigns (name) VALUES ('Đợt JD') RETURNING id")
+      ).rows[0]!.id;
+      const insertJd = (columns: string, values: string) =>
+        client.query(
+          `INSERT INTO core.job_descriptions (campaign_id, company_id, title, quota${columns}) VALUES ($1, $2, 'Backend', 1${values})`,
+          [campaignId, companyId],
+        );
+      await expectViolation(insertJd(', work_mode', ", 'ANYWHERE'"), '23514', 'job_descriptions_work_mode_check');
+      await expectViolation(insertJd(', file_key', ", 'jd/1/a.pdf'"), '23514', 'job_descriptions_file_pair_check');
+      await expectViolation(insertJd(', file_name', ", 'a.pdf'"), '23514', 'job_descriptions_file_pair_check');
+      await insertJd(', work_mode, file_key, file_name', ", 'REMOTE', 'jd/1/a.pdf', 'a.pdf'");
+      // Drafts may still lack the FR-4 fields at the database level; the API requires them.
+      await insertJd('', '');
     });
 
     it('requires a SYSTEM audit actor to have no actor_id and a USER actor to have one', async () => {

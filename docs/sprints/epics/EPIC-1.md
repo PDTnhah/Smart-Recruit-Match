@@ -54,7 +54,7 @@ Lộ trình chung ở [sprints/README › Lộ trình](../README.md#lộ-trình)
 | US-1.2 | 5 | T1 (W41, kéo sớm từ T2) | A | US-1.1 |
 | US-1.3 | 8 | T1 (W41, kéo sớm từ T2) | A | US-1.1, US-1.2 |
 | US-1.4 | 5 | T2 (W42, kéo sớm từ T3) | A | US-1.2, US-1.3 |
-| US-1.5 | 8 | T3 (W43) | A | US-1.2, US-1.3 |
+| US-1.5 | 8 | T2 (W42, kéo sớm từ T3) | A | US-1.2, US-1.3, US-1.4 |
 | US-1.6 | 5 | T4 (W44) | A | US-1.4 |
 | US-1.7 | 5 | T4 (W44) | A | US-1.2, US-1.3 |
 
@@ -71,9 +71,9 @@ Lộ trình chung ở [sprints/README › Lộ trình](../README.md#lộ-trình)
 |----|-------|--------|
 | FR-1 | US-1.3 | 👀 review |
 | FR-2 | US-1.4 | 👀 review |
-| FR-3 | US-1.5 | 📋 backlog |
-| FR-4 | US-1.5 | 📋 backlog |
-| FR-5 | US-1.5 | 📋 backlog |
+| FR-3 | US-1.5 | 👀 review |
+| FR-4 | US-1.5 | 👀 review |
+| FR-5 | US-1.5 | 👀 review |
 | FR-6 | US-1.6 | 📋 backlog |
 | FR-7 | US-1.2 | ✅ done |
 | FR-8 | US-1.7 | 📋 backlog |
@@ -99,7 +99,7 @@ Lộ trình chung ở [sprints/README › Lộ trình](../README.md#lộ-trình)
 | US-1.2 | Lược đồ DB lõi, `transitionTo`, nhật ký thao tác | Mọi thay đổi trạng thái đi qua một hàm, có audit trong cùng giao dịch | ✅ done | 0.1.1 |
 | US-1.3 | Đăng nhập, phân quyền, DESIGN.md, khung giao diện | Bốn vai trò đăng nhập và thấy đúng cổng của mình | 👀 review | 0.2.0 |
 | US-1.4 | Tạo và cấu hình đợt thực tập | Trung tâm tạo đợt với tham số và mốc; đợt tự chuyển trạng thái theo mốc | 👀 review | 0.3.0 |
-| US-1.5 | Doanh nghiệp, tài khoản HR, đăng và duyệt JD | HR đăng JD; Trung tâm duyệt JD | 📋 backlog | — |
+| US-1.5 | Doanh nghiệp, tài khoản HR, đăng và duyệt JD | HR đăng JD; Trung tâm duyệt JD | 👀 review | 0.4.0 |
 | US-1.6 | Đồng ý xử lý dữ liệu và nộp CV | Sinh viên đồng ý điều khoản và nộp CV có phiên bản | 📋 backlog | — |
 | US-1.7 | Thông báo trong app, SSE, email, nhắc hạn | Người dùng nhận thông báo theo sự kiện nghiệp vụ | 📋 backlog | — |
 

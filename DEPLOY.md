@@ -72,10 +72,11 @@ Nguồn: `deploy/.env` (sao từ [`deploy/.env.example`](deploy/.env.example)). 
 | `DATABASE_URL` | – (compose tự ghép) | `postgres://POSTGRES_USER:POSTGRES_PASSWORD@postgres:5432/POSTGRES_DB` | Service `migrate` và `api` đọc. Vì được ghép thành URL, `POSTGRES_PASSWORD` chỉ nên gồm chữ, số và `-_.~`. Chạy API ngoài Docker thì tự đặt, host `localhost` và cổng `POSTGRES_HOST_PORT` |
 | `RABBITMQ_DEFAULT_USER` | Required | Tự đặt | User tạo lúc khởi tạo volume `rabbitmqdata` |
 | `RABBITMQ_DEFAULT_PASS` | Required | Tự đặt, mật khẩu mạnh | |
-| `MINIO_ENDPOINT` | Required | `http://minio:9000` với service đi kèm; hoặc URL của MinIO/S3 ngoài | API đọc từ US-1.6. Ngoài Docker dùng `http://localhost:9000` |
+| `MINIO_ENDPOINT` | Required | `http://minio:9000` với service đi kèm; hoặc URL của MinIO/S3 ngoài | Địa chỉ API gọi MinIO. Ngoài Docker dùng `http://localhost:9000`. API tạo bucket `jd-files`, `cv-files` ở lần tải file đầu tiên và mã hóa mọi object bằng SSE-S3 (CONTEXT D28) |
 | `MINIO_ACCESS_KEY` | Required | Tự đặt với service đi kèm; hoặc access key của MinIO/S3 ngoài | Đồng thời là `MINIO_ROOT_USER` của service `minio` |
 | `MINIO_SECRET_KEY` | Required | Tự đặt (≥ 8 ký tự); hoặc secret key của MinIO/S3 ngoài | Đồng thời là `MINIO_ROOT_PASSWORD` |
-| `MINIO_BUCKET` | Required | Tự đặt | Bucket chứa CV/JD gốc (US-1.6 tạo nếu chưa có) |
+| `MINIO_PUBLIC_ENDPOINT` | Optional (`http://localhost:<NGINX_PORT>`) | Địa chỉ người dùng mở web, ví dụ `https://srm.example.edu.vn` | URL tải file (hạn 5 phút) được ký với host này; nginx chuyển `/jd-files/`, `/cv-files/` sang MinIO nên cổng MinIO không cần mở ra ngoài. Sai host thì MinIO từ chối chữ ký (CONTEXT D29) |
+| `MINIO_KMS_SECRET_KEY` | Required (service `minio` đi kèm) | `srm-key:` + `openssl rand -base64 32` | Khóa mã hóa phía server của MinIO; thiếu thì compose không chạy. Mất hoặc đổi khóa thì không đọc được file đã lưu, nên sao lưu cùng volume `miniodata` (CONTEXT D28) |
 | `NGINX_PORT` | Optional (8080) | Tự đặt | Cổng web trên máy |
 | `POSTGRES_HOST_PORT` | Optional (5432) | Tự đặt | Cổng PostgreSQL trên 127.0.0.1 |
 | `REDIS_HOST_PORT` | Optional (6379) | Tự đặt | |
@@ -95,9 +96,11 @@ Nguồn: `deploy/.env` (sao từ [`deploy/.env.example`](deploy/.env.example)). 
 
 ## Đổi sang MinIO hoặc S3 bên ngoài
 
-API chỉ biết bốn biến `MINIO_*`. Muốn dùng một MinIO/S3 có sẵn:
+API chỉ biết các biến `MINIO_ENDPOINT`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY`, `MINIO_PUBLIC_ENDPOINT`. Muốn dùng một MinIO/S3 có sẵn:
 
-1. Đặt `MINIO_ENDPOINT`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY`, `MINIO_BUCKET` theo dịch vụ đó trong `deploy/.env`.
-2. Có thể bỏ service `minio` khỏi lần chạy: `docker compose -f deploy/docker-compose.yml up -d --build --wait --scale minio=0`.
+1. Đặt bốn biến này theo dịch vụ đó trong `deploy/.env`. Dịch vụ phải hỗ trợ SSE-S3 (MinIO cần KMS); tài khoản phải tạo được bucket `jd-files`, `cv-files`, hoặc tạo sẵn hai bucket đó. `MINIO_PUBLIC_ENDPOINT` là địa chỉ công khai của chính dịch vụ đó, vì nginx chỉ chuyển `/jd-files/`, `/cv-files/` tới service `minio` đi kèm.
+2. Có thể bỏ service `minio` khỏi lần chạy: `docker compose -f deploy/docker-compose.yml up -d --build --wait --scale minio=0`. Compose vẫn đòi `MINIO_KMS_SECRET_KEY` có giá trị; khi đó giá trị không được dùng.
 
-Image `minio/minio` không còn trên Docker Hub ([LESSONS §4](docs/LESSONS.md)). Muốn đổi image thì cập nhật digest trong `deploy/docker-compose.yml`, và từ US-1.6 cả trong testcontainers, trong cùng một commit.
+Image `minio/minio` không còn trên Docker Hub ([LESSONS §4](docs/LESSONS.md)). Muốn đổi image thì cập nhật digest trong `deploy/docker-compose.yml` và `apps/api/test/setup/images.ts` (testcontainers) trong cùng một commit.
+
+Từ 0.4.0, `deploy/.env` cũ cần thêm `MINIO_KMS_SECRET_KEY` (và có thể bỏ `MINIO_BUCKET`), nếu không `up` sẽ báo thiếu biến.

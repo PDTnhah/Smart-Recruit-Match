@@ -2,10 +2,14 @@ import { z } from 'zod';
 
 export * from './roles.js';
 export * from './errors.js';
+export * from './common.js';
 export * from './audit.js';
 export * from './auth.js';
 export * from './portal.js';
 export * from './campaign.js';
+export * from './files.js';
+export * from './company.js';
+export * from './job-description.js';
 
 /** Global route prefix of the Core Backend; the web client builds API URLs from it. */
 export const API_PREFIX = 'api';

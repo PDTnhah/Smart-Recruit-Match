@@ -17,6 +17,11 @@ export const API_ERROR_CODES = [
   // Campaign setup and phase checks (US-1.4, CONTEXT D27).
   'CAMPAIGN_CONFIG_LOCKED',
   'CAMPAIGN_PHASE_MISMATCH',
+  // Companies, HR invitations, JDs and file uploads (US-1.5, CONTEXT D28).
+  'INVITATION_INVALID',
+  'JD_NOT_EDITABLE',
+  'FILE_TOO_LARGE',
+  'UNSUPPORTED_FILE_TYPE',
   'INTERNAL_ERROR',
 ] as const;
 

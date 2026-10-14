@@ -4,6 +4,7 @@ import { type AuthSession, type Me, ROLES } from '@srm/shared';
 import { ZodResponse } from 'nestjs-zod';
 import { type AuthUser, CurrentUser, Public, Roles } from '../../../common/auth/index.js';
 import { AuthService, type IssuedSession } from '../application/auth.service.js';
+import { InvitationService } from '../application/invitation.service.js';
 import {
   clearRefreshCookie,
   type CookieRequest,
@@ -11,13 +12,16 @@ import {
   readRefreshCookie,
   setRefreshCookie,
 } from './cookies.js';
-import { AuthSessionDto, LoginRequestDto, MeDto } from './dto.js';
+import { AcceptInvitationRequestDto, AuthSessionDto, LoginRequestDto, MeDto } from './dto.js';
 
-/** Login, refresh, logout and the current account (FR-1, US-1.3 AC-1…AC-4). */
+/** Login, refresh, logout, the current account (FR-1, US-1.3) and accepting an HR invitation (FR-3, US-1.5). */
 @ApiTags('auth')
 @Controller()
 export class AuthController {
-  constructor(private readonly auth: AuthService) {}
+  constructor(
+    private readonly auth: AuthService,
+    private readonly invitations: InvitationService,
+  ) {}
 
   @Public()
   @Post('auth/login')
@@ -28,6 +32,18 @@ export class AuthController {
     @Res({ passthrough: true }) response: CookieResponse,
   ): Promise<AuthSession> {
     return this.startSession(response, await this.auth.login(body.email, body.password));
+  }
+
+  /** US-1.5 AC-3: an invited HR sets a password and is logged in. Bad or used tokens: 422. */
+  @Public()
+  @Post('auth/accept-invitation')
+  @Header('Cache-Control', 'no-store')
+  @ZodResponse({ status: 200, type: AuthSessionDto })
+  async acceptInvitation(
+    @Body() body: AcceptInvitationRequestDto,
+    @Res({ passthrough: true }) response: CookieResponse,
+  ): Promise<AuthSession> {
+    return this.startSession(response, await this.invitations.accept(body.token, body.password));
   }
 
   /** Rotates the refresh token. On failure the cookie is cleared so the client stops retrying. */

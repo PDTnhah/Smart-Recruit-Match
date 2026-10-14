@@ -32,7 +32,8 @@ module.exports = {
       testMatch: ['<rootDir>/test/integration/**/*.int-spec.ts'],
       globalSetup: '<rootDir>/test/setup/global-setup.ts',
       globalTeardown: '<rootDir>/test/setup/global-teardown.ts',
-      testTimeout: 120_000,
+      // Not `testTimeout`: Jest ignores it inside a project (LESSONS §11).
+      setupFilesAfterEnv: ['<rootDir>/test/setup/timeout.ts'],
     },
   ],
 };

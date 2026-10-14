@@ -55,7 +55,7 @@ export const NAVIGATION: Record<Portal, readonly NavItem[]> = {
   ],
   '/hr': [
     { segment: '', title: 'Tổng quan', icon: LayoutDashboard, roles: HR },
-    { segment: 'job-descriptions', title: 'Tin tuyển dụng', icon: Briefcase, roles: HR },
+    { segment: 'job-descriptions', title: 'JD của tôi', icon: Briefcase, roles: HR },
     { segment: 'nominations', title: 'Ứng viên được đề cử', icon: Users, roles: HR },
     { segment: 'interviews', title: 'Phỏng vấn', icon: CalendarClock, roles: HR },
   ],
@@ -63,7 +63,7 @@ export const NAVIGATION: Record<Portal, readonly NavItem[]> = {
     { segment: '', title: 'Tổng quan', icon: LayoutDashboard, roles: CENTER_AND_ADMIN },
     { segment: 'campaigns', title: 'Đợt thực tập', icon: CalendarRange, roles: CENTER },
     { segment: 'companies', title: 'Doanh nghiệp', icon: Building2, roles: CENTER },
-    { segment: 'job-descriptions', title: 'Tin tuyển dụng', icon: Briefcase, roles: CENTER },
+    { segment: 'job-descriptions', title: 'Duyệt JD', icon: Briefcase, roles: CENTER },
     { segment: 'allocation', title: 'Phân bổ', icon: Shuffle, roles: CENTER },
     { segment: 'reports', title: 'Báo cáo', icon: ChartColumn, roles: CENTER },
     { segment: 'users', title: 'Tài khoản', icon: UserCog, roles: ADMIN },

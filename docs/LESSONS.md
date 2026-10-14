@@ -129,6 +129,7 @@ See [CONTEXT.md D26](CONTEXT.md).
 - Với NestJS 11, dùng dòng gói cùng thời: `@nestjs/schedule` 6.x, `@nestjs/event-emitter` 3.x. Repo ghim 6.1.3 và 3.1.0.
 - Trước khi thêm một gói `@nestjs/*`, kiểm `npm view <gói>@<bản> type`: có `"module"` thì không dùng được với API này.
 - Sau khi thêm gói, chạy `pnpm --filter @srm/api test` (cả integration), không chỉ `typecheck` và `lint`.
+- (0.4.0) Bẫy này không riêng NestJS. `file-type`, thư viện ARCH chọn để kiểm MIME thật, chỉ có ESM từ bản 17 (bản mới nhất 22.x). Repo ghim 16.5.4, bản CommonJS cuối cùng (`fromBuffer`, nhận DOCX qua mục `word/` trong zip). Không dùng `import()` động để né: Jest cần `--experimental-vm-modules`.
 
 See [US-1.4](sprints/stories/US-1.4-campaign-setup-and-config.md) › Implementation notes.
 
@@ -144,3 +145,41 @@ See [US-1.4](sprints/stories/US-1.4-campaign-setup-and-config.md) › Implementa
 - Không trông đợi lỗi chéo khi một trường nó đọc đang sai kiểu.
 
 See [US-1.4](sprints/stories/US-1.4-campaign-setup-and-config.md) › Implementation notes.
+
+## 11. Jest bỏ qua `testTimeout` đặt trong một mục `projects`
+
+**What happened (0.4.0)**: Khi chạy `pnpm test` cho US-1.5, một vài integration test đỏ, mỗi lần một nhóm khác nhau, với lỗi `Exceeded timeout of 5000 ms for a hook` ở `beforeAll`. Chạy riêng từng file thì xanh. `apps/api/jest.config.cjs` vẫn khai `testTimeout: 120_000` cho project `integration` từ US-1.1.
+
+**Why**: `testTimeout` là tùy chọn global. jest-circus chỉ đọc `globalConfig.testTimeout`; giá trị trong một project bị bỏ qua mà không báo gì, nên integration test luôn chạy với mặc định 5 giây. `beforeAll` dựng cả app Nest, băm mật khẩu bằng scrypt và đăng nhập vài tài khoản. Khi nhiều worker chạy cùng lúc (thêm MinIO, thêm 7 file test) và máy đang chạy compose, hook vượt 5 giây.
+
+**How to avoid**:
+- Đặt timeout của một project bằng `setupFilesAfterEnv` gọi `jest.setTimeout(...)` (xem `apps/api/test/setup/timeout.ts`), hoặc đặt `testTimeout` ở cấp gốc nếu mọi project dùng chung.
+- Test chỉ đỏ khi chạy cả bộ thì đọc thông báo lỗi trước: timeout của hook là dấu hiệu cấu hình timeout, không phải lỗi logic.
+
+See [US-1.5](sprints/stories/US-1.5-company-hr-accounts-jd-posting-approval.md) › Implementation notes.
+
+## 12. Drizzle `.for('update', { of })` sinh tên có schema, PostgreSQL từ chối
+
+**What happened (0.4.0)**: `JdRepository.findById` đọc JD kèm tên công ty (join `companies`) và khóa dòng JD bằng `.for('update', { of: jobDescriptions })`. Mọi endpoint sửa JD trả `500`. Drizzle 0.45 sinh `FOR UPDATE OF "core"."job_descriptions"`, còn PostgreSQL chỉ nhận tên bảng không có schema (hoặc alias) trong mệnh đề `OF`.
+
+**Why**: Mọi bảng nghiệp vụ nằm trong `pgSchema('core')`. Drizzle in tham chiếu bảng kèm schema ở mọi chỗ, kể cả `OF`.
+
+**How to avoid**:
+- Cần khóa một bảng trong câu có join thì khóa bằng một câu riêng không join (`select id … for update`), rồi mới đọc bằng câu join trong cùng giao dịch. Xem `JdRepository.findById`.
+- Không dùng `.for(..., { of })` với bảng của schema `core`. Câu không join thì `.for('update')` vẫn đúng.
+- Lỗi SQL thành `500 INTERNAL_ERROR` và test không in log (`LOG_LEVEL=silent`). Tái hiện bằng một script nhỏ, hoặc xem `toSQL()` của câu truy vấn.
+
+See [US-1.5](sprints/stories/US-1.5-company-hr-accounts-jd-posting-approval.md) › Implementation notes.
+
+## 13. multer đọc tên file theo latin1: tên tiếng Việt bị lỗi font
+
+**What happened (0.4.0)**: Khi làm tải file JD, đọc mã multer 2.4 (`lib/make-middleware.js`) thì thấy `defParamCharset` mặc định là `latin1`. Trình duyệt gửi tên file UTF-8 trong `Content-Disposition` của phần multipart, nên `file.originalname` của "Mô tả công việc.pdf" thành chuỗi lỗi font, và bị lưu vào `file_name`.
+
+**Why**: Busboy chỉ dùng UTF-8 khi phần header có `filename*=` ghi rõ charset. Trình duyệt gửi `filename="..."` dạng byte UTF-8 thô, multer giải mã theo charset mặc định.
+
+**How to avoid**:
+- Dùng decorator `SingleFileUpload()` ở `apps/api/src/common/storage/upload-validation.ts`: nó đặt `defParamCharset: 'utf8'` cùng giới hạn 5 MB. US-1.6 (CV) dùng lại, không tự gọi `FileInterceptor`.
+- Tên file của client chỉ để hiển thị: lọc bằng `displayFileName()` (bỏ đường dẫn, ký tự điều khiển, cắt 255 ký tự). Key trên MinIO là UUID, không lấy từ tên file.
+- Integration test tải file có tên tiếng Việt và kiểm `filename*` trong header tải về (`files-url.int-spec.ts`).
+
+See [US-1.5](sprints/stories/US-1.5-company-hr-accounts-jd-posting-approval.md) › Implementation notes.
