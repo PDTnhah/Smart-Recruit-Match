@@ -6,6 +6,54 @@ Lịch sử phát hành của Smart Recruit Match. Mỗi commit ship code tăng 
 
 ---
 
+## [0.5.0] — 2026-10-14 — Đồng ý xử lý dữ liệu và nộp CV — v0.5.0
+
+US-1.6. Sinh viên đọc và đồng ý điều khoản xử lý dữ liệu cá nhân (có phiên bản) cho từng đợt thực tập, rồi nộp và cập nhật CV PDF/DOCX trước hạn. Mỗi lần nộp là một phiên bản mới; mỗi sinh viên chỉ có một CV hiệu lực trong một đợt, bảo đảm bằng ràng buộc DB (BR-01). CV chờ phân tích ở US-2.4. Không có lời gọi LLM nào.
+
+### Added
+- **Điều khoản xử lý dữ liệu** `packages/shared/consent/` (`TERMS_V1`, `CURRENT_TERMS`):
+  - CV được phân tích bằng Claude API của Anthropic. Theo chính sách hiện hành của Anthropic (đọc ngày 2026-10-14), dữ liệu bị xóa trong vòng 30 ngày và không dùng để huấn luyện.
+  - CV được chia sẻ cho doanh nghiệp mà sinh viên được đề cử.
+  - Thời hạn lưu: 12 tháng sau khi đóng đợt.
+  - Unit test ghim SHA-256 của v1, nên sửa điều khoản thì phải ra phiên bản mới.
+- **Đồng ý** (chỉ sinh viên): `GET /api/me/consents`, `POST /api/me/consents` (`campaignId`, `termsVersion`).
+  - Ghi sinh viên, đợt, phiên bản điều khoản, SHA-256 của văn bản và thời điểm đồng ý, có audit.
+  - Chỉ ghi được khi đợt ở `INTAKE`. Phiên bản cũ trả `409 TERMS_OUTDATED`. Đồng ý lại thì trả bản ghi cũ.
+- **Nộp CV:** `POST /api/cvs` (multipart, `202 Accepted`).
+  - Kiểm theo thứ tự: quá 5 MB (`413`), đợt sinh viên không thấy (`404`), sai pha hoặc quá `intake_end` (`409 CAMPAIGN_PHASE_MISMATCH`), chưa đồng ý (`403 CONSENT_REQUIRED`), nội dung không phải PDF/DOCX (`415`). Bị từ chối thì không ghi gì vào MinIO hay DB.
+  - File lưu mã hóa SSE-S3 trong `cv-files`. Mỗi lần nộp tạo một dòng `cvs` mới ở `PENDING_ANALYSIS`, dòng cũ mất `active`, file cũ giữ nguyên.
+  - Hai lần nộp đồng thời: một lần thắng, lần kia nhận `409 CV_SUBMISSION_CONFLICT`.
+  - Sự kiện `cv.submitted` (`cvId`, `cvVersion`, `campaignId`, `studentId`).
+- **Xem CV:**
+  - `GET /api/cvs/me` trả mọi phiên bản của chính sinh viên.
+  - `GET /api/files/cv:{id}/url` cho sinh viên chủ CV và Trung tâm. HR nhận `404` tới khi có đề cử (US-5.3).
+- **Giao diện cổng sinh viên:**
+  - Màn "Hồ sơ" (`/sv/cv`): chọn đợt, đọc và đồng ý điều khoản, tải CV có thanh tiến độ, nhãn "Chờ phân tích", lịch sử phiên bản, mở file; báo lỗi tiếng Việt cho sai loại, quá cỡ, quá hạn.
+  - Trang chủ `/sv` nhắc việc cần làm: đồng ý điều khoản và nộp CV cho đợt đang nhận CV.
+  - Primitive mới: `progress`.
+- **Dữ liệu và tài liệu:**
+  - Migration `0003_cv_consent`: bảng `consents`; cột `cvs.active`, `cvs.file_name`; partial unique index `cvs_student_campaign_active_key (student_id, campaign_id) WHERE active`; unique `(student_id, campaign_id, version)`.
+  - CONTEXT D30.
+
+### Changed
+- `GET /api/files/{id}/url` nhận thêm vai trò `STUDENT`: sinh viên gọi URL file JD nhận `404` thay vì `403`.
+- **Web:**
+  - `ViewFileButton` và kiểm file PDF/DOCX chuyển sang `src/shared/files/`, dùng chung cho JD và CV.
+  - Thêm `postFormWithProgress` (`src/shared/api/upload.ts`): upload bằng XHR có tiến độ, refresh token trước khi gửi.
+- **API:** `StudentModule` được nạp ở `AppModule`, có controller riêng.
+- **Test:**
+  - Thêm helper `test/helpers/cv.ts`.
+  - `objectKeys`/`headObject` trong `test/helpers/jd.ts` nhận bucket.
+  - Factory `createCv` có `fileName`.
+- **Tài liệu:**
+  - ARCHITECTURE: *Các module* (`student`), *Các bảng chính*, *Lưu trữ file* (12 tháng), *API architecture*.
+  - DESIGN.md §6: `progress`, badge trạng thái CV.
+- **Sprint:** US-1.6 vào `sprint-2026-W42` (kéo sớm từ W44).
+
+**Commit**:
+
+---
+
 ## [0.4.0] — 2026-10-13 — Doanh nghiệp, tài khoản HR, đăng và duyệt JD — v0.4.0
 
 US-1.5. Trung tâm khai báo doanh nghiệp và mời HR. HR nhận lời mời, đăng JD bằng form hoặc file PDF/DOCX, rồi nộp. Trung tâm duyệt JD. File gốc lưu mã hóa trên MinIO, tải qua URL tạm 5 phút. Lớp lưu file và kiểm tra file tải lên dùng lại được cho CV (US-1.6). Không có lời gọi LLM nào.
