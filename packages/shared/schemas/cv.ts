@@ -1,0 +1,44 @@
+import { z } from 'zod';
+import { CV_STATES } from '../states/cv.js';
+import { IdFieldSchema } from './common.js';
+
+// CV submission by students (FR-6, PRD GĐ2, US-1.6, CONTEXT D30). Every upload is a new `cvs` row
+// with the next version; at most one row per student and campaign is active (BR-01). The student
+// always comes from the access token, never from a request.
+
+/**
+ * `accept` of the CV file input. The MIME types let phone pickers offer documents; the API checks
+ * the real content, not the name.
+ */
+export const CV_FILE_ACCEPT =
+  '.pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+
+/** Text fields of the multipart body of `POST /api/cvs` (the file itself is `file`). */
+export const SubmitCvFieldsSchema = z.object({
+  campaignId: IdFieldSchema('Chọn đợt thực tập'),
+});
+
+export const CvListQuerySchema = z.object({
+  campaignId: z.coerce.number().int().positive().optional(),
+});
+
+export type CvListQuery = z.output<typeof CvListQuerySchema>;
+
+export const CvSchema = z.object({
+  id: z.number().int(),
+  campaignId: z.number().int(),
+  version: z.number().int(),
+  status: z.enum(CV_STATES),
+  /** The version that counts in its campaign (BR-01). */
+  active: z.boolean(),
+  /** Name of the uploaded file; download it through `GET /api/files/cv:{id}/url`. */
+  fileName: z.string(),
+  createdAt: z.iso.datetime(),
+});
+
+export type Cv = z.output<typeof CvSchema>;
+
+/** Body of `GET /api/cvs/me`: the caller's CV versions, newest first. */
+export const CvListSchema = z.object({ items: z.array(CvSchema) });
+
+export type CvList = z.output<typeof CvListSchema>;

@@ -10,6 +10,8 @@ export * from './campaign.js';
 export * from './files.js';
 export * from './company.js';
 export * from './job-description.js';
+export * from './consent.js';
+export * from './cv.js';
 
 /** Global route prefix of the Core Backend; the web client builds API URLs from it. */
 export const API_PREFIX = 'api';

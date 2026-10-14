@@ -7,7 +7,7 @@ import type { INestApplication } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import type { JobDescriptionStatus } from '@srm/shared';
 import { loadEnv } from '../../src/common/config/env.js';
-import { BUCKETS, createS3Client, storageConfigFromEnv } from '../../src/common/storage/index.js';
+import { type Bucket, BUCKETS, createS3Client, storageConfigFromEnv } from '../../src/common/storage/index.js';
 import type { Database } from '../../src/db/types.js';
 import { createCampaign, createJobDescription } from './factories.js';
 
@@ -77,10 +77,10 @@ export function testS3(): S3Client {
   return createS3Client(storageConfigFromEnv(loadEnv()));
 }
 
-/** Object keys under `prefix` in `jd-files` (none when the bucket does not exist yet). */
-export async function jdObjectKeys(s3: S3Client, prefix: string): Promise<string[]> {
+/** Object keys under `prefix` in `bucket` (none when the bucket does not exist yet). */
+export async function objectKeys(s3: S3Client, bucket: Bucket, prefix: string): Promise<string[]> {
   try {
-    const listed = await s3.send(new ListObjectsV2Command({ Bucket: BUCKETS.JD_FILES, Prefix: prefix }));
+    const listed = await s3.send(new ListObjectsV2Command({ Bucket: bucket, Prefix: prefix }));
     return (listed.Contents ?? []).flatMap((object) => (object.Key ? [object.Key] : []));
   } catch (error) {
     if (error instanceof Error && error.name === 'NoSuchBucket') return [];
@@ -88,8 +88,16 @@ export async function jdObjectKeys(s3: S3Client, prefix: string): Promise<string
   }
 }
 
+export function headObject(s3: S3Client, bucket: Bucket, key: string) {
+  return s3.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
+}
+
+export function jdObjectKeys(s3: S3Client, prefix: string): Promise<string[]> {
+  return objectKeys(s3, BUCKETS.JD_FILES, prefix);
+}
+
 export function headJdObject(s3: S3Client, key: string) {
-  return s3.send(new HeadObjectCommand({ Bucket: BUCKETS.JD_FILES, Key: key }));
+  return headObject(s3, BUCKETS.JD_FILES, key);
 }
 
 /** Collects every payload of `event` published by the app under test. */

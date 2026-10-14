@@ -218,3 +218,35 @@ export class CampaignPhaseMismatchError extends DomainError {
     );
   }
 }
+
+// Data-processing consent and CV submission (US-1.6, CONTEXT D30).
+
+/** The student has not accepted the current terms for this campaign; nothing of theirs is processed (NFR-2). */
+export class ConsentRequiredError extends DomainError {
+  readonly code = 'CONSENT_REQUIRED';
+  readonly httpStatus = 403;
+
+  constructor(campaignId: number, termsVersion: number) {
+    super(`consent to terms v${termsVersion} for campaign ${campaignId} is required`, { campaignId, termsVersion });
+  }
+}
+
+/** The student accepted a terms version other than the current one (the page was stale). */
+export class TermsOutdatedError extends DomainError {
+  readonly code = 'TERMS_OUTDATED';
+  readonly httpStatus = 409;
+
+  constructor(accepted: number, current: number) {
+    super(`terms v${accepted} is not the current version v${current}`, { accepted, current });
+  }
+}
+
+/** Another upload of the same student and campaign committed first; at most one CV is active (BR-01). */
+export class CvSubmissionConflictError extends DomainError {
+  readonly code = 'CV_SUBMISSION_CONFLICT';
+  readonly httpStatus = 409;
+
+  constructor(campaignId: number) {
+    super(`another CV for campaign ${campaignId} was submitted at the same time`, { campaignId });
+  }
+}

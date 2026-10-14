@@ -1,4 +1,4 @@
-import type { JobDescription } from '@srm/shared';
+import { fileId, type JobDescription } from '@srm/shared';
 import { CircleAlert, Upload } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -8,8 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { FieldGroup } from '@/components/ui/field';
 import { Spinner } from '@/components/ui/spinner';
 import { useUploadJdFile } from '@/features/jds/api';
-import { ViewFileButton } from '@/features/jds/view-file-button';
 import { apiErrorMessage } from '@/shared/api/errors';
+import { ViewFileButton } from '@/shared/files/view-file-button';
 import { JdFilePicker } from './file-picker';
 
 /** Upload or replace the original PDF/DOCX of a draft JD (US-1.5 AC-5, AC-10). */
@@ -50,7 +50,7 @@ export function JdFileCard({ jd }: { jd: JobDescription }) {
             </Alert>
           )}
           {jd.file ? (
-            <ViewFileButton jdId={jd.id} fileName={jd.file.name} />
+            <ViewFileButton fileId={fileId('jd', jd.id)} label={`Xem file gốc: ${jd.file.name}`} />
           ) : (
             <p className="text-sm text-muted-foreground">Chưa có file gốc.</p>
           )}

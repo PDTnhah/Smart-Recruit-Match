@@ -47,6 +47,11 @@ const authMiddleware: Middleware = {
 export const api = createClient<paths>({ credentials: 'same-origin' });
 api.use(authMiddleware);
 
+/** For requests sent outside this client (XHR uploads, `upload.ts`) whose one refresh failed. */
+export function notifySessionExpired(): void {
+  onSessionExpired();
+}
+
 /** Returns `data` of an openapi-fetch result, or throws ApiRequestError for a non-2xx response. */
 export function unwrap<T>(result: { data?: T; error?: unknown; response: Response }): T {
   if (!result.response.ok || result.data === undefined) {

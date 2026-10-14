@@ -22,6 +22,10 @@ export const API_ERROR_CODES = [
   'JD_NOT_EDITABLE',
   'FILE_TOO_LARGE',
   'UNSUPPORTED_FILE_TYPE',
+  // Data-processing consent and CV submission (US-1.6, CONTEXT D30).
+  'CONSENT_REQUIRED',
+  'TERMS_OUTDATED',
+  'CV_SUBMISSION_CONFLICT',
   'INTERNAL_ERROR',
 ] as const;
 

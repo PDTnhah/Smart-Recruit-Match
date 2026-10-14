@@ -15,6 +15,7 @@ import { HealthModule } from './health/health.module.js';
 import { CampaignModule } from './modules/campaign/index.js';
 import { CompanyModule } from './modules/company/index.js';
 import { IamModule } from './modules/iam/index.js';
+import { StudentModule } from './modules/student/index.js';
 import { RedisModule } from './redis/redis.module.js';
 
 @Module({
@@ -47,6 +48,7 @@ import { RedisModule } from './redis/redis.module.js';
     IamModule,
     CampaignModule,
     CompanyModule,
+    StudentModule,
   ],
   providers: [
     { provide: APP_PIPE, useClass: ZodRequestValidationPipe },

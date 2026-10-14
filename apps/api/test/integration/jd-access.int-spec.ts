@@ -80,7 +80,7 @@ describe('BR-11: JD record-level access (US-1.5 AC-8)', () => {
     expect(list.items.every((jd) => jd.status === 'PENDING_APPROVAL' && jd.campaignId === campaignId)).toBe(true);
   });
 
-  it('BR-11: STUDENT calling HR and center JD endpoints gets 403', async () => {
+  it('BR-11: STUDENT calling HR and center JD endpoints gets 403, and 404 on a JD file', async () => {
     const jd = await createJdInState(t.db, { companyId: f.companyA.id, campaignId, status: 'PENDING_APPROVAL' });
     const student = f.studentX.agent;
     await student.get(api('jds')).expect(403);
@@ -89,6 +89,7 @@ describe('BR-11: JD record-level access (US-1.5 AC-8)', () => {
     await student.patch(api(`jds/${jd.id}`)).send({ rowVersion: 0 }).expect(403);
     await student.post(api(`jds/${jd.id}/submit`)).send({ rowVersion: 0 }).expect(403);
     await student.post(api(`jds/${jd.id}/approve`)).send({ rowVersion: 0 }).expect(403);
-    await student.get(api(`files/${fileId('jd', jd.id)}/url`)).expect(403);
+    // Students may call the files endpoint for their CVs (US-1.6); a JD is outside their scope.
+    await student.get(api(`files/${fileId('jd', jd.id)}/url`)).expect(404);
   });
 });

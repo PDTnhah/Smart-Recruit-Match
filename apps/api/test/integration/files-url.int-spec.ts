@@ -77,7 +77,7 @@ describe('GĐ1: presigned file URLs (US-1.5 AC-9)', () => {
     const missing = await hr.agent.get(api(`files/${fileId('jd', bare.id)}/url`)).expect(404);
     expect(ApiErrorSchema.parse(missing.body).code).toBe('ENTITY_NOT_FOUND');
     await hr.agent.get(api('files/report:1/url')).expect(400);
-    // No module has registered `cv` yet (US-1.6).
-    await center.agent.get(api('files/cv:1/url')).expect(404);
+    // A CV that does not exist answers 404 too (the `cv` owner is registered since US-1.6).
+    await center.agent.get(api('files/cv:9999999999/url')).expect(404);
   });
 });

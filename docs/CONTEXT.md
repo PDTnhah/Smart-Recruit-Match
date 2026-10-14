@@ -615,3 +615,82 @@ Ngoài ra, compose chỉ có một biến `MINIO_BUCKET`, trong khi ARCH ghi hai
 
 **Date**: 2026-10-13
 **Version**: 0.4.0
+
+### D30. Đồng ý xử lý dữ liệu, phiên bản CV và nộp CV (US-1.6)
+
+**Context**: *Dev notes* của US-1.6 có các điểm spec còn mở:
+
+1. **Nơi lưu đồng ý.** ARCH không có bảng hay cột nào cho việc này.
+2. **Mô hình phiên bản CV.** Partial unique index `(student_id, campaign_id) WHERE active` gợi ý mỗi phiên bản là một dòng. Nhưng `match_results` và payload `ai.cv.parse` dùng cặp `cv_id` + `cv_version`, gợi ý `cv_id` cố định qua các phiên bản.
+3. **Nội dung điều khoản (Q8).** Màn đồng ý phải ghi tên nhà cung cấp LLM, thời gian nhà cung cấp lưu dữ liệu, dữ liệu có bị dùng để huấn luyện không. Việc đọc điều khoản của nhà cung cấp (Track B) chưa có kết quả trong repo.
+4. **Thời hạn lưu dữ liệu.** NFR-2 ghi "do Trung tâm cấu hình", nhưng bảng tham số GĐ0 không có tham số này.
+
+Ngoài ra: ARCH không liệt kê cột `active` và không có cột tên file của CV, trong khi `FileAccessRegistry` cần tên file để đặt `Content-Disposition`. Story đặt điều khoản ở `packages/shared/consent/terms-v1.md`, nhưng `tsc` của `packages/shared` không chép file `.md` sang `dist`, mà image API chạy từ `dist`.
+
+**Decision** (người dùng chốt bốn mục đầu ngày 2026-10-14):
+
+- **Phiên bản CV:** mỗi lần nộp tạo một dòng `cvs` mới.
+  - Dòng mới có id mới, `version = n + 1`, `active = true`. Dòng cũ chuyển `active = false` trong cùng giao dịch, có audit.
+  - `cv_id` mà US-2.4, US-3.2 dùng trỏ đúng một phiên bản. `cv_version` để hiển thị và để đối chiếu kết quả phân tích.
+  - File của các phiên bản cũ vẫn giữ trên MinIO.
+- **Đồng ý:** bảng `core.consents(id, student_id, campaign_id, terms_version, terms_sha256, accepted_at)`, unique `(student_id, campaign_id, terms_version)`.
+  - `terms_sha256` là SHA-256 của nội dung điều khoản sinh viên đã thấy, tính từ JSON chuẩn hóa (khóa sắp xếp).
+  - Đồng ý tính theo đợt: mỗi đợt mới cần đồng ý lại.
+- **Điều khoản v1:** viết theo chính sách dữ liệu API hiện hành của Anthropic (AD-10), đọc ngày 2026-10-14. Nguồn ghi ở *Implementation notes* của US-1.6. Người dùng duyệt nội dung trước khi commit.
+- **Thời hạn lưu:** 12 tháng sau khi đóng đợt, ghi cố định trong điều khoản v1. Đổi con số này thì ra điều khoản v2.
+- **Điều khoản là module TS** ở `packages/shared/consent/` (`TERMS_V1`, `CURRENT_TERMS`), không phải file `.md`.
+  - Web vẽ điều khoản bằng JSX, không thêm thư viện markdown.
+  - Unit test ghim hash của v1, nên không ai sửa v1 tại chỗ được. Sửa nội dung thì tạo `TERMS_V2`, và sinh viên phải đồng ý lại.
+- **Cột và index của `cvs`:**
+  - `active boolean not null default true`.
+  - `file_name text not null`: tên file gốc để hiển thị, như `job_descriptions.file_name`.
+  - Partial unique index `cvs_student_campaign_active_key (student_id, campaign_id) WHERE active` (BR-01).
+  - Unique `cvs_student_campaign_version_key (student_id, campaign_id, version)`.
+- **Ghi nhận đồng ý** (`POST /api/me/consents`):
+  - Chỉ ghi được khi đợt ở `INTAKE`.
+  - Client gửi `termsVersion` đã xem. Phiên bản khác bản hiện hành thì trả `409 TERMS_OUTDATED`.
+  - Đồng ý lại cùng phiên bản là idempotent: trả bản ghi cũ, không ghi audit lần hai.
+- **Nộp CV** (`POST /api/cvs`, multipart, `campaignId` + `file`), kiểm theo thứ tự:
+  1. Vai trò `STUDENT` (403).
+  2. File quá 5 MB (413, multer).
+  3. Đợt sinh viên không thấy, kể cả đợt `DRAFT` (404), như D29 đã áp cho HR.
+  4. Đợt không ở `INTAKE` hoặc đã qua `intake_end` (`409 CAMPAIGN_PHASE_MISMATCH`).
+  5. Chưa đồng ý phiên bản điều khoản hiện hành (`403 CONSENT_REQUIRED`).
+  6. Nội dung không phải PDF/DOCX (415).
+
+  Sau đó API ghi file lên MinIO rồi mới mở giao dịch. Giao dịch lỗi thì xóa object vừa ghi. Hai lần nộp đồng thời: lần thua nhận `409 CV_SUBMISSION_CONFLICT`. Thành công trả `202 Accepted`.
+- **Sự kiện:** `cv.submitted` phát qua `@nestjs/event-emitter` sau khi commit, payload camelCase như mọi sự kiện hiện có: `{ cvId, cvVersion, campaignId, studentId }`.
+- **Xem CV:**
+  - `GET /api/cvs/me` trả mọi phiên bản của sinh viên.
+  - Module `student` đăng ký resolver `cv` vào `FileAccessRegistry`; `GET /api/files/{id}/url` nhận thêm vai trò `STUDENT`.
+  - Sinh viên chỉ lấy được file của mình, CENTER và ADMIN lấy được mọi file. HR nhận `404` cho tới US-5.3.
+- **Mã lỗi mới:** `CONSENT_REQUIRED` (403), `TERMS_OUTDATED` (409), `CV_SUBMISSION_CONFLICT` (409).
+- **Web:** tiến độ tải dùng `XMLHttpRequest`, vì `fetch` không báo tiến độ upload. Thêm primitive shadcn `progress`, không thêm gói mới.
+
+**Rationale**:
+
+- Một dòng cho mỗi phiên bản khớp partial unique index của ARCH. Kết quả phân tích, chấm điểm của phiên bản cũ vẫn gắn với đúng dòng của nó, nên không cần bảng `cv_versions`.
+- Hash của điều khoản chứng minh được văn bản nào sinh viên đã đồng ý, kể cả khi mã nguồn đổi về sau.
+- Đồng ý theo đợt đúng chữ AC-1, AC-2. Khi đổi nhà cung cấp LLM giữa hai đợt, sinh viên phải đồng ý lại.
+- Kiểm hết các điều kiện trước khi ghi MinIO, nên request bị từ chối không để lại file.
+- Lần nộp đầu tiên không có dòng nào để khóa. Chỉ partial unique index mới chặn được hai lần nộp đồng thời (Nguyên tắc 11).
+
+**Alternatives considered**:
+- **`cv_id` cố định và bảng `cv_versions`:** loại vì phải sửa ARCH và index BR-01, migration lớn hơn.
+- **Đồng ý một lần cho mọi đợt:** loại vì lệch AC-1, AC-2.
+- **Đồng ý không lưu hash:** loại vì không chứng minh được văn bản sinh viên đã thấy.
+- **Điều khoản dạng `.md`:** loại vì phải thêm bước chép file vào build của `packages/shared` và thêm thư viện markdown cho web.
+- **Thời hạn lưu là tham số của đợt:** loại ở story này vì phải sửa schema tham số đợt và màn cấu hình đợt. Xem lại khi có story xóa dữ liệu theo thời hạn.
+- **Tiến độ tải bằng `fetch` streaming:** loại vì trình duyệt chưa hỗ trợ đồng đều.
+
+**Impact**:
+- Migration `0003` (cột `cvs.active`, `cvs.file_name`, hai index, bảng `consents`).
+- ARCHITECTURE: *Các bảng chính*, *API architecture*, *Các module* (`student`, sự kiện `cv.submitted`).
+- Story US-1.6: *Story refresh*.
+- US-1.7: nhắc hạn dựa trên CV `active` qua service của `student`; story merge sau thì rebase rồi mới sinh migration.
+- US-2.4: nghe `cv.submitted`; `cv_id` trỏ một phiên bản.
+- US-2.6: "Sửa lại" tạo dòng mới dùng lại `file_key` cũ.
+- US-5.3: thêm quyền HR vào resolver `cv`.
+
+**Date**: 2026-10-14
+**Version**: 0.5.0

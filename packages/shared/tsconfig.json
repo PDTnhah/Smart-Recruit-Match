@@ -6,6 +6,6 @@
     "isolatedModules": true,
     "types": ["jest"]
   },
-  "include": ["index.ts", "schemas", "states", "contracts"],
+  "include": ["index.ts", "schemas", "states", "contracts", "consent"],
   "exclude": ["dist", "node_modules"]
 }

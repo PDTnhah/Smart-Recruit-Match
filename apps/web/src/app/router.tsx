@@ -16,16 +16,23 @@ import { JdApprovalDetailPage } from '@/features/center/jd-approval/jd-approval-
 import { JdApprovalListPage } from '@/features/center/jd-approval/jd-approval-list-page';
 import { HrJdListPage } from '@/features/hr/jds/hr-jd-list-page';
 import { HrJdCreatePage, HrJdDetailPage } from '@/features/hr/jds/hr-jd-pages';
+import { StudentHomePage } from '@/features/student/home/student-home-page';
+import { CvPage } from '@/features/student/profile/cv-page';
 
 // Routes by portal (DESIGN.md §12). A story that ships a screen adds its route next to the
 // `:section` placeholder of its portal.
 
-function portalRoute(portal: Portal, layout: ReactNode, pages: RouteObject[] = []): RouteObject {
+function portalRoute(
+  portal: Portal,
+  layout: ReactNode,
+  pages: RouteObject[] = [],
+  home: ReactNode = <PortalHomePage portal={portal} />,
+): RouteObject {
   return {
     path: portal,
     element: <RequirePortal portal={portal}>{layout}</RequirePortal>,
     children: [
-      { index: true, element: <PortalHomePage portal={portal} /> },
+      { index: true, element: home },
       // Static segments outrank `:section`, so a shipped screen replaces its placeholder.
       ...pages,
       { path: ':section', element: <ComingSoonPage portal={portal} /> },
@@ -43,7 +50,16 @@ export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
   // US-1.5: invited HR sets a password; public, outside the portals (DESIGN.md §12).
   { path: ACCEPT_INVITATION_PATH, element: <AcceptInvitationPage /> },
-  portalRoute('/sv', <StudentLayout />),
+  portalRoute(
+    '/sv',
+    <StudentLayout />,
+    [
+      // US-1.6: "Hồ sơ": consent to the terms, CV upload and versions (the /sv portal is STUDENT-only).
+      { path: 'cv', element: <CvPage /> },
+    ],
+    // US-1.6 AC-1: the home lists what to do now, starting with consent and CV for open campaigns.
+    <StudentHomePage />,
+  ),
   portalRoute('/hr', <PortalSidebarLayout portal="/hr" />, [
     // US-1.5: "JD của tôi" (the /hr portal is HR-only).
     { path: 'job-descriptions', element: <HrJdListPage /> },
