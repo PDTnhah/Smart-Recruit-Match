@@ -815,3 +815,51 @@ Ngoài ra còn phải giải quyết:
 
 **Date**: 2026-10-19
 **Version**: 0.6.0
+
+---
+
+### D32. Link mời HR ký lúc gửi, stream đóng theo hạn token, email quá hạn bị hủy (revision of D31)
+
+**Context**: Code review của US-1.7 (`/code-review`, 2026-10-19) chỉ ra các vấn đề sau trong thiết kế ở D31:
+
+1. Payload `HR_INVITED` lưu nguyên `invitationPath`. Như vậy token kích hoạt còn hiệu lực nằm dạng thường trong `core.notifications` và không bao giờ bị xóa. Ai đọc được bảng này (bản sao lưu, replica, câu truy vấn hỗ trợ) đều chiếm được tài khoản HR chưa kích hoạt. `iam` cố ý chỉ lưu nonce; dòng này phá điều đó.
+2. Bỏ sự kiện mời cũ bằng cách so `expiresAt` là không đáng tin. `expiresAt` chỉ chính xác tới giây và được ký sau khi giao dịch đổi nonce commit, nên hai lần mời trong cùng một giây có thể gửi đi link đã bị thu hồi.
+3. Ép `userId::int` trong `pg_advisory_xact_lock` sẽ tràn khi id vượt 2^31 − 1.
+4. Stream SSE sống cố định 15 phút tính từ lúc mở kết nối. Token còn 31 giây vẫn giữ stream thêm 15 phút, trái với cam kết của D31.
+5. Email nhắc hạn (hoặc báo mở đợt) đang chờ thử lại vẫn được gửi sau khi hạn đã qua.
+6. Client gặp 401 mà refresh vẫn thành công thì kết nối lại liên tục, không nghỉ.
+7. SMTP không có timeout riêng (mặc định của nodemailer là 10 phút), trong khi worker giữ khóa dòng và một kết nối DB suốt lúc gửi.
+
+**Decision**:
+
+- **Email mời HR không lưu link.** Payload `HR_INVITED` chỉ còn `{ companyId }`.
+  - Lúc gửi, worker gọi `InvitationService.currentInvitationLink(userId)` của `iam`. Hàm này ký một token mới từ nonce hiện tại của tài khoản, hạn 7 ngày tính từ lúc gửi.
+  - Tài khoản không còn lời mời đang chờ (đã kích hoạt, bị khóa, không có nonce) thì hàm trả `null`, và email chuyển `CANCELLED`.
+  - Email luôn mang lời mời mới nhất, nên không cần so `expiresAt` nữa.
+  - Listener vẫn khóa theo user và hủy email cũ còn `PENDING`, để HR chỉ nhận một email cho mỗi lần mời.
+- **Khóa theo user:** `pg_advisory_xact_lock(1702, hashtext(userId::text))`. Trùng hash chỉ làm hai user phải chờ nhau.
+- **Vòng đời stream:** đóng khi access token đã mở stream hết hạn. `AccessTokenService.expiresAt` đọc `exp` của token mà guard đã kiểm. Giới hạn trên vẫn là 15 phút.
+- **Email quá hạn:** trước khi gửi, worker kiểm `emailStillRelevant`. `DEADLINE_REMINDER` đã qua `deadline`, hoặc `CAMPAIGN_OPENED` đã qua `intakeEnd`, thì chuyển `CANCELLED` ("out of date").
+- **Client SSE:** từ lần 401 thứ hai liên tiếp (dù refresh thành công) thì lùi 1, 2, 4… tối đa 30 giây. Nhận được `ready` thì đặt lại về đầu.
+- **SMTP:** dùng pool một kết nối; timeout kết nối và greeting 10 giây, socket 30 giây. Mỗi lượt worker xử lý tối đa 500 email; các lượt không chạy chồng nhau.
+- **Helper `errorMessage`** (`common/errors`) thay cho các bản chép trong module `notification`.
+
+**Rationale**:
+
+- Không lưu token thì không có gì để lộ ra. Ký lúc gửi thì luôn khớp nonce mới nhất, nên một cơ chế giải quyết được cả lỗ hổng lẫn thứ tự lời mời.
+- Hạn của token được gia hạn thêm bằng độ trễ của email: vài giây, tối đa vài phút khi phải thử lại. Thời hạn 7 ngày vẫn giữ nguyên ý nghĩa.
+
+**Alternatives considered**:
+- **Xóa link khỏi payload sau khi gửi:** loại vì token vẫn nằm trong DB suốt lúc chờ và lúc thử lại.
+- **Mang nonce hoặc số thứ tự trong sự kiện để so:** loại vì vẫn phải lưu link, nên không giải quyết được vấn đề 1.
+- **Lọc sơ đối tượng của đợt bằng SQL** (review gợi ý, do `listIdsInTarget` đọc cả bảng `students` mỗi 5 phút trong khung nhắc): hoãn. `lower()` phụ thuộc collation, nên có thể bỏ sót người nhận. Với quy mô hiện tại (vài nghìn sinh viên) chi phí không đáng kể. Xem lại khi số sinh viên lớn.
+
+**Impact**:
+- `packages/shared/schemas/notification.ts` (`HrInvitedPayloadSchema`).
+- `InvitationService.currentInvitationLink` (export của `iam`); `AccessTokenService.expiresAt`.
+- `EmailOutboxWorker`, `EmailRenderer`, `HrInvitedListener`, `EventStreamService`, `SmtpMailTransport`, `domain/email-relevance.ts`.
+- ARCHITECTURE: *Cập nhật thời gian thực*, *Các module*, *Tác vụ định kỳ*.
+- Test: `email-outbox.int-spec.ts` (link mời gửi đi dùng được, lời mời đã nhận thì không gửi, nhắc hạn quá hạn bị hủy), `notification-listeners.int-spec.ts`, `events-stream.int-spec.ts` (stream đóng khi token hết hạn).
+
+**Date**: 2026-10-19
+**Version**: 0.6.0

@@ -104,7 +104,7 @@ Từ US-1.7 ([CONTEXT D31](CONTEXT.md)):
 
 - Client mở stream bằng `fetch` kèm `Authorization: Bearer` (không dùng `EventSource`, vì nó không gửi được header), tự tách khung SSE, tự kết nối lại. `AccessGuard` trả `401` trước khi có sự kiện nào.
 - Sự kiện: `ready` (đã đăng ký kênh; client tải lại danh sách), `ping` mỗi 25 giây, `notification`. Tên sự kiện khai ở `SERVER_EVENTS` (`packages/shared/schemas/notification.ts`).
-- Stream tự đóng sau 15 phút (một vòng đời access token); client kết nối lại bằng token mới.
+- Stream tự đóng khi access token đã mở nó hết hạn (tối đa 15 phút); client kết nối lại bằng token mới ([CONTEXT D32](CONTEXT.md)).
 - Nhiều instance: Redis pub/sub kênh `notify:user:{userId}`. Module khác đẩy sự kiện bằng `RealtimePublisher.publishToUser` sau khi commit; web nghe bằng `useServerEvent` (`apps/web/src/shared/notifications/`).
 
 ### Core Backend
@@ -124,7 +124,7 @@ Module gọi nhau qua service đã export hoặc phát sự kiện qua `@nestjs/
 
 | Module | Trách nhiệm | Ánh xạ nghiệp vụ |
 |---|---|---|
-| `iam` | Đăng nhập, JWT, vai trò, tài khoản HR, SSO trường (tùy chọn). Export `InvitationService`: mời HR (token JWT `aud = hr-invite` mang nonce của lần mời mới nhất, hạn 7 ngày), nhận lời mời, danh sách HR của công ty; phát `hr.invited` sau khi commit ([CONTEXT D28, D29](CONTEXT.md)). Export `UserDirectory` (tài khoản đang hoạt động của sinh viên, địa chỉ liên hệ) cho `notification` ([CONTEXT D31](CONTEXT.md)) | PRD › Personas |
+| `iam` | Đăng nhập, JWT, vai trò, tài khoản HR, SSO trường (tùy chọn). Export `InvitationService`: mời HR (token JWT `aud = hr-invite` mang nonce của lần mời mới nhất, hạn 7 ngày), nhận lời mời, danh sách HR của công ty; phát `hr.invited` sau khi commit ([CONTEXT D28, D29](CONTEXT.md)). Export `UserDirectory` (tài khoản đang hoạt động của sinh viên, địa chỉ liên hệ) và `InvitationService.currentInvitationLink` (link ký mới cho email mời) cho `notification` ([CONTEXT D31, D32](CONTEXT.md)) | PRD › Personas |
 | `campaign` | Đợt thực tập, tham số cấu hình, trạng thái đợt, mốc thời gian. Export `CampaignService.assertPhase` (kiểm tra pha, tính cả mốc), `getSettings`, `listSettingsInPhase` và hàm thuần `isInTarget` (sinh viên thuộc đối tượng của đợt); phát `campaign.opened`, `campaign.phase_changed` sau khi commit ([CONTEXT D27](CONTEXT.md)) | GĐ0 |
 | `company` | Doanh nghiệp, JD, yêu cầu chuẩn hóa, phiên bản JD. Mời HR qua `InvitationService` của `iam`; kiểm pha bằng `CampaignService.assertPhase`; đăng ký resolver `jd` vào `FileAccessRegistry`; phát `jd.submitted`, `jd.approved` sau khi commit ([CONTEXT D28](CONTEXT.md)) | GĐ1 |
 | `student` | Sinh viên, CV, hồ sơ năng lực, đồng ý xử lý dữ liệu. Ghi đồng ý theo đợt và phiên bản điều khoản (`packages/shared/consent/`, kèm SHA-256 của văn bản); mỗi lần nộp CV là một dòng `cvs` mới, dòng cũ mất `active`. Export `ConsentService.hasConsent`, `CvService` (kể cả `studentIdsWithActiveCv`), `StudentService.listIdsInTarget`; đăng ký resolver `cv` vào `FileAccessRegistry`; phát `cv.submitted` (`cvId`, `cvVersion`, `campaignId`, `studentId`) sau khi commit ([CONTEXT D30](CONTEXT.md)) | GĐ2 |
@@ -206,7 +206,8 @@ Từ US-1.7 ([CONTEXT D31](CONTEXT.md)):
 
 - Gửi email outbox: chạy mỗi 10 giây, không cần advisory lock. Mỗi email một giao dịch, khóa dòng `notifications` bằng `FOR UPDATE SKIP LOCKED`, nên nhiều instance cùng gửi mà không trùng. Thử tối đa 3 lần (lùi 1 phút, 5 phút), rồi `FAILED` và ghi log. Gửi ít nhất một lần.
 - Nhắc hạn: chạy mỗi 5 phút trong `withAdvisoryLock` (khóa `DEADLINE_REMINDER` = 1701). Mỗi nguồn trong `DeadlineReminderRegistry` trả danh sách người cần nhắc; `dedupe_key` theo hạn chặn nhắc trùng ở DB. Nguồn đầu tiên: hạn nộp CV (`intake_end`, trước `reminder_hours_before` giờ, mặc định 24).
-- Email mời HR: khóa giao dịch `pg_advisory_xact_lock(1702, userId)` để chỉ link mới nhất được gửi.
+- Email mời HR: dòng thông báo không chứa link. Lúc gửi, worker lấy link ký mới từ nonce hiện tại qua `InvitationService.currentInvitationLink`; lời mời đã nhận thì hủy email. Listener khóa `pg_advisory_xact_lock(1702, hashtext(userId))` và hủy email cũ còn chờ ([CONTEXT D32](CONTEXT.md)).
+- Email nhắc hạn hoặc báo mở đợt mà hạn đã qua lúc gửi (do thử lại) thì bị hủy, không gửi.
 
 #### Thư viện chính
 
