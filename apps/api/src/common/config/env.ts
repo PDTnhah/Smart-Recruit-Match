@@ -27,6 +27,18 @@ const EnvSchema = z.object({
   MINIO_ACCESS_KEY: z.string().min(3),
   MINIO_SECRET_KEY: z.string().min(8),
   MINIO_PUBLIC_ENDPOINT: z.url({ protocol: /^https?$/ }).optional(),
+  // Address of the web app as users open it, without a trailing slash. Links in emails (HR
+  // invitations, notifications) are built from it (US-1.7, CONTEXT D31).
+  WEB_ORIGIN: z
+    .url({ protocol: /^https?$/ })
+    .refine((value) => !value.endsWith('/'), { error: 'no trailing slash, e.g. https://srm.example.edu' }),
+  // Outgoing email through the outbox (CONTEXT D31). Defaults match Mailpit on the host (dev);
+  // compose points SMTP_HOST at the mailpit service. Port 465 uses implicit TLS.
+  SMTP_HOST: z.string().min(1).default('localhost'),
+  SMTP_PORT: z.coerce.number().int().min(1).max(65_535).default(1025),
+  SMTP_USER: z.string().min(1).optional(),
+  SMTP_PASSWORD: z.string().min(1).optional(),
+  MAIL_FROM: z.string().min(3).default('Smart Recruit Match <no-reply@srm.local>'),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

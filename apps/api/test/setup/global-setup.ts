@@ -66,6 +66,7 @@ export default async function globalSetup(): Promise<void> {
   process.env.MINIO_ENDPOINT = `http://${minio.getHost()}:${minio.getMappedPort(MINIO_PORT)}`;
   process.env.MINIO_ACCESS_KEY = MINIO_ACCESS_KEY;
   process.env.MINIO_SECRET_KEY = MINIO_SECRET_KEY;
+  process.env.WEB_ORIGIN = 'http://srm.test';
   process.env.LOG_LEVEL = 'silent';
   // The cron must not move campaigns created by other test files; scheduler tests call runOnce().
   process.env.SCHEDULER_ENABLED = 'false';

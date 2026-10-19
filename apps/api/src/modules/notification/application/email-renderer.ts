@@ -1,0 +1,107 @@
+import { Injectable } from '@nestjs/common';
+import { type CampaignDeadlineKey, type NotificationContent, NotificationContentSchema } from '@srm/shared';
+import Handlebars from 'handlebars';
+import { loadEnv } from '../../../common/config/env.js';
+import type { UserContact } from '../../iam/index.js';
+import type { MailMessage } from '../infrastructure/mailer.js';
+import { EMAIL_TEMPLATES, HTML_LAYOUT } from '../templates/templates.js';
+
+/** What the student still has to do before each deadline, and the page where they do it. */
+const DEADLINE_TASKS: Record<CampaignDeadlineKey, { task: string; path: string }> = {
+  intake_end: { task: 'nộp CV', path: '/sv/cv' },
+  preference_end: { task: 'chọn nguyện vọng', path: '/sv/preferences' },
+  testing_end: { task: 'làm bài test', path: '/sv/exams' },
+};
+
+/** Emails show Vietnam time, the time zone of the school, whatever the server runs in. */
+const DATE_TIME = new Intl.DateTimeFormat('vi-VN', {
+  timeZone: 'Asia/Ho_Chi_Minh',
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+});
+
+/** Line breaks in a header value; a name typed with one must not start a new header. */
+const LINE_BREAKS = /[\r\n]+/g;
+
+/** 08/10/2026 14:05, as the web shows dates (DESIGN.md §10). */
+export function formatVietnamTime(iso: string): string {
+  const parts = Object.fromEntries(DATE_TIME.formatToParts(new Date(iso)).map((part) => [part.type, part.value]));
+  return `${parts.day}/${parts.month}/${parts.year} ${parts.hour}:${parts.minute}`;
+}
+
+type Template = Handlebars.TemplateDelegate<Record<string, string>>;
+
+interface Compiled {
+  subject: Template;
+  html: Template;
+  text: Template;
+}
+
+/**
+ * Turns a stored notification into an email (US-1.7 AC-4). Links are absolute, built from
+ * WEB_ORIGIN. The payload is parsed again: rows were validated when written, but a damaged row
+ * must fail here (and be retried, then marked FAILED) rather than send a broken email.
+ */
+@Injectable()
+export class EmailRenderer {
+  private readonly webOrigin = loadEnv().WEB_ORIGIN;
+  private readonly handlebars = Handlebars.create();
+  private readonly layout = this.handlebars.compile(HTML_LAYOUT, { strict: true });
+  private readonly compiled = new Map<NotificationContent['type'], Compiled>();
+
+  render(notification: { type: string; payload: unknown }, recipient: UserContact): Omit<MailMessage, 'to'> {
+    const content = NotificationContentSchema.parse(notification);
+    const context = { recipientName: recipient.fullName ?? recipient.email, ...this.contextOf(content) };
+    const template = this.templateOf(content.type);
+    const subject = template.subject(context).replace(LINE_BREAKS, ' ');
+    return {
+      subject,
+      html: this.layout({ subject, body: template.html(context) }),
+      text: template.text(context),
+    };
+  }
+
+  private contextOf(content: NotificationContent): Record<string, string> {
+    switch (content.type) {
+      case 'CAMPAIGN_OPENED':
+        return {
+          campaignName: content.payload.campaignName,
+          intakeEnd: formatVietnamTime(content.payload.intakeEnd),
+          link: `${this.webOrigin}${DEADLINE_TASKS.intake_end.path}`,
+        };
+      case 'HR_INVITED':
+        return {
+          expiresAt: formatVietnamTime(content.payload.expiresAt),
+          link: `${this.webOrigin}${content.payload.invitationPath}`,
+        };
+      case 'DEADLINE_REMINDER': {
+        const { task, path } = DEADLINE_TASKS[content.payload.deadlineKey];
+        return {
+          task,
+          campaignName: content.payload.campaignName,
+          deadline: formatVietnamTime(content.payload.deadline),
+          link: `${this.webOrigin}${path}`,
+        };
+      }
+    }
+  }
+
+  private templateOf(type: NotificationContent['type']): Compiled {
+    let compiled = this.compiled.get(type);
+    if (!compiled) {
+      const source = EMAIL_TEMPLATES[type];
+      compiled = {
+        // Subject and plain text are not HTML: no escaping, so "&" stays "&".
+        subject: this.handlebars.compile(source.subject, { strict: true, noEscape: true }),
+        html: this.handlebars.compile(source.html, { strict: true }),
+        text: this.handlebars.compile(source.text, { strict: true, noEscape: true }),
+      };
+      this.compiled.set(type, compiled);
+    }
+    return compiled;
+  }
+}

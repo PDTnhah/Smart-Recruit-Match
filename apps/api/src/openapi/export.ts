@@ -19,6 +19,7 @@ const PLACEHOLDER_ENV: Record<string, string> = {
   MINIO_ENDPOINT: 'http://localhost:9000',
   MINIO_ACCESS_KEY: 'openapi',
   MINIO_SECRET_KEY: 'openapi-placeholder',
+  WEB_ORIGIN: 'http://localhost:8080',
   LOG_LEVEL: 'silent',
 };
 
