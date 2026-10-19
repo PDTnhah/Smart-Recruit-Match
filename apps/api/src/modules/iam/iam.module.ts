@@ -9,6 +9,7 @@ import { AuthController } from './api/auth.controller.js';
 import { AdminUsersService } from './application/admin-users.service.js';
 import { AuthService } from './application/auth.service.js';
 import { InvitationService } from './application/invitation.service.js';
+import { UserDirectory } from './application/user-directory.service.js';
 import {
   REFRESH_TOKEN_STORE,
   RedisRefreshTokenStore,
@@ -23,6 +24,7 @@ const SECONDS_PER_DAY = 24 * 60 * 60;
     AuthService,
     AdminUsersService,
     InvitationService,
+    UserDirectory,
     {
       provide: REFRESH_TOKEN_STORE,
       inject: [REDIS],
@@ -30,7 +32,8 @@ const SECONDS_PER_DAY = 24 * 60 * 60;
         new RedisRefreshTokenStore(redis, loadEnv().REFRESH_TOKEN_TTL_DAYS * SECONDS_PER_DAY),
     },
   ],
-  // The company module invites HR accounts through InvitationService (AGENTS › Invariant 13).
-  exports: [InvitationService],
+  // The company module invites HR accounts through InvitationService; the notification module
+  // finds recipients through UserDirectory (AGENTS › Invariant 13).
+  exports: [InvitationService, UserDirectory],
 })
 export class IamModule {}

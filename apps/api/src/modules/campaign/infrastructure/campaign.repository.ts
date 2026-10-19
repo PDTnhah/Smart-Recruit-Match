@@ -79,14 +79,13 @@ export class CampaignRepository {
       .from(campaigns)
       .where(options.includeDrafts ? undefined : ne(campaigns.status, 'DRAFT'))
       .orderBy(desc(campaigns.id));
-    return rows.flatMap((row) => {
-      try {
-        return [toRecord(row)];
-      } catch (error) {
-        this.logger.error(`campaign ${row.id} has invalid stored data: ${error instanceof Error ? error.message : String(error)}`);
-        return [];
-      }
-    });
+    return rows.flatMap((row) => this.parseOrSkip(row));
+  }
+
+  /** Campaigns in one status, oldest first. A row that does not parse is logged and skipped, as in `list`. */
+  async listByStatus(status: CampaignStatus): Promise<CampaignRecord[]> {
+    const rows = await this.db.select().from(campaigns).where(eq(campaigns.status, status)).orderBy(campaigns.id);
+    return rows.flatMap((row) => this.parseOrSkip(row));
   }
 
   /** Campaigns in a phase that ends at a deadline. */
@@ -118,6 +117,15 @@ export class CampaignRepository {
       .returning();
     if (!row) throw new RowVersionConflictError('campaign', id, expectedRowVersion);
     return toRecord(row);
+  }
+
+  private parseOrSkip(row: CampaignRow): CampaignRecord[] {
+    try {
+      return [toRecord(row)];
+    } catch (error) {
+      this.logger.error(`campaign ${row.id} has invalid stored data: ${error instanceof Error ? error.message : String(error)}`);
+      return [];
+    }
   }
 }
 

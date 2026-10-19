@@ -26,18 +26,22 @@ export function canSeeCampaign(
       return true;
     case 'HR':
       return campaign.status !== 'DRAFT';
-    case 'STUDENT': {
-      if (campaign.status === 'DRAFT') return false;
-      const cohort = viewer.audience?.cohort ?? null;
-      const major = viewer.audience?.major ?? null;
-      return (
-        cohort !== null &&
-        major !== null &&
-        includesValue(campaign.target.cohorts, cohort) &&
-        includesValue(campaign.target.majors, major)
-      );
-    }
+    case 'STUDENT':
+      return campaign.status !== 'DRAFT' && viewer.audience !== null && isInTarget(campaign.target, viewer.audience);
   }
+}
+
+/**
+ * Whether a student belongs to the campaign's target: the target lists both their cohort and their
+ * major. Also decides who is notified about the campaign (US-1.7), so recipients and readers match.
+ */
+export function isInTarget(target: CampaignTarget, audience: StudentAudience): boolean {
+  return (
+    audience.cohort !== null &&
+    audience.major !== null &&
+    includesValue(target.cohorts, audience.cohort) &&
+    includesValue(target.majors, audience.major)
+  );
 }
 
 function includesValue(values: readonly string[], value: string): boolean {
