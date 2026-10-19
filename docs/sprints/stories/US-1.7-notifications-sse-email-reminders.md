@@ -11,7 +11,7 @@ prd_ref: [FR-8]
 arch_ref: [AD-13]
 depends_on: [US-1.2, US-1.3]
 assignee: PDTnhah
-commit:
+commit: 665439d25c21ada5b394f2b3a79aff724c015de6
 created: 2026-10-07
 updated: 2026-10-19
 ---
@@ -196,7 +196,7 @@ Các bước:
 - Thông báo mở đợt cho sinh viên, email mời HR, nhắc hạn nộp CV tự động.
 - Chuông thông báo ở cả ba cổng.
 
-**Commit**:
+**Commit**: 665439d (chuỗi 13 commit 03d3118…665439d)
 
 ## Implementation notes
 

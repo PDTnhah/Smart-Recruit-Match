@@ -57,7 +57,7 @@ US-1.7. Người dùng nhận thông báo theo sự kiện nghiệp vụ: trong 
   - LESSONS §9: gói khai `"type": "module"` vẫn có thể có bản CommonJS.
 - **Sprint:** US-1.7 vào `sprint-2026-W42` (kéo sớm từ W44).
 
-**Commit**:
+**Commit**: 665439d (chuỗi 13 commit 03d3118…665439d)
 
 ---
 
