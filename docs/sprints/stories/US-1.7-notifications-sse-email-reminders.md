@@ -2,19 +2,42 @@
 id: US-1.7
 title: "Thông báo trong app, SSE, email, nhắc hạn"
 epic: EPIC-1
-status: backlog
+status: in-progress
 priority: P1
 points: 5
-sprint:
+sprint: sprint-2026-W42
 version_shipped:
 prd_ref: [FR-8]
 arch_ref: [AD-13]
 depends_on: [US-1.2, US-1.3]
-assignee:
+assignee: PDTnhah
 commit:
 created: 2026-10-07
-updated: 2026-10-13
+updated: 2026-10-19
 ---
+
+## Story refresh — 2026-10-19
+
+Đọc lại story ngày 2026-10-19 trên nhánh `us-1.7`, tách từ `dev` sau khi US-1.6 merge (migration `0003` đã có, story này sinh `0004`, không cần rebase). Số AC giữ nguyên ([CONTEXT D31](../../CONTEXT.md)).
+
+**Người dùng chốt các điểm mở ở *Dev notes*:**
+
+- **Xác thực SSE:** client mở stream bằng `fetch` + `ReadableStream`, gửi `Authorization: Bearer` như mọi request; `AccessGuard` dùng nguyên. Không có endpoint vé, không có khóa Redis `sse:ticket:*`. Client tự tách khung SSE, không thêm thư viện.
+- **Thời điểm nhắc:** tham số đợt `campaigns.config.reminder_hours_before`, mặc định 24 (1–168), khóa sau khi mở đợt như mọi tham số khác.
+- **Cột outbox và chống trùng:** `channels`, `email_status`, `email_attempts`, `email_sent_at`, `email_last_error`, `dedupe_key` + unique `(user_id, dedupe_key)`.
+- **Số lần thử email:** tối đa 3.
+- **Kênh của từng sự kiện:** mọi sự kiện có thông báo trong app; email cho mở đợt, nhắc hạn, lời mời HR. `hr_invited` chỉ có email: HR chưa đăng nhập được, và link chứa token mời.
+
+**Quyết định kỹ thuật:**
+
+- Thêm cột `email_next_attempt_at` để lùi lần thử (1 phút, 5 phút, rồi `FAILED`). `email_status ∈ {PENDING, SENT, FAILED, CANCELLED}` là trạng thái gửi kỹ thuật, không đi qua `transitionTo`.
+- `notify(input)` tự mở giao dịch và đẩy SSE sau commit. `notify(input, { tx })` ghi trong giao dịch của caller và trả `PendingNotifications`; caller gọi `push(pending)` sau commit (cùng mẫu với `emitSafely`).
+- Mời lại HR: email `hr_invited` còn `PENDING` của user đó chuyển `CANCELLED` trong cùng giao dịch với email mới.
+- Địa chỉ email lấy lúc gửi qua `UserDirectory` (service mới của `iam`). Người nhận theo đối tượng đợt: `StudentService.listIdsInTarget` lọc bằng cùng hàm `isInTarget` mà `canSeeCampaign` dùng.
+- Template Handlebars viết trong file `.ts` (`templates/*.ts`), không phải `.hbs`: `tsc` không chép `.hbs` sang `dist`.
+- Biến môi trường mới: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `MAIL_FROM`, `WEB_ORIGIN`.
+- Danh sách phân trang theo con trỏ `?before=<id>&limit=` và chỉ trả dòng có kênh `IN_APP`.
+- `dedupe_key`: `campaign_opened:{campaignId}`; `deadline:{campaignId}:intake_end:{deadline ISO}` (gia hạn mốc là một hạn mới).
 
 ## Story refresh — 2026-10-13 (từ US-1.5)
 
@@ -37,7 +60,7 @@ AD-13 ([CONTEXT D13](../../CONTEXT.md)): dùng SSE (`GET /api/events/stream`), R
 
 Story được đưa lên T4 (CONTEXT D20) vì US-3.4 và US-5.2 cần nó.
 
-**Lessons applied**: none — LESSONS.md chỉ có §1 (nạp skill), không liên quan thông báo hay SSE; đọc lại khi bắt đầu story.
+**Lessons applied**: §6 (migration `0004` sinh sau khi US-1.6 merge; `migrations-journal.spec.ts`), §7 (hàm Drizzle khai kiểu bảng cụ thể), §8 (ghim bản chính xác khi thêm gói), §9 (kiểm `npm view <gói> type` cho `nodemailer`, `handlebars` trước khi cài; chạy cả integration test), §11 (timeout của integration test qua `setupFilesAfterEnv`), §12 (`FOR UPDATE SKIP LOCKED` trên câu không join).
 
 ## Acceptance criteria
 
