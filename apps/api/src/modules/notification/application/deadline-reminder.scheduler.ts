@@ -3,6 +3,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import type { Pool } from 'pg';
 import { Clock } from '../../../common/clock/index.js';
 import { loadEnv } from '../../../common/config/env.js';
+import { errorMessage } from '../../../common/errors/index.js';
 import { ADVISORY_LOCK_KEYS, withAdvisoryLock } from '../../../common/scheduling/advisory-lock.js';
 import { PG_POOL } from '../../../db/tokens.js';
 import { DeadlineReminderRegistry } from './deadline-reminder.registry.js';
@@ -38,7 +39,7 @@ export class DeadlineReminderScheduler {
     try {
       await this.runOnce();
     } catch (error) {
-      this.logger.error(`deadline reminder run failed: ${messageOf(error)}`);
+      this.logger.error(`deadline reminder run failed: ${errorMessage(error)}`);
     }
   }
 
@@ -56,7 +57,7 @@ export class DeadlineReminderScheduler {
         batches = await source.collect(now);
       } catch (error) {
         // One broken source must not stop the others.
-        this.logger.error(`reminder source ${source.name} failed: ${messageOf(error)}`);
+        this.logger.error(`reminder source ${source.name} failed: ${errorMessage(error)}`);
         continue;
       }
       for (const batch of batches) {
@@ -69,14 +70,10 @@ export class DeadlineReminderScheduler {
           });
           done.push({ source: source.name, dedupeKey: batch.dedupeKey, created: pending.count });
         } catch (error) {
-          this.logger.error(`reminder ${batch.dedupeKey} failed: ${messageOf(error)}`);
+          this.logger.error(`reminder ${batch.dedupeKey} failed: ${errorMessage(error)}`);
         }
       }
     }
     return done;
   }
-}
-
-function messageOf(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
 }

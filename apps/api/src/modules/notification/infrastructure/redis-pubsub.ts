@@ -2,6 +2,7 @@ import { Inject, Injectable, Logger, type OnApplicationShutdown } from '@nestjs/
 import { SERVER_EVENTS } from '@srm/shared';
 import type { Redis } from 'ioredis';
 import { Observable } from 'rxjs';
+import { errorMessage } from '../../../common/errors/index.js';
 import { REDIS } from '../../../redis/redis.module.js';
 
 /** One event for the SSE stream (AD-13): its name and a JSON-serializable body. */
@@ -73,7 +74,7 @@ export class RealtimeSubscriber implements OnApplicationShutdown {
         this.channels.delete(channel);
         this.subscriberConnection()
           .unsubscribe(channel)
-          .catch((error: unknown) => this.logger.warn(`unsubscribe ${channel} failed: ${messageOf(error)}`));
+          .catch((error: unknown) => this.logger.warn(`unsubscribe ${channel} failed: ${errorMessage(error)}`));
       };
     });
   }
@@ -112,8 +113,4 @@ export class RealtimeSubscriber implements OnApplicationShutdown {
     }
     for (const listener of state.listeners) listener(event);
   }
-}
-
-function messageOf(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
 }

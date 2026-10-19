@@ -10,8 +10,8 @@ export const ADVISORY_LOCK_KEYS = {
   /** Deadline reminders (US-1.7). */
   DEADLINE_REMINDER: 1_701,
   /**
-   * First key of the two-key transaction lock `pg_advisory_xact_lock(1_702, userId)` that orders
-   * HR invitation emails of one user (US-1.7). PostgreSQL keeps one-key and two-key locks apart.
+   * First key of the two-key transaction lock `pg_advisory_xact_lock(1_702, hashtext(userId))` that
+   * orders HR invitation emails of one user (US-1.7). PostgreSQL keeps one-key and two-key locks apart.
    */
   HR_INVITATION_EMAIL: 1_702,
 } as const;

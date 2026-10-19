@@ -1,15 +1,15 @@
 // US-1.7 AC-5: events of EPIC-1 become notifications. `campaign.opened` notifies the campaign's
-// target students (in app + email); `hr.invited` queues an email with the invitation link, and
-// only the newest link of a re-invited HR may go out.
+// target students (in app + email); `hr.invited` queues an invitation email whose link is issued
+// when sent, so only the newest invitation of a re-invited HR goes out.
 //
 // No outbox worker runs here (see email-outbox.int-spec.ts); emails are rendered directly.
-import { CampaignSchema, HrInvitationSchema } from '@srm/shared';
+import { CampaignSchema, HrInvitationSchema, NotificationContentSchema } from '@srm/shared';
 import { eq } from 'drizzle-orm';
 import { Clock } from '../../src/common/clock/index.js';
 import { users } from '../../src/db/schema/index.js';
+import { InvitationService } from '../../src/modules/iam/index.js';
 import { EmailRenderer } from '../../src/modules/notification/application/email-renderer.js';
 import { CampaignOpenedListener } from '../../src/modules/notification/application/listeners/campaign-opened.listener.js';
-import { HrInvitedListener } from '../../src/modules/notification/application/listeners/hr-invited.listener.js';
 import { api, type AuthTestApp, createAuthTestApp, type LoggedIn } from '../helpers/auth.js';
 import { createCompany, createStudent, uniqueValue } from '../helpers/factories.js';
 import { FakeClock } from '../helpers/fake-clock.js';
@@ -104,6 +104,12 @@ describe('EPIC-1 notifications (US-1.7 AC-5)', () => {
     const invitationRows = async (userId: number) =>
       (await notificationsOf(t.db, userId)).filter((row) => row.type === 'HR_INVITED');
 
+    const accept = (invitationPath: string) =>
+      t
+        .http()
+        .post(api('auth/accept-invitation'))
+        .send({ token: invitationPath.split('#')[1], password: 'Mat-khau-moi-123' });
+
     it('FR-3: hr.invited emails the invite link', async () => {
       const company = await createCompany(t.db);
       const email = `${uniqueValue('hr')}@company.test`.toLowerCase();
@@ -114,55 +120,45 @@ describe('EPIC-1 notifications (US-1.7 AC-5)', () => {
         const rows = await invitationRows(userId);
         return rows.length === 1 ? rows : undefined;
       });
-      expect(queued).toMatchObject({
-        channels: ['EMAIL'],
-        emailStatus: 'PENDING',
-        payload: { companyId: company.id, invitationPath: first.invitationPath, expiresAt: first.expiresAt },
-      });
+      // Email only, and no live token at rest: the link is issued when the email is sent.
+      expect(queued).toMatchObject({ channels: ['EMAIL'], emailStatus: 'PENDING', payload: { companyId: company.id } });
+      expect(JSON.stringify(queued?.payload)).not.toContain('accept-invitation');
 
-      // The email carries an absolute link to the web app.
+      // What the worker sends: an absolute link to the current invitation.
+      const link = await t.app.get(InvitationService).currentInvitationLink(userId);
+      expect(link?.invitationPath).toMatch(/^\/accept-invitation#/);
+      const content = NotificationContentSchema.parse(queued);
       const message = t.app
         .get(EmailRenderer)
-        .render(queued!, { id: userId, email, fullName: 'Lê Văn HR', isActive: true });
+        .render(content, { id: userId, email, fullName: 'Lê Văn HR', isActive: true }, { invitation: link! });
       expect(message.subject).toBe('Lời mời tham gia Smart Recruit Match');
-      expect(message.html).toContain(`href="http://srm.test${first.invitationPath}"`);
-      expect(message.text).toContain(`http://srm.test${first.invitationPath}`);
+      expect(message.html).toContain(`href="http://srm.test${link!.invitationPath}"`);
+      expect(message.text).toContain(`http://srm.test${link!.invitationPath}`);
       expect(message.text).toContain('Chào Lê Văn HR');
+    });
 
-      // Re-invite later: the earlier link stops working, so its email is withdrawn.
+    it('FR-3: after a re-invite only the newest invitation is emailed', async () => {
+      const company = await createCompany(t.db);
+      const email = `${uniqueValue('hr')}@company.test`.toLowerCase();
+      const first = await invite(company.id, email);
+      const userId = first.account.id;
+      await waitFor(async () => ((await invitationRows(userId)).length === 1 ? true : undefined));
+
       clock.advance({ minutes: 5 });
-      const second = await invite(company.id, email);
-      expect(second.invitationPath).not.toBe(first.invitationPath);
+      await invite(company.id, email);
       const rows = await waitFor(async () => {
         const found = await invitationRows(userId);
         return found.length === 2 ? found : undefined;
       });
-      expect(rows.map((row) => [row.emailStatus, (row.payload as { invitationPath: string }).invitationPath])).toEqual([
-        ['CANCELLED', first.invitationPath],
-        ['PENDING', second.invitationPath],
-      ]);
-    });
+      // The older email still waiting is withdrawn; the HR gets one email.
+      expect(rows.map((row) => row.emailStatus)).toEqual(['CANCELLED', 'PENDING']);
 
-    it('FR-3: an invitation event older than the newest one handled is dropped', async () => {
-      const company = await createCompany(t.db);
-      const email = `${uniqueValue('hr')}@company.test`.toLowerCase();
-      const newest = await invite(company.id, email);
-      const userId = newest.account.id;
-      await waitFor(async () => ((await invitationRows(userId)).length === 1 ? true : undefined));
-
-      // Listeners of two quick re-invites may finish in either order; the older one must not win.
-      const result = await t.app.get(HrInvitedListener).queueInvitationEmail({
-        userId,
-        companyId: company.id,
-        email,
-        fullName: 'Lê Văn HR',
-        invitationPath: '/accept-invitation#older-token',
-        expiresAt: new Date(Date.parse(newest.expiresAt) - 60_000).toISOString(),
-      });
-      expect(result).toBe('stale');
-      const rows = await invitationRows(userId);
-      expect(rows).toHaveLength(1);
-      expect(rows[0]).toMatchObject({ emailStatus: 'PENDING', payload: { invitationPath: newest.invitationPath } });
+      // The link the worker would send now opens the newest invitation; the first link does not.
+      const link = await t.app.get(InvitationService).currentInvitationLink(userId);
+      await accept(first.invitationPath).expect(422);
+      await accept(link!.invitationPath).expect(200);
+      // Accepted: nothing left to email.
+      expect(await t.app.get(InvitationService).currentInvitationLink(userId)).toBeNull();
     });
   });
 });

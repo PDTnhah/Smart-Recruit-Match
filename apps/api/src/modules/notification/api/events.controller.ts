@@ -1,7 +1,7 @@
-import { Controller, type MessageEvent, Sse } from '@nestjs/common';
+import { Controller, Headers, type MessageEvent, Sse } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import type { Observable } from 'rxjs';
-import { type AuthUser, CurrentUser, Roles } from '../../../common/auth/index.js';
+import { AccessTokenService, type AuthUser, CurrentUser, Roles } from '../../../common/auth/index.js';
 import { EventStreamService } from '../application/event-stream.service.js';
 
 /**
@@ -13,11 +13,16 @@ import { EventStreamService } from '../application/event-stream.service.js';
 @ApiTags('events')
 @Controller('events')
 export class EventsController {
-  constructor(private readonly streams: EventStreamService) {}
+  constructor(
+    private readonly streams: EventStreamService,
+    private readonly tokens: AccessTokenService,
+  ) {}
 
   @Roles('STUDENT', 'HR', 'CENTER', 'ADMIN')
   @Sse('stream')
-  stream(@CurrentUser() user: AuthUser): Observable<MessageEvent> {
-    return this.streams.open(user.userId);
+  stream(@CurrentUser() user: AuthUser, @Headers('authorization') authorization: string): Observable<MessageEvent> {
+    // AccessGuard has verified this header; only the expiry is read here.
+    const token = authorization.replace(/^Bearer\s+/i, '');
+    return this.streams.open(user.userId, this.tokens.expiresAt(token));
   }
 }

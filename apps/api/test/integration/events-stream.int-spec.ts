@@ -1,6 +1,7 @@
 // US-1.7 AC-3 (FR-8, AD-13): `GET /api/events/stream` delivers a user's notifications in real time,
 // across API instances through Redis pub/sub, to that user only.
 import { type Notification, SERVER_EVENTS } from '@srm/shared';
+import { JwtService } from '@nestjs/jwt';
 import type { TestingModuleBuilder } from '@nestjs/testing';
 import { EVENT_STREAM_SETTINGS } from '../../src/modules/notification/application/event-stream.service.js';
 import { NotificationService } from '../../src/modules/notification/index.js';
@@ -95,6 +96,19 @@ describe('FR-8: event stream (US-1.7 AC-3)', () => {
   it('FR-8: server sends heartbeat pings', async () => {
     const stream = await open(bob.accessToken);
     await stream.next((event) => event.event === SERVER_EVENTS.PING, PING_MS * 10);
+  });
+
+  it('FR-8: the stream ends when the access token that opened it expires', async () => {
+    // Same claims as a normal token, 2 seconds of life left.
+    const shortLived = await instance1.app
+      .get(JwtService)
+      .signAsync({ sub: String(bob.user.id), role: 'CENTER' }, { algorithm: 'HS256', expiresIn: 2 });
+    const stream = await open(shortLived);
+    expect(stream.status).toBe(200);
+    await stream.next((event) => event.event === SERVER_EVENTS.READY);
+    await expect(
+      Promise.race([stream.ended.then(() => 'ended'), new Promise((resolve) => setTimeout(resolve, 5_000, 'open'))]),
+    ).resolves.toBe('ended');
   });
 
   it('FR-8: unauthenticated stream returns 401', async () => {

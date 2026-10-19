@@ -20,7 +20,8 @@ export const MAIL_TRANSPORT = Symbol('MAIL_TRANSPORT');
 /**
  * SMTP through nodemailer (ARCHITECTURE › Thư viện chính). In development the SMTP server is
  * Mailpit (compose service `mailpit`, UI on MAILPIT_UI_HOST_PORT). Nothing connects until the
- * first email is sent.
+ * first email is sent; one pooled connection is then reused. The worker holds a database row lock
+ * while sending, so every SMTP step has a timeout far below nodemailer's 10-minute default.
  */
 export class SmtpMailTransport implements MailTransport, OnApplicationShutdown {
   private readonly transporter;
@@ -28,10 +29,15 @@ export class SmtpMailTransport implements MailTransport, OnApplicationShutdown {
   constructor(env: Pick<Env, 'SMTP_HOST' | 'SMTP_PORT' | 'SMTP_USER' | 'SMTP_PASSWORD' | 'MAIL_FROM'>) {
     this.transporter = createTransport(
       {
+        pool: true,
+        maxConnections: 1,
         host: env.SMTP_HOST,
         port: env.SMTP_PORT,
         secure: env.SMTP_PORT === 465,
         auth: env.SMTP_USER ? { user: env.SMTP_USER, pass: env.SMTP_PASSWORD ?? '' } : undefined,
+        connectionTimeout: 10_000,
+        greetingTimeout: 10_000,
+        socketTimeout: 30_000,
       },
       { from: env.MAIL_FROM },
     );

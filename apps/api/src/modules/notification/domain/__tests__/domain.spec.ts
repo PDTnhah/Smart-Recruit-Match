@@ -1,4 +1,5 @@
 import { DEDUPE_KEYS } from '../dedupe-keys.js';
+import { emailStillRelevant } from '../email-relevance.js';
 import { afterEmailFailure, EMAIL_MAX_ATTEMPTS } from '../email-retry.js';
 import { inReminderWindow } from '../reminder-window.js';
 
@@ -32,6 +33,30 @@ describe('FR-8: email retries', () => {
     expect(EMAIL_MAX_ATTEMPTS).toBe(3);
     expect(afterEmailFailure(3, now)).toEqual({ status: 'FAILED' });
     expect(afterEmailFailure(4, now)).toEqual({ status: 'FAILED' });
+  });
+});
+
+describe('FR-8: emails that are out of date are not sent', () => {
+  const reminder = {
+    type: 'DEADLINE_REMINDER',
+    payload: { campaignId: 1, campaignName: 'Đợt', deadlineKey: 'intake_end', deadline: '2026-11-02T10:00:00.000Z' },
+  } as const;
+  const opened = {
+    type: 'CAMPAIGN_OPENED',
+    payload: { campaignId: 1, campaignName: 'Đợt', intakeEnd: '2026-11-02T10:00:00.000Z' },
+  } as const;
+
+  it('GĐ2: a reminder only before its deadline, an opening only before intake closes', () => {
+    expect(emailStillRelevant(reminder, at('2026-11-02T09:59:59.999Z'))).toBe(true);
+    expect(emailStillRelevant(reminder, at('2026-11-02T10:00:00.000Z'))).toBe(false);
+    expect(emailStillRelevant(opened, at('2026-11-02T09:59:59.999Z'))).toBe(true);
+    expect(emailStillRelevant(opened, at('2026-11-03T00:00:00.000Z'))).toBe(false);
+  });
+
+  it('FR-3: an invitation is checked against iam instead', () => {
+    expect(emailStillRelevant({ type: 'HR_INVITED', payload: { companyId: 1 } }, at('2030-01-01T00:00:00.000Z'))).toBe(
+      true,
+    );
   });
 });
 

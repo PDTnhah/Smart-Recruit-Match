@@ -1,21 +1,27 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { NotificationContentSchema } from '@srm/shared';
 import { Clock } from '../../../common/clock/index.js';
 import { loadEnv } from '../../../common/config/env.js';
+import { errorMessage } from '../../../common/errors/index.js';
 import { DRIZZLE } from '../../../db/tokens.js';
 import type { Database, DbTx } from '../../../db/types.js';
-import { UserDirectory } from '../../iam/index.js';
+import { InvitationService, UserDirectory } from '../../iam/index.js';
+import { emailStillRelevant } from '../domain/email-relevance.js';
 import { afterEmailFailure } from '../domain/email-retry.js';
 import { MAIL_TRANSPORT, type MailTransport } from '../infrastructure/mailer.js';
-import { NotificationRepository } from '../infrastructure/notification.repository.js';
-import { EmailRenderer } from './email-renderer.js';
+import { NotificationRepository, type OutboxEmail } from '../infrastructure/notification.repository.js';
+import { EmailRenderer, type InvitationLink } from './email-renderer.js';
 
 export type EmailOutcome = 'sent' | 'retried' | 'failed' | 'cancelled';
 
 export type OutboxRunReport = Record<EmailOutcome, number>;
 
-/** Emails handled per run; the rest wait for the next tick. */
-const BATCH_SIZE = 50;
+/**
+ * Emails handled per run. Runs never overlap (`waitForCompletion`), so a large batch, such as a
+ * campaign opening for thousands of students, drains in a few ticks over a pooled SMTP connection.
+ */
+const BATCH_SIZE = 500;
 
 /** `email_last_error` keeps the start of the message only. */
 const ERROR_MAX_LENGTH = 500;
@@ -24,7 +30,8 @@ const ERROR_MAX_LENGTH = 500;
  * Sends the email channel of notifications from the outbox (US-1.7 AC-4, ARCHITECTURE › Tác vụ
  * định kỳ). Each email is handled in its own transaction that locks its row with `SKIP LOCKED`,
  * so instances running at the same time never take the same email, and an SMTP error only
- * touches that row, never the business transaction that created it.
+ * touches that row, never the business transaction that created it. SMTP timeouts (mailer.ts)
+ * bound how long a row and its connection stay held.
  *
  * Delivery is at least once: if the process dies after the SMTP server accepted the email but
  * before the commit, the row is still PENDING and the email goes out again.
@@ -38,6 +45,7 @@ export class EmailOutboxWorker {
     @Inject(DRIZZLE) private readonly db: Database,
     private readonly repository: NotificationRepository,
     private readonly directory: UserDirectory,
+    private readonly invitations: InvitationService,
     private readonly renderer: EmailRenderer,
     @Inject(MAIL_TRANSPORT) private readonly mail: MailTransport,
     private readonly clock: Clock,
@@ -49,7 +57,7 @@ export class EmailOutboxWorker {
     try {
       await this.runOnce();
     } catch (error) {
-      this.logger.error(`email outbox run failed: ${messageOf(error)}`);
+      this.logger.error(`email outbox run failed: ${errorMessage(error)}`);
     }
   }
 
@@ -70,40 +78,21 @@ export class EmailOutboxWorker {
     if (!email) return null;
 
     const [recipient] = await this.directory.findContacts([email.userId]);
-    if (!recipient?.isActive) {
-      await this.repository.updateEmail(tx, email.id, {
-        emailStatus: 'CANCELLED',
-        emailNextAttemptAt: null,
-        emailLastError: 'recipient account is inactive or missing',
-      });
-      return 'cancelled';
-    }
+    if (!recipient?.isActive) return this.cancel(tx, email, 'recipient account is inactive or missing');
 
     const attempts = email.emailAttempts + 1;
     try {
-      const message = this.renderer.render(email, recipient);
+      const content = NotificationContentSchema.parse(email);
+      if (!emailStillRelevant(content, now)) return await this.cancel(tx, email, 'out of date: the deadline has passed');
+      let invitation: InvitationLink | undefined;
+      if (content.type === 'HR_INVITED') {
+        invitation = (await this.invitations.currentInvitationLink(email.userId)) ?? undefined;
+        if (!invitation) return await this.cancel(tx, email, 'no pending invitation: accepted or withdrawn');
+      }
+      const message = this.renderer.render(content, recipient, { invitation });
       await this.mail.send({ to: recipient.email, ...message });
     } catch (error) {
-      const lastError = messageOf(error).slice(0, ERROR_MAX_LENGTH);
-      const next = afterEmailFailure(attempts, now);
-      if (next.status === 'FAILED') {
-        this.logger.error(`email of notification ${email.id} failed after ${attempts} attempts: ${lastError}`);
-        await this.repository.updateEmail(tx, email.id, {
-          emailStatus: 'FAILED',
-          emailAttempts: attempts,
-          emailNextAttemptAt: null,
-          emailLastError: lastError,
-        });
-        return 'failed';
-      }
-      this.logger.warn(`email of notification ${email.id} failed (attempt ${attempts}), retrying later: ${lastError}`);
-      await this.repository.updateEmail(tx, email.id, {
-        emailStatus: 'PENDING',
-        emailAttempts: attempts,
-        emailNextAttemptAt: next.nextAttemptAt,
-        emailLastError: lastError,
-      });
-      return 'retried';
+      return this.recordFailure(tx, email, attempts, now, error);
     }
 
     await this.repository.updateEmail(tx, email.id, {
@@ -115,8 +104,42 @@ export class EmailOutboxWorker {
     });
     return 'sent';
   }
-}
 
-function messageOf(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
+  private async cancel(tx: DbTx, email: OutboxEmail, reason: string): Promise<EmailOutcome> {
+    await this.repository.updateEmail(tx, email.id, {
+      emailStatus: 'CANCELLED',
+      emailNextAttemptAt: null,
+      emailLastError: reason,
+    });
+    return 'cancelled';
+  }
+
+  private async recordFailure(
+    tx: DbTx,
+    email: OutboxEmail,
+    attempts: number,
+    now: Date,
+    error: unknown,
+  ): Promise<EmailOutcome> {
+    const lastError = errorMessage(error).slice(0, ERROR_MAX_LENGTH);
+    const next = afterEmailFailure(attempts, now);
+    if (next.status === 'FAILED') {
+      this.logger.error(`email of notification ${email.id} failed after ${attempts} attempts: ${lastError}`);
+      await this.repository.updateEmail(tx, email.id, {
+        emailStatus: 'FAILED',
+        emailAttempts: attempts,
+        emailNextAttemptAt: null,
+        emailLastError: lastError,
+      });
+      return 'failed';
+    }
+    this.logger.warn(`email of notification ${email.id} failed (attempt ${attempts}), retrying later: ${lastError}`);
+    await this.repository.updateEmail(tx, email.id, {
+      emailStatus: 'PENDING',
+      emailAttempts: attempts,
+      emailNextAttemptAt: next.nextAttemptAt,
+      emailLastError: lastError,
+    });
+    return 'retried';
+  }
 }

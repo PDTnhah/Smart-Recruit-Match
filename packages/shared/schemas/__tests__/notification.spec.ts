@@ -12,12 +12,8 @@ describe('FR-8: notify input schema', () => {
   it('FR-8: accepts each type with its own payload', () => {
     expect(NotifyInputSchema.parse(opened)).toEqual(opened);
     expect(
-      NotifyInputSchema.safeParse({
-        type: 'HR_INVITED',
-        payload: { companyId: 2, invitationPath: '/accept-invitation#abc', expiresAt: '2026-11-01T10:00:00Z' },
-        userIds: [9],
-        channels: ['EMAIL'],
-      }).success,
+      NotifyInputSchema.safeParse({ type: 'HR_INVITED', payload: { companyId: 2 }, userIds: [9], channels: ['EMAIL'] })
+        .success,
     ).toBe(true);
     expect(
       NotifyInputSchema.safeParse({
@@ -35,12 +31,7 @@ describe('FR-8: notify input schema', () => {
   });
 
   it('FR-8: rejects a payload that belongs to another type', () => {
-    expect(
-      NotifyInputSchema.safeParse({
-        ...opened,
-        payload: { companyId: 2, invitationPath: '/accept-invitation#abc', expiresAt: '2026-11-01T10:00:00Z' },
-      }).success,
-    ).toBe(false);
+    expect(NotifyInputSchema.safeParse({ ...opened, payload: { companyId: 2 } }).success).toBe(false);
   });
 
   it('FR-8: rejects a payload with a missing or malformed field', () => {
@@ -59,15 +50,14 @@ describe('FR-8: notify input schema', () => {
     expect(NotifyInputSchema.safeParse({ ...opened, channels: ['SMS'] }).success).toBe(false);
   });
 
-  it('FR-8: an invitation path must be relative to the web origin', () => {
-    expect(
-      NotifyInputSchema.safeParse({
-        type: 'HR_INVITED',
-        payload: { companyId: 2, invitationPath: 'https://evil.example/x', expiresAt: '2026-11-01T10:00:00Z' },
-        userIds: [9],
-        channels: ['EMAIL'],
-      }).success,
-    ).toBe(false);
+  it('FR-3: an invitation notification stores no link or token', () => {
+    const parsed = NotifyInputSchema.parse({
+      type: 'HR_INVITED',
+      payload: { companyId: 2, invitationPath: '/accept-invitation#token' },
+      userIds: [9],
+      channels: ['EMAIL'],
+    });
+    expect(parsed.payload).toEqual({ companyId: 2 });
   });
 });
 

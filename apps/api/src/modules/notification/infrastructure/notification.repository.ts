@@ -137,18 +137,10 @@ export class NotificationRepository {
    * two invitations sent close together are handled one after the other.
    */
   async lockInvitationEmails(tx: DbTx, userId: number): Promise<void> {
-    await tx.execute(sql`select pg_advisory_xact_lock(${ADVISORY_LOCK_KEYS.HR_INVITATION_EMAIL}, ${userId}::int)`);
-  }
-
-  /** Payload of the user's newest notification of `type`, if any. */
-  async latestPayload(tx: DbTx, userId: number, type: NotificationType): Promise<Record<string, unknown> | undefined> {
-    const [row] = await tx
-      .select({ payload: notifications.payload })
-      .from(notifications)
-      .where(and(eq(notifications.userId, userId), eq(notifications.type, type)))
-      .orderBy(desc(notifications.id))
-      .limit(1);
-    return row?.payload;
+    // Two-key form; `hashtext` maps the bigint id to int4 (a collision only serializes two users).
+    await tx.execute(
+      sql`select pg_advisory_xact_lock(${ADVISORY_LOCK_KEYS.HR_INVITATION_EMAIL}, hashtext(${String(userId)}))`,
+    );
   }
 
   /**

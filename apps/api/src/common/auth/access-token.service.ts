@@ -28,4 +28,13 @@ export class AccessTokenService {
     if (!claims.success) throw new UnauthenticatedError('Invalid or expired access token');
     return fromClaims(claims.data);
   }
+
+  /**
+   * Expiry of a token that AccessGuard has already verified, or null without `exp`. The SSE stream
+   * ends then, so a revoked session stops listening when its token expires (CONTEXT D31).
+   */
+  expiresAt(token: string): Date | null {
+    const payload = this.jwt.decode<{ exp?: unknown } | null>(token);
+    return typeof payload?.exp === 'number' ? new Date(payload.exp * 1000) : null;
+  }
 }

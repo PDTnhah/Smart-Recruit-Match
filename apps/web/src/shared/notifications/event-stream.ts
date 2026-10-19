@@ -5,8 +5,9 @@ import { expiresWithin, getAccessToken } from '@/shared/api/token';
 // Client of `GET /api/events/stream` (AD-13, US-1.7, CONTEXT D31). EventSource cannot send the
 // Authorization header and the access token lives only in memory, so the stream is read with
 // fetch and its frames are parsed here. Reconnects on its own: after the server ends the stream
-// (it does so once per token lifetime), after a network error (backing off up to 30 s), and after
-// a 401 (one refresh, then the session is over).
+// (it does so when the access token expires), after a network error (backing off up to 30 s), and
+// after a 401 (refresh, then reconnect; a second 401 in a row backs off too; a failed refresh ends
+// the session).
 
 export interface EventStreamHandlers {
   onEvent(name: string, data: unknown): void;
@@ -38,6 +39,8 @@ export function connectEventStream(handlers: EventStreamHandlers): () => void {
 
   async function run(): Promise<void> {
     let delay = RETRY_MIN_MS;
+    // A 401 right after a successful refresh is not fixed by refreshing again: back off.
+    let unauthorizedBefore = false;
     while (!stopped) {
       const token = getAccessToken();
       if (!token || expiresWithin(token, TOKEN_MARGIN_MS)) {
@@ -51,7 +54,10 @@ export function connectEventStream(handlers: EventStreamHandlers): () => void {
       try {
         outcome = await readStream(controller.signal, (name, data) => {
           // A working connection resets the back-off.
-          if (name === SERVER_EVENTS.READY) delay = RETRY_MIN_MS;
+          if (name === SERVER_EVENTS.READY) {
+            delay = RETRY_MIN_MS;
+            unauthorizedBefore = false;
+          }
           handlers.onEvent(name, data);
         });
       } catch {
@@ -63,6 +69,11 @@ export function connectEventStream(handlers: EventStreamHandlers): () => void {
           if (!stopped) handlers.onSessionExpired();
           return;
         }
+        if (unauthorizedBefore) {
+          await pause(delay);
+          delay = Math.min(delay * 2, RETRY_MAX_MS);
+        }
+        unauthorizedBefore = true;
         continue;
       }
       await pause(delay);

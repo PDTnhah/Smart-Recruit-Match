@@ -12,6 +12,8 @@ export interface EventStream {
   status: number;
   /** Every event received so far, in order. */
   events: ServerEvent[];
+  /** Resolves when the server ends the stream (not when `close()` aborts it). */
+  ended: Promise<void>;
   /** Resolves with the first event (past or future) matching `predicate`; rejects after `timeoutMs`. */
   next(predicate: (event: ServerEvent) => boolean, timeoutMs?: number): Promise<ServerEvent>;
   close(): void;
@@ -32,6 +34,10 @@ export async function openEventStream(baseUrl: string, accessToken?: string): Pr
     signal: controller.signal,
   });
   const events: ServerEvent[] = [];
+  let markEnded: () => void = () => undefined;
+  const ended = new Promise<void>((resolve) => {
+    markEnded = resolve;
+  });
   const waiters: { predicate: (event: ServerEvent) => boolean; resolve: (event: ServerEvent) => void }[] = [];
 
   const deliver = (event: ServerEvent) => {
@@ -50,7 +56,10 @@ export async function openEventStream(baseUrl: string, accessToken?: string): Pr
       try {
         for (;;) {
           const { value, done } = await reader.read();
-          if (done) return;
+          if (done) {
+            markEnded();
+            return;
+          }
           buffer += value;
           let end = buffer.indexOf('\n\n');
           while (end >= 0) {
@@ -72,6 +81,7 @@ export async function openEventStream(baseUrl: string, accessToken?: string): Pr
   return {
     status: response.status,
     events,
+    ended,
     next(predicate, timeoutMs = 5_000) {
       const seen = events.find(predicate);
       if (seen) return Promise.resolve(seen);

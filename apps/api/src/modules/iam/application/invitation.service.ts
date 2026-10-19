@@ -147,6 +147,24 @@ export class InvitationService {
     return this.auth.issue(account);
   }
 
+  /**
+   * A freshly signed link to the account's current invitation, for the invitation email (US-1.7,
+   * CONTEXT D31). It carries the current nonce, so it is always the newest invitation, and it is
+   * valid 7 days from now. Null when there is nothing to accept: not a pending HR account (already
+   * accepted, deactivated) or no invitation nonce.
+   */
+  async currentInvitationLink(userId: number): Promise<{ invitationPath: string; expiresAt: string } | null> {
+    const [account] = await this.db
+      .select({ ...ACCOUNT_COLUMNS, invitationNonce: users.invitationNonce })
+      .from(users)
+      .where(eq(users.id, userId));
+    if (!account?.invitationNonce || account.role !== 'HR' || !account.isActive || account.passwordHash !== null) {
+      return null;
+    }
+    const signed = await this.tokens.sign(account.id, account.invitationNonce);
+    return { invitationPath: invitationPath(signed.token), expiresAt: signed.expiresAt.toISOString() };
+  }
+
   /** HR accounts of a company, oldest first; PENDING until the invitation is accepted. */
   async listHrAccounts(companyId: number): Promise<HrAccountList> {
     const rows = await this.db

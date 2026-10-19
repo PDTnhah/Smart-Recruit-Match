@@ -9,13 +9,15 @@ import { eq } from 'drizzle-orm';
 import { Clock } from '../../src/common/clock/index.js';
 import { companies, users } from '../../src/db/schema/index.js';
 import { EmailOutboxWorker } from '../../src/modules/notification/application/email-outbox.worker.js';
+import { SYSTEM_ACTOR } from '../../src/modules/audit/index.js';
+import { InvitationService } from '../../src/modules/iam/index.js';
 import { MAIL_TRANSPORT } from '../../src/modules/notification/infrastructure/mailer.js';
 import { NotificationService } from '../../src/modules/notification/index.js';
-import { type AuthTestApp, createAuthTestApp } from '../helpers/auth.js';
-import { uniqueValue } from '../helpers/factories.js';
+import { api, type AuthTestApp, createAuthTestApp } from '../helpers/auth.js';
+import { createCompany, uniqueValue } from '../helpers/factories.js';
 import { FakeClock } from '../helpers/fake-clock.js';
 import { FakeMailTransport } from '../helpers/mail.js';
-import { notificationsOf } from '../helpers/notifications.js';
+import { notificationsOf, waitFor } from '../helpers/notifications.js';
 import { runConcurrently } from '../helpers/state.js';
 
 const START = '1999-06-01T00:00:00.000Z';
@@ -151,6 +153,56 @@ describe('FR-8: email outbox (US-1.7 AC-4)', () => {
     await worker1.runOnce();
     expect(mail1.to(user.email)).toEqual([]);
     expect((await notificationsOf(instance1.db, user.id))[0]).toMatchObject({ emailStatus: 'CANCELLED' });
+  });
+
+  it('FR-8: a retried reminder is cancelled once its deadline has passed', async () => {
+    const user = await recipient();
+    await remind([user.id]);
+    mail1.failure = new Error('SMTP down');
+    await worker1.runOnce();
+    expect((await notificationsOf(instance1.db, user.id))[0]).toMatchObject({ emailStatus: 'PENDING', emailAttempts: 1 });
+
+    // The reminder is for 1999-06-02 10:00; the retry comes after it.
+    clock.set('1999-06-02T10:00:00.000Z');
+    mail1.failure = null;
+    await worker1.runOnce();
+    expect(mail1.to(user.email)).toEqual([]);
+    expect((await notificationsOf(instance1.db, user.id))[0]).toMatchObject({
+      emailStatus: 'CANCELLED',
+      emailLastError: 'out of date: the deadline has passed',
+    });
+  });
+
+  it('FR-3: the invitation email links to the current invitation; an accepted one is not emailed', async () => {
+    const company = await createCompany(instance1.db);
+    const email = `${uniqueValue('hr')}@company.test`.toLowerCase();
+    const invitation = await instance1.app
+      .get(InvitationService)
+      .invite(SYSTEM_ACTOR, { companyId: company.id, email, fullName: 'Phạm HR' });
+    const userId = invitation.account.id;
+    // The hr.invited listener queues the email (clock in 1999, so this worker takes it).
+    await waitFor(async () =>
+      (await notificationsOf(instance1.db, userId)).some((row) => row.type === 'HR_INVITED') ? true : undefined,
+    );
+
+    await worker1.runOnce();
+    const [message] = mail1.to(email);
+    const link = /http:\/\/srm\.test(\/accept-invitation#[\w.-]+)/.exec(message?.text ?? '')?.[1];
+    expect(link).toBeDefined();
+    expect(message?.subject).toBe('Lời mời tham gia Smart Recruit Match');
+    // The emailed link works: it carries the account's current invitation.
+    await instance1
+      .http()
+      .post(api('auth/accept-invitation'))
+      .send({ token: link!.split('#')[1], password: 'Mat-khau-moi-123' })
+      .expect(200);
+
+    // Accepted: a later invitation email has nothing to link to and is cancelled.
+    await notifications.notify({ type: 'HR_INVITED', payload: { companyId: company.id }, userIds: [userId], channels: ['EMAIL'] });
+    await worker1.runOnce();
+    expect(mail1.to(email)).toHaveLength(1);
+    const rows = (await notificationsOf(instance1.db, userId)).filter((row) => row.type === 'HR_INVITED');
+    expect(rows.map((row) => row.emailStatus)).toEqual(['SENT', 'CANCELLED']);
   });
 
   it('FR-8: two workers never send the same email twice', async () => {

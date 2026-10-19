@@ -26,14 +26,12 @@ export const CampaignOpenedPayloadSchema = z.object({
 });
 
 /**
- * An HR account was invited (US-1.5). Email only: the path holds the invitation token, so it never
- * appears in the in-app list.
+ * An HR account was invited (US-1.5). Email only. The invitation token is never stored here: the
+ * email worker asks iam for a link to the account's current invitation when it sends, so only the
+ * newest invitation is ever emailed and no live token rests in the database (CONTEXT D31).
  */
 export const HrInvitedPayloadSchema = z.object({
   companyId: id,
-  /** `/accept-invitation#<token>`, relative to the web origin. */
-  invitationPath: z.string().startsWith('/'),
-  expiresAt: instant,
 });
 
 /** A campaign deadline is near and the recipient still has something to do before it. */

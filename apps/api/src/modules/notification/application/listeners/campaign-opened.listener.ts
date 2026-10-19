@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
+import { errorMessage } from '../../../../common/errors/index.js';
 import { CAMPAIGN_OPENED, type CampaignOpenedEvent, CampaignService } from '../../../campaign/index.js';
 import { UserDirectory } from '../../../iam/index.js';
 import { StudentService } from '../../../student/index.js';
@@ -28,9 +29,7 @@ export class CampaignOpenedListener {
     try {
       await this.notifyTargetStudents(event.campaignId);
     } catch (error) {
-      this.logger.error(
-        `campaign ${event.campaignId}: opening notice failed: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      this.logger.error(`campaign ${event.campaignId}: opening notice failed: ${errorMessage(error)}`);
     }
   }
 

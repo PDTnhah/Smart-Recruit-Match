@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { type CampaignDeadlineKey, type NotificationContent, NotificationContentSchema } from '@srm/shared';
+import type { CampaignDeadlineKey, NotificationContent } from '@srm/shared';
 import Handlebars from 'handlebars';
 import { loadEnv } from '../../../common/config/env.js';
 import type { UserContact } from '../../iam/index.js';
@@ -35,6 +35,12 @@ export function formatVietnamTime(iso: string): string {
 
 type Template = Handlebars.TemplateDelegate<Record<string, string>>;
 
+/** A link to an HR's current invitation, issued by iam when the email is sent (CONTEXT D31). */
+export interface InvitationLink {
+  invitationPath: string;
+  expiresAt: string;
+}
+
 interface Compiled {
   subject: Template;
   html: Template;
@@ -42,9 +48,9 @@ interface Compiled {
 }
 
 /**
- * Turns a stored notification into an email (US-1.7 AC-4). Links are absolute, built from
- * WEB_ORIGIN. The payload is parsed again: rows were validated when written, but a damaged row
- * must fail here (and be retried, then marked FAILED) rather than send a broken email.
+ * Turns a notification into an email (US-1.7 AC-4). Links are absolute, built from WEB_ORIGIN.
+ * The worker parses the stored row first: a damaged row fails (retried, then FAILED) rather than
+ * sending a broken email.
  */
 @Injectable()
 export class EmailRenderer {
@@ -53,9 +59,12 @@ export class EmailRenderer {
   private readonly layout = this.handlebars.compile(HTML_LAYOUT, { strict: true });
   private readonly compiled = new Map<NotificationContent['type'], Compiled>();
 
-  render(notification: { type: string; payload: unknown }, recipient: UserContact): Omit<MailMessage, 'to'> {
-    const content = NotificationContentSchema.parse(notification);
-    const context = { recipientName: recipient.fullName ?? recipient.email, ...this.contextOf(content) };
+  render(
+    content: NotificationContent,
+    recipient: UserContact,
+    links: { invitation?: InvitationLink } = {},
+  ): Omit<MailMessage, 'to'> {
+    const context = { recipientName: recipient.fullName ?? recipient.email, ...this.contextOf(content, links) };
     const template = this.templateOf(content.type);
     const subject = template.subject(context).replace(LINE_BREAKS, ' ');
     return {
@@ -65,7 +74,7 @@ export class EmailRenderer {
     };
   }
 
-  private contextOf(content: NotificationContent): Record<string, string> {
+  private contextOf(content: NotificationContent, links: { invitation?: InvitationLink }): Record<string, string> {
     switch (content.type) {
       case 'CAMPAIGN_OPENED':
         return {
@@ -74,9 +83,10 @@ export class EmailRenderer {
           link: `${this.webOrigin}${DEADLINE_TASKS.intake_end.path}`,
         };
       case 'HR_INVITED':
+        if (!links.invitation) throw new Error('an invitation email needs the current invitation link');
         return {
-          expiresAt: formatVietnamTime(content.payload.expiresAt),
-          link: `${this.webOrigin}${content.payload.invitationPath}`,
+          expiresAt: formatVietnamTime(links.invitation.expiresAt),
+          link: `${this.webOrigin}${links.invitation.invitationPath}`,
         };
       case 'DEADLINE_REMINDER': {
         const { task, path } = DEADLINE_TASKS[content.payload.deadlineKey];

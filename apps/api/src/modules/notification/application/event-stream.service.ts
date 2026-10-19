@@ -6,10 +6,7 @@ import { RealtimeSubscriber } from '../infrastructure/redis-pubsub.js';
 export interface EventStreamSettings {
   /** A `ping` this often keeps nginx and other proxies from closing an idle stream (AC-3). */
   pingIntervalMs: number;
-  /**
-   * The stream ends after this long and the client reconnects with a fresh access token, so a
-   * revoked session cannot keep listening past one token lifetime (CONTEXT D31).
-   */
+  /** Upper bound on a stream's life, for tokens without `exp`. */
   maxLifetimeMs: number;
 }
 
@@ -28,11 +25,18 @@ export class EventStreamService {
     @Inject(EVENT_STREAM_SETTINGS) private readonly settings: EventStreamSettings,
   ) {}
 
-  open(userId: number): Observable<MessageEvent> {
+  /**
+   * The stream ends when the access token that opened it expires (`tokenExpiresAt`, compared with
+   * the real time the token was signed with) and the client reconnects with a fresh one, so a
+   * revoked session cannot keep listening past its token (CONTEXT D31).
+   */
+  open(userId: number, tokenExpiresAt: Date | null): Observable<MessageEvent> {
+    const untilExpiry = tokenExpiresAt ? tokenExpiresAt.getTime() - Date.now() : Number.POSITIVE_INFINITY;
+    const lifetime = Math.max(0, Math.min(this.settings.maxLifetimeMs, untilExpiry));
     const ping = interval(this.settings.pingIntervalMs).pipe(map(() => ({ event: SERVER_EVENTS.PING, data: {} })));
     return merge(this.subscriber.streamFor(userId), ping).pipe(
       map(({ event, data }): MessageEvent => ({ type: event, data: data as object })),
-      takeUntil(timer(this.settings.maxLifetimeMs)),
+      takeUntil(timer(lifetime)),
     );
   }
 }

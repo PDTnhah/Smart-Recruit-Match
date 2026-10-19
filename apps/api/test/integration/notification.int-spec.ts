@@ -100,12 +100,7 @@ describe('FR-8: notification service and list (US-1.7)', () => {
       for (const name of ['một', 'hai', 'ba']) await service.notify(opened([alice.user.id], `Đợt ${name}`));
       await service.notify(opened([bob.user.id], 'Đợt của Bob'));
       // Email only (like an HR invitation): never listed.
-      await service.notify({
-        type: 'HR_INVITED',
-        payload: { companyId: 1, invitationPath: '/accept-invitation#secret', expiresAt: '2030-01-01T00:00:00.000Z' },
-        userIds: [alice.user.id],
-        channels: ['EMAIL'],
-      });
+      await service.notify({ type: 'HR_INVITED', payload: { companyId: 1 }, userIds: [alice.user.id], channels: ['EMAIL'] });
     });
 
     const listOf = async (who: LoggedIn, query = '') =>
@@ -120,7 +115,7 @@ describe('FR-8: notification service and list (US-1.7)', () => {
       ]);
       expect(list.unreadCount).toBe(3);
       expect(list.nextBefore).toBeNull();
-      expect(JSON.stringify(list)).not.toContain('secret');
+      expect(list.items.some((item) => item.type === 'HR_INVITED')).toBe(false);
 
       const bobs = await listOf(bob);
       expect(bobs.items).toHaveLength(1);

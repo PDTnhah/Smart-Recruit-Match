@@ -908,10 +908,6 @@ export interface components {
                 type: "HR_INVITED";
                 payload: {
                     companyId: number;
-                    /** Format: starts_with */
-                    invitationPath: string;
-                    /** Format: date-time */
-                    expiresAt: string;
                 };
             } | {
                 id: number;
@@ -1801,7 +1797,9 @@ export interface operations {
     EventsController_stream: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                authorization: string;
+            };
             path?: never;
             cookie?: never;
         };
