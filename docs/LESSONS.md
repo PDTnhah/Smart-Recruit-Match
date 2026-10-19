@@ -197,3 +197,17 @@ See [US-1.5](sprints/stories/US-1.5-company-hr-accounts-jd-posting-approval.md) 
 - Thêm biến mới vào compose thì thêm vào `env.spec.ts` một ca giá trị `""`.
 
 See [CONTEXT.md D31](CONTEXT.md).
+
+## 15. Chạy `pnpm test` khi compose stack đang bật: máy dev hết RAM, suite đỏ ngẫu nhiên
+
+**What happened (0.6.0)**: Ở US-1.7, compose stack (7 service) được bật để kiểm đầu-cuối. Trong lúc đó chạy `pnpm test` ở gốc repo ba lần, lần nào cũng đỏ vài suite nhưng mỗi lần một nhóm khác: `password.spec.ts`, `record-access`, `jd-access`, `cv-active-constraint`, `notification-listeners`. Chạy riêng từng file thì xanh. Lần thứ ba, output kết thúc bằng `Fatal process out of memory: Zone` của V8. Dừng compose (`docker compose … stop`) rồi chạy lại thì xanh hai lần liền.
+
+**Why**: `pnpm test` chạy song song test của shared, Jest unit và Jest integration. Integration lại bật thêm PostgreSQL, Redis, MinIO bằng testcontainers, và mỗi file test dựng một hoặc hai app Nest. Cộng thêm compose stack (PostgreSQL, RabbitMQ, MinIO, Redis, Mailpit, API, nginx) thì vượt RAM của máy dev. Scrypt (N = 2^15) trong unit test cũng chậm lại khi máy thiếu tài nguyên, nên vượt timeout mặc định 5 giây.
+
+**How to avoid**:
+- Dừng compose trước khi chạy cả bộ test: `docker compose -f deploy/docker-compose.yml stop`. Volume và dữ liệu vẫn giữ nguyên.
+- Suite đỏ ngẫu nhiên, mỗi lần một nhóm khác nhau, thì xem cuối output: `out of memory` hay `Exceeded timeout` là lỗi môi trường (xem thêm §11), không phải lỗi logic.
+- Kiểm đầu-cuối trên compose và chạy bộ test là hai bước riêng, không chạy cùng lúc.
+
+See [US-1.7](sprints/stories/US-1.7-notifications-sse-email-reminders.md) › Implementation notes.
+
