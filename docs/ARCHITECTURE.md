@@ -100,6 +100,13 @@ Giao diện dựng bằng shadcn/ui (nền Radix, preset `radix-nova`, CONTEXT D
 
 Dùng **Server-Sent Events** (`GET /api/events/stream`) cho: thông báo, tiến độ job AI ("Đang phân tích CV…"), mức cạnh tranh của JD khi chọn nguyện vọng. SSE đơn giản hơn WebSocket vì luồng dữ liệu chỉ đi một chiều từ server.
 
+Từ US-1.7 ([CONTEXT D31](CONTEXT.md)):
+
+- Client mở stream bằng `fetch` kèm `Authorization: Bearer` (không dùng `EventSource`, vì nó không gửi được header), tự tách khung SSE, tự kết nối lại. `AccessGuard` trả `401` trước khi có sự kiện nào.
+- Sự kiện: `ready` (đã đăng ký kênh; client tải lại danh sách), `ping` mỗi 25 giây, `notification`. Tên sự kiện khai ở `SERVER_EVENTS` (`packages/shared/schemas/notification.ts`).
+- Stream tự đóng sau 15 phút (một vòng đời access token); client kết nối lại bằng token mới.
+- Nhiều instance: Redis pub/sub kênh `notify:user:{userId}`. Module khác đẩy sự kiện bằng `RealtimePublisher.publishToUser` sau khi commit; web nghe bằng `useServerEvent` (`apps/web/src/shared/notifications/`).
+
 ### Core Backend
 
 #### Kiểu kiến trúc
@@ -117,16 +124,16 @@ Module gọi nhau qua service đã export hoặc phát sự kiện qua `@nestjs/
 
 | Module | Trách nhiệm | Ánh xạ nghiệp vụ |
 |---|---|---|
-| `iam` | Đăng nhập, JWT, vai trò, tài khoản HR, SSO trường (tùy chọn). Export `InvitationService`: mời HR (token JWT `aud = hr-invite` mang nonce của lần mời mới nhất, hạn 7 ngày), nhận lời mời, danh sách HR của công ty; phát `hr.invited` sau khi commit ([CONTEXT D28, D29](CONTEXT.md)) | PRD › Personas |
-| `campaign` | Đợt thực tập, tham số cấu hình, trạng thái đợt, mốc thời gian. Export `CampaignService.assertPhase` (kiểm tra pha, tính cả mốc) và `getSettings`; phát `campaign.opened`, `campaign.phase_changed` sau khi commit ([CONTEXT D27](CONTEXT.md)) | GĐ0 |
+| `iam` | Đăng nhập, JWT, vai trò, tài khoản HR, SSO trường (tùy chọn). Export `InvitationService`: mời HR (token JWT `aud = hr-invite` mang nonce của lần mời mới nhất, hạn 7 ngày), nhận lời mời, danh sách HR của công ty; phát `hr.invited` sau khi commit ([CONTEXT D28, D29](CONTEXT.md)). Export `UserDirectory` (tài khoản đang hoạt động của sinh viên, địa chỉ liên hệ) cho `notification` ([CONTEXT D31](CONTEXT.md)) | PRD › Personas |
+| `campaign` | Đợt thực tập, tham số cấu hình, trạng thái đợt, mốc thời gian. Export `CampaignService.assertPhase` (kiểm tra pha, tính cả mốc), `getSettings`, `listSettingsInPhase` và hàm thuần `isInTarget` (sinh viên thuộc đối tượng của đợt); phát `campaign.opened`, `campaign.phase_changed` sau khi commit ([CONTEXT D27](CONTEXT.md)) | GĐ0 |
 | `company` | Doanh nghiệp, JD, yêu cầu chuẩn hóa, phiên bản JD. Mời HR qua `InvitationService` của `iam`; kiểm pha bằng `CampaignService.assertPhase`; đăng ký resolver `jd` vào `FileAccessRegistry`; phát `jd.submitted`, `jd.approved` sau khi commit ([CONTEXT D28](CONTEXT.md)) | GĐ1 |
-| `student` | Sinh viên, CV, hồ sơ năng lực, đồng ý xử lý dữ liệu. Ghi đồng ý theo đợt và phiên bản điều khoản (`packages/shared/consent/`, kèm SHA-256 của văn bản); mỗi lần nộp CV là một dòng `cvs` mới, dòng cũ mất `active`. Export `ConsentService.hasConsent`, `CvService`; đăng ký resolver `cv` vào `FileAccessRegistry`; phát `cv.submitted` (`cvId`, `cvVersion`, `campaignId`, `studentId`) sau khi commit ([CONTEXT D30](CONTEXT.md)) | GĐ2 |
+| `student` | Sinh viên, CV, hồ sơ năng lực, đồng ý xử lý dữ liệu. Ghi đồng ý theo đợt và phiên bản điều khoản (`packages/shared/consent/`, kèm SHA-256 của văn bản); mỗi lần nộp CV là một dòng `cvs` mới, dòng cũ mất `active`. Export `ConsentService.hasConsent`, `CvService` (kể cả `studentIdsWithActiveCv`), `StudentService.listIdsInTarget`; đăng ký resolver `cv` vào `FileAccessRegistry`; phát `cv.submitted` (`cvId`, `cvVersion`, `campaignId`, `studentId`) sau khi commit ([CONTEXT D30](CONTEXT.md)) | GĐ2 |
 | `matching` | Lọc điều kiện cứng, gửi job chấm, lưu kết quả, **tính S_cv theo trọng số**, shortlist, mức cạnh tranh, nguyện vọng | GĐ3, GĐ4 |
 | `assessment` | Ngân hàng câu hỏi, ma trận đề, phiên thi, rút đề, chấm trắc nghiệm, nhận kết quả chấm tự luận, phúc khảo, **tính S_test, S_final** | GĐ5, GĐ6 |
 | `allocation` | Thuật toán Deferred Acceptance, vòng phân bổ, snapshot, dự thảo/công bố, điều chỉnh thủ công | GĐ7, GĐ10 |
 | `review` | Đề cử, HR duyệt, yêu cầu bổ sung, SLA | GĐ8 |
 | `interview` | Lịch phỏng vấn, kết quả, Dự bị, lời mời, xác nhận | GĐ9 |
-| `notification` | Email (nodemailer + template), thông báo trong app, SSE (`@Sse()` của NestJS, Redis pub/sub khi chạy nhiều instance) | PRD › Thông báo |
+| `notification` | Email (nodemailer + template), thông báo trong app, SSE (`@Sse()` của NestJS, Redis pub/sub khi chạy nhiều instance), nhắc hạn. Export `NotificationService.notify({ type, payload, userIds, channels, dedupeKey? }, { tx? })` (ghi trong giao dịch của caller; caller gọi `push` sau commit), `RealtimePublisher`, `DeadlineReminderRegistry` (story sau đăng ký nguồn nhắc hạn). Nghe `campaign.opened`, `hr.invited`. Người nhận lấy qua `CampaignService`, `StudentService`, `CvService`, `UserDirectory` ([CONTEXT D31](CONTEXT.md)) | PRD › Thông báo |
 | `reporting` | Dashboard, xuất Excel/PDF | GĐ10, PRD › Success Criteria |
 | `audit` | Nhật ký thao tác: `AuditService.record(tx, …)` ghi trong cùng giao dịch với thay đổi nghiệp vụ, không dùng interceptor vì interceptor chạy ngoài giao dịch; bảng append-only (CONTEXT D24) | BR-10, BR-17 |
 | `aigateway` | Phát job sang RabbitMQ, nhận kết quả, chống xử lý trùng, theo dõi trạng thái job | – |
@@ -195,6 +202,12 @@ Từ US-1.4 ([CONTEXT D27](CONTEXT.md)):
 - Biến `SCHEDULER_ENABLED` (mặc định `true`) bật/tắt cron. Integration test đặt `false` và gọi `runOnce()` của tác vụ.
 - Chuyển pha đợt: chạy mỗi phút; mỗi lần chuyển đi qua `transitionTo` với actor `SYSTEM` và `row_version` đã đọc lúc quét. Đợt trễ nhiều mốc được chuyển lần lượt từng pha.
 
+Từ US-1.7 ([CONTEXT D31](CONTEXT.md)):
+
+- Gửi email outbox: chạy mỗi 10 giây, không cần advisory lock. Mỗi email một giao dịch, khóa dòng `notifications` bằng `FOR UPDATE SKIP LOCKED`, nên nhiều instance cùng gửi mà không trùng. Thử tối đa 3 lần (lùi 1 phút, 5 phút), rồi `FAILED` và ghi log. Gửi ít nhất một lần.
+- Nhắc hạn: chạy mỗi 5 phút trong `withAdvisoryLock` (khóa `DEADLINE_REMINDER` = 1701). Mỗi nguồn trong `DeadlineReminderRegistry` trả danh sách người cần nhắc; `dedupe_key` theo hạn chặn nhắc trùng ở DB. Nguồn đầu tiên: hạn nộp CV (`intake_end`, trước `reminder_hours_before` giờ, mặc định 24).
+- Email mời HR: khóa giao dịch `pg_advisory_xact_lock(1702, userId)` để chỉ link mới nhất được gửi.
+
 #### Thư viện chính
 
 | Nhu cầu | Thư viện | Ghi chú |
@@ -207,7 +220,7 @@ Từ US-1.4 ([CONTEXT D27](CONTEXT.md)):
 | Redis | ioredis | – |
 | Lưu file | @aws-sdk/client-s3 + @aws-sdk/s3-request-presigner 3.1142.0 (trỏ tới MinIO); multer (qua `FileInterceptor` của `@nestjs/platform-express`); file-type 16.5.4 | file-type đọc "magic bytes" để kiểm tra MIME thật; ghim bản 16 vì từ bản 17 chỉ có ESM ([LESSONS §9](LESSONS.md)). `common/storage` gom `StorageService`, `SingleFileUpload()` (5 MB, tên file UTF-8), `detectDocument()`, `FileAccessRegistry` và `GET /api/files/{id}/url` |
 | Lập lịch, sự kiện | @nestjs/schedule, @nestjs/event-emitter | Dòng cho NestJS 11 (6.x, 3.x). Bản 12.x chỉ có ESM, Jest của API không nạp được ([LESSONS §9](LESSONS.md)) |
-| Email | nodemailer + template Handlebars | – |
+| Email | nodemailer 10.0.15 + Handlebars 4.7.10 | nodemailer 10 khai `"type": "module"` nhưng có bản CommonJS (`dist/cjs`, điều kiện `require`), nên Jest nạp được ([LESSONS §9](LESSONS.md)). Template viết trong `modules/notification/templates/templates.ts`, không dùng file `.hbs` vì `tsc` không chép sang `dist` ([CONTEXT D31](CONTEXT.md)). SMTP qua `SMTP_*`; dev bắt email bằng Mailpit |
 | Xuất báo cáo | exceljs; pdfmake | – |
 | Log, giám sát | nestjs-pino; @nestjs/terminus (health check); prom-client | – |
 | Kiểm thử | Jest + ts-jest + Supertest; fast-check; testcontainers | Jest chia hai project: `unit` (`src/**/*.spec.ts`) và `integration` (`test/integration/**/*.int-spec.ts`, có testcontainers) |
@@ -437,7 +450,7 @@ Nên đặt giới hạn chi tiêu trên trang quản lý Claude API và theo d�
 | `hr_reviews` | DANH_GIA_HR | nomination_id, reviewer_id, decision, reason_code, note, decided_at | unique(nomination_id) |
 | `interviews` | PHONG_VAN | nomination_id, scheduled_at, mode, location, result, note | – |
 | `offers` | – | nomination_id, sent_at, expires_at, response, responded_at | – |
-| `notifications` | – | id, user_id, type, payload JSONB, read_at | index(user_id, read_at) |
+| `notifications` | – | id, user_id, type, payload JSONB, channels text[], read_at, dedupe_key, email_status, email_attempts, email_next_attempt_at, email_sent_at, email_last_error, created_at | index(user_id, read_at); unique(user_id, dedupe_key); partial index(email_next_attempt_at) WHERE email_status = 'PENDING'; CHECK `type`, `channels` ⊆ {IN_APP, EMAIL}, có `email_status` khi và chỉ khi có kênh EMAIL. Một dòng mỗi người nhận, vừa là thông báo trong app vừa là outbox email ([CONTEXT D31](CONTEXT.md)) |
 | `audit_logs` | NHAT_KY | id, actor_kind (`USER`/`SYSTEM`), actor_id, action, entity, entity_id, before JSONB, after JSONB, reason, at | chỉ thêm: trigger `ENABLE ALWAYS` chặn UPDATE/DELETE/TRUNCATE; CHECK actor_id có khi và chỉ khi `USER`; index(entity, entity_id, at); không FK tới users (CONTEXT D24) |
 | `ai.embeddings` | – | owner_type (cv/jd/question/skill/essay), owner_id, version, model, embedding vector(1024) | index HNSW (vector_cosine_ops) |
 | `ai.llm_calls` | – | id, job_id, agent, prompt_version, model, effort, input_tokens, cache_read_tokens, cache_write_tokens, output_tokens, cost_usd, latency_ms, stop_reason, log_key, created_at | index(agent, created_at) |
@@ -457,6 +470,7 @@ Prompt và phản hồi đầy đủ của từng lần gọi LLM lưu thành fi
 | `lock:allocation:{campaignId}` | Khóa khi đang chạy phân bổ | vài phút |
 | `ratelimit:{userId}:{route}` | Giới hạn tần suất gọi API | 1 phút |
 | `auth:refresh:{sha256}` | ID người dùng của một refresh token; khóa là SHA-256 của token, xóa bằng `GETDEL` khi xoay vòng ([CONTEXT D25](CONTEXT.md)) | `REFRESH_TOKEN_TTL_DAYS` (7 ngày) |
+| `notify:user:{userId}` (kênh pub/sub, không phải khóa) | Sự kiện SSE của một người dùng, JSON `{ event, data }`; instance nào đang giữ stream của người đó thì đăng ký ([CONTEXT D31](CONTEXT.md)) | – |
 
 ### Lưu trữ file và thời hạn dữ liệu
 
@@ -613,7 +627,7 @@ REST, mô tả bằng OpenAPI.
 | Sinh viên | `GET /api/me/consents` · `POST /api/me/consents` (đồng ý điều khoản cho một đợt) · `POST /api/cvs` (multipart, `202`) · `GET /api/cvs/me` (mọi phiên bản CV) · `GET /api/cvs/me/profile` · `PUT /api/cvs/me/profile/confirm` · `GET /api/me/shortlist` · `PUT /api/me/preferences` · `POST /api/preferences/{id}/exam/start` · `PUT /api/exam-sessions/{id}/answers` · `POST /api/exam-sessions/{id}/submit` · `POST /api/exam-answers/{id}/appeal` · `POST /api/offers/{id}/accept` |
 | HR | `POST /api/jds` · `PATCH /api/jds/{id}` · `PUT /api/jds/{id}/file` (multipart) · `POST /api/jds/{id}/submit` · `PUT /api/jds/{id}/requirements/confirm` · `GET /api/jds/{id}/question-bank/sample` · `GET /api/jds/{id}/nominations` · `POST /api/nominations/{id}/decision` · `POST /api/interviews` · `PUT /api/interviews/{id}/result` |
 | Trung tâm | `POST /api/campaigns` · `PATCH /api/campaigns/{id}` · `POST /api/campaigns/{id}/open` · `POST /api/companies` · `PATCH /api/companies/{id}` · `POST /api/companies/{id}/hr-invitations` · `GET /api/companies/{id}/hr-accounts` · `POST /api/jds/{id}/approve` · `POST /api/campaigns/{id}/matching-runs` · `POST /api/campaigns/{id}/allocation-rounds` · `GET /api/allocation-rounds/{id}` · `PATCH /api/allocation-rounds/{id}/nominations` · `POST /api/allocation-rounds/{id}/publish` · `GET /api/campaigns/{id}/reports` |
-| Chung | `POST /api/auth/accept-invitation` (HR được mời đặt mật khẩu) · `GET /api/jds` · `GET /api/jds/{id}` (HR: JD của công ty mình; Trung tâm: mọi JD) · `GET /api/campaigns` · `GET /api/campaigns/{id}` (đợt người gọi tham gia) · `GET /api/events/stream` (SSE) · `GET /api/files/{id}/url` (URL tạm có hạn) |
+| Chung | `POST /api/auth/accept-invitation` (HR được mời đặt mật khẩu) · `GET /api/jds` · `GET /api/jds/{id}` (HR: JD của công ty mình; Trung tâm: mọi JD) · `GET /api/campaigns` · `GET /api/campaigns/{id}` (đợt người gọi tham gia) · `GET /api/events/stream` (SSE, header `Authorization`) · `GET /api/notifications` (`?before=&limit=`, kèm `unreadCount`) · `POST /api/notifications/{id}/read` · `POST /api/notifications/read-all` · `GET /api/files/{id}/url` (URL tạm có hạn) |
 
 ---
 
