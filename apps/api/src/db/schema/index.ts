@@ -7,4 +7,5 @@ export * from './users.js';
 export * from './job-descriptions.js';
 export * from './cvs.js';
 export * from './consents.js';
+export * from './notifications.js';
 export * from './audit-logs.js';
