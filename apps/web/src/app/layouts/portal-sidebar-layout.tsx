@@ -22,6 +22,8 @@ import {
   SidebarTrigger,
   useSidebar,
 } from '@/components/ui/sidebar';
+import { EventStreamProvider } from '@/shared/notifications/event-stream-provider';
+import { NotificationBell } from '@/shared/notifications/notification-bell';
 
 function isActive(portal: Portal, item: NavItem, pathname: string): boolean {
   return matchPath({ path: navItemPath(portal, item), end: item.segment === '' }, pathname) !== null;
@@ -48,7 +50,8 @@ function PortalNav({ portal, items }: { portal: Portal; items: NavItem[] }) {
 
 /**
  * HR and Center portal shell (DESIGN.md §12): collapsible sidebar on desktop, Sheet under `md`.
- * CENTER and ADMIN share /admin with different menus (CONTEXT D25).
+ * CENTER and ADMIN share /admin with different menus (CONTEXT D25). The header holds the
+ * notification bell; the SSE stream stays open while the portal is shown (US-1.7).
  */
 export function PortalSidebarLayout({ portal }: { portal: Portal }) {
   const user = useCurrentUser();
@@ -57,49 +60,52 @@ export function PortalSidebarLayout({ portal }: { portal: Portal }) {
   const current = items.find((item) => isActive(portal, item, pathname));
 
   return (
-    <SidebarProvider>
-      <Sidebar collapsible="icon">
-        <SidebarHeader>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton size="lg" asChild>
-                <Link to={portal}>
-                  <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                    <GraduationCap className="size-4" />
-                  </div>
-                  <div className="flex min-w-0 flex-col leading-tight">
-                    <span className="truncate font-semibold">Smart Recruit Match</span>
-                    <span className="truncate text-xs">{PORTAL_TITLES[portal]}</span>
-                  </div>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarHeader>
-        <SidebarContent>
-          <SidebarGroup>
-            <SidebarGroupLabel>Chức năng</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <PortalNav portal={portal} items={items} />
-            </SidebarGroupContent>
-          </SidebarGroup>
-        </SidebarContent>
-        <SidebarFooter />
-        <SidebarRail />
-      </Sidebar>
-      <SidebarInset>
-        <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="h-4" />
-          <span className="min-w-0 truncate font-medium">{current?.title ?? PORTAL_TITLES[portal]}</span>
-          <div className="ml-auto">
-            <AccountMenu />
-          </div>
-        </header>
-        <main className="flex min-w-0 flex-1 flex-col gap-6 p-4 md:p-6">
-          <Outlet />
-        </main>
-      </SidebarInset>
-    </SidebarProvider>
+    <EventStreamProvider>
+      <SidebarProvider>
+        <Sidebar collapsible="icon">
+          <SidebarHeader>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton size="lg" asChild>
+                  <Link to={portal}>
+                    <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+                      <GraduationCap className="size-4" />
+                    </div>
+                    <div className="flex min-w-0 flex-col leading-tight">
+                      <span className="truncate font-semibold">Smart Recruit Match</span>
+                      <span className="truncate text-xs">{PORTAL_TITLES[portal]}</span>
+                    </div>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarHeader>
+          <SidebarContent>
+            <SidebarGroup>
+              <SidebarGroupLabel>Chức năng</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <PortalNav portal={portal} items={items} />
+              </SidebarGroupContent>
+            </SidebarGroup>
+          </SidebarContent>
+          <SidebarFooter />
+          <SidebarRail />
+        </Sidebar>
+        <SidebarInset>
+          <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
+            <SidebarTrigger className="-ml-1" />
+            <Separator orientation="vertical" className="h-4" />
+            <span className="min-w-0 truncate font-medium">{current?.title ?? PORTAL_TITLES[portal]}</span>
+            <div className="ml-auto flex items-center gap-1">
+              <NotificationBell />
+              <AccountMenu />
+            </div>
+          </header>
+          <main className="flex min-w-0 flex-1 flex-col gap-6 p-4 md:p-6">
+            <Outlet />
+          </main>
+        </SidebarInset>
+      </SidebarProvider>
+    </EventStreamProvider>
   );
 }

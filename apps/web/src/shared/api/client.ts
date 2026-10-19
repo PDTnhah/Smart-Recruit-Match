@@ -52,6 +52,11 @@ export function notifySessionExpired(): void {
   onSessionExpired();
 }
 
+/** For endpoints answering 204 No Content: throws ApiRequestError for a non-2xx response. */
+export function expectOk(result: { error?: unknown; response: Response }): void {
+  if (!result.response.ok) throw ApiRequestError.from(result.response.status, result.error);
+}
+
 /** Returns `data` of an openapi-fetch result, or throws ApiRequestError for a non-2xx response. */
 export function unwrap<T>(result: { data?: T; error?: unknown; response: Response }): T {
   if (!result.response.ok || result.data === undefined) {
