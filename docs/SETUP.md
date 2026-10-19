@@ -168,18 +168,30 @@ REFRESH_TOKEN_TTL_DAYS=7
 # Tác vụ định kỳ của API (chuyển pha đợt khi qua mốc). Integration test tự đặt false.
 SCHEDULER_ENABLED=true
 
+# Email and links (added in v0.6.0, CONTEXT D31)
+# Địa chỉ mở web, không có / ở cuối; link trong email ghép từ đây. Chạy web ngoài Docker thì đặt http://localhost:5173.
+WEB_ORIGIN=http://localhost:8080
+# Máy chủ SMTP; mặc định là service mailpit (giữ mọi email, xem ở http://localhost:8025).
+SMTP_HOST=mailpit
+SMTP_PORT=1025
+SMTP_USER=
+SMTP_PASSWORD=
+MAIL_FROM=Smart Recruit Match <no-reply@srm.local>
+
 # Core Backend (added in v0.1.0)
 # Mức log pino: fatal | error | warn | info | debug | trace | silent
 LOG_LEVEL=info
 ```
 
-API chạy ngoài Docker (`pnpm --filter @srm/api dev`) đọc `PORT` (mặc định 3000), `LOG_LEVEL`, `REFRESH_TOKEN_TTL_DAYS`, `SCHEDULER_ENABLED` (mặc định `true`) và các biến bắt buộc `DATABASE_URL`, `REDIS_URL`, `JWT_ACCESS_SECRET` từ môi trường của shell. Dựng `postgres` và `redis` bằng compose, áp migration và seed trước lần chạy đầu:
+API chạy ngoài Docker (`pnpm --filter @srm/api dev`) đọc `PORT` (mặc định 3000), `LOG_LEVEL`, `REFRESH_TOKEN_TTL_DAYS`, `SCHEDULER_ENABLED` (mặc định `true`), `SMTP_HOST`/`SMTP_PORT` (mặc định `localhost:1025`, tức Mailpit của compose) và các biến bắt buộc `DATABASE_URL`, `REDIS_URL`, `JWT_ACCESS_SECRET`, `MINIO_*`, `WEB_ORIGIN` từ môi trường của shell. Dựng `postgres`, `redis`, `minio` và `mailpit` bằng compose, áp migration và seed trước lần chạy đầu:
 
 ```bash
-docker compose -f deploy/docker-compose.yml up -d --wait postgres redis
+docker compose -f deploy/docker-compose.yml up -d --wait postgres redis minio mailpit
 export DATABASE_URL=postgres://srm:change-me-postgres@localhost:5432/srm   # cổng theo POSTGRES_HOST_PORT
 export REDIS_URL=redis://localhost:6379                                     # cổng theo REDIS_HOST_PORT
 export JWT_ACCESS_SECRET=dev-only-jwt-access-secret-0123456789
+export MINIO_ENDPOINT=http://localhost:9000 MINIO_ACCESS_KEY=srm-minio MINIO_SECRET_KEY=change-me-minio
+export WEB_ORIGIN=http://localhost:5173                                     # link trong email trỏ về web dev
 pnpm --filter @srm/api db:migrate
 pnpm --filter @srm/api db:seed       # tài khoản demo, chạy lại không tạo trùng
 pnpm --filter @srm/api dev

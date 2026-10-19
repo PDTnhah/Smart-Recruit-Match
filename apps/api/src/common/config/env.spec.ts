@@ -58,5 +58,11 @@ describe('environment (CONTEXT D25)', () => {
       SMTP_PORT: 2525,
     });
     expect(() => loadEnv({ ...base, SMTP_PORT: '70000' })).toThrow('SMTP_PORT');
+    // Compose passes unset optional values as empty strings.
+    expect(loadEnv({ ...base, SMTP_USER: '', SMTP_PASSWORD: '' })).toMatchObject({
+      SMTP_USER: undefined,
+      SMTP_PASSWORD: undefined,
+    });
+    expect(loadEnv({ ...base, SMTP_USER: 'mailer' }).SMTP_USER).toBe('mailer');
   });
 });

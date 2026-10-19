@@ -1,5 +1,12 @@
 import { z } from 'zod';
 
+/** Optional text where an empty value means unset: compose passes `${VAR:-}` as an empty string. */
+const optionalText = () =>
+  z
+    .string()
+    .optional()
+    .transform((value) => (value ? value : undefined));
+
 const EnvSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().positive().default(3000),
@@ -36,8 +43,8 @@ const EnvSchema = z.object({
   // compose points SMTP_HOST at the mailpit service. Port 465 uses implicit TLS.
   SMTP_HOST: z.string().min(1).default('localhost'),
   SMTP_PORT: z.coerce.number().int().min(1).max(65_535).default(1025),
-  SMTP_USER: z.string().min(1).optional(),
-  SMTP_PASSWORD: z.string().min(1).optional(),
+  SMTP_USER: optionalText(),
+  SMTP_PASSWORD: optionalText(),
   MAIL_FROM: z.string().min(3).default('Smart Recruit Match <no-reply@srm.local>'),
 });
 
