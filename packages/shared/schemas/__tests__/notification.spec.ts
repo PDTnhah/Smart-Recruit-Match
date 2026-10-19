@@ -44,7 +44,7 @@ describe('FR-8: notify input schema', () => {
   });
 
   it('FR-8: rejects a payload with a missing or malformed field', () => {
-    const { intakeEnd: _omitted, ...withoutDeadline } = opened.payload;
+    const withoutDeadline = { campaignId: opened.payload.campaignId, campaignName: opened.payload.campaignName };
     expect(NotifyInputSchema.safeParse({ ...opened, payload: withoutDeadline }).success).toBe(false);
     expect(NotifyInputSchema.safeParse({ ...opened, payload: { ...opened.payload, intakeEnd: 'mai' } }).success).toBe(
       false,
