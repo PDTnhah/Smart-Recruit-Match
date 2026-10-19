@@ -57,9 +57,16 @@ const CONFIG_FIELDS = {
   t_test_minutes: positiveInt('T_test'),
   sla_hr_business_days: positiveInt('SLA_HR'),
   t_offer_days: positiveInt('T_offer'),
+  // How long before a deadline students who still have work get a reminder (US-1.7, CONTEXT D31).
+  reminder_hours_before: positiveInt('Thời gian nhắc trước hạn').max(168, {
+    error: 'Thời gian nhắc trước hạn tối đa 168 giờ (7 ngày)',
+  }),
 };
 
-/** PRD GĐ0 defaults. Q1 (N_NV) and Q3 (k) are still open; these are the PRD proposals. */
+/**
+ * PRD GĐ0 defaults. Q1 (N_NV) and Q3 (k) are still open; these are the PRD proposals.
+ * `reminder_hours_before` is not in the PRD table: added by US-1.7 (CONTEXT D31).
+ */
 export const DEFAULT_CAMPAIGN_CONFIG = {
   n_nv: 3,
   theta_cv: 50,
@@ -71,6 +78,7 @@ export const DEFAULT_CAMPAIGN_CONFIG = {
   t_test_minutes: 45,
   sla_hr_business_days: 5,
   t_offer_days: 3,
+  reminder_hours_before: 24,
 } as const;
 
 const WEIGHTS_MESSAGE = 'α + β phải bằng 1';
@@ -108,6 +116,9 @@ export const CampaignConfigSchema = z
       DEFAULT_CAMPAIGN_CONFIG.sla_hr_business_days,
     ),
     t_offer_days: CONFIG_FIELDS.t_offer_days.default(DEFAULT_CAMPAIGN_CONFIG.t_offer_days),
+    reminder_hours_before: CONFIG_FIELDS.reminder_hours_before.default(
+      DEFAULT_CAMPAIGN_CONFIG.reminder_hours_before,
+    ),
   })
   .superRefine(checkWeights, whenValid(['alpha', 'beta']));
 

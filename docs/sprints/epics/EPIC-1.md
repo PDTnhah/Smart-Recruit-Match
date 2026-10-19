@@ -56,7 +56,7 @@ Lộ trình chung ở [sprints/README › Lộ trình](../README.md#lộ-trình)
 | US-1.4 | 5 | T2 (W42, kéo sớm từ T3) | A | US-1.2, US-1.3 |
 | US-1.5 | 8 | T2 (W42, kéo sớm từ T3) | A | US-1.2, US-1.3, US-1.4 |
 | US-1.6 | 5 | T2 (W42, kéo sớm từ T4) | A | US-1.4 |
-| US-1.7 | 5 | T4 (W44) | A | US-1.2, US-1.3 |
+| US-1.7 | 5 | T2 (W42, kéo sớm từ T4) | A | US-1.2, US-1.3 |
 
 ### Out of scope
 
@@ -76,7 +76,7 @@ Lộ trình chung ở [sprints/README › Lộ trình](../README.md#lộ-trình)
 | FR-5 | US-1.5 | 👀 review |
 | FR-6 | US-1.6 | 👀 review |
 | FR-7 | US-1.2 | ✅ done |
-| FR-8 | US-1.7 | 📋 backlog |
+| FR-8 | US-1.7 | 👀 review |
 
 ## AD Coverage
 
@@ -101,7 +101,7 @@ Lộ trình chung ở [sprints/README › Lộ trình](../README.md#lộ-trình)
 | US-1.4 | Tạo và cấu hình đợt thực tập | Trung tâm tạo đợt với tham số và mốc; đợt tự chuyển trạng thái theo mốc | 👀 review | 0.3.0 |
 | US-1.5 | Doanh nghiệp, tài khoản HR, đăng và duyệt JD | HR đăng JD; Trung tâm duyệt JD | 👀 review | 0.4.0 |
 | US-1.6 | Đồng ý xử lý dữ liệu và nộp CV | Sinh viên đồng ý điều khoản và nộp CV có phiên bản | 👀 review | 0.5.0 |
-| US-1.7 | Thông báo trong app, SSE, email, nhắc hạn | Người dùng nhận thông báo theo sự kiện nghiệp vụ | 📋 backlog | — |
+| US-1.7 | Thông báo trong app, SSE, email, nhắc hạn | Người dùng nhận thông báo theo sự kiện nghiệp vụ | 👀 review | 0.6.0 |
 
 ## Object map & user-story interactions
 

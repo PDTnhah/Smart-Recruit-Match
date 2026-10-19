@@ -4,7 +4,17 @@ import { Client } from 'pg';
 import { runMigrations } from '../../src/db/migrate.js';
 import { databaseUrl } from '../helpers/db.js';
 
-const CORE_TABLES = ['audit_logs', 'campaigns', 'companies', 'consents', 'cvs', 'job_descriptions', 'students', 'users'];
+const CORE_TABLES = [
+  'audit_logs',
+  'campaigns',
+  'companies',
+  'consents',
+  'cvs',
+  'job_descriptions',
+  'notifications',
+  'students',
+  'users',
+];
 
 /** Migrations in apps/api/drizzle; each one applied leaves one row in drizzle.__drizzle_migrations. */
 const MIGRATION_COUNT = (
@@ -43,7 +53,7 @@ describe('AD-9: migrations apply on empty DB and create core tables with constra
     await admin?.end();
   });
 
-  it('creates exactly the eight core tables', async () => {
+  it('creates exactly the nine core tables', async () => {
     const { rows } = await client.query<{ table_name: string }>(
       "SELECT table_name FROM information_schema.tables WHERE table_schema = 'core' ORDER BY table_name",
     );

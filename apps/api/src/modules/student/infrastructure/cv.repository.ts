@@ -61,6 +61,15 @@ export class CvRepository {
       .orderBy(desc(cvs.createdAt), desc(cvs.id));
   }
 
+  /** Students with an active CV in the campaign (BR-01: at most one row each). */
+  async studentIdsWithActive(campaignId: number): Promise<number[]> {
+    const rows = await this.db
+      .select({ studentId: cvs.studentId })
+      .from(cvs)
+      .where(and(eq(cvs.campaignId, campaignId), eq(cvs.active, true)));
+    return rows.map((row) => row.studentId);
+  }
+
   /**
    * Locks the active version of a student in a campaign. A concurrent upload waits here; once the
    * first commits, the row no longer matches `active` and the second finds none (LESSONS §12: a

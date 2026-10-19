@@ -7,6 +7,7 @@ const base = {
   MINIO_ENDPOINT: 'http://localhost:9000',
   MINIO_ACCESS_KEY: 'srm-minio',
   MINIO_SECRET_KEY: 'test-only-minio-secret',
+  WEB_ORIGIN: 'http://localhost:8080',
 };
 
 describe('environment (CONTEXT D25)', () => {
@@ -40,5 +41,28 @@ describe('environment (CONTEXT D25)', () => {
     expect(loadEnv(base).SCHEDULER_ENABLED).toBe(true);
     expect(loadEnv({ ...base, SCHEDULER_ENABLED: 'false' }).SCHEDULER_ENABLED).toBe(false);
     expect(() => loadEnv({ ...base, SCHEDULER_ENABLED: 'maybe' })).toThrow('SCHEDULER_ENABLED');
+  });
+
+  it('requires the web origin for links in emails, without a trailing slash (CONTEXT D31)', () => {
+    expect(loadEnv(base).WEB_ORIGIN).toBe('http://localhost:8080');
+    expect(() => loadEnv({ ...base, WEB_ORIGIN: undefined })).toThrow('WEB_ORIGIN');
+    expect(() => loadEnv({ ...base, WEB_ORIGIN: 'http://localhost:8080/' })).toThrow('WEB_ORIGIN');
+    expect(() => loadEnv({ ...base, WEB_ORIGIN: 'localhost:8080' })).toThrow('WEB_ORIGIN');
+  });
+
+  it('defaults SMTP to Mailpit on the host; credentials are optional (CONTEXT D31)', () => {
+    expect(loadEnv(base)).toMatchObject({ SMTP_HOST: 'localhost', SMTP_PORT: 1025 });
+    expect(loadEnv(base).SMTP_USER).toBeUndefined();
+    expect(loadEnv({ ...base, SMTP_HOST: 'mailpit', SMTP_PORT: '2525' })).toMatchObject({
+      SMTP_HOST: 'mailpit',
+      SMTP_PORT: 2525,
+    });
+    expect(() => loadEnv({ ...base, SMTP_PORT: '70000' })).toThrow('SMTP_PORT');
+    // Compose passes unset optional values as empty strings.
+    expect(loadEnv({ ...base, SMTP_USER: '', SMTP_PASSWORD: '' })).toMatchObject({
+      SMTP_USER: undefined,
+      SMTP_PASSWORD: undefined,
+    });
+    expect(loadEnv({ ...base, SMTP_USER: 'mailer' }).SMTP_USER).toBe('mailer');
   });
 });

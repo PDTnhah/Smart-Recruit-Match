@@ -58,6 +58,7 @@ const ENTITY = campaignMachine.name;
 /** What other modules read about a campaign (AGENTS › Invariant 13: never the table itself). */
 export interface CampaignSettings {
   id: number;
+  name: string;
   status: CampaignStatus;
   target: CampaignTarget;
   phaseDeadlines: CampaignDeadlines;
@@ -229,6 +230,11 @@ export class CampaignService {
     return settingsOf(await this.requireRecord(campaignId));
   }
 
+  /** Every campaign currently in `status`, oldest first; e.g. INTAKE for the CV deadline reminder (US-1.7). */
+  async listSettingsInPhase(status: CampaignStatus): Promise<CampaignSettings[]> {
+    return (await this.repository.listByStatus(status)).map(settingsOf);
+  }
+
   private async requireRecord(id: number): Promise<CampaignRecord> {
     const record = await this.repository.findById(id);
     if (!record) throw new EntityNotFoundError(ENTITY, id);
@@ -340,6 +346,7 @@ function contentOf(record: CampaignRecord): CampaignContent {
 function settingsOf(record: CampaignRecord): CampaignSettings {
   return {
     id: record.id,
+    name: record.name,
     status: record.status,
     target: record.target,
     phaseDeadlines: record.phaseDeadlines,
@@ -354,7 +361,6 @@ function snapshot(record: CampaignRecord): Record<string, unknown> {
 function toCampaign(record: CampaignRecord): Campaign {
   return {
     ...settingsOf(record),
-    name: record.name,
     rowVersion: record.rowVersion,
     createdAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString(),

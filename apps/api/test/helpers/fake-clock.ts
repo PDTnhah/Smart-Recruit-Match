@@ -7,7 +7,9 @@
 //
 // Integration test files share one database and run in parallel. Scheduler tests set the clock
 // in 2001 and give their campaigns deadlines in 2001; every other test keeps deadlines near the
-// real time (or none), so a scheduler run never moves another file's campaigns.
+// real time (or none), so a scheduler run never moves another file's campaigns. Within 2001, the
+// phase scheduler test stays in January, the deadline reminder test uses late February–March
+// (US-1.7). The email outbox test runs in 1999: its worker only takes emails due by its clock.
 import { Clock } from '../../src/common/clock/index.js';
 
 export interface Duration {

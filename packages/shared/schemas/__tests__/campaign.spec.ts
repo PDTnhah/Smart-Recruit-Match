@@ -34,6 +34,7 @@ describe('GĐ0: campaign config schema', () => {
       t_test_minutes: 45,
       sla_hr_business_days: 5,
       t_offer_days: 3,
+      reminder_hours_before: 24,
     });
     expect(CampaignConfigSchema.parse({})).toEqual(DEFAULT_CAMPAIGN_CONFIG);
   });

@@ -372,6 +372,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["NotificationController_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/notifications/{id}/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["NotificationController_markRead"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/notifications/read-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["NotificationController_markAllRead"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/events/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["EventsController_stream"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -529,6 +593,8 @@ export interface components {
                 sla_hr_business_days: number;
                 /** @default 3 */
                 t_offer_days: number;
+                /** @default 24 */
+                reminder_hours_before: number;
             };
         };
         CampaignDto_Output: {
@@ -569,6 +635,8 @@ export interface components {
                 sla_hr_business_days: number;
                 /** @default 3 */
                 t_offer_days: number;
+                /** @default 24 */
+                reminder_hours_before: number;
             };
             rowVersion: number;
             /** Format: date-time */
@@ -615,6 +683,8 @@ export interface components {
                     sla_hr_business_days: number;
                     /** @default 3 */
                     t_offer_days: number;
+                    /** @default 24 */
+                    reminder_hours_before: number;
                 };
                 rowVersion: number;
                 /** Format: date-time */
@@ -649,6 +719,7 @@ export interface components {
                 t_test_minutes?: number;
                 sla_hr_business_days?: number;
                 t_offer_days?: number;
+                reminder_hours_before?: number;
             };
             reason?: string;
         };
@@ -811,6 +882,55 @@ export interface components {
         };
         JdActionRequestDto: {
             rowVersion: number;
+        };
+        NotificationListDto_Output: {
+            items: ({
+                id: number;
+                /** Format: date-time */
+                readAt: string | null;
+                /** Format: date-time */
+                createdAt: string;
+                /** @enum {string} */
+                type: "CAMPAIGN_OPENED";
+                payload: {
+                    campaignId: number;
+                    campaignName: string;
+                    /** Format: date-time */
+                    intakeEnd: string;
+                };
+            } | {
+                id: number;
+                /** Format: date-time */
+                readAt: string | null;
+                /** Format: date-time */
+                createdAt: string;
+                /** @enum {string} */
+                type: "HR_INVITED";
+                payload: {
+                    companyId: number;
+                };
+            } | {
+                id: number;
+                /** Format: date-time */
+                readAt: string | null;
+                /** Format: date-time */
+                createdAt: string;
+                /** @enum {string} */
+                type: "DEADLINE_REMINDER";
+                payload: {
+                    campaignId: number;
+                    campaignName: string;
+                    /** @enum {string} */
+                    deadlineKey: "intake_end" | "preference_end" | "testing_end";
+                    /** Format: date-time */
+                    deadline: string;
+                };
+            })[];
+            unreadCount: number;
+            nextBefore: number | null;
+        };
+        MarkAllReadResultDto_Output: {
+            updated: number;
         };
     };
     responses: never;
@@ -1611,6 +1731,85 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["JobDescriptionDto_Output"];
                 };
+            };
+        };
+    };
+    NotificationController_list: {
+        parameters: {
+            query?: {
+                before?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationListDto_Output"];
+                };
+            };
+        };
+    };
+    NotificationController_markRead: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NotificationController_markAllRead: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MarkAllReadResultDto_Output"];
+                };
+            };
+        };
+    };
+    EventsController_stream: {
+        parameters: {
+            query?: never;
+            header: {
+                authorization: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

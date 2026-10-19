@@ -127,8 +127,9 @@ See [CONTEXT.md D26](CONTEXT.md).
 
 **How to avoid**:
 - Với NestJS 11, dùng dòng gói cùng thời: `@nestjs/schedule` 6.x, `@nestjs/event-emitter` 3.x. Repo ghim 6.1.3 và 3.1.0.
-- Trước khi thêm một gói `@nestjs/*`, kiểm `npm view <gói>@<bản> type`: có `"module"` thì không dùng được với API này.
+- Trước khi thêm một gói `@nestjs/*`, kiểm `npm view <gói>@<bản> type`: có `"module"` mà không có bản CommonJS (xem mục 0.6.0 dưới đây) thì không dùng được với API này.
 - Sau khi thêm gói, chạy `pnpm --filter @srm/api test` (cả integration), không chỉ `typecheck` và `lint`.
+- (0.6.0) `"type": "module"` chưa chắc là chỉ có ESM. `nodemailer` 10 khai `"type": "module"` nhưng `exports` có điều kiện `require` trỏ vào `dist/cjs`, và `dist/cjs/package.json` ghi `"type": "commonjs"`, nên Jest nạp được (US-1.7). Gặp `"module"` thì xem tiếp `npm view <gói>@<bản> exports`. Có `require` thì tải tarball (`npm pack`) và kiểm `package.json` của thư mục CJS. Chỉ khi không có `require` thì mới loại gói.
 - (0.4.0) Bẫy này không riêng NestJS. `file-type`, thư viện ARCH chọn để kiểm MIME thật, chỉ có ESM từ bản 17 (bản mới nhất 22.x). Repo ghim 16.5.4, bản CommonJS cuối cùng (`fromBuffer`, nhận DOCX qua mục `word/` trong zip). Không dùng `import()` động để né: Jest cần `--experimental-vm-modules`.
 
 See [US-1.4](sprints/stories/US-1.4-campaign-setup-and-config.md) › Implementation notes.
@@ -183,3 +184,30 @@ See [US-1.5](sprints/stories/US-1.5-company-hr-accounts-jd-posting-approval.md) 
 - Integration test tải file có tên tiếng Việt và kiểm `filename*` trong header tải về (`files-url.int-spec.ts`).
 
 See [US-1.5](sprints/stories/US-1.5-company-hr-accounts-jd-posting-approval.md) › Implementation notes.
+
+## 14. Compose truyền biến tùy chọn chưa đặt thành chuỗi rỗng, Zod `.min(1).optional()` từ chối
+
+**What happened (0.6.0)**: US-1.7 thêm `SMTP_USER`, `SMTP_PASSWORD` (tùy chọn) vào env của API, schema là `z.string().min(1).optional()`. Khi nối vào `deploy/docker-compose.yml` bằng `SMTP_USER: ${SMTP_USER:-}`, biến chưa đặt sẽ đến API dưới dạng `""` chứ không phải không có. `.optional()` chỉ bỏ qua `undefined`, nên `""` vẫn bị `.min(1)` từ chối và API không khởi động được. Unit test của env không bắt được lỗi này, vì nó chỉ thử với biến không có mặt.
+
+**Why**: Trong compose, `KEY: ${VAR:-}` luôn khai báo biến cho container, với giá trị rỗng khi `VAR` chưa đặt. Không có cú pháp nào để chỉ khai báo khi có giá trị.
+
+**How to avoid**:
+- Biến tùy chọn mà compose truyền qua `${VAR:-}` thì cho chuỗi rỗng nghĩa là chưa đặt: dùng helper `optionalText()` trong `apps/api/src/common/config/env.ts`.
+- Biến có mặc định thì đặt mặc định ngay trong compose (`${SMTP_HOST:-mailpit}`), không để rỗng.
+- Thêm biến mới vào compose thì thêm vào `env.spec.ts` một ca giá trị `""`.
+
+See [CONTEXT.md D31](CONTEXT.md).
+
+## 15. Chạy `pnpm test` khi compose stack đang bật: máy dev hết RAM, suite đỏ ngẫu nhiên
+
+**What happened (0.6.0)**: Ở US-1.7, compose stack (7 service) được bật để kiểm đầu-cuối. Trong lúc đó chạy `pnpm test` ở gốc repo ba lần, lần nào cũng đỏ vài suite nhưng mỗi lần một nhóm khác: `password.spec.ts`, `record-access`, `jd-access`, `cv-active-constraint`, `notification-listeners`. Chạy riêng từng file thì xanh. Lần thứ ba, output kết thúc bằng `Fatal process out of memory: Zone` của V8. Dừng compose (`docker compose … stop`) rồi chạy lại thì xanh hai lần liền.
+
+**Why**: `pnpm test` chạy song song test của shared, Jest unit và Jest integration. Integration lại bật thêm PostgreSQL, Redis, MinIO bằng testcontainers, và mỗi file test dựng một hoặc hai app Nest. Cộng thêm compose stack (PostgreSQL, RabbitMQ, MinIO, Redis, Mailpit, API, nginx) thì vượt RAM của máy dev. Scrypt (N = 2^15) trong unit test cũng chậm lại khi máy thiếu tài nguyên, nên vượt timeout mặc định 5 giây.
+
+**How to avoid**:
+- Dừng compose trước khi chạy cả bộ test: `docker compose -f deploy/docker-compose.yml stop`. Volume và dữ liệu vẫn giữ nguyên.
+- Suite đỏ ngẫu nhiên, mỗi lần một nhóm khác nhau, thì xem cuối output: `out of memory` hay `Exceeded timeout` là lỗi môi trường (xem thêm §11), không phải lỗi logic.
+- Kiểm đầu-cuối trên compose và chạy bộ test là hai bước riêng, không chạy cùng lúc.
+
+See [US-1.7](sprints/stories/US-1.7-notifications-sse-email-reminders.md) › Implementation notes.
+

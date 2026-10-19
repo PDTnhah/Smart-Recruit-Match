@@ -50,7 +50,7 @@ export interface ParameterField {
   step: number;
 }
 
-/** Campaign parameters of PRD GĐ0, in the order of its table. */
+/** Campaign parameters of PRD GĐ0, in the order of its table, then the reminder lead time (US-1.7). */
 export const PARAMETER_FIELDS: readonly ParameterField[] = [
   { key: 'n_nv', label: 'Số nguyện vọng tối đa (N_NV)', description: 'Mặc định 3.', step: 1 },
   {
@@ -80,6 +80,12 @@ export const PARAMETER_FIELDS: readonly ParameterField[] = [
     key: 't_offer_days',
     label: 'Hạn sinh viên xác nhận lời mời (ngày)',
     description: 'Mặc định 3.',
+    step: 1,
+  },
+  {
+    key: 'reminder_hours_before',
+    label: 'Nhắc trước hạn (giờ)',
+    description: 'Sinh viên chưa hoàn thành việc của giai đoạn được nhắc khi còn chừng này giờ. Từ 1 đến 168. Mặc định 24.',
     step: 1,
   },
 ];

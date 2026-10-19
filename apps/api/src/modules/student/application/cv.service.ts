@@ -117,6 +117,14 @@ export class CvService implements OnModuleInit {
     return toCv(created);
   }
 
+  /**
+   * Students who have a CV that counts in the campaign, for other modules; the CV deadline
+   * reminder skips them (US-1.7 AC-6).
+   */
+  async studentIdsWithActiveCv(campaignId: number): Promise<number[]> {
+    return this.repository.studentIdsWithActive(campaignId);
+  }
+
   /** AC-8: the caller's own versions, newest first. */
   async listMine(user: AuthUser, query: CvListQuery): Promise<CvList> {
     const rows = await this.repository.listByStudent(studentIdOf(user), query.campaignId);

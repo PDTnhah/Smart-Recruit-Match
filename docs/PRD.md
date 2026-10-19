@@ -285,6 +285,7 @@ Quyết định kiến trúc và quy trình được ghi trong [CONTEXT.md](CONT
 | T_test | Thời gian làm một bài test | 45 phút |
 | SLA_HR | Thời hạn HR phản hồi danh sách đề cử | 5 ngày làm việc |
 | T_offer | Thời hạn sinh viên xác nhận lời mời thực tập | 3 ngày |
+| H_nhắc (`reminder_hours_before`) | Nhắc sinh viên chưa hoàn thành việc của giai đoạn khi còn chừng này giờ trước hạn (nộp CV; về sau chọn NV, làm test). Thêm ở US-1.7 ([CONTEXT D31](CONTEXT.md)) | 24 giờ |
 
 Trạng thái đợt: `Nháp → Mở nhận JD/CV → Chọn nguyện vọng → Làm test → Phân bổ & HR duyệt → Vòng bổ sung → Đã đóng`. Ở mỗi trạng thái hệ thống chỉ cho phép các thao tác tương ứng (VD: quá hạn nộp CV thì không nộp được nữa).
 
@@ -744,17 +745,20 @@ erDiagram
 
 ### Thông báo
 
-| Sự kiện | Người nhận |
-|---|---|
-| Mở đợt; sắp hết hạn nộp CV / chọn NV / làm test | Sinh viên |
-| Hồ sơ năng lực sẵn sàng để xác nhận | Sinh viên |
-| Yêu cầu chuẩn hóa JD sẵn sàng để xác nhận | HR |
-| Có kết quả test, kết quả phúc khảo | Sinh viên |
-| Công bố đề cử | Sinh viên, HR |
-| Nhắc hạn duyệt hồ sơ; quá SLA | HR, Cán bộ Trung tâm |
-| Lịch phỏng vấn, đổi lịch | Sinh viên, HR |
-| Kết quả phỏng vấn, lời mời thực tập | Sinh viên |
-| Sinh viên nhận/từ chối lời mời | HR, Cán bộ Trung tâm |
+Mọi thông báo đều hiện trong ứng dụng (chuông ở ba cổng, cập nhật tức thời qua SSE). Cột *Kênh* ghi kênh bổ sung; các dòng chưa ghi sẽ được chốt ở story của giai đoạn đó ([CONTEXT D31](CONTEXT.md)).
+
+| Sự kiện | Người nhận | Kênh |
+|---|---|---|
+| Mở đợt; sắp hết hạn nộp CV / chọn NV / làm test | Sinh viên | Trong app + email |
+| Lời mời tham gia hệ thống (tài khoản HR) | HR được mời | Chỉ email (link kích hoạt) |
+| Hồ sơ năng lực sẵn sàng để xác nhận | Sinh viên | |
+| Yêu cầu chuẩn hóa JD sẵn sàng để xác nhận | HR | |
+| Có kết quả test, kết quả phúc khảo | Sinh viên | |
+| Công bố đề cử | Sinh viên, HR | |
+| Nhắc hạn duyệt hồ sơ; quá SLA | HR, Cán bộ Trung tâm | |
+| Lịch phỏng vấn, đổi lịch | Sinh viên, HR | |
+| Kết quả phỏng vấn, lời mời thực tập | Sinh viên | |
+| Sinh viên nhận/từ chối lời mời | HR, Cán bộ Trung tâm | |
 
 ---
 
@@ -883,7 +887,7 @@ Mỗi epic tương ứng một giai đoạn trong [ARCHITECTURE.md › Implement
 | US-1.4 | Tạo và cấu hình đợt thực tập | 👀 review | 0.3.0 |
 | US-1.5 | Doanh nghiệp, tài khoản HR, đăng và duyệt JD | 👀 review | 0.4.0 |
 | US-1.6 | Đồng ý xử lý dữ liệu và nộp CV | 👀 review | 0.5.0 |
-| US-1.7 | Thông báo trong app, SSE, email, nhắc hạn | 📋 backlog | — |
+| US-1.7 | Thông báo trong app, SSE, email, nhắc hạn | 👀 review | 0.6.0 |
 
 ### EPIC-2: Phân tích CV và JD bằng AI
 

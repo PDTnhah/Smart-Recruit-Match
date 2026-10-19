@@ -694,3 +694,172 @@ Ngoài ra: ARCH không liệt kê cột `active` và không có cột tên file 
 
 **Date**: 2026-10-14
 **Version**: 0.5.0
+
+---
+
+### D31. Thông báo, SSE, email outbox và nhắc hạn (US-1.7)
+
+**Context**: *Dev notes* của US-1.7 có năm điểm spec còn mở:
+
+1. **Xác thực SSE.** `EventSource` của trình duyệt không gửi được header `Authorization`, còn access token (D25) chỉ nằm trong bộ nhớ của client.
+2. **Cột outbox và chống trùng.** Bảng `notifications` ở ARCH chỉ có `id, user_id, type, payload, read_at`.
+3. **Số lần thử email.** Spec chỉ ghi "gửi lỗi thì thử lại".
+4. **Thời điểm nhắc.** Spec không ghi nhắc trước hạn bao lâu.
+5. **Kênh của từng sự kiện.** PRD › *Thông báo* chỉ nêu người nhận.
+
+Ngoài ra còn phải giải quyết:
+
+- `notify` ghi trong giao dịch của caller (AC-1), nên module không biết lúc nào giao dịch commit để đẩy SSE.
+- Link mời HR cần địa chỉ web tuyệt đối.
+- `tsc` không chép file `.hbs` sang `dist`.
+
+**Decision** (người dùng chốt năm mục đầu ngày 2026-10-19):
+
+- **Xác thực SSE:** client mở `GET /api/events/stream` bằng `fetch` và `ReadableStream`, gửi `Authorization: Bearer` như mọi request, rồi tự tách khung SSE. Không thêm thư viện.
+  - `AccessGuard` dùng nguyên: chưa xác thực thì nhận `401` trước khi có sự kiện nào.
+  - Không có endpoint vé hay khóa Redis `sse:ticket:*`.
+  - Stream tự đóng sau một vòng đời access token (15 phút). Client kết nối lại bằng token mới, nên phiên đã bị thu hồi không nghe tiếp được quá 15 phút.
+- **Sự kiện SSE:**
+  - `ready`: đã đăng ký kênh xong. Client tải lại danh sách mỗi khi kết nối lại.
+  - `ping`: mỗi 25 giây, để proxy không cắt kết nối.
+  - `notification`: dữ liệu là một mục của danh sách.
+  - Tên sự kiện khai trong `SERVER_EVENTS` (`packages/shared/schemas/notification.ts`). EPIC-2 và US-3.4 thêm tên mới ở đó.
+- **Redis pub/sub:** kênh `notify:user:{userId}`.
+  - Mỗi instance mở một kết nối subscriber riêng (`duplicate()`). Kênh của một user chỉ được đăng ký khi user đó có ít nhất một stream đang mở.
+  - `RealtimePublisher.publishToUser` được export cho story sau.
+- **Bảng `core.notifications`:** mỗi người nhận một dòng. Dòng này vừa là thông báo trong app, vừa là mục outbox khi có kênh email.
+  - Cột: `id`, `user_id`, `type`, `payload`, `channels text[]`, `read_at`, `dedupe_key`, `email_status`, `email_attempts`, `email_next_attempt_at`, `email_sent_at`, `email_last_error`, `created_at`.
+  - CHECK: `type` thuộc danh sách; `channels` khác rỗng và nằm trong `IN_APP`, `EMAIL`; có `email_status` khi và chỉ khi có kênh `EMAIL`.
+  - Unique `(user_id, dedupe_key)`; index `(user_id, read_at)` theo ARCH; partial index `(email_next_attempt_at) WHERE email_status = 'PENDING'`.
+  - Cột `email_next_attempt_at` không có trong đề xuất của story. Nó cần cho việc lùi lần thử.
+- **`type`** viết UPPER_SNAKE: `CAMPAIGN_OPENED`, `HR_INVITED`, `DEADLINE_REMINDER`. Schema của `type` và `payload` dạng union theo `type` nằm ở `packages/shared/schemas/notification.ts`.
+- **`email_status`** ∈ `PENDING`, `SENT`, `FAILED`, `CANCELLED`. Đây là trạng thái gửi kỹ thuật, không phải trạng thái nghiệp vụ, nên không đi qua `transitionTo` (Nguyên tắc 10) và bảng không có `row_version`.
+- **Gửi email:** tối đa 3 lần, lần thử lại cách 1 phút rồi 5 phút. Lần thứ ba lỗi thì `FAILED` và ghi log error.
+  - Worker chạy mỗi 10 giây. Mỗi email xử lý trong một giao dịch riêng, khóa dòng bằng `FOR UPDATE SKIP LOCKED`, nên hai instance không lấy trùng một email. Lỗi SMTP chỉ chạm dòng đó.
+  - Gửi ít nhất một lần: process chết sau khi SMTP nhận mà trước khi commit thì email được gửi lại.
+  - Địa chỉ email lấy lúc gửi qua `UserDirectory` của `iam`. Tài khoản bị khóa hoặc không còn thì `CANCELLED`.
+- **Kênh của từng sự kiện:** mọi thông báo có trong app; mở đợt, nhắc hạn và lời mời HR có thêm email.
+  - `HR_INVITED` chỉ có email: HR chưa đăng nhập được, và link chứa token mời.
+  - Danh sách chỉ trả dòng có `IN_APP`, nên token không bao giờ ra API.
+- **Mời lại HR:** chỉ link mới nhất được gửi.
+  - Trong một giao dịch có khóa `pg_advisory_xact_lock(1702, userId)`: email `HR_INVITED` còn `PENDING` của user chuyển `CANCELLED`, rồi chèn email mới.
+  - Sự kiện có `expiresAt` cũ hơn dòng mới nhất đã xử lý thì bị bỏ, vì listener của hai lần mời liền nhau có thể chạy xong theo thứ tự bất kỳ.
+- **`notify(input, { tx? })`:**
+  - Có `tx`: ghi trong giao dịch của caller và trả `PendingNotifications`. Caller gọi `push(pending)` sau commit, cùng mẫu với `emitSafely`.
+  - Không có `tx`: tự mở giao dịch và đẩy SSE sau commit.
+  - Caller quên `push` thì thông báo vẫn nằm trong DB, và client thấy khi tải lại danh sách.
+  - `type`/`payload` sai schema thì ném lỗi trước khi ghi. Lỗi này là lỗi của caller, nên thành `500`.
+- **Nhắc hạn:** tham số đợt `campaigns.config.reminder_hours_before`, số nguyên 1–168, mặc định 24.
+  - Khóa sau khi mở đợt như mọi tham số khác. Đợt cũ chưa có khóa này thì nhận mặc định khi parse.
+  - Khung nhắc là `[hạn − H, hạn)`.
+  - Tác vụ chạy mỗi 5 phút, trong `withAdvisoryLock(1701)`, đọc giờ qua `Clock`.
+  - Nguồn nhắc đăng ký vào `DeadlineReminderRegistry` trong `onModuleInit`. Nguồn đầu tiên là `cv-intake`: sinh viên thuộc đối tượng của đợt `INTAKE` mà chưa có CV `active`. US-3.3, US-4.3, US-5.3 đăng ký nguồn từ module của mình.
+- **`dedupe_key`:**
+  - `campaign_opened:{campaignId}`.
+  - `deadline:{campaignId}:{deadlineKey}:{hạn ISO}`. Gia hạn mốc (D27) là một hạn mới nên được nhắc thêm một lần.
+- **Người nhận của "Mở đợt":** `StudentService.listIdsInTarget` lọc bằng `isInTarget`, cùng hàm mà `canSeeCampaign` dùng, rồi `UserDirectory.userIdsForStudents` lấy tài khoản đang hoạt động. So khớp chạy trong code, không dùng `lower()` của SQL, vì kết quả `lower()` phụ thuộc collation của DB.
+- **Template:** Handlebars viết trong `templates/templates.ts`, không dùng file `.hbs`.
+  - Chủ đề và bản text không escape. Bản HTML escape mọi giá trị người dùng nhập. Ký tự xuống dòng trong chủ đề bị thay bằng khoảng trắng.
+  - Giờ trong email theo `Asia/Ho_Chi_Minh`, định dạng `dd/MM/yyyy HH:mm`.
+- **Biến môi trường mới:**
+  - `WEB_ORIGIN`: bắt buộc, không có `/` ở cuối. Compose mặc định `http://localhost:<NGINX_PORT>`.
+  - `SMTP_HOST` (mặc định `localhost`; compose đặt `mailpit`), `SMTP_PORT` (1025).
+  - `SMTP_USER`, `SMTP_PASSWORD`: tùy chọn, chuỗi rỗng coi như không đặt.
+  - `MAIL_FROM`.
+- **API:**
+  - `GET /api/notifications`: phân trang theo con trỏ `?before=<id>&limit=` (mặc định 20, tối đa 50), không dùng offset, vì thông báo mới chèn lên đầu làm lệch offset. Trả `{ items, unreadCount, nextBefore }`.
+  - `POST /api/notifications/{id}/read`: `204`. `read_at` đã có thì giữ nguyên. Thông báo của người khác hoặc chỉ-email thì `404`.
+  - `POST /api/notifications/read-all`: trả `{ updated }`.
+  - Mọi vai trò đều gọi được.
+- **Thư viện:** `nodemailer` 10.0.15 và `handlebars` 4.7.10, đều có trong ARCH › *Thư viện chính*.
+  - `nodemailer` 10 khai `"type": "module"`, nhưng có bản CommonJS ở `dist/cjs` (với `package.json` riêng `"type": "commonjs"`) và điều kiện `require`, nên Jest nạp được (LESSONS §9).
+  - Gói có sẵn kiểu, không cần `@types/nodemailer`.
+- **Web:** `EventStreamProvider` mở một kết nối SSE cho mỗi tab, gắn trong hai layout cổng.
+  - Hook `useServerEvent(name, handler)` để EPIC-2 và US-3.4 dùng lại.
+  - Chuông dùng `Popover` trên desktop và `Sheet side="bottom"` dưới `md`.
+
+**Rationale**:
+
+- `fetch` có header thì dùng lại được guard, không cần thêm endpoint, khóa Redis hay token trong URL (vốn lọt vào log nginx).
+  - `EventSource` dùng lại vé cũ khi kết nối lại thì bị `401` và đóng hẳn. Vì vậy cách dùng vé vẫn phải tự viết phần kết nối lại, không gọn hơn.
+- Một dòng cho mỗi người nhận làm cho đọc, đánh dấu, outbox và chống trùng đều là câu SQL đơn giản. Unique `(user_id, dedupe_key)` chặn trùng ngay ở DB (Nguyên tắc 11), kể cả khi advisory lock bị bỏ qua.
+- `SKIP LOCKED` cho nhiều instance cùng gửi mà không cần khóa riêng cho worker.
+- Lấy địa chỉ email lúc gửi thì luôn dùng địa chỉ mới nhất, và không phải sao chép email vào bảng của module khác.
+- So khớp đối tượng của đợt bằng cùng một hàm thì người được báo mở đợt chính là người thấy được đợt.
+
+**Alternatives considered**:
+- **Vé SSE dùng một lần ở Redis** (đề xuất của story): loại vì thêm endpoint, khóa Redis, token trong URL, mà không bớt được logic kết nối lại.
+- **`LISTEN/NOTIFY` của PostgreSQL thay Redis để đẩy sau commit:** loại vì lệch AD-13. Tiến độ job AI và mức cạnh tranh không gắn với giao dịch nào.
+- **Đẩy SSE bằng một tác vụ quét bảng:** loại vì trễ vài giây và tốn truy vấn.
+- **Thử email 5 lần:** loại theo lựa chọn của người dùng, giữ như NFR-10.
+- **Thời gian nhắc là hằng của cả hệ thống:** loại theo lựa chọn của người dùng. Trung tâm cần chỉnh theo từng đợt.
+- **File `.hbs` và bước chép file khi build:** loại vì phải sửa build, `dev.mjs` và Dockerfile.
+- **Phân trang theo offset** như `GET /api/admin/users`: loại vì danh sách đổi liên tục.
+
+**Impact**:
+- Migration `0004` (bảng `notifications`).
+- Module mới `notification`.
+- Export mới:
+  - `CampaignService.listSettingsInPhase`, `isInTarget`, `name` trong `CampaignSettings`;
+  - `StudentService.listIdsInTarget`, `CvService.studentIdsWithActiveCv`;
+  - `UserDirectory` của `iam`.
+- Khóa advisory `1701` (nhắc hạn) và `1702` (khóa giao dịch theo user cho email mời HR).
+- ARCHITECTURE: *Các module*, *Các bảng chính*, *Redis*, *API architecture*, *Tác vụ định kỳ*, *Thư viện chính*.
+- PRD: bảng tham số GĐ0 (`reminder_hours_before`), bảng *Thông báo* (cột kênh).
+- `docs/SETUP.md`, `DEPLOY.md`, `deploy/.env.example`, `deploy/docker-compose.yml`. Tài liệu chạy API ngoài Docker bổ sung các biến `MINIO_*` còn thiếu từ 0.4.0.
+- DESIGN.md §6: `popover` dùng thêm cho chuông thông báo.
+- Story sau:
+  - US-3.3, US-4.3, US-5.3 đăng ký nguồn nhắc hạn.
+  - EPIC-2 và US-3.4 đẩy sự kiện bằng `RealtimePublisher`, nghe bằng `useServerEvent`.
+  - US-5.2 gọi `notify` khi công bố đề cử.
+
+**Date**: 2026-10-19
+**Version**: 0.6.0
+
+---
+
+### D32. Link mời HR ký lúc gửi, stream đóng theo hạn token, email quá hạn bị hủy (revision of D31)
+
+**Context**: Code review của US-1.7 (`/code-review`, 2026-10-19) chỉ ra các vấn đề sau trong thiết kế ở D31:
+
+1. Payload `HR_INVITED` lưu nguyên `invitationPath`. Như vậy token kích hoạt còn hiệu lực nằm dạng thường trong `core.notifications` và không bao giờ bị xóa. Ai đọc được bảng này (bản sao lưu, replica, câu truy vấn hỗ trợ) đều chiếm được tài khoản HR chưa kích hoạt. `iam` cố ý chỉ lưu nonce; dòng này phá điều đó.
+2. Bỏ sự kiện mời cũ bằng cách so `expiresAt` là không đáng tin. `expiresAt` chỉ chính xác tới giây và được ký sau khi giao dịch đổi nonce commit, nên hai lần mời trong cùng một giây có thể gửi đi link đã bị thu hồi.
+3. Ép `userId::int` trong `pg_advisory_xact_lock` sẽ tràn khi id vượt 2^31 − 1.
+4. Stream SSE sống cố định 15 phút tính từ lúc mở kết nối. Token còn 31 giây vẫn giữ stream thêm 15 phút, trái với cam kết của D31.
+5. Email nhắc hạn (hoặc báo mở đợt) đang chờ thử lại vẫn được gửi sau khi hạn đã qua.
+6. Client gặp 401 mà refresh vẫn thành công thì kết nối lại liên tục, không nghỉ.
+7. SMTP không có timeout riêng (mặc định của nodemailer là 10 phút), trong khi worker giữ khóa dòng và một kết nối DB suốt lúc gửi.
+
+**Decision**:
+
+- **Email mời HR không lưu link.** Payload `HR_INVITED` chỉ còn `{ companyId }`.
+  - Lúc gửi, worker gọi `InvitationService.currentInvitationLink(userId)` của `iam`. Hàm này ký một token mới từ nonce hiện tại của tài khoản, hạn 7 ngày tính từ lúc gửi.
+  - Tài khoản không còn lời mời đang chờ (đã kích hoạt, bị khóa, không có nonce) thì hàm trả `null`, và email chuyển `CANCELLED`.
+  - Email luôn mang lời mời mới nhất, nên không cần so `expiresAt` nữa.
+  - Listener vẫn khóa theo user và hủy email cũ còn `PENDING`, để HR chỉ nhận một email cho mỗi lần mời.
+- **Khóa theo user:** `pg_advisory_xact_lock(1702, hashtext(userId::text))`. Trùng hash chỉ làm hai user phải chờ nhau.
+- **Vòng đời stream:** đóng khi access token đã mở stream hết hạn. `AccessTokenService.expiresAt` đọc `exp` của token mà guard đã kiểm. Giới hạn trên vẫn là 15 phút.
+- **Email quá hạn:** trước khi gửi, worker kiểm `emailStillRelevant`. `DEADLINE_REMINDER` đã qua `deadline`, hoặc `CAMPAIGN_OPENED` đã qua `intakeEnd`, thì chuyển `CANCELLED` ("out of date").
+- **Client SSE:** từ lần 401 thứ hai liên tiếp (dù refresh thành công) thì lùi 1, 2, 4… tối đa 30 giây. Nhận được `ready` thì đặt lại về đầu.
+- **SMTP:** dùng pool một kết nối; timeout kết nối và greeting 10 giây, socket 30 giây. Mỗi lượt worker xử lý tối đa 500 email; các lượt không chạy chồng nhau.
+- **Helper `errorMessage`** (`common/errors`) thay cho các bản chép trong module `notification`.
+
+**Rationale**:
+
+- Không lưu token thì không có gì để lộ ra. Ký lúc gửi thì luôn khớp nonce mới nhất, nên một cơ chế giải quyết được cả lỗ hổng lẫn thứ tự lời mời.
+- Hạn của token được gia hạn thêm bằng độ trễ của email: vài giây, tối đa vài phút khi phải thử lại. Thời hạn 7 ngày vẫn giữ nguyên ý nghĩa.
+
+**Alternatives considered**:
+- **Xóa link khỏi payload sau khi gửi:** loại vì token vẫn nằm trong DB suốt lúc chờ và lúc thử lại.
+- **Mang nonce hoặc số thứ tự trong sự kiện để so:** loại vì vẫn phải lưu link, nên không giải quyết được vấn đề 1.
+- **Lọc sơ đối tượng của đợt bằng SQL** (review gợi ý, do `listIdsInTarget` đọc cả bảng `students` mỗi 5 phút trong khung nhắc): hoãn. `lower()` phụ thuộc collation, nên có thể bỏ sót người nhận. Với quy mô hiện tại (vài nghìn sinh viên) chi phí không đáng kể. Xem lại khi số sinh viên lớn.
+
+**Impact**:
+- `packages/shared/schemas/notification.ts` (`HrInvitedPayloadSchema`).
+- `InvitationService.currentInvitationLink` (export của `iam`); `AccessTokenService.expiresAt`.
+- `EmailOutboxWorker`, `EmailRenderer`, `HrInvitedListener`, `EventStreamService`, `SmtpMailTransport`, `domain/email-relevance.ts`.
+- ARCHITECTURE: *Cập nhật thời gian thực*, *Các module*, *Tác vụ định kỳ*.
+- Test: `email-outbox.int-spec.ts` (link mời gửi đi dùng được, lời mời đã nhận thì không gửi, nhắc hạn quá hạn bị hủy), `notification-listeners.int-spec.ts`, `events-stream.int-spec.ts` (stream đóng khi token hết hạn).
+
+**Date**: 2026-10-19
+**Version**: 0.6.0

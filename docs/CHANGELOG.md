@@ -6,6 +6,61 @@ Lịch sử phát hành của Smart Recruit Match. Mỗi commit ship code tăng 
 
 ---
 
+## [0.6.0] — 2026-10-19 — Thông báo trong app, SSE, email, nhắc hạn — v0.6.0
+
+US-1.7. Người dùng nhận thông báo theo sự kiện nghiệp vụ: trong ứng dụng ngay lúc xảy ra (Server-Sent Events, nhiều instance qua Redis pub/sub) và qua email (outbox trong PostgreSQL, tự thử lại). Sinh viên được báo khi đợt mở và được nhắc trước hạn nộp CV; HR được mời nhận email kích hoạt. Module khác báo tin bằng `NotificationService.notify` hoặc phát sự kiện. Không có lời gọi LLM nào.
+
+### Added
+- **Thông báo trong ứng dụng** (mọi vai trò, chỉ thấy của mình):
+  - `GET /api/notifications`: mới nhất trước, phân trang `?before=<id>&limit=`, kèm `unreadCount`.
+  - `POST /api/notifications/{id}/read` (`204`, thông báo của người khác trả `404`), `POST /api/notifications/read-all`.
+- **SSE** `GET /api/events/stream`:
+  - Mở bằng `fetch` kèm `Authorization: Bearer`; chưa xác thực thì `401`.
+  - Sự kiện `ready`, `ping` mỗi 25 giây, `notification`; stream tự đóng khi access token hết hạn để client kết nối lại bằng token mới.
+  - Redis pub/sub kênh `notify:user:{userId}`, nên nhiều instance API vẫn đẩy đúng người.
+- **Email outbox:**
+  - nodemailer 10.0.15 + Handlebars 4.7.10, template tiếng Việt, giờ Việt Nam, link tuyệt đối từ `WEB_ORIGIN`.
+  - Worker 10 giây một lần, `FOR UPDATE SKIP LOCKED` nên hai instance không gửi trùng.
+  - Lỗi SMTP thì thử lại sau 1 phút, rồi 5 phút, sau đó `FAILED` và ghi log; giao dịch nghiệp vụ không bị ảnh hưởng. Email nhắc hạn đã quá hạn lúc thử lại thì bị hủy.
+  - SMTP dùng pool một kết nối, timeout ngắn (10/10/30 giây), tối đa 500 email mỗi lượt.
+  - Môi trường dev xem email ở Mailpit (`http://localhost:8025`).
+- **Thông báo của EPIC-1:**
+  - `campaign.opened` → "Đợt thực tập đã mở" (trong app + email) cho sinh viên thuộc đối tượng của đợt.
+  - `hr.invited` → email kèm link kích hoạt. Link được ký lúc gửi từ lời mời hiện tại, nên DB không lưu token và chỉ lời mời mới nhất được gửi. Mời lại thì email cũ còn chờ bị hủy; lời mời đã nhận thì không gửi.
+- **Nhắc hạn nộp CV:**
+  - Tác vụ 5 phút một lần (advisory lock 1701) nhắc sinh viên chưa có CV hiệu lực khi còn `reminder_hours_before` giờ trước `intake_end`.
+  - Không nhắc trùng (unique `(user_id, dedupe_key)`); gia hạn mốc thì nhắc lại một lần.
+  - `DeadlineReminderRegistry` cho story sau đăng ký hạn chọn NV, làm test, SLA.
+- **Tham số đợt** `reminder_hours_before` (1–168 giờ, mặc định 24), có trong form cấu hình đợt.
+- **Giao diện:**
+  - Chuông kèm số chưa đọc ở header của cả ba cổng, cập nhật theo SSE.
+  - Danh sách mở bằng popover trên desktop, sheet từ đáy màn hình trên điện thoại; đủ bốn trạng thái; bấm vào thông báo thì đánh dấu đã đọc và mở trang liên quan; "Đánh dấu tất cả đã đọc".
+  - Hook `useServerEvent` (`src/shared/notifications/`) để EPIC-2, US-3.4 nghe sự kiện SSE.
+- **Dữ liệu và tài liệu:**
+  - Migration `0004_notifications_email_outbox`: bảng `notifications` (kênh, trạng thái email, số lần thử, lần thử sau, `dedupe_key`), CHECK, unique `(user_id, dedupe_key)`, index outbox.
+  - Biến môi trường `WEB_ORIGIN`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `MAIL_FROM`.
+  - CONTEXT D31, D32 (sửa sau code review), LESSONS §14, §15.
+
+### Changed
+- **API:**
+  - `CampaignService` export thêm `listSettingsInPhase` và hàm `isInTarget`; `CampaignSettings` có `name`.
+  - `StudentService.listIdsInTarget`, `CvService.studentIdsWithActiveCv`.
+  - `iam` export `UserDirectory`; `InvitationService.currentInvitationLink` ký link mới cho email mời.
+  - `AccessTokenService.expiresAt`; helper `errorMessage` trong `common/errors`.
+- **Web:** `expectOk` trong `src/shared/api/client.ts` cho endpoint trả `204`.
+- **Compose:** service `api` nhận `WEB_ORIGIN` (mặc định `http://localhost:<NGINX_PORT>`) và `SMTP_*` (mặc định gửi vào `mailpit`). `deploy/.env` cũ chạy được mà không cần sửa.
+- **Tài liệu:**
+  - ARCHITECTURE: *Cập nhật thời gian thực*, *Các module*, *Tác vụ định kỳ*, *Thư viện chính*, *Các bảng chính*, *Redis*, *API architecture*.
+  - PRD: bảng tham số GĐ0, cột *Kênh* của bảng *Thông báo*.
+  - DESIGN.md §6 (`popover`, badge "Mới" và số chưa đọc).
+  - SETUP: biến cho API chạy ngoài Docker, bổ sung cả `MINIO_*` còn thiếu.
+  - LESSONS §9: gói khai `"type": "module"` vẫn có thể có bản CommonJS.
+- **Sprint:** US-1.7 vào `sprint-2026-W42` (kéo sớm từ W44).
+
+**Commit**: 665439d (chuỗi 13 commit 03d3118…665439d)
+
+---
+
 ## [0.5.0] — 2026-10-14 — Đồng ý xử lý dữ liệu và nộp CV — v0.5.0
 
 US-1.6. Sinh viên đọc và đồng ý điều khoản xử lý dữ liệu cá nhân (có phiên bản) cho từng đợt thực tập, rồi nộp và cập nhật CV PDF/DOCX trước hạn. Mỗi lần nộp là một phiên bản mới; mỗi sinh viên chỉ có một CV hiệu lực trong một đợt, bảo đảm bằng ràng buộc DB (BR-01). CV chờ phân tích ở US-2.4. Không có lời gọi LLM nào.

@@ -90,6 +90,11 @@ Nguồn: `deploy/.env` (sao từ [`deploy/.env.example`](deploy/.env.example)). 
 | `REFRESH_TOKEN_TTL_DAYS` | Optional (7) | Tự đặt, 1–90 | Thời hạn refresh token (cookie httpOnly, Redis lưu hash) |
 | `REDIS_URL` | – (compose đặt `redis://redis:6379`) | | Chạy API ngoài Docker thì tự đặt, host `localhost` và cổng `REDIS_HOST_PORT` |
 | `SCHEDULER_ENABLED` | Optional (`true`) | `true`/`false` | Bật tác vụ định kỳ của API, như chuyển pha đợt khi qua mốc (CONTEXT D27). Chạy nhiều instance vẫn để `true`: advisory lock của PostgreSQL chỉ cho một instance chạy mỗi tác vụ |
+| `WEB_ORIGIN` | Optional (`http://localhost:<NGINX_PORT>`) | Địa chỉ người dùng mở web, không có `/` ở cuối, ví dụ `https://srm.example.edu.vn` | Link trong email (lời mời HR, thông báo) ghép từ địa chỉ này. API bắt buộc có biến này; compose đặt mặc định (CONTEXT D31) |
+| `SMTP_HOST` | Optional (`mailpit`) | Máy chủ SMTP gửi email | Mặc định là service `mailpit` đi kèm: mọi email bị giữ lại, xem ở `http://localhost:<MAILPIT_UI_HOST_PORT>`. Email gửi lỗi được thử lại sau 1 phút, rồi 5 phút, sau đó đánh dấu thất bại và ghi log (CONTEXT D31) |
+| `SMTP_PORT` | Optional (1025) | Cổng SMTP | Cổng 465 dùng TLS ngay khi kết nối |
+| `SMTP_USER`, `SMTP_PASSWORD` | Optional (trống) | Tài khoản SMTP | Để trống khi máy chủ không cần đăng nhập (Mailpit) |
+| `MAIL_FROM` | Optional (`Smart Recruit Match <no-reply@srm.local>`) | Địa chỉ người gửi | Dùng tên miền mà máy chủ SMTP được phép gửi thay |
 | `SEED_PASSWORD` | Optional (`Srm-Dev-12345`) | Tự đặt | Chỉ cho `pnpm --filter @srm/api db:seed` (dữ liệu dev/test), không dùng trong compose |
 | `LOG_LEVEL` | Optional (`info`) | `fatal`/`error`/`warn`/`info`/`debug`/`trace`/`silent` | Mức log pino của API |
 | `PORT`, `NODE_ENV` | – | Đặt sẵn trong `deploy/docker-compose.yml` (`3000`, `production`) | API đọc và kiểm bằng Zod (`apps/api/src/common/config/env.ts`); không cần khai báo trong `.env` |
@@ -102,5 +107,7 @@ API chỉ biết các biến `MINIO_ENDPOINT`, `MINIO_ACCESS_KEY`, `MINIO_SECRET
 2. Có thể bỏ service `minio` khỏi lần chạy: `docker compose -f deploy/docker-compose.yml up -d --build --wait --scale minio=0`. Compose vẫn đòi `MINIO_KMS_SECRET_KEY` có giá trị; khi đó giá trị không được dùng.
 
 Image `minio/minio` không còn trên Docker Hub ([LESSONS §4](docs/LESSONS.md)). Muốn đổi image thì cập nhật digest trong `deploy/docker-compose.yml` và `apps/api/test/setup/images.ts` (testcontainers) trong cùng một commit.
+
+Từ 0.6.0, `deploy/.env` cũ chạy được mà không cần sửa: `WEB_ORIGIN` và `SMTP_*` có mặc định trong compose. Trên máy chủ thật, đặt `WEB_ORIGIN` và `SMTP_*` theo địa chỉ web và máy chủ email của trường.
 
 Từ 0.4.0, `deploy/.env` cũ cần thêm `MINIO_KMS_SECRET_KEY` (và có thể bỏ `MINIO_BUCKET`), nếu không `up` sẽ báo thiếu biến.
