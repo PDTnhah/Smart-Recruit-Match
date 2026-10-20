@@ -1,6 +1,6 @@
 ---
 id: sprint-2026-W42
-status: in-progress
+status: closed
 start: 2026-10-12T00:00:00.000Z
 end: 2026-10-18T00:00:00.000Z
 goal: 'Ship US-1.4: Trung tâm tạo và cấu hình đợt thực tập, đợt tự chuyển pha theo mốc, các thao tác bị chặn khi sai pha (v0.3.0); ship US-1.5: doanh nghiệp, mời HR, đăng và duyệt JD (v0.4.0); ship US-1.6: sinh viên đồng ý điều khoản và nộp CV có phiên bản (v0.5.0); ship US-1.7: thông báo trong app qua SSE, email outbox, nhắc hạn nộp CV (v0.6.0); đóng US-1.1 và US-1.3'
@@ -55,7 +55,34 @@ US-1.1 và US-1.3 chuyển từ W41 sang ở trạng thái `review`, chờ xác 
 
 ## Retrospective
 
-*Điền khi đóng sprint.*
+Đóng ngày 2026-10-20. Sprint ship bốn version: 0.3.0 (US-1.4), 0.4.0 (US-1.5), 0.5.0 (US-1.6), 0.6.0 (US-1.7), tổng 23 điểm so với 18 điểm kế hoạch. Cả bốn story còn ở `review` vì chờ kiểm tay trong trình duyệt.
+
+### What went well
+
+- Làn A làm xong cả phần của W43 (US-1.4, US-1.5) lẫn W44 (US-1.6, US-1.7), nên EPIC-1 xong phần code sớm hai tuần.
+- Mỗi đợt chỉ một story sinh migration ([README › Chạy song song](README.md#chạy-song-song)); không có xung đột số thứ tự migration.
+
+### What didn't
+
+- Làn B chưa bắt đầu: US-5.1 (kế hoạch W42) vẫn `backlog`.
+- Việc kiểm tay dồn lại: sáu story ở `review` chờ kiểm trong trình duyệt hoặc CI.
+- Chạy `pnpm test` khi compose đang bật làm máy hết RAM ([LESSONS §15](../LESSONS.md)).
+
+### Followups
+
+- Kiểm tay các AC còn mở của US-1.3 … US-1.7 theo *Verification commands* của từng story để đóng EPIC-1.
+- Bắt đầu làn B ở W43: US-2.1, rồi US-5.1.
+
+## Carry-overs to W43
+
+| US | Lý do | Từ sprint |
+|---|---|---|
+| US-1.1 | `review`: chờ xác nhận CI xanh (AC-4) | W41 |
+| US-1.3 | `review`: chờ kiểm tay AC-4 (web), AC-11, AC-12, AC-13 | W41 |
+| US-1.4 | `review`: chờ kiểm tay AC-9 | W42 |
+| US-1.5 | `review`: chờ kiểm tay AC-10 | W42 |
+| US-1.6 | `review`: chờ kiểm tay AC-9 | W42 |
+| US-1.7 | `review`: chờ kiểm tay AC-7 ở 360 px | W42 |
 
 ## Cross-references
 
@@ -65,6 +92,7 @@ US-1.1 và US-1.3 chuyển từ W41 sang ở trạng thái `review`, chờ xác 
 - [Story US-1.6](stories/US-1.6-data-consent-and-cv-upload.md) — AC + Tasks
 - [Story US-1.1](stories/US-1.1-scaffold-monorepo-docker-compose-ci.md), [Story US-1.3](stories/US-1.3-auth-rbac-design-system-app-shell.md) — chuyển từ W41
 - [Sprint W41 (đã đóng)](sprint-2026-W41.md)
+- [Sprint W43](sprint-2026-W43.md) — sprint kế tiếp
 - [EPIC-1](epics/EPIC-1.md) — epic cha
 - [CONTEXT D27](../CONTEXT.md) — đối tượng, phạm vi đọc, khóa tham số, gia hạn mốc, kiểm tra pha
 - [CONTEXT D28](../CONTEXT.md) — doanh nghiệp, lời mời HR, nộp và duyệt JD, lưu file

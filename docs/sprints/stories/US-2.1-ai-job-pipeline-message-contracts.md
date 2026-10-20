@@ -2,19 +2,39 @@
 id: US-2.1
 title: "Hạ tầng job AI và hợp đồng message"
 epic: EPIC-2
-status: backlog
+status: in-progress
 priority: P0
 points: 8
-sprint:
+sprint: sprint-2026-W43
 version_shipped:
 prd_ref: [NFR-10]
 arch_ref: [AD-1, AD-4, AD-5, AD-6]
 depends_on: [US-1.2]
-assignee:
+assignee: PDTnhah
 commit:
 created: 2026-10-07
-updated: 2026-10-07
+updated: 2026-10-20
 ---
+
+## Story refresh — 2026-10-20
+
+Đọc lại story ngày 2026-10-20 trên nhánh `us-2.1`, tách từ `dev` sau khi US-1.7 merge (migration cuối là `0004`; story này sinh `0005` và `0006`). Số AC giữ nguyên ([CONTEXT D33](../../CONTEXT.md)).
+
+**Người dùng chốt các điểm mở:**
+
+- **Driver PostgreSQL của AI Service:** psycopg 3 (`psycopg[binary,pool]`). Thêm `uvicorn` để chạy FastAPI và `httpx` cho test. MinIO client và adapter pgvector để sang US-2.4, US-2.5 (subtask 2.1.6.3).
+- **API đăng nhập DB bằng role `api_service` ngay ở story này.** Bước `migrate` vẫn dùng tài khoản chủ.
+- **Retry nằm trong worker:** chờ 2 s rồi 10 s giữa các lần thử, `attempts` lưu ở `ai.jobs`, lần thứ 3 lỗi thì publish sang `<queue>.dlq` rồi ack.
+- **Sổ sprint:** đóng W42, mở `sprint-2026-W43`.
+
+**Điều chỉnh so với spec:**
+
+- `ai.results` gửi kèm lại payload job: `{ job_id, type, status, job, result, error }`. Khi `FAILED`, backend vẫn biết CV/JD nào lỗi (AC-6). `error` gồm `{ code, message, needs_human }`. ARCH › *Hàng đợi* sửa theo.
+- Đường dẫn integration test phải khớp `testMatch` của Jest (`test/integration/**`): `apps/api/test/integration/ai-service-role.int-spec.ts`, `apps/api/test/integration/ai-job-roundtrip.int-spec.ts`; helper dùng chung ở `apps/api/test/helpers/ai-results.ts`.
+- Kiểm tra lệch hợp đồng dùng `git status --porcelain` thay cho `git diff --exit-code`, để bắt cả file mới chưa track ([LESSONS §6](../../LESSONS.md)).
+- `core.v_ai_jd_source` chưa tạo; chốt cùng US-2.3.
+- Subtask 2.1.4.4: `aigateway` chỉ phát sự kiện nội bộ `ai.job.dispatched`, `ai.job.settled`. Đẩy SSE là việc của module sở hữu đối tượng (US-2.3, US-2.4), vì `aigateway` không biết người nhận.
+- AC-5 phía backend: story này cung cấp quy ước listener, helper "giao kết quả hai lần" và một listener mẫu trong test (dùng `transitionTo` thật). US-2.3, US-2.4 dùng lại helper cho listener thật.
 
 ## Goal
 
@@ -30,7 +50,7 @@ Theo AD-1 ([D1](../../CONTEXT.md)), phần xác suất (LLM) nằm ở AI Servic
 
 EPIC-1 chỉ khởi động RabbitMQ trong Docker Compose (US-1.1) và tạo lược đồ `core` (US-1.2). Module `aigateway` ở Core Backend (ARCH › *Các module*) và các worker FastStream ở `ai-service/app/consumers/` được tạo ở story này. Story này không gọi LLM: `LLMClient` thuộc [US-2.2](US-2.2-llm-client-versioned-prompts.md). Handler thật của CV và JD thuộc [US-2.4](US-2.4-cv-parser-hidden-text-pii-split.md) và [US-2.3](US-2.3-jd-analyzer-hr-requirement-confirmation.md); ở đây dùng handler giả để kiểm chứng đường ống.
 
-**Lessons applied**: none — LESSONS.md mới có §1 (Claude Code chỉ nạp skill từ `.claude/skills`), không liên quan nội dung story này; đọc lại khi bắt đầu story.
+**Lessons applied**: §4 (kiểm image bằng `docker manifest inspect` trước khi ghim, cho `python:3.12-slim` và RabbitMQ trong testcontainers), §6 (migration `0005`, `0006` sinh sau khi US-1.7 merge; kiểm lệch bằng `git status --porcelain`), §8 (ghim bản chính xác khi thêm gói, cả Node lẫn Python), §9 (`@golevelup/nestjs-rabbitmq` là CommonJS; chạy cả integration test sau khi thêm), §10 (kiểm chéo `status`/`result`/`error` của `ai.results` bằng `superRefine` chỉ chạy khi các trường đã hợp lệ; test riêng ca chéo), §11 (timeout của integration test qua `setupFilesAfterEnv`, `beforeAll` có timeout riêng), §14 (biến tùy chọn rỗng từ compose), §15 (tắt compose trước khi chạy `pnpm test`).
 
 ## Acceptance criteria
 

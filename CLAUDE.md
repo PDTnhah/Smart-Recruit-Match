@@ -10,7 +10,7 @@ Toàn bộ chỉ dẫn nằm ở [AGENTS.md](AGENTS.md), được import ngay d�
 koni-docs:
   plugins: []
   docs_path: docs/
-  active_sprint: sprint-2026-W42
+  active_sprint: sprint-2026-W43
   version_file: VERSION
 ```
 
