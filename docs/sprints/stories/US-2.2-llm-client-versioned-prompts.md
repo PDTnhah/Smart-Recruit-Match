@@ -11,7 +11,7 @@ prd_ref: [NFR-11, NFR-12]
 arch_ref: [AD-10, AD-12]
 depends_on: [US-2.1]
 assignee: PDTnhah
-commit:
+commit: 2cca379c9a1f128774776e8b7610e3fbe9604ffb
 created: 2026-10-07
 updated: 2026-10-20
 external_deps: [gemini_api, anthropic_api]
@@ -157,7 +157,7 @@ Xem [CHANGELOG › 0.8.0](../../CHANGELOG.md). Tóm tắt:
 - Prompt có phiên bản tại `ai-service/app/prompts/<agent>/v<N>.md` kèm manifest băm, test báo lỗi khi sửa prompt đã phát hành.
 - Chế độ fixture cho `LLMClient`; test của AI Service chặn mọi kết nối ra ngoài.
 
-**Commit**:
+**Commit**: 2cca379
 
 ## Implementation notes
 

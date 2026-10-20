@@ -38,7 +38,7 @@ US-2.2. Mọi lượt gọi LLM của AI Service đi qua một lớp `LLMClient`
 - Chưa cần biến môi trường mới khi chạy compose: worker chưa dùng `LLMClient`. US-2.3 thêm `LLM_PROVIDER`, `GEMINI_API_KEY`… vào compose.
 - Trước khi gửi CV thật cho Gemini: cần `TERMS_V2` của điều khoản đồng ý và paid tier (CONTEXT D34).
 
-**Commit**:
+**Commit**: 2cca379 (chuỗi 4 commit 0b073d4…2cca379)
 
 ## [0.7.0] — 2026-10-20 — Hạ tầng job AI và hợp đồng message — v0.7.0
 
