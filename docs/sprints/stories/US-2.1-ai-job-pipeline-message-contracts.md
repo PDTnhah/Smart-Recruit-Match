@@ -11,7 +11,7 @@ prd_ref: [NFR-10]
 arch_ref: [AD-1, AD-4, AD-5, AD-6]
 depends_on: [US-1.2]
 assignee: PDTnhah
-commit:
+commit: 7fbb833ff4c21f76d224507210ef39b56a05fe11
 created: 2026-10-07
 updated: 2026-10-20
 ---
@@ -173,7 +173,7 @@ Chạy tại gốc repo (AGENTS › Lệnh). Integration test cần Docker; tắ
 - Schema `ai` (bảng `ai.jobs`), view `core.v_ai_*` đã che PII và tài khoản DB riêng cho AI Service, không ghi được schema `core`.
 - Service `ai-worker`, `ai-api` trong Docker Compose; `GET /health` của AI Service.
 
-**Commit**:
+**Commit**: 7fbb833
 
 ## Implementation notes
 

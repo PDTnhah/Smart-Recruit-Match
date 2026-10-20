@@ -48,7 +48,7 @@ US-2.1. Một job AI đi được trọn vòng: Core Backend gửi job qua Rabbi
 - `deploy/.env` cũ cần thêm `API_DB_PASSWORD` và `AI_DB_PASSWORD` (≥ 12 ký tự chữ, số, `-_.~`); `RABBITMQ_DEFAULT_PASS` phải an toàn trong URL.
 - Chạy API ngoài Docker cần `RABBITMQ_URL`; `db:migrate` nên có hai biến mật khẩu trên để role đăng nhập được.
 
-**Commit**:
+**Commit**: 7fbb833 (chuỗi 8 commit 9f66dcd…7fbb833)
 
 ## [0.6.0] — 2026-10-19 — Thông báo trong app, SSE, email, nhắc hạn — v0.6.0
 
