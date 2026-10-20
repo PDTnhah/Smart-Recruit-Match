@@ -8,7 +8,7 @@
 
 ## System overview
 
-Smart Recruit Match gồm một *modular monolith* NestJS (Core Backend) và một AI Service Python, giao tiếp qua RabbitMQ và dùng chung PostgreSQL + pgvector làm nguồn sự thật. Frontend là một SPA React dựng bằng shadcn/ui, phục vụ ba cổng: Sinh viên, HR, Trung tâm. Phần tất định (trạng thái, điểm, phân bổ, phân quyền) nằm ở Core Backend; LLM (Claude) chỉ nằm ở AI Service và chỉ trả dữ liệu có cấu trúc. Động lực kiến trúc: công bằng và giải thích được, kiểm soát chi phí LLM, chạy toàn bộ hệ thống bằng một lệnh Docker Compose để demo.
+Smart Recruit Match gồm một *modular monolith* NestJS (Core Backend) và một AI Service Python, giao tiếp qua RabbitMQ và dùng chung PostgreSQL + pgvector làm nguồn sự thật. Frontend là một SPA React dựng bằng shadcn/ui, phục vụ ba cổng: Sinh viên, HR, Trung tâm. Phần tất định (trạng thái, điểm, phân bổ, phân quyền) nằm ở Core Backend; LLM (Gemini mặc định, Claude thay thế, [CONTEXT D34](CONTEXT.md)) chỉ nằm ở AI Service và chỉ trả dữ liệu có cấu trúc. Động lực kiến trúc: công bằng và giải thích được, kiểm soát chi phí LLM, chạy toàn bộ hệ thống bằng một lệnh Docker Compose để demo.
 
 ### Nguyên tắc thiết kế
 
@@ -34,7 +34,7 @@ flowchart TB
     MQ -- job --> AIW[AI Service<br/>Python workers]
     AIW -- kết quả --> MQ
     MQ -- kết quả --> BE
-    AIW --> LLM[Claude API]
+    AIW --> LLM["LLM API (Gemini / Claude)"]
     AIW --> EMB[Mô hình embedding<br/>bge-m3 tự host]
     AIW <--> PG
     AIW --> S3
@@ -50,8 +50,8 @@ flowchart TB
 | Frontend | React 19 + TypeScript + Vite; Tailwind CSS + shadcn/ui (Radix); TanStack Query; TanStack Table; React Router; React Hook Form + Zod; date-fns; react-day-picker (Calendar của shadcn, [CONTEXT D27](CONTEXT.md)); openapi-typescript + openapi-fetch; shadcn Chart (Recharts); react-pdf; dnd-kit | shadcn/ui đưa component vào repo dưới dạng mã nguồn nên tùy biến được, dùng token màu ngữ nghĩa thống nhất với DESIGN.md và là chuẩn review UI của quy trình koni (CONTEXT D14); TanStack Table cho các bảng dữ liệu ở màn quản trị; TanStack Query quản lý dữ liệu từ server gọn |
 | Core Backend | Node.js LTS + TypeScript (strict) + NestJS; Drizzle ORM + drizzle-kit (migration); Zod (nestjs-zod); @nestjs/swagger; @golevelup/nestjs-rabbitmq; ioredis; chi tiết ở mục *Thư viện chính* (Component architecture › Core Backend) | NestJS có module, dependency injection, guard, interceptor — đủ cấu trúc cho nghiệp vụ nhiều trạng thái và phân quyền; cùng ngôn ngữ với frontend nên dùng chung được kiểu dữ liệu và schema kiểm tra |
 | Monorepo | pnpm workspaces; gói `packages/shared` | Frontend và backend dùng chung Zod schema, enum trạng thái, kiểu DTO |
-| AI Service | Python 3.12+; FastAPI + uvicorn; FastStream (RabbitMQ); psycopg 3 + psycopg_pool (PostgreSQL, [CONTEXT D33](CONTEXT.md)); Anthropic Python SDK; Pydantic v2 (model hợp đồng sinh bằng datamodel-code-generator); PyMuPDF, python-docx; sentence-transformers; RapidFuzz; Jinja2 | Hệ sinh thái AI tốt nhất ở Python: đọc PDF, embedding, viết script đánh giá |
-| LLM | Claude Opus 5.5 (`claude-opus-5-5`) qua Claude API | Chi tiết ở mục *LLM usage and cost* |
+| AI Service | Python 3.12+; FastAPI + uvicorn; FastStream (RabbitMQ); psycopg 3 + psycopg_pool (PostgreSQL, [CONTEXT D33](CONTEXT.md)); google-genai và Anthropic Python SDK (chỉ trong `app/llm`, [CONTEXT D34](CONTEXT.md)); minio; Pydantic v2 (model hợp đồng sinh bằng datamodel-code-generator); PyMuPDF, python-docx; sentence-transformers; RapidFuzz; Jinja2 | Hệ sinh thái AI tốt nhất ở Python: đọc PDF, embedding, viết script đánh giá |
+| LLM | Gemini 3.8 Flash (`gemini-3.8-flash`) mặc định, Claude Opus 5.5 (`claude-opus-5-5`) thay thế; chọn bằng `LLM_PROVIDER` ([CONTEXT D34](CONTEXT.md)) | Chi tiết ở mục *LLM usage and cost* |
 | Embedding | `BAAI/bge-m3` tự host (đa ngôn ngữ, hỗ trợ tiếng Việt, vector 1024 chiều) | Claude không có API embedding; tự host miễn phí và dữ liệu không rời máy chủ |
 | CSDL | PostgreSQL 16+ với extension pgvector | Quan hệ + giao dịch + JSONB cho kết quả LLM + tìm kiếm vector trong cùng một hệ |
 | Cache, phiên thi | Redis 7 | Lưu tạm bài làm, bộ đếm mức cạnh tranh, khóa phân tán, pub/sub cho SSE |
@@ -258,8 +258,8 @@ Mỗi agent là một **vai trò** có prompt riêng, schema đầu ra riêng, c
 1. Đọc file từ MinIO.
 2. Trích văn bản kèm thông tin định dạng (PyMuPDF cho PDF, python-docx cho DOCX).
 3. **Phát hiện chữ ẩn** (màu trùng nền, cỡ chữ < 2pt, nằm ngoài vùng trang, thuộc tính ẩn trong DOCX) → loại khỏi văn bản, gắn cờ `hidden_text_detected` (chống prompt injection, PRD › *Kiểm soát rủi ro AI (guardrails)*).
-4. Nếu PDF không có lớp văn bản (bản scan) → gửi nguyên PDF cho Claude dưới dạng `document` block (Claude đọc được PDF dạng ảnh), không cần OCR riêng.
-5. Gọi Claude với structured output theo schema `CvProfile`.
+4. Nếu PDF không có lớp văn bản (bản scan) → gửi nguyên PDF cho LLM (Claude nhận `document` block, Gemini nhận PDF trực tiếp; cả hai đọc được PDF dạng ảnh), không cần OCR riêng. Chi tiết chốt ở US-2.4.
+5. Gọi LLM qua `LLMClient` với structured output theo schema `CvProfile`.
 6. Chuẩn hóa kỹ năng: so embedding với danh mục kỹ năng (cosine ≥ 0,85 → gán; thấp hơn → đánh dấu "kỹ năng mới" cho quản trị duyệt).
 7. Tách PII (tên, liên hệ, ảnh, ngày sinh, giới tính, quê quán) sang trường riêng, tạo `profile_masked` để dùng cho matching.
 8. Tính embedding hồ sơ, lưu `ai.embeddings`.
@@ -299,6 +299,8 @@ Mỗi agent là một **vai trò** có prompt riêng, schema đầu ra riêng, c
 - Hướng dẫn có thể viết tiếng Anh hoặc tiếng Việt; giá trị liệt kê dùng mã tiếng Anh (`MET`, `PARTIAL`…); phần nhận xét hiển thị cho người dùng yêu cầu viết tiếng Việt.
 
 #### Code mẫu – lượt gọi của Matching Agent
+
+Mẫu dưới đây là lượt gọi thô tới Claude, để minh họa các tham số. Trong code, agent không gọi SDK: mọi lượt gọi đi qua `LLMClient` (`ai-service/app/llm/`). `AnthropicProvider` dựng đúng các tham số này; `GeminiProvider` dựng tham số tương ứng của Gemini ([CONTEXT D34](CONTEXT.md)).
 
 ```python
 import json
@@ -349,19 +351,19 @@ Khi chạy hàng loạt, cùng tham số này (bỏ `betas` và `fallbacks` vì 
 
 | GĐ | Tác vụ | Dùng gì | Effort | Cách gọi | Kiểm soát |
 |---|---|---|---|---|---|
-| 1 | Phân tích JD → yêu cầu chuẩn hóa | Claude, structured output | low | Job ưu tiên cao (HR chờ kết quả) | HR xác nhận |
-| 1 | Sinh ngân hàng câu hỏi | Claude, agent + công cụ | high | Job nền | Validator + HR duyệt mẫu |
-| 1 | Kiểm định câu hỏi | Claude (Validator) | high | Job nền | Loại hoặc sinh lại |
-| 2 | Trích xuất hồ sơ năng lực từ CV | Claude, structured output (đọc thẳng PDF khi là bản scan) | low | Job ưu tiên cao | SV xác nhận |
-| 2 | Chuẩn hóa tên kỹ năng | Embedding; Claude chỉ cho kỹ năng chưa có trong danh mục | low | Job nền | Quản trị duyệt kỹ năng mới |
+| 1 | Phân tích JD → yêu cầu chuẩn hóa | LLM, structured output | low | Job ưu tiên cao (HR chờ kết quả) | HR xác nhận |
+| 1 | Sinh ngân hàng câu hỏi | LLM, agent + công cụ | high | Job nền | Validator + HR duyệt mẫu |
+| 1 | Kiểm định câu hỏi | LLM (Validator) | high | Job nền | Loại hoặc sinh lại |
+| 2 | Trích xuất hồ sơ năng lực từ CV | LLM, structured output (đọc thẳng PDF khi là bản scan) | low | Job ưu tiên cao | SV xác nhận |
+| 2 | Chuẩn hóa tên kỹ năng | Embedding; LLM chỉ cho kỹ năng chưa có trong danh mục | low | Job nền | Quản trị duyệt kỹ năng mới |
 | 3 | Lọc sơ bộ JD cho mỗi CV | Embedding (không dùng LLM) | – | Job nền | – |
-| 3 | Chấm tiêu chí CV–JD, bằng chứng, gợi ý cải thiện | Claude, structured output, prompt caching | medium | Message Batches | Kiểm tra trích dẫn bằng code |
-| 5 | Câu hỏi xác minh CV (tùy chọn) | Claude | medium | Job nền | Không tính vào điểm |
-| 6 | Chấm tự luận | Claude, 2 lần độc lập | high | Message Batches sau khi đóng thi | Lệch nhiều / độ tự tin thấp → người chấm |
+| 3 | Chấm tiêu chí CV–JD, bằng chứng, gợi ý cải thiện | LLM, structured output, prompt caching | medium | Message Batches | Kiểm tra trích dẫn bằng code |
+| 5 | Câu hỏi xác minh CV (tùy chọn) | LLM | medium | Job nền | Không tính vào điểm |
+| 6 | Chấm tự luận | LLM, 2 lần độc lập | high | Message Batches sau khi đóng thi | Lệch nhiều / độ tự tin thấp → người chấm |
 | 6 | Phát hiện bài tự luận giống nhau | Embedding (không dùng LLM) | – | Job nền | Chỉ cảnh báo |
-| 8 | Tóm tắt hồ sơ cho HR | Claude | low | Job nền sau khi có S_final | HR đọc tham khảo |
-| 10 | Tổng hợp lý do từ chối cho báo cáo | Claude | low | Theo yêu cầu | – |
-| Mở rộng | Trợ lý tư vấn sinh viên | Claude, agent + công cụ chỉ đọc, streaming | low–medium | Đồng bộ | Chỉ truy cập dữ liệu của chính SV |
+| 8 | Tóm tắt hồ sơ cho HR | LLM | low | Job nền sau khi có S_final | HR đọc tham khảo |
+| 10 | Tổng hợp lý do từ chối cho báo cáo | LLM | low | Theo yêu cầu | – |
+| Mở rộng | Trợ lý tư vấn sinh viên | LLM, agent + công cụ chỉ đọc, streaming | low–medium | Đồng bộ | Chỉ truy cập dữ liệu của chính SV |
 
 ### Những chỗ cố ý KHÔNG dùng LLM
 
@@ -371,13 +373,22 @@ Lọc điều kiện cứng · tính S_cv, S_test, S_final · chấm trắc nghi
 
 ### Chọn model
 
-- **Dùng Claude Opus 5.5 (`claude-opus-5-5`) cho tất cả agent**, điều chỉnh độ sâu suy luận bằng tham số `effort` theo từng tác vụ (bảng *Bản đồ sử dụng LLM theo giai đoạn*) thay vì trộn nhiều model. Một model nghĩa là một bộ prompt, một bộ đánh giá, và cache dùng chung được.
-- Đặc điểm API của Opus 5.5 cần lưu ý khi cài đặt:
+- **Hai nhà cung cấp sau lớp `LLMClient`, chọn bằng `LLM_PROVIDER`** ([CONTEXT D34](CONTEXT.md)): mặc định Gemini 3.8 Flash (`gemini-3.8-flash`), thay thế bằng Claude Opus 5.5 (`claude-opus-5-5`). Agent chỉ phụ thuộc `LLMClient`; SDK của nhà cung cấp chỉ được import trong `ai-service/app/llm/` (NFR-12).
+- **Một model cho tất cả agent** (theo từng nhà cung cấp), điều chỉnh độ sâu suy luận theo bảng *Bản đồ sử dụng LLM theo giai đoạn* thay vì trộn nhiều model. Một model nghĩa là một bộ prompt, một bộ đánh giá, và cache dùng chung được. `LLM_MODEL` ghi đè model.
+- **Lõi chung `StructuredLLMClient`** làm mọi việc giống nhau giữa hai bên: kiểm refusal trước khi đọc nội dung, thử lại tối đa 2 lần khi sai schema hoặc bị cắt ở `max_tokens`, ghi `ai.llm_calls` và log `llm-logs` cho từng lần thử. Adapter của mỗi nhà cung cấp chỉ dựng tham số và chuẩn hóa phản hồi. Không gửi `temperature`, không dùng `tool_choice` để ép JSON.
+- Đặc điểm API của Gemini (`google-genai`, `client.aio.models.generate_content`):
+  - Độ sâu suy luận: `thinking_config.thinking_level` = `LOW` / `MEDIUM` / `HIGH`, ánh xạ thẳng từ effort.
+  - JSON: `response_mime_type="application/json"` + `response_json_schema`.
+  - Refusal: `prompt_feedback.block_reason`, hoặc `finish_reason` thuộc `SAFETY`, `RECITATION`, `BLOCKLIST`, `PROHIBITED_CONTENT`, `SPII`, nhóm `IMAGE_*`.
+  - SDK mặc định không thử lại; `LLMClient` bật `HttpRetryOptions(attempts=3)`. Không có model dự phòng phía server.
+  - Free tier có thể dùng dữ liệu gửi lên để cải thiện sản phẩm của Google: chỉ dùng với dữ liệu giả. Dữ liệu thật của sinh viên đi qua paid tier.
+- Đặc điểm API của Claude Opus 5.5 (`anthropic`, `client.beta.messages.create`):
   - Luôn có suy luận (thinking), không tắt được; điều chỉnh bằng `output_config.effort` (mặc định là `medium` — nên ghi rõ cho từng tác vụ).
   - Không hỗ trợ ép gọi công cụ (`tool_choice` loại `any`/`tool`); muốn có JSON thì dùng structured outputs (`output_config.format`).
   - Luôn kiểm tra `stop_reason == "refusal"` trước khi đọc nội dung. Bật `fallbacks: "default"` cho lượt gọi đồng bộ; trong Batches không có tham số này nên xử lý lại riêng (mục *Code mẫu – lượt gọi của Matching Agent*).
-- **Nếu cần giảm chi phí:** có thể thử Claude Sonnet 5.5 (`claude-sonnet-5-5`, 2/10 USD mỗi triệu token vào/ra) hoặc Claude Haiku 4.5 (`claude-haiku-4-5`, 1/5 USD) cho các tác vụ trích xuất đơn giản (phân tích CV/JD). Chỉ đổi sau khi đo chất lượng trên bộ đánh giá ở mục *Testing strategy* và thấy không giảm.
-- **Lớp trừu tượng `LLMClient`** trong AI Service để có thể đổi nhà cung cấp hoặc chuyển sang mô hình mở tự host nếu Trung tâm không cho phép gửi dữ liệu ra ngoài (PRD Q8).
+- **Message Batches và prompt caching** (AD-12) khác nhau giữa hai nhà cung cấp; cách bọc chung chốt ở US-3.2.
+- **Nếu cần giảm chi phí:** có thể thử model nhỏ hơn của cùng nhà cung cấp cho các tác vụ trích xuất đơn giản (phân tích CV/JD). Chỉ đổi sau khi đo chất lượng trên bộ đánh giá ở mục *Testing strategy* và thấy không giảm.
+- **Mô hình mở tự host** (PRD Q8, phần còn mở): thêm một adapter sau `LLMClient` nếu Trung tâm không cho phép gửi dữ liệu ra ngoài.
 
 ### Tối ưu chi phí
 
@@ -395,6 +406,8 @@ Lọc điều kiện cứng · tính S_cv, S_test, S_final · chấm trắc nghi
 
 Giá Claude Opus 5.5: 4 USD / 1 triệu token vào, 20 USD / 1 triệu token ra (gồm cả token suy luận), cache đọc 0,20 USD / 1 triệu token, Batches giảm 50%. Số token mỗi lượt là **giả định**; chi phí thật có thể chênh 2–3 lần, cần đo lại bằng `usage` sau khi chạy thử khoảng 20 CV.
 
+Với Gemini 3.8 Flash (nhà cung cấp mặc định, [CONTEXT D34](CONTEXT.md)): 0,75 USD vào, 3,75 USD ra, 0,075 USD cache đọc mỗi triệu token (paid tier, đọc ngày 2026-10-20; tăng gấp đôi từ 2027-01-01). Giá token vào và ra bằng khoảng 19% giá Claude Opus 5.5, nên cùng giả định ở bảng dưới cho ra **khoảng 85 USD một đợt thật, 12 USD một đợt demo**, chưa tính giảm giá batch. Giai đoạn phát triển có thể chạy free tier với dữ liệu giả. Tokenizer của hai bên khác nhau, nên vẫn phải đo lại bằng `ai.llm_calls`.
+
 | Tác vụ | Số lượt (500 SV, 50 JD) | Giả định mỗi lượt | Ước tính |
 |---|---|---|---|
 | Phân tích CV | 500 | vào 4K, ra 2K | ~28 USD |
@@ -406,7 +419,7 @@ Giá Claude Opus 5.5: 4 USD / 1 triệu token vào, 20 USD / 1 triệu token ra 
 | **Tổng một đợt thật** | | | **~440 USD (~0,9 USD/SV)** |
 | **Tổng một đợt demo** (50 SV, 10 JD) | | cùng giả định | **~60 USD** |
 
-Nên đặt giới hạn chi tiêu trên trang quản lý Claude API và theo dõi chi phí trong dashboard (mục *Deployment architecture*).
+Nên đặt giới hạn chi tiêu trên trang quản lý của nhà cung cấp đang dùng (Google AI Studio hoặc Claude Console) và theo dõi chi phí trong dashboard (mục *Deployment architecture*).
 
 ---
 
@@ -459,7 +472,7 @@ Nên đặt giới hạn chi tiêu trên trang quản lý Claude API và theo d�
 | `notifications` | – | id, user_id, type, payload JSONB, channels text[], read_at, dedupe_key, email_status, email_attempts, email_next_attempt_at, email_sent_at, email_last_error, created_at | index(user_id, read_at); unique(user_id, dedupe_key); partial index(email_next_attempt_at) WHERE email_status = 'PENDING'; CHECK `type`, `channels` ⊆ {IN_APP, EMAIL}, có `email_status` khi và chỉ khi có kênh EMAIL. Một dòng mỗi người nhận, vừa là thông báo trong app vừa là outbox email ([CONTEXT D31](CONTEXT.md)) |
 | `audit_logs` | NHAT_KY | id, actor_kind (`USER`/`SYSTEM`), actor_id, action, entity, entity_id, before JSONB, after JSONB, reason, at | chỉ thêm: trigger `ENABLE ALWAYS` chặn UPDATE/DELETE/TRUNCATE; CHECK actor_id có khi và chỉ khi `USER`; index(entity, entity_id, at); không FK tới users (CONTEXT D24) |
 | `ai.embeddings` | – | owner_type (cv/jd/question/skill/essay), owner_id, version, model, embedding vector(1024) | index HNSW (vector_cosine_ops) |
-| `ai.llm_calls` | – | id, job_id, agent, prompt_version, model, effort, input_tokens, cache_read_tokens, cache_write_tokens, output_tokens, cost_usd, latency_ms, stop_reason, log_key, created_at | index(agent, created_at) |
+| `ai.llm_calls` | – | id, job_id, agent, prompt_version, provider, model, effort, attempt, outcome, stop_reason, raw_stop_reason, input_tokens, cache_read_tokens, cache_write_tokens, output_tokens, cost_usd, latency_ms, log_key, created_at | Một dòng cho mỗi lần thử. index(agent, created_at), index(job_id), unique `log_key`; CHECK `provider`, `effort`, `outcome`, `stop_reason`, `prompt_version` dạng `<agent>/v<N>`; `stop_reason` NULL khi và chỉ khi `outcome = API_ERROR`. Chỉ ghi thêm: `ai_service` có `SELECT`, `INSERT`. Migration `0007`, `0008`, [CONTEXT D34](CONTEXT.md) |
 | `ai.jobs` | – | job_id, type, status (`PROCESSING` rồi `SUCCEEDED`/`PARTIAL`/`FAILED`), attempts, last_error, created_at, finished_at | PK(job_id) — chống xử lý trùng; CHECK `type`, `status`, `attempts ≥ 0`, có `finished_at` khi và chỉ khi đã rời `PROCESSING`. Chỉ `ai_service` ghi (migration `0005`, [CONTEXT D33](CONTEXT.md)) |
 
 Quy ước chung của schema `core` (US-1.2, CONTEXT D24): khóa chính `bigint generated always as identity`; cột `status` là `text` kèm CHECK, danh sách giá trị sinh từ `packages/shared/states`; bảng có vòng đời có `row_version integer not null default 0`. Cột `pii` của `cvs` thêm ở US-2.4; cột `active`, `file_name`, partial unique index và bảng `consents` có từ US-1.6 (migration `0003`).
@@ -480,8 +493,8 @@ Prompt và phản hồi đầy đủ của từng lần gọi LLM lưu thành fi
 
 ### Lưu trữ file và thời hạn dữ liệu
 
-- Bucket MinIO: `cv-files`, `jd-files` (bật mã hóa phía server), `llm-logs`, `reports`. Tải file qua URL tạm có hạn 5 phút.
-- Mã hóa SSE-S3: API đặt mã hóa mặc định cho `jd-files`, `cv-files` khi khởi động (không chặn app, thử lại ở lần ghi) và gửi `ServerSideEncryption: AES256` với mọi object; service `minio` cần `MINIO_KMS_SECRET_KEY` ([CONTEXT D28, D29](CONTEXT.md)).
+- Bucket MinIO: `cv-files`, `jd-files`, `llm-logs` (bật mã hóa phía server), `reports`. Tải file qua URL tạm có hạn 5 phút.
+- Mã hóa SSE-S3: API đặt mã hóa mặc định cho `jd-files`, `cv-files` khi khởi động (không chặn app, thử lại ở lần ghi) và gửi `ServerSideEncryption: AES256` với mọi object; service `minio` cần `MINIO_KMS_SECRET_KEY` ([CONTEXT D28, D29](CONTEXT.md)). AI Service tạo `llm-logs` ở lần ghi đầu và đặt mã hóa mặc định SSE-S3, vì log của `cv_parser` chứa CV đầy đủ; khóa file `<agent>/<yyyy>/<mm>/<call_id>.json` ([CONTEXT D34](CONTEXT.md)).
 - URL tạm được ký với `MINIO_PUBLIC_ENDPOINT` (mặc định là địa chỉ web); nginx chuyển `/jd-files/`, `/cv-files/` tới MinIO nên cổng MinIO không cần mở ra ngoài. `{id}` của `GET /api/files/{id}/url` có dạng `jd:12`, `cv:457`; module sở hữu bản ghi kiểm quyền qua `FileAccessRegistry`.
 - Sau khi đóng đợt 12 tháng (ghi trong điều khoản v1 mà sinh viên đồng ý, [CONTEXT D30](CONTEXT.md); đổi con số thì ra điều khoản v2): xóa file CV gốc và PII; giữ dữ liệu đã ẩn danh để thống kê và đánh giá mô hình. Chưa có story nào làm việc xóa này.
 - Sao lưu: `pg_dump` hằng ngày; bật versioning cho MinIO.
@@ -497,7 +510,7 @@ Prompt và phản hồi đầy đủ của từng lần gọi LLM lưu thành fi
 | Frontend → Backend | REST JSON qua HTTPS, JWT | OpenAPI |
 | Backend → Frontend | SSE | Thông báo, tiến độ job |
 | Backend ↔ AI Service | RabbitMQ | Bất đồng bộ, có thử lại và dead-letter queue |
-| AI Service → Claude API | HTTPS (Anthropic SDK) | Message Batches cho việc hàng loạt |
+| AI Service → LLM API | HTTPS (google-genai hoặc Anthropic SDK, [CONTEXT D34](CONTEXT.md)) | Việc hàng loạt chạy batch của nhà cung cấp (chốt ở US-3.2) |
 | AI Service → PostgreSQL | View chỉ đọc (`core`), đọc ghi (`ai`) | – |
 
 ### Hàng đợi
@@ -534,7 +547,7 @@ Cơ chế (từ US-2.1, [CONTEXT D33](CONTEXT.md)):
     "profile_masked": { "...": "..." },
     "hidden_text_detected": false,
     "prompt_version": "cv_parser/v3",
-    "model": "claude-opus-5-5"
+    "model": "gemini-3.8-flash"
   },
   "error": null
 }
@@ -551,7 +564,7 @@ sequenceDiagram
     participant S3 as MinIO
     participant MQ as RabbitMQ
     participant AI as AI Service
-    participant LLM as Claude API
+    participant LLM as LLM API
     SV->>FE: Tải CV (PDF/DOCX)
     FE->>BE: POST /api/cvs
     BE->>S3: Lưu file (mã hóa)
@@ -580,7 +593,7 @@ sequenceDiagram
     participant MQ as RabbitMQ
     participant AI as AI Service
     participant PG as PostgreSQL
-    participant LLM as Claude API
+    participant LLM as LLM API
     Note over BE: Hết hạn nộp CV hoặc Trung tâm bấm Chấm phù hợp
     BE->>BE: Lọc điều kiện cứng, lập danh sách cặp hợp lệ
     BE->>MQ: ai.match.run
@@ -789,7 +802,7 @@ Mỗi quyết định có một mã AD-N; lý do đầy đủ ở mục D tươn
 | AD-7 | Phân bổ tất định | Deferred Acceptance phía sinh viên đề xuất, hàm TS thuần, không dùng LLM, kiểm tra ổn định sau mỗi lần chạy | pre-0.1.0 | [D7](CONTEXT.md) |
 | AD-8 | Quản lý trạng thái | Bảng chuyển trạng thái tự viết + `transitionTo` + optimistic locking (`row_version`), không dùng thư viện state machine | pre-0.1.0 | [D8](CONTEXT.md) |
 | AD-9 | ORM | Drizzle ORM + drizzle-kit thay cho Prisma | pre-0.1.0 | [D9](CONTEXT.md) |
-| AD-10 | Một model LLM | Claude Opus 5.5 cho mọi agent, chỉnh độ sâu bằng `effort`; mọi lượt gọi qua `LLMClient` | pre-0.1.0 | [D10](CONTEXT.md) |
+| AD-10 | Một model LLM cho mỗi nhà cung cấp | Gemini 3.8 Flash mặc định, Claude Opus 5.5 thay thế, chọn bằng cấu hình; một model cho mọi agent, chỉnh độ sâu bằng effort (`effort` / `thinking_level`); mọi lượt gọi qua `LLMClient` | pre-0.1.0, sửa ở 0.8.0 | [D10](CONTEXT.md), [D34](CONTEXT.md) |
 | AD-11 | Embedding tự host | `BAAI/bge-m3` chạy trong AI Service | pre-0.1.0 | [D11](CONTEXT.md) |
 | AD-12 | Tối ưu chi phí LLM | Message Batches + prompt caching cho tác vụ hàng loạt; prompt là file có phiên bản | pre-0.1.0 | [D12](CONTEXT.md) |
 | AD-13 | Cập nhật thời gian thực | Server-Sent Events thay cho WebSocket | pre-0.1.0 | [D13](CONTEXT.md) |
@@ -799,7 +812,7 @@ Mỗi quyết định có một mã AD-N; lý do đầy đủ ở mục D tươn
 
 ## Open architecture questions
 
-- [ ] Q8 (PRD): dùng Claude API hay mô hình mở tự host — quyết định có giữ AD-10 hay không.
+- [ ] Q8 (PRD): đã chốt một phần ở [CONTEXT D34](CONTEXT.md) (API thương mại: Gemini mặc định, Claude thay thế). Còn mở: mô hình tự host nếu Trung tâm không cho gửi dữ liệu ra ngoài.
 - [x] shadcn/ui dùng nền Radix hay Base UI — chốt Radix ([CONTEXT D26](CONTEXT.md), US-1.3).
 - [ ] Heatmap NV/chỉ tiêu (FR-33): bảng tô màu bằng token hay thêm thư viện biểu đồ có heatmap.
 - [ ] Có tích hợp SSO của trường qua OIDC hay chỉ dùng tài khoản nội bộ.

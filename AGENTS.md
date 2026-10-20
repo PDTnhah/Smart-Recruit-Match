@@ -8,9 +8,9 @@ Hệ thống giúp Trung tâm quan hệ doanh nghiệp của trường ghép sin
 
 ## Trạng thái
 
-- Đã có khung monorepo (US-1.1, 0.1.0): `apps/api`, `apps/web`, `packages/shared`, `ai-service`, Docker Compose, CI, cổng koni-harness. Đã có lược đồ `core`, bảng chuyển trạng thái của đợt/JD/CV, `transitionTo` và nhật ký append-only (US-1.2, 0.1.1). Đã có đăng nhập, phân quyền, `DESIGN.md` và khung ba cổng (US-1.3, 0.2.0). Đã có module `campaign`: tạo, cấu hình, mở đợt, tác vụ định kỳ chuyển pha theo mốc, `CampaignService.assertPhase`, `Clock`/`FakeClock` (US-1.4, 0.3.0). Đã có module `company` (doanh nghiệp, JD: đăng, nộp, duyệt), lời mời HR trong `iam`, lớp lưu file `common/storage` (MinIO SSE-S3, URL tạm qua nginx, `FileAccessRegistry`) (US-1.5, 0.4.0). Đã có đồng ý điều khoản xử lý dữ liệu có phiên bản (`packages/shared/consent/`, bảng `consents`), nộp CV có phiên bản với partial unique index BR-01, sự kiện `cv.submitted`, màn "Hồ sơ" ở cổng sinh viên (US-1.6, 0.5.0). Đã có module `notification`: thông báo trong app (bảng `notifications`, vừa là outbox email), SSE `GET /api/events/stream` qua Redis pub/sub, email outbox nodemailer + Mailpit, thông báo mở đợt, email mời HR, nhắc hạn nộp CV, chuông ở ba cổng (US-1.7, 0.6.0). Đã có đường ống job AI: hợp đồng message Zod → JSON Schema → Pydantic (`pnpm contracts:gen`, CI báo lệch), module `aigateway` (`AiGatewayService.dispatch`, sự kiện `ai.result.<TYPE>`), worker FastStream idempotent theo `job_id` với thử lại và DLQ, schema `ai`, view `core.v_ai_*` che PII, role DB `api_service`/`ai_service`, service `ai-worker`, `ai-api` (US-2.1, 0.7.0). 37 story của 6 epic nằm trong `docs/sprints/stories/` ([CONTEXT D21](docs/CONTEXT.md)). Sprint đang mở: `sprint-2026-W43`.
+- Đã có khung monorepo (US-1.1, 0.1.0): `apps/api`, `apps/web`, `packages/shared`, `ai-service`, Docker Compose, CI, cổng koni-harness. Đã có lược đồ `core`, bảng chuyển trạng thái của đợt/JD/CV, `transitionTo` và nhật ký append-only (US-1.2, 0.1.1). Đã có đăng nhập, phân quyền, `DESIGN.md` và khung ba cổng (US-1.3, 0.2.0). Đã có module `campaign`: tạo, cấu hình, mở đợt, tác vụ định kỳ chuyển pha theo mốc, `CampaignService.assertPhase`, `Clock`/`FakeClock` (US-1.4, 0.3.0). Đã có module `company` (doanh nghiệp, JD: đăng, nộp, duyệt), lời mời HR trong `iam`, lớp lưu file `common/storage` (MinIO SSE-S3, URL tạm qua nginx, `FileAccessRegistry`) (US-1.5, 0.4.0). Đã có đồng ý điều khoản xử lý dữ liệu có phiên bản (`packages/shared/consent/`, bảng `consents`), nộp CV có phiên bản với partial unique index BR-01, sự kiện `cv.submitted`, màn "Hồ sơ" ở cổng sinh viên (US-1.6, 0.5.0). Đã có module `notification`: thông báo trong app (bảng `notifications`, vừa là outbox email), SSE `GET /api/events/stream` qua Redis pub/sub, email outbox nodemailer + Mailpit, thông báo mở đợt, email mời HR, nhắc hạn nộp CV, chuông ở ba cổng (US-1.7, 0.6.0). Đã có đường ống job AI: hợp đồng message Zod → JSON Schema → Pydantic (`pnpm contracts:gen`, CI báo lệch), module `aigateway` (`AiGatewayService.dispatch`, sự kiện `ai.result.<TYPE>`), worker FastStream idempotent theo `job_id` với thử lại và DLQ, schema `ai`, view `core.v_ai_*` che PII, role DB `api_service`/`ai_service`, service `ai-worker`, `ai-api` (US-2.1, 0.7.0). Đã có `LLMClient` hai nhà cung cấp (Gemini mặc định, Claude thay thế) với refusal, thử lại khi sai schema, bảng `ai.llm_calls` + bucket `llm-logs`, prompt có phiên bản kèm manifest băm, chế độ fixture (US-2.2, 0.8.0). 37 story của 6 epic nằm trong `docs/sprints/stories/` ([CONTEXT D21](docs/CONTEXT.md)). Sprint đang mở: `sprint-2026-W43`.
 - Lộ trình: xong trong tháng 12/2026, hai làn chạy song song bằng agent ([sprints/README › Lộ trình](docs/sprints/README.md#lộ-trình), [CONTEXT D20](docs/CONTEXT.md)).
-- US-1.1, US-1.3, US-1.4, US-1.5, US-1.6, US-1.7 đang `review`: chờ CI xanh và kiểm tay trong trình duyệt. US-2.1 đang `review`: chờ CI xanh ([CONTEXT D33](docs/CONTEXT.md), migration `0005`, `0006`). Story gọi AI thì gọi `AiGatewayService.dispatch` sau khi commit, nghe `ai.result.<TYPE>` theo quy ước trong `modules/aigateway/domain/events.ts`, thêm hợp đồng vào `packages/shared/contracts` rồi chạy `pnpm contracts:gen`, và thay handler giả trong `ai-service/app/handlers/`. US-1.7 ([CONTEXT D31](docs/CONTEXT.md)) sinh migration `0004`. Module cần báo tin thì gọi `NotificationService.notify` hoặc phát sự kiện; nguồn nhắc hạn mới đăng ký vào `DeadlineReminderRegistry`; sự kiện SSE mới đẩy bằng `RealtimePublisher` và nghe bằng `useServerEvent`. Bước tiếp theo của mốc M1: US-2.2 (`LLMClient`, prompt có phiên bản), US-5.1, US-6.4. Khi bắt đầu một story, đọc lại file của nó và thêm khối *Story refresh* nếu spec đã đổi.
+- US-1.1, US-1.3, US-1.4, US-1.5, US-1.6, US-1.7 đang `review`: chờ CI xanh và kiểm tay trong trình duyệt. US-2.1 đang `review`: chờ CI xanh ([CONTEXT D33](docs/CONTEXT.md), migration `0005`, `0006`). US-2.2 đang `review`: chờ CI xanh và chạy `evals/smoke_llm.py` với key thật ([CONTEXT D34](docs/CONTEXT.md), migration `0007`). Story gọi AI thì gọi `AiGatewayService.dispatch` sau khi commit, nghe `ai.result.<TYPE>` theo quy ước trong `modules/aigateway/domain/events.ts`, thêm hợp đồng vào `packages/shared/contracts` rồi chạy `pnpm contracts:gen`, và thay handler giả trong `ai-service/app/handlers/`. Handler gọi LLM qua `LLMClient` (mục *Gọi LLM*); US-2.3 nối `build_llm_client` vào `worker.py` và thêm biến LLM vào compose. US-1.7 ([CONTEXT D31](docs/CONTEXT.md)) sinh migration `0004`. Module cần báo tin thì gọi `NotificationService.notify` hoặc phát sự kiện; nguồn nhắc hạn mới đăng ký vào `DeadlineReminderRegistry`; sự kiện SSE mới đẩy bằng `RealtimePublisher` và nghe bằng `useServerEvent`. Bước tiếp theo của mốc M1: US-5.1, US-6.4, rồi US-2.3. Khi bắt đầu một story, đọc lại file của nó và thêm khối *Story refresh* nếu spec đã đổi.
 - Việc đang làm của người dùng hiện tại nằm ở `.active-context.md`. Đọc file này khi bắt đầu phiên, nếu có.
 
 ## Tài liệu
@@ -53,7 +53,7 @@ Monorepo pnpm (cấu trúc thư mục: ARCH › Project structure):
 - `apps/web`: React 19 + TS + Vite, Tailwind CSS + shadcn/ui, TanStack Query, TanStack Table, React Hook Form + Zod
 - `apps/api`: NestJS (TS strict), Drizzle ORM, nestjs-zod, @golevelup/nestjs-rabbitmq; Jest, fast-check, testcontainers
 - `packages/shared`: Zod schema, kiểu trạng thái + bảng chuyển trạng thái, contract message
-- `ai-service`: Python 3.12, FastStream, FastAPI, Anthropic SDK, Pydantic v2; pytest
+- `ai-service`: Python 3.12, FastStream, FastAPI, google-genai + Anthropic SDK (sau `LLMClient`), Jinja2, minio, Pydantic v2; pytest
 - PostgreSQL 16 + pgvector, Redis, RabbitMQ, MinIO; Docker Compose trong `deploy/`
 
 Không thêm thư viện ngoài danh sách ở ARCH › Tech stack và *Thư viện chính* khi chưa hỏi.
@@ -114,15 +114,17 @@ Vi phạm các điều dưới đây là lỗi, kể cả khi code vẫn chạy 
 14. Kiểu dùng chung FE/BE đặt ở `packages/shared`. Contract message TS ↔ Python định nghĩa một lần bằng Zod, xuất JSON Schema, rồi sinh Pydantic. Không viết tay ở cả hai phía (AD-6).
 15. Job AI chạy bất đồng bộ qua RabbitMQ: payload chỉ chứa ID, xử lý idempotent theo `job_id` (AD-5).
 
-## Gọi Claude API (ai-service)
+## Gọi LLM (ai-service)
 
-- Trước khi viết code gọi LLM, dùng skill `claude-api` (có sẵn trong Claude Code). Không viết tham số API theo trí nhớ.
-- Model `claude-opus-5-5`. Ghi rõ `output_config.effort` cho từng tác vụ (ARCH › *Bản đồ sử dụng LLM theo giai đoạn*). Lấy JSON bằng structured outputs (`output_config.format`), không dùng `tool_choice` để ép gọi công cụ.
-- Luôn kiểm tra `stop_reason == "refusal"` trước khi đọc nội dung.
-- Mọi lượt gọi đi qua `LLMClient` trong `ai-service/app/llm/`; agent không gọi SDK trực tiếp.
-- Prompt là file có phiên bản: `ai-service/app/prompts/<agent>/v<N>.md`. Không sửa prompt đã dùng; tạo `v<N+1>`.
-- Phần cố định của prompt đặt đầu, phần thay đổi đặt cuối. Không chèn thời gian hay ID ngẫu nhiên vào `system`. JSON đưa vào prompt dùng `sort_keys=True`, để prompt caching hoạt động.
-- Test dùng fixture, **không gọi API thật**. API thật chỉ chạy trong `ai-service/evals/`, khởi động thủ công.
+Hai nhà cung cấp sau `LLMClient`: Gemini (mặc định, `gemini-3.8-flash`) và Claude (`claude-opus-5-5`), chọn bằng `LLM_PROVIDER` ([CONTEXT D34](docs/CONTEXT.md)).
+
+- Agent gọi `LLMClient.generate(prompt=..., output_model=..., effort=EFFORT_BY_AGENT[...], job_id=...)` (`ai-service/app/llm/`). Chỉ `app/llm/` được import `google.genai` và `anthropic`; test chặn chỗ khác.
+- Ghi rõ effort cho từng tác vụ theo ARCH › *Bản đồ sử dụng LLM theo giai đoạn*; `generate` không có giá trị mặc định cho effort. JSON lấy bằng structured output với model Pydantic, không dùng `tool_choice` để ép gọi công cụ, không gửi `temperature`.
+- Refusal được kiểm trước khi đọc nội dung, sai schema được thử lại 2 lần, mọi lần thử được ghi vào `ai.llm_calls` và `llm-logs`: việc của `StructuredLLMClient`, agent không tự làm. Kết quả lưu kèm `result.model` (model thật sự trả lời) và `result.prompt_version`.
+- Sửa adapter hoặc nâng SDK: phần Claude dùng skill `claude-api` (có sẵn trong Claude Code); phần Gemini đối chiếu tài liệu chính thức ai.google.dev và kiểu dữ liệu của `google-genai` đã cài. Không viết tham số API theo trí nhớ. Xong thì chạy `ai-service/evals/smoke_llm.py` với key thật.
+- Prompt là file có phiên bản: `ai-service/app/prompts/<agent>/v<N>.md`, hai block Jinja `system` (không biến) và `user`. Không sửa prompt đã phát hành (có trong `manifest.json`); tạo `v<N+1>`. Phiên bản đang dùng chọn trong `active.json`.
+- Phần cố định của prompt đặt đầu, phần thay đổi đặt cuối. Không chèn thời gian hay ID ngẫu nhiên vào `system`. JSON đưa vào prompt dùng filter `tojson_sorted`; CV, JD, bài làm dùng filter `untrusted("<thẻ>")`.
+- Test dùng fixture, **không gọi API thật**: `conftest.py` xóa key và chặn kết nối ra ngoài. API thật chỉ chạy trong `ai-service/evals/`, khởi động thủ công, với dữ liệu giả khi dùng free tier của Gemini.
 
 ## Kiểm thử
 
@@ -184,4 +186,4 @@ Bản gốc nằm ở `.agents/skills/`. Claude Code đọc qua liên kết `.cl
 | `koni-harness` | Vòng lặp làm việc, cổng commit, chọn story tiếp theo, chạy song song nhiều story |
 | `koni-qc` | Viết test case, ma trận AC↔TC, review bảo mật, QC trước release |
 | `shadcn` | Thêm, sửa, ghép component giao diện |
-| `claude-api` (có sẵn trong Claude Code) | Viết code gọi Claude API |
+| `claude-api` (có sẵn trong Claude Code) | Sửa adapter Claude trong `ai-service/app/llm/` |

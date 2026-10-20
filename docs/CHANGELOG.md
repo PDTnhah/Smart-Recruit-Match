@@ -6,6 +6,40 @@ Lịch sử phát hành của Smart Recruit Match. Mỗi commit ship code tăng 
 
 ---
 
+## [0.8.0] — 2026-10-20 — LLMClient hai nhà cung cấp và prompt có phiên bản — v0.8.0
+
+US-2.2. Mọi lượt gọi LLM của AI Service đi qua một lớp `LLMClient`. Lớp này chạy được với Gemini (mặc định, `gemini-3.8-flash`) hoặc Claude (`claude-opus-5-5`), chọn bằng biến môi trường mà không sửa agent ([CONTEXT D34](CONTEXT.md), NFR-12). Effort luôn tường minh, JSON lấy bằng structured output, refusal được kiểm trước khi đọc nội dung, sai schema thì thử lại tối đa 2 lần rồi chuyển người xử lý. Mỗi lần thử ghi token, chi phí, độ trễ, model và phiên bản prompt vào `ai.llm_calls`; request và phản hồi đầy đủ lưu trong bucket `llm-logs`. Chưa agent nào dùng lớp này: US-2.3 nối nó vào worker.
+
+### Added
+- **`LLMClient`** (`ai-service/app/llm/`):
+  - `generate(prompt=, output_model=, effort=, job_id=)` trả object Pydantic đã kiểm kèm `model` (model thật sự trả lời) và `prompt_version`. `effort` không có giá trị mặc định; bảng effort theo agent khớp ARCH.
+  - Lõi chung `StructuredLLMClient`: refusal → `NeedsHumanReview` (`LLM_REFUSED`, kèm category), không thử lại; sai schema, bị cắt ở `max_tokens` hoặc dừng giữa chừng → thử lại request y hệt, tối đa 3 lần rồi `NeedsHumanReview` (`LLM_INVALID_OUTPUT`); lỗi nhà cung cấp sau khi SDK đã thử lại → `RetryableError` (429, 5xx, mạng) hoặc `PermanentError` (`LLM_BAD_REQUEST`).
+  - Adapter `GeminiProvider` (`generate_content`, `thinking_level`, `response_json_schema`, thử lại 3 lần) và `AnthropicProvider` (`output_config.effort/format`, `fallbacks="default"`). Không gửi `temperature`, không dùng `tool_choice`.
+  - `strict_json_schema`: schema gửi đi là tập con cả hai bên nhận (inline `$ref`, `additionalProperties: false`); Pydantic vẫn kiểm đủ ràng buộc khi nhận.
+  - Cấu hình `LLM_PROVIDER`, `LLM_MODEL`, `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `LLM_MAX_OUTPUT_TOKENS`, `LLM_PRICING`, `LLM_PROMPT_VERSIONS`, `LLM_FIXTURES_DIR`, `LLM_LOG_BUCKET`, `MINIO_*`. Chỉ key của nhà cung cấp được chọn là bắt buộc.
+- **Bảng `ai.llm_calls`** (migration `0007_ai_llm_calls`): một dòng cho mỗi lần thử, gồm `provider`, `model`, `effort`, `attempt`, `outcome`, `stop_reason`, `raw_stop_reason`, token vào / cache đọc / cache ghi / ra, `cost_usd`, `latency_ms`, `log_key`. Có CHECK cho từng giá trị liệt kê. Chỉ ghi thêm: migration `0008_ai_llm_calls_append_only` thu hồi `UPDATE`, `DELETE` của `ai_service`; `api_service` chỉ đọc.
+- **Chi phí:** `cost_usd` tính theo bảng giá paid tier cấu hình được: `gemini-3.8-flash` 0,75 / 3,75 / 0,075 USD, `claude-opus-5-5` 4 / 20 / 0,20 USD, cache ghi 5 USD, mỗi triệu token. Model không có giá thì `NULL`.
+- **Log `llm-logs`:** file JSON `<agent>/<yyyy>/<mm>/<call_id>.json` chứa request, phản hồi thô và phản hồi chuẩn hóa, ghi trước dòng DB. Bucket do AI Service tạo ở lần ghi đầu, bật SSE-S3. Kết quả sẽ được dùng thì bắt buộc có log; log của lần thử thất bại không che lỗi gốc khi ghi hỏng.
+- **Prompt có phiên bản** (`ai-service/app/prompts/`): file `<agent>/v<N>.md` với hai block Jinja `system` (không được chứa biến) và `user`; filter `tojson_sorted` và `untrusted("<thẻ>")` (vô hiệu hóa thẻ đóng lẫn trong dữ liệu). `manifest.json` ghim băm SHA-256 của prompt đã phát hành; `active.json` chọn phiên bản đang dùng. Registry production chỉ render prompt đã phát hành và chưa bị sửa, kể cả khi `LLM_PROMPT_VERSIONS` trỏ chỗ khác.
+- **Chế độ fixture:** `FixtureProvider` tra phản hồi đã ghi theo băm của request, phát lần lượt cho các lần thử; thiếu fixture thì lỗi rõ ràng, không gọi API thật.
+- **`evals/smoke_llm.py`:** kiểm tay `LLMClient` với API thật của Gemini hoặc Claude, ghi kết quả ra thư mục cục bộ hoặc vào PostgreSQL + MinIO.
+- **Test:** pytest cho lõi chung (refusal, thử lại, lỗi API, log, kết quả), ánh xạ của hai adapter bằng đối tượng phản hồi thật của SDK, schema, chi phí, cấu hình, manifest prompt, đối chiếu cột và CHECK với migration, quy tắc import SDK, chặn mạng; `ai-service-role.int-spec.ts` thêm quyền và một dòng đủ cột của `ai.llm_calls`.
+
+### Changed
+- **AD-10 sửa theo [CONTEXT D34](CONTEXT.md):** một model cho mỗi nhà cung cấp, Gemini mặc định, Claude thay thế. PRD Q8 chốt một phần (API thương mại); mô hình tự host còn mở.
+- **PRD › guardrails:** bỏ "temperature thấp". Tính nhất quán dựa vào cố định model, phiên bản prompt, structured output và cache kết quả.
+- **AI Service** thêm phụ thuộc ghim chính xác: google-genai 2.28.0, anthropic 1.11.0, Jinja2 3.1.6, minio 7.2.20. Image đóng gói thêm file của `app/prompts`.
+- `NeedsHumanReview` (lớp con của `PermanentError`) trong `app/consumers/errors.py`.
+- `tests/conftest.py` xóa mọi key LLM, ép chế độ fixture và chặn kết nối ra ngoài máy (cả kết nối async).
+- `.gitattributes`: prompt luôn dùng LF.
+- **Tài liệu:** ARCHITECTURE (*Tech stack*, *Chọn model*, bảng effort, *Ước tính chi phí*, `ai.llm_calls`, `llm-logs`, kênh AI → LLM, AD-10, Q8); PRD (guardrails, Q8); AGENTS (*Gọi LLM*); CONTEXT D34; LESSONS §19; US-2.4 thêm ghi chú về điều khoản đồng ý.
+
+### Upgrade notes
+- Chưa cần biến môi trường mới khi chạy compose: worker chưa dùng `LLMClient`. US-2.3 thêm `LLM_PROVIDER`, `GEMINI_API_KEY`… vào compose.
+- Trước khi gửi CV thật cho Gemini: cần `TERMS_V2` của điều khoản đồng ý và paid tier (CONTEXT D34).
+
+**Commit**:
+
 ## [0.7.0] — 2026-10-20 — Hạ tầng job AI và hợp đồng message — v0.7.0
 
 US-2.1. Một job AI đi được trọn vòng: Core Backend gửi job qua RabbitMQ, AI Service nhận, xử lý và trả kết quả qua `ai.results`, Core Backend kiểm kết quả rồi giao cho module sở hữu. Nhận trùng không ghi trùng, lỗi tạm thời tự thử lại, lỗi lâu dài vào dead-letter queue. Quyền PostgreSQL bảo đảm AI Service chỉ đọc dữ liệu đã che PII và chỉ ghi schema `ai`. Chưa gọi LLM: handler của CV và JD trả kết quả giả cho tới US-2.3, US-2.4.

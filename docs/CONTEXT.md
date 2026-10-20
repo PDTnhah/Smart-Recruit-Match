@@ -951,3 +951,41 @@ Ngoài ra còn phải giải quyết:
 
 **Date**: 2026-10-20
 **Version**: 0.7.0
+
+### D34. Nhà cung cấp LLM: Gemini mặc định, Claude thay thế qua `LLMClient` (revision of D10; chốt một phần Q8) (US-2.2)
+
+**Context**: D10 chọn một model `claude-opus-5-5` cho mọi agent. Khi lên kế hoạch US-2.2, người dùng muốn dùng được Gemini, không bắt buộc Claude. Q8 (API thương mại hay mô hình tự host) chưa chốt; NFR-12 yêu cầu đổi nhà cung cấp mà không sửa nghiệp vụ. Story viết cứng quanh API của Claude (`output_config.effort`, `stop_reason == "refusal"`, `fallbacks`).
+
+**Decision** (người dùng chốt ba mục đầu ngày 2026-10-20):
+
+- **Hai nhà cung cấp, mặc định Gemini.** `LLM_PROVIDER=gemini|anthropic|fixture`, mặc định `gemini`. Agent chỉ phụ thuộc `Protocol` `LLMClient` trong `ai-service/app/llm/`. Q8 chốt một phần: dùng API thương mại; mô hình tự host chưa làm.
+- **Một model cho mọi agent theo từng nhà cung cấp** (giữ tinh thần D10): Gemini `gemini-3.8-flash`, Claude `claude-opus-5-5`. `LLM_MODEL` ghi đè. Độ sâu suy luận vẫn theo bảng effort của ARCH: `effort` của Claude, `thinking_level` (`LOW`/`MEDIUM`/`HIGH`) của Gemini.
+- **Không gửi `temperature`.** `claude-opus-5-5` từ chối tham số sampling; Google khuyên giữ mặc định với Gemini 3.x. Tính nhất quán dựa vào cố định model + phiên bản prompt, structured output và cache kết quả. Sửa PRD › guardrails theo đó.
+- **Lõi chung + adapter.** `StructuredLLMClient` làm mọi việc chung: kiểm refusal trước khi đọc nội dung, thử lại tối đa 2 lần khi sai schema hoặc `MAX_TOKENS`, ghi log. Adapter (`GeminiProvider`, `AnthropicProvider`, `FixtureProvider`) chỉ dựng tham số và chuẩn hóa phản hồi về `StopReason` (`END_TURN`, `MAX_TOKENS`, `REFUSAL`, `OTHER`) và `Usage`.
+  - Gemini gọi `client.aio.models.generate_content` (không lưu trạng thái phía Google; Interactions API mặc định `store=true`). JSON lấy bằng `response_mime_type="application/json"` + `response_json_schema`. Refusal: `prompt_feedback.block_reason`, hoặc `finish_reason` thuộc `SAFETY`, `RECITATION`, `BLOCKLIST`, `PROHIBITED_CONTENT`, `SPII`, nhóm `IMAGE_*`. SDK mặc định không thử lại, nên bật `HttpRetryOptions(attempts=3)`.
+  - Claude gọi `client.beta.messages.create` với `output_config.effort`, `output_config.format` và `fallbacks="default"` (beta `server-side-fallback-2026-07-01`). Model dự phòng có thể khác, nên `model` luôn lấy từ phản hồi.
+  - Schema gửi đi là tập con chung của hai bên (`strict_json_schema`): inline `$ref`, `additionalProperties: false`, bỏ ràng buộc số và chuỗi. Pydantic vẫn kiểm đủ ràng buộc khi nhận.
+- **Bảng `ai.llm_calls`** thêm bốn cột so với ARCH: `provider`, `attempt`, `outcome` (`SUCCEEDED`, `INVALID_OUTPUT`, `TRUNCATED`, `REFUSED`, `API_ERROR`), `raw_stop_reason` (mã gốc của nhà cung cấp). Lỗi API sau khi SDK đã thử lại cũng ghi một dòng. Bảng chỉ ghi thêm: migration `0008` thu hồi `UPDATE`, `DELETE` của `ai_service`, để dịch vụ bị kiểm toán không sửa được nhật ký của chính nó. `cost_usd` tính theo bảng giá paid tier cấu hình được (`LLM_PRICING`), kể cả khi dev chạy free tier, để ước tính được chi phí một đợt thật. Giá mặc định đọc ngày 2026-10-20: `gemini-3.8-flash` 0,75 / 3,75 / 0,075 USD mỗi triệu token vào / ra / cache đọc (tăng gấp đôi từ 2027-01-01); `claude-opus-5-5` 4 / 20 / 0,20, cache ghi 5.
+- **Log MinIO:** thư viện `minio` (SDK chính thức, tương thích S3), gọi qua `anyio.to_thread`. Bucket `llm-logs` do AI Service tạo ở lần ghi đầu, bật SSE-S3 vì log của `cv_parser` chứa CV đầy đủ. MinIO client chuyển từ US-2.4 (D33) sang US-2.2.
+- **Ghi log:** kết quả sẽ được dùng thì bắt buộc có log; ghi không được thì lỗi lan lên và tầng job thử lại (PRD › guardrails yêu cầu truy vết lượt gọi ảnh hưởng điểm). Log của lần thử thất bại chỉ ghi theo kiểu best-effort, để sự cố MinIO/DB không che mất refusal hay lỗi gốc.
+- **Prompt:** mỗi file `v<N>.md` có hai block Jinja `system` và `user`. Block `system` render với context rỗng nên không thể chứa dữ liệu thay đổi. Registry dùng cho production kiểm manifest lúc render, nên `LLM_PROMPT_VERSIONS` không chạy được bản nháp hay file đã bị sửa. Manifest băm sau khi đổi `\r\n` thành `\n`, cộng `.gitattributes` `eol=lf`, để Windows và CI cho cùng một băm.
+- **Chưa nối `LLMClient` vào `worker.py`** và chưa thêm biến LLM vào compose: US-2.3 làm khi có handler thật đầu tiên.
+
+**Rationale**: Hai nhà cung cấp sau một `Protocol` chứng minh được NFR-12 bằng test. Gemini có free tier cho giai đoạn phát triển; Claude giữ làm phương án thay thế. Logic quyết định nằm ở lõi chung nên chỉ test một lần với fixture; adapter chỉ cần test ánh xạ bằng SDK client giả.
+
+**Alternatives considered**:
+- **Chỉ Gemini / chỉ Claude:** người dùng chọn cài cả hai.
+- **`gemini-4-argon`:** không có free tier, giá 2 / 10 USD (tăng gấp đôi từ 2026-12-01). **`gemini-2.5-flash`:** rẻ hơn nhưng là thế hệ cũ.
+- **Interactions API của Gemini** (Google khuyên dùng cho dự án mới): mặc định lưu hội thoại phía server, phải tắt bằng `store=false`; `generate_content` vẫn được hỗ trợ đầy đủ. Xem lại nếu Google ngừng hỗ trợ `generate_content`.
+- **`boto3` cho MinIO:** nặng hơn, không cần tính năng AWS riêng.
+- **Mỗi adapter tự làm refusal, thử lại, ghi log:** loại vì phải test hai lần và dễ lệch nhau.
+
+**Impact**:
+- AD-10 (đổi nội dung, trỏ D34), ARCH › *Tech stack*, *Chọn model*, bảng effort, `ai.llm_calls`, kênh AI → LLM, *Ước tính chi phí*; PRD › guardrails (temperature) và Q8; AGENTS › *Gọi LLM*.
+- Migration `0007` (`ai.llm_calls`; quyền đến từ `ALTER DEFAULT PRIVILEGES` của `0006`) và `0008` (viết tay: `ai_service` chỉ `SELECT`, `INSERT`).
+- `ai-service`: `app/llm/`, `app/prompts/`, `evals/smoke_llm.py`; thư viện `google-genai` 2.28.0, `anthropic` 1.11.0, `jinja2` 3.1.6, `minio` 7.2.20.
+- **Đồng ý điều khoản (D30):** `TERMS_V1` ghi tên Anthropic. Trước khi US-2.4 gửi CV thật cho Gemini phải có `TERMS_V2` ghi tên Google và sinh viên đồng ý lại. Free tier của Gemini có thể dùng dữ liệu để cải thiện sản phẩm, nên chỉ dùng free tier với dữ liệu giả; dữ liệu thật dùng paid tier.
+- Story cần refresh khi bắt đầu: US-2.3, US-2.4 (điều khoản, PDF scan gửi thẳng cho model), US-2.5, US-3.2 (Batches và cache khác nhau giữa hai nhà cung cấp), US-4.1 (vòng lặp công cụ), US-4.2, US-4.4, US-4.8, US-6.3 (evals theo nhà cung cấp), US-6.6.
+
+**Date**: 2026-10-20
+**Version**: 0.8.0
