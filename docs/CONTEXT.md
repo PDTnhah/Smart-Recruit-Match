@@ -912,6 +912,7 @@ Ngoài ra còn phải giải quyết:
   - Payload sai schema: publish sang DLQ rồi ack.
   - Thứ tự: publish kết quả (có confirm) → ghi `SUCCEEDED`/`FAILED` → ack. Giao ít nhất một lần: worker chết giữa chừng thì message được giao lại và `attempts` tăng; backend hấp thụ kết quả trùng.
   - Bắt mọi ngoại lệ trong handler, vì mặc định FastStream reject không requeue, tức là mất message.
+  - Mỗi worker nhận tối đa 8 job cùng lúc (`prefetch_count`); muốn nhanh hơn thì tăng số bản sao `ai-worker`.
 - **Consumer `ai.results`** (`aigateway`):
   - Nhận cả message không phải JSON. Message sai JSON hoặc sai schema thì ghi log (kèm `job_id` nếu đọc được), publish nguyên văn sang `ai.results.dlq`, rồi ack. Consumer không dừng.
   - Message hợp lệ thì phát `ai.result.<TYPE>` bằng `emitAsync`, rồi `ai.job.settled`. Listener lỗi lần đầu thì requeue; lỗi khi message đã được giao lại thì vào DLQ.

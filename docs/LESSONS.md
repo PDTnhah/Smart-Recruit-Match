@@ -131,6 +131,7 @@ See [CONTEXT.md D26](CONTEXT.md).
 - Sau khi thêm gói, chạy `pnpm --filter @srm/api test` (cả integration), không chỉ `typecheck` và `lint`.
 - (0.6.0) `"type": "module"` chưa chắc là chỉ có ESM. `nodemailer` 10 khai `"type": "module"` nhưng `exports` có điều kiện `require` trỏ vào `dist/cjs`, và `dist/cjs/package.json` ghi `"type": "commonjs"`, nên Jest nạp được (US-1.7). Gặp `"module"` thì xem tiếp `npm view <gói>@<bản> exports`. Có `require` thì tải tarball (`npm pack`) và kiểm `package.json` của thư mục CJS. Chỉ khi không có `require` thì mới loại gói.
 - (0.4.0) Bẫy này không riêng NestJS. `file-type`, thư viện ARCH chọn để kiểm MIME thật, chỉ có ESM từ bản 17 (bản mới nhất 22.x). Repo ghim 16.5.4, bản CommonJS cuối cùng (`fromBuffer`, nhận DOCX qua mục `word/` trong zip). Không dùng `import()` động để né: Jest cần `--experimental-vm-modules`.
+- (0.7.0) Gói chỉ có ESM có thể nằm sâu trong cây phụ thuộc. `@golevelup/nestjs-rabbitmq` 9.1.0 là CommonJS, nhưng `amqp-connection-manager` 5.0.1 bên dưới `require` gói `promise-breaker` 7, gói này chỉ có ESM. `tsc` và `node dist/main.js` chạy được; unit test đỏ với `Must use import to load ES Module: …/promise-breaker/dist/index.js` (US-2.1). Vì gói không phải phụ thuộc trực tiếp, `apps/api/jest.config.cjs` biên dịch riêng nó sang CommonJS: thêm `transform` cho `promise-breaker/*.js` bằng ts-jest (`allowJs`) và loại nó khỏi `transformIgnorePatterns`. Cách này không đổi phụ thuộc production. Kiểm cả cây: `node -e "require('<gói>')"` qua, rồi chạy Jest.
 
 See [US-1.4](sprints/stories/US-1.4-campaign-setup-and-config.md) › Implementation notes.
 
@@ -211,3 +212,51 @@ See [CONTEXT.md D31](CONTEXT.md).
 
 See [US-1.7](sprints/stories/US-1.7-notifications-sse-email-reminders.md) › Implementation notes.
 
+## 16. `RabbitMQModule` của golevelup giữ connection trong biến static: hai app Nest trong một process giẫm lên nhau
+
+**What happened (0.7.0)**: Khi thêm module `aigateway` (US-2.1), đọc mã của `@golevelup/nestjs-rabbitmq` 9.1.0 trước khi dùng `RabbitMQModule.forRootAsync`. Module này lưu connection vào `RabbitMQModule.connectionManager` (static, một `Map` theo `config.name`, mặc định `default`) và cờ static `bootstrapped`. Vài integration test dựng hai app Nest trong cùng một file (`events-stream`, `campaign-scheduler`). App thứ hai ghi đè connection của app thứ nhất trong `Map`, bỏ qua bước đăng ký handler, và khi app thứ nhất đóng thì connection của app thứ hai bị đóng theo. Connection của app thứ nhất không bao giờ được đóng, nên Jest không thoát.
+
+**Why**: Thư viện được thiết kế cho một app mỗi process. Trạng thái nằm ở biến static của class, không nằm trong container DI của từng app.
+
+**How to avoid**:
+- Không dùng `RabbitMQModule`. Mỗi app tạo `AmqpConnection` của golevelup trong một provider (`modules/aigateway/infrastructure/amqp.ts`), đóng nó trong `onApplicationShutdown`, và đăng ký consumer bằng `connection.createSubscriber` trong `onApplicationBootstrap`.
+- `createSubscriber` chỉ resolve khi broker kết nối được. Không `await` nó trong `onApplicationBootstrap`, nếu không app chờ RabbitMQ mới khởi động xong.
+- Trước khi dùng một module NestJS bọc kết nối ngoài (broker, cache), tìm `static` trong mã của nó.
+
+See [CONTEXT D33](CONTEXT.md).
+
+## 17. Mặc định của các thư viện message đều sai cho job AI: requeue mãi, bỏ message, chạy song song không giới hạn, không chờ listener
+
+**What happened (0.7.0)**: Khi dựng đường ống job AI (US-2.1), đọc mã của từng thư viện thì thấy bốn mặc định, mỗi cái gây một lỗi khác nhau nếu để nguyên:
+
+1. golevelup: handler `@RabbitSubscribe`/`createSubscriber` ném lỗi thì message bị requeue (`defaultSubscribeErrorBehavior: REQUEUE`). Một message sai schema quay vòng mãi (poison message).
+2. FastStream 0.7: handler ném lỗi thì message bị reject không requeue, tức là mất job.
+3. FastStream qua aio-pika: không đặt `prefetch_count` thì mọi message được giao sẽ chạy song song. Một worker có thể nhận cả trăm job LLM cùng lúc.
+4. `@nestjs/event-emitter`: listener khai `@OnEvent(name, { async: true })` thì `emitAsync` trả về trước khi listener chạy xong, nên lỗi của listener không về tới consumer. Mặc định `suppressErrors: true` còn nuốt lỗi.
+
+**Why**: Mỗi thư viện chọn mặc định cho trường hợp phổ biến của nó (RPC, demo, sự kiện fire-and-forget), không cho job cần xử lý đúng một lần về mặt nghiệp vụ.
+
+**How to avoid**:
+- Hai phía tự quyết định ack/nack cho từng message và bắt mọi lỗi trong handler: FastStream dùng `AckPolicy.MANUAL`; consumer `ai.results` trả `Nack` hoặc không gì cả, và message hỏng được chuyển sang DLQ rồi ack.
+- Worker đặt `RabbitBroker(default_channel=Channel(prefetch_count=…))`.
+- Listener của `ai.result.<TYPE>` dùng `@OnEvent(name, { suppressErrors: false })`, không `async: true` (quy ước trong `aigateway/domain/events.ts`).
+- Hai phía khai báo queue giống hệt nhau: FastStream luôn gửi `x-queue-type`, nên API cũng gửi tham số này. RabbitMQ từ chối khai báo lại một queue với tham số khác (`PRECONDITION_FAILED`).
+
+See [CONTEXT D33](CONTEXT.md).
+
+## 18. testcontainers build image bằng builder cũ và xóa image sau mỗi lần chạy: `pip install` mỗi lần hơn 10 phút, `beforeAll` quá hạn, Jest treo
+
+**What happened (0.7.0)**: Test trọn vòng của US-2.1 build `ai-service/Dockerfile` bằng `GenericContainer.fromDockerfile(…).build()`. Lần đầu cả file chạy 406 giây. Lần thứ hai, bước `pip install` trong lúc build kéo dài hơn 10 phút, `beforeAll` (600 giây) quá hạn và Jest không thoát: app Nest tạo song song với worker vẫn giữ kết nối AMQP tới RabbitMQ đã bị dừng.
+
+**Why**:
+- testcontainers 12 build qua Docker API bằng builder cũ, nên không dùng lại cache của BuildKit (`docker build`, `docker compose build`).
+- Mặc định `deleteOnExit: true`: image bị xóa khi chạy xong, kéo theo cache layer, nên lần sau build lại từ đầu.
+- `Promise.all([startWorker(), createApp()])`: khi `beforeAll` quá hạn, promise còn lại vẫn chạy tiếp và `afterAll` không có gì để đóng.
+
+**How to avoid**:
+- `build('<tên image>', { deleteOnExit: false })`: image được giữ lại, lần sau chỉ build lại lớp `app/` (vài giây).
+- Dockerfile cài phụ thuộc ở một layer riêng, chỉ phụ thuộc `pyproject.toml`.
+- Dựng tài nguyên lần lượt trong `beforeAll` (app trước, container build lâu sau) và gán biến ngay, để `afterAll` đóng được phần đã chạy.
+- Test bị treo sau khi `beforeAll` lỗi thì tìm tiến trình `node` còn chạy và dừng nó; container đã dừng nhưng kết nối của app vẫn thử lại.
+
+See [US-2.1](sprints/stories/US-2.1-ai-job-pipeline-message-contracts.md) › Implementation notes.

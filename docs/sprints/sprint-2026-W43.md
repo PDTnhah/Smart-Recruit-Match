@@ -9,7 +9,7 @@ goal: 'Ship US-2.1: job AI đi trọn vòng backend → RabbitMQ → AI Service 
 
 | US     | Title                                             | Epic   | Pri | Points | Status         | Carry    | Story file                                                                                                             |
 | ------ | ------------------------------------------------- | ------ | --- | ------ | -------------- | -------- | ---------------------------------------------------------------------------------------------------------------------- |
-| US-2.1 | Hạ tầng job AI và hợp đồng message                | EPIC-2 | P0  | 8      | 🚧 in-progress | new      | [stories/US-2.1-ai-job-pipeline-message-contracts.md](stories/US-2.1-ai-job-pipeline-message-contracts.md)             |
+| US-2.1 | Hạ tầng job AI và hợp đồng message                | EPIC-2 | P0  | 8      | 👀 review      | new      | [stories/US-2.1-ai-job-pipeline-message-contracts.md](stories/US-2.1-ai-job-pipeline-message-contracts.md)             |
 | US-1.1 | Scaffold monorepo, Docker Compose, CI             | EPIC-1 | P0  | 5      | 👀 review      | from W41 | [stories/US-1.1-scaffold-monorepo-docker-compose-ci.md](stories/US-1.1-scaffold-monorepo-docker-compose-ci.md)         |
 | US-1.3 | Đăng nhập, phân quyền, DESIGN.md, khung giao diện | EPIC-1 | P0  | 8      | 👀 review      | from W41 | [stories/US-1.3-auth-rbac-design-system-app-shell.md](stories/US-1.3-auth-rbac-design-system-app-shell.md)             |
 | US-1.4 | Tạo và cấu hình đợt thực tập                      | EPIC-1 | P0  | 5      | 👀 review      | from W42 | [stories/US-1.4-campaign-setup-and-config.md](stories/US-1.4-campaign-setup-and-config.md)                             |

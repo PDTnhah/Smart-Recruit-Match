@@ -1,7 +1,7 @@
 # Sprint Status
 
 > **AUTO-GENERATED** by `koni-docs status`. Do not hand-edit (RULE-5).
-> Last generated: 2026-10-20 00:15:37 UTC
+> Last generated: 2026-10-20 14:06:00 UTC
 > Total stories: 37
 
 ## ⏰ Deadlines (0)
@@ -46,13 +46,11 @@ _No stories carry an explicit deadline._
 
 _No stories_
 
-## 🟡 In Progress (1)
+## 🟡 In Progress (0)
 
-| ID | Title | Epic | Pri | Points | Sprint | Assignee |
-|---|---|---|---|---|---|---|
-| US-2.1 | Hạ tầng job AI và hợp đồng message | EPIC-2 | P0 | 8 | sprint-2026-W43 | PDTnhah |
+_No stories_
 
-## 👀 Review (6)
+## 👀 Review (7)
 
 | ID | Title | Epic | Pri | Points | Sprint | Assignee |
 |---|---|---|---|---|---|---|
@@ -62,6 +60,7 @@ _No stories_
 | US-1.5 | Doanh nghiệp, tài khoản HR, đăng và duyệt JD | EPIC-1 | P0 | 8 | sprint-2026-W43 | PDTnhah |
 | US-1.6 | Đồng ý xử lý dữ liệu và nộp CV | EPIC-1 | P0 | 5 | sprint-2026-W43 | PDTnhah |
 | US-1.7 | Thông báo trong app, SSE, email, nhắc hạn | EPIC-1 | P1 | 5 | sprint-2026-W43 | PDTnhah |
+| US-2.1 | Hạ tầng job AI và hợp đồng message | EPIC-2 | P0 | 8 | sprint-2026-W43 | PDTnhah |
 
 ## ✅ Done (1)
 
@@ -83,12 +82,12 @@ _No stories_
 
 - 📋 **Backlog**: 29
 - 🟢 **Ready**: 0
-- 🟡 **In Progress**: 1
-- 👀 **Review**: 6
+- 🟡 **In Progress**: 0
+- 👀 **Review**: 7
 - ✅ **Done**: 1
 - 🚫 **Blocked**: 0
 - 🗑️ **Deprecated**: 0
 
-✓ WIP: 1/3 stories in-progress.
+✓ WIP: 0/3 stories in-progress.
 
 ✓ No overdue stories.
