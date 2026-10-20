@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { Client } from 'pg';
 import { runMigrations } from '../../src/db/migrate.js';
-import { databaseUrl } from '../helpers/db.js';
+import { ownerDatabaseUrl } from '../helpers/db.js';
 
 const CORE_TABLES = [
   'audit_logs',
@@ -36,10 +36,10 @@ describe('AD-9: migrations apply on empty DB and create core tables with constra
   let url: string;
 
   beforeAll(async () => {
-    admin = new Client({ connectionString: databaseUrl() });
+    admin = new Client({ connectionString: ownerDatabaseUrl() });
     await admin.connect();
     await admin.query(`CREATE DATABASE ${name}`);
-    const target = new URL(databaseUrl());
+    const target = new URL(ownerDatabaseUrl());
     target.pathname = `/${name}`;
     url = target.toString();
     await runMigrations(url);
@@ -55,7 +55,7 @@ describe('AD-9: migrations apply on empty DB and create core tables with constra
 
   it('creates exactly the nine core tables', async () => {
     const { rows } = await client.query<{ table_name: string }>(
-      "SELECT table_name FROM information_schema.tables WHERE table_schema = 'core' ORDER BY table_name",
+      "SELECT table_name FROM information_schema.tables WHERE table_schema = 'core' AND table_type = 'BASE TABLE' ORDER BY table_name",
     );
     expect(rows.map((r) => r.table_name)).toEqual(CORE_TABLES);
   });

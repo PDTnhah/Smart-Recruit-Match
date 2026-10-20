@@ -48,6 +48,7 @@ docker compose -f deploy/docker-compose.yml logs migrate     # "migrate: applied
 - Migration lỗi thì `migrate` thoát khác 0, `api` không khởi động và `up --wait` báo `service "migrate" didn't complete successfully`. Đọc log ở lệnh trên.
 - Code có migration mới thì phải build lại image (`up -d --build`), vì migration nằm trong image.
 - Migrator chỉ áp migration có mốc thời gian mới hơn migration cuối đã áp. Không sửa hay đổi thứ tự file migration đã chạy ([LESSONS §6](docs/LESSONS.md)).
+- Từ 0.7.0, migration `0006` tạo hai role `api_service`, `ai_service` (cần `POSTGRES_USER` có quyền `CREATEROLE`; superuser của image có sẵn). Sau migration, `migrate` bật đăng nhập cho hai role bằng `API_DB_PASSWORD`, `AI_DB_PASSWORD` ([CONTEXT D33](docs/CONTEXT.md)).
 
 ## Dừng, dữ liệu và làm sạch
 
@@ -69,7 +70,9 @@ Nguồn: `deploy/.env` (sao từ [`deploy/.env.example`](deploy/.env.example)). 
 | `POSTGRES_USER` | Required | Tự đặt | Superuser tạo lúc khởi tạo volume `pgdata` |
 | `POSTGRES_PASSWORD` | Required | Tự đặt, mật khẩu mạnh | Đổi sau khi khởi tạo thì phải `ALTER USER` |
 | `POSTGRES_DB` | Required | Tự đặt | Database mặc định |
-| `DATABASE_URL` | – (compose tự ghép) | `postgres://POSTGRES_USER:POSTGRES_PASSWORD@postgres:5432/POSTGRES_DB` | Service `migrate` và `api` đọc. Vì được ghép thành URL, `POSTGRES_PASSWORD` chỉ nên gồm chữ, số và `-_.~`. Chạy API ngoài Docker thì tự đặt, host `localhost` và cổng `POSTGRES_HOST_PORT` |
+| `DATABASE_URL` | – (compose tự ghép) | `migrate`: `postgres://POSTGRES_USER:POSTGRES_PASSWORD@postgres:5432/POSTGRES_DB`; `api`: `postgres://api_service:API_DB_PASSWORD@postgres:5432/POSTGRES_DB` | Vì được ghép thành URL, các mật khẩu chỉ nên gồm chữ, số và `-_.~`. Chạy API ngoài Docker thì tự đặt, host `localhost` và cổng `POSTGRES_HOST_PORT` |
+| `API_DB_PASSWORD` | Required | Tự đặt, ≥ 12 ký tự chữ, số, `-_.~` | Mật khẩu role `api_service` mà `api` dùng: đọc ghi `core`, chỉ đọc `ai`. `migrate` đặt lại mật khẩu mỗi lần chạy, nên đổi trong `.env` rồi `up` là đủ ([CONTEXT D33](docs/CONTEXT.md)) |
+| `AI_DB_PASSWORD` | Required | Tự đặt, ≥ 12 ký tự chữ, số, `-_.~` | Mật khẩu role `ai_service` mà `ai-worker`, `ai-api` dùng: chỉ đọc view `core.v_ai_*`, đọc ghi `ai` |
 | `RABBITMQ_DEFAULT_USER` | Required | Tự đặt | User tạo lúc khởi tạo volume `rabbitmqdata` |
 | `RABBITMQ_DEFAULT_PASS` | Required | Tự đặt, mật khẩu mạnh | |
 | `MINIO_ENDPOINT` | Required | `http://minio:9000` với service đi kèm; hoặc URL của MinIO/S3 ngoài | Địa chỉ API gọi MinIO. Ngoài Docker dùng `http://localhost:9000`. API tạo bucket `jd-files`, `cv-files` ở lần tải file đầu tiên và mã hóa mọi object bằng SSE-S3 (CONTEXT D28) |
@@ -107,6 +110,8 @@ API chỉ biết các biến `MINIO_ENDPOINT`, `MINIO_ACCESS_KEY`, `MINIO_SECRET
 2. Có thể bỏ service `minio` khỏi lần chạy: `docker compose -f deploy/docker-compose.yml up -d --build --wait --scale minio=0`. Compose vẫn đòi `MINIO_KMS_SECRET_KEY` có giá trị; khi đó giá trị không được dùng.
 
 Image `minio/minio` không còn trên Docker Hub ([LESSONS §4](docs/LESSONS.md)). Muốn đổi image thì cập nhật digest trong `deploy/docker-compose.yml` và `apps/api/test/setup/images.ts` (testcontainers) trong cùng một commit.
+
+Từ 0.7.0, `deploy/.env` cũ cần thêm `API_DB_PASSWORD` và `AI_DB_PASSWORD`, nếu không `up` sẽ báo thiếu biến. API không còn đăng nhập DB bằng `POSTGRES_USER` mà bằng role `api_service`.
 
 Từ 0.6.0, `deploy/.env` cũ chạy được mà không cần sửa: `WEB_ORIGIN` và `SMTP_*` có mặc định trong compose. Trên máy chủ thật, đặt `WEB_ORIGIN` và `SMTP_*` theo địa chỉ web và máy chủ email của trường.
 

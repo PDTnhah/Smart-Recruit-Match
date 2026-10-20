@@ -19,8 +19,10 @@ x-api-build: &api-build
   context: ..
   dockerfile: apps/api/Dockerfile
 
-# Composed from POSTGRES_*; the password must be URL-safe (DEPLOY.md).
+# Composed from POSTGRES_*; the password must be URL-safe (DEPLOY.md). Only `migrate` uses the owner.
 x-database-url: &database-url postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+# The API's own role: reads and writes `core`, reads `ai` (migration 0006, CONTEXT D33).
+x-api-database-url: &api-database-url postgres://api_service:${API_DB_PASSWORD}@postgres:5432/${POSTGRES_DB}
 
 services:
   postgres:
@@ -108,6 +110,9 @@ services:
     restart: "no"
     environment:
       DATABASE_URL: *database-url
+      # Set as the login passwords of the service roles on every run (CONTEXT D33).
+      API_DB_PASSWORD: ${API_DB_PASSWORD:?set API_DB_PASSWORD (12+ URL-safe chars) in deploy/.env}
+      AI_DB_PASSWORD: ${AI_DB_PASSWORD:?set AI_DB_PASSWORD (12+ URL-safe chars) in deploy/.env}
     depends_on:
       postgres:
         condition: service_healthy
@@ -119,7 +124,7 @@ services:
       NODE_ENV: production
       PORT: "3000"
       LOG_LEVEL: ${LOG_LEVEL:-info}
-      DATABASE_URL: *database-url
+      DATABASE_URL: *api-database-url
       # Refresh tokens and access-token signing key (CONTEXT D25).
       REDIS_URL: redis://redis:6379
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?set JWT_ACCESS_SECRET (32+ chars) in deploy/.env}

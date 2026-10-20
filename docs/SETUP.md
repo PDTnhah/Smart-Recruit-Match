@@ -159,6 +159,14 @@ MAILPIT_UI_HOST_PORT=8025
 # Chỉ tự đặt khi chạy API hoặc db:migrate ngoài Docker (cổng theo POSTGRES_HOST_PORT):
 # DATABASE_URL=postgres://srm:change-me-postgres@localhost:5432/srm
 
+# Database roles of the services (added in v0.7.0, CONTEXT D33)
+# Migration 0006 tạo role api_service (API) và ai_service (AI Service); migrate đặt mật khẩu đăng nhập
+# từ hai biến này mỗi lần chạy. Bắt buộc; ≥ 12 ký tự an toàn trong URL (chữ, số, - _ . ~).
+# API ngoài Docker có thể dùng tài khoản chủ ở trên hoặc api_service:
+# DATABASE_URL=postgres://api_service:change-me-api-service@localhost:5432/srm
+API_DB_PASSWORD=change-me-api-service
+AI_DB_PASSWORD=change-me-ai-service
+
 # Authentication (added in v0.2.0, CONTEXT D25)
 # Khóa ký access token, ≥ 32 ký tự ngẫu nhiên (openssl rand -base64 48). Bắt buộc; để trống thì compose không chạy.
 JWT_ACCESS_SECRET=

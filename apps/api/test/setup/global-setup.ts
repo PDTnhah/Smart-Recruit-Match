@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { GenericContainer, type StartedTestContainer, Wait } from 'testcontainers';
 // globalSetup is loaded with plain require (no moduleNameMapper), so no `.js` suffix here.
-import { runMigrations } from '../../src/db/migrate';
+import { configureServiceRoles, runMigrations } from '../../src/db/migrate';
 import { MINIO_IMAGE, POSTGRES_IMAGE, REDIS_IMAGE } from './images';
 
 declare global {
@@ -15,6 +15,16 @@ const REDIS_PORT = 6379;
 const MINIO_PORT = 9000;
 const MINIO_ACCESS_KEY = 'srm-test';
 const MINIO_SECRET_KEY = 'srm-test-secret';
+const API_DB_PASSWORD = 'api-service-test';
+const AI_DB_PASSWORD = 'ai-service-test';
+
+/** The test database URL with another role's credentials. */
+function asRole(url: string, role: string, password: string): string {
+  const target = new URL(url);
+  target.username = role;
+  target.password = password;
+  return target.toString();
+}
 
 // Starts one throwaway PostgreSQL (+ pgvector), one Redis and one MinIO for the integration
 // project and applies the migrations in apps/api/drizzle. Test workers are spawned after this
@@ -60,7 +70,12 @@ export default async function globalSetup(): Promise<void> {
   globalThis.__SRM_REDIS__ = redis;
   globalThis.__SRM_MINIO__ = minio;
 
-  process.env.DATABASE_URL = postgres.getConnectionUri();
+  // The app under test connects as api_service, like the compose stack (CONTEXT D33). Tests that
+  // need the owner (create a database, roles, extensions) use DATABASE_OWNER_URL.
+  const ownerUrl = postgres.getConnectionUri();
+  process.env.DATABASE_OWNER_URL = ownerUrl;
+  process.env.DATABASE_URL = asRole(ownerUrl, 'api_service', API_DB_PASSWORD);
+  process.env.AI_DATABASE_URL = asRole(ownerUrl, 'ai_service', AI_DB_PASSWORD);
   process.env.REDIS_URL = `redis://${redis.getHost()}:${redis.getMappedPort(REDIS_PORT)}`;
   process.env.JWT_ACCESS_SECRET = 'integration-test-access-secret-0123456789';
   process.env.MINIO_ENDPOINT = `http://${minio.getHost()}:${minio.getMappedPort(MINIO_PORT)}`;
@@ -71,7 +86,8 @@ export default async function globalSetup(): Promise<void> {
   // The cron must not move campaigns created by other test files; scheduler tests call runOnce().
   process.env.SCHEDULER_ENABLED = 'false';
   try {
-    await runMigrations(process.env.DATABASE_URL);
+    await runMigrations(ownerUrl);
+    await configureServiceRoles(ownerUrl, { api_service: API_DB_PASSWORD, ai_service: AI_DB_PASSWORD });
   } catch (error) {
     await stopAll();
     throw error;
