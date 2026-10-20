@@ -156,6 +156,8 @@ MINIO_HOST_PORT=9000
 MINIO_CONSOLE_HOST_PORT=9001
 MAILPIT_SMTP_HOST_PORT=1025
 MAILPIT_UI_HOST_PORT=8025
+# FastAPI của AI Service, GET /health (added in v0.7.0).
+AI_API_HOST_PORT=8000
 
 # Core Backend database (added in v0.1.1, CONTEXT D24)
 # Compose tự ghép DATABASE_URL cho migrate và api từ POSTGRES_*, nên mật khẩu phải an toàn trong URL.

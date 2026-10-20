@@ -4,7 +4,6 @@
 #   docker compose -f deploy/docker-compose.yml up -d --build --wait
 # Compose reads deploy/.env automatically (project directory = this folder). See DEPLOY.md.
 # Infrastructure ports are published on 127.0.0.1 only; override *_HOST_PORT in deploy/.env on clashes.
-# ai-worker / ai-api join in US-2.1.
 
 name: smart-recruit-match
 
@@ -19,10 +18,16 @@ x-api-build: &api-build
   context: ..
   dockerfile: apps/api/Dockerfile
 
+# The ai-worker and ai-api services run the same image with different commands.
+x-ai-build: &ai-build
+  context: ../ai-service
+
 # Composed from POSTGRES_*; the password must be URL-safe (DEPLOY.md). Only `migrate` uses the owner.
 x-database-url: &database-url postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
 # The API's own role: reads and writes `core`, reads `ai` (migration 0006, CONTEXT D33).
 x-api-database-url: &api-database-url postgres://api_service:${API_DB_PASSWORD}@postgres:5432/${POSTGRES_DB}
+# The AI Service's role: reads only the PII-free views core.v_ai_*, reads and writes `ai` (AD-4).
+x-ai-database-url: &ai-database-url postgres://ai_service:${AI_DB_PASSWORD}@postgres:5432/${POSTGRES_DB}
 # AI jobs and results for api, ai-worker and ai-api; RABBITMQ_DEFAULT_PASS must be URL-safe too.
 x-rabbitmq-url: &rabbitmq-url amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672
 
@@ -168,6 +173,51 @@ services:
         - node
         - -e
         - "fetch('http://127.0.0.1:3000/api/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+
+  # AI job consumers (FastStream). Stateless: `--scale ai-worker=N` runs N replicas sharing the
+  # queues; ai.jobs keeps a job from being processed twice (CONTEXT D33). No container_name.
+  ai-worker:
+    build: *ai-build
+    restart: unless-stopped
+    command: ["faststream", "run", "app.worker:create_app", "--factory"]
+    environment:
+      AI_DATABASE_URL: *ai-database-url
+      RABBITMQ_URL: *rabbitmq-url
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  # FastAPI of the AI Service: GET /health now; admin endpoints in later stories.
+  ai-api:
+    build: *ai-build
+    restart: unless-stopped
+    command: ["uvicorn", "app.main:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      AI_DATABASE_URL: *ai-database-url
+      RABBITMQ_URL: *rabbitmq-url
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "127.0.0.1:${AI_API_HOST_PORT:-8000}:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      <<: *healthcheck
+      # urlopen raises on 503, so the probe fails while PostgreSQL or RabbitMQ is unreachable.
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5)"
 
   nginx:
     build:

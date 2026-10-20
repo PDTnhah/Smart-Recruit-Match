@@ -15,6 +15,11 @@ def test_reads_the_service_urls() -> None:
     assert load_settings(ENV).log_level == "INFO"
 
 
+def test_maps_the_api_log_levels_shared_in_compose() -> None:
+    assert load_settings({**ENV, "LOG_LEVEL": "trace"}).log_level == "DEBUG"
+    assert load_settings({**ENV, "LOG_LEVEL": "silent"}).log_level == "CRITICAL"
+
+
 @pytest.mark.parametrize(
     "override",
     [
@@ -22,6 +27,7 @@ def test_reads_the_service_urls() -> None:
         {"RABBITMQ_URL": ""},
         {"RABBITMQ_URL": "http://rabbitmq:15672"},
         {"AI_DATABASE_URL": "mysql://x"},
+        {"LOG_LEVEL": "loud"},
     ],
 )
 def test_refuses_a_missing_or_wrong_url(override: dict[str, str]) -> None:

@@ -13,12 +13,13 @@
 # Tại gốc repo, làm một lần:
 cp deploy/.env.example deploy/.env      # rồi đổi mọi mật khẩu
 
-# Dựng, áp migration DB và chờ đủ 7 service healthy:
+# Dựng, áp migration DB và chờ mọi service chạy (có healthcheck thì chờ healthy):
 docker compose -f deploy/docker-compose.yml up -d --build --wait
 docker compose -f deploy/docker-compose.yml ps
 
 # Kiểm tra:
 curl -fsS http://localhost:8080/api/health     # {"status":"ok",...}
+curl -fsS http://localhost:8000/health         # AI Service: {"status":"ok","postgres":"ok","rabbitmq":"ok"}
 # Web (SPA): mở http://localhost:8080/ trong trình duyệt
 ```
 
@@ -34,6 +35,8 @@ Compose tự đọc `deploy/.env`, vì thư mục project là thư mục chứa 
 | `rabbitmq` | `rabbitmq:4.3-management-alpine` | 127.0.0.1:5672, UI 15672 | `hostname` cố định để giữ dữ liệu |
 | `minio` | `cgr.dev/chainguard/minio@sha256:…` | 127.0.0.1:9000, console 9001 | [CONTEXT D23](docs/CONTEXT.md) |
 | `mailpit` | `axllent/mailpit:v1.31` | 127.0.0.1:1025 (SMTP), UI 8025 | Bắt email khi phát triển |
+| `ai-worker` | build từ `ai-service/Dockerfile` | – | Worker FastStream nhận job AI (`ai.cv.parse`, `ai.jd.analyze`). Chạy nhiều bản sao được: `up -d --scale ai-worker=2` ([CONTEXT D33](docs/CONTEXT.md)) |
+| `ai-api` | build từ `ai-service/Dockerfile` (cùng image `ai-worker`) | 127.0.0.1:8000 | FastAPI của AI Service. `GET /health` trả 200 khi kết nối được PostgreSQL (role `ai_service`) và RabbitMQ, ngược lại 503 |
 
 Cổng hạ tầng chỉ mở trên `127.0.0.1`. Nếu cổng đã bị chiếm, đổi biến `*_HOST_PORT` trong `deploy/.env`.
 
@@ -49,6 +52,19 @@ docker compose -f deploy/docker-compose.yml logs migrate     # "migrate: applied
 - Code có migration mới thì phải build lại image (`up -d --build`), vì migration nằm trong image.
 - Migrator chỉ áp migration có mốc thời gian mới hơn migration cuối đã áp. Không sửa hay đổi thứ tự file migration đã chạy ([LESSONS §6](docs/LESSONS.md)).
 - Từ 0.7.0, migration `0006` tạo hai role `api_service`, `ai_service` (cần `POSTGRES_USER` có quyền `CREATEROLE`; superuser của image có sẵn). Sau migration, `migrate` bật đăng nhập cho hai role bằng `API_DB_PASSWORD`, `AI_DB_PASSWORD` ([CONTEXT D33](docs/CONTEXT.md)).
+
+## AI Service và hàng đợi
+
+Từ 0.7.0, `api` gửi job AI qua RabbitMQ và `ai-worker` xử lý, rồi trả kết quả qua `ai.results` ([CONTEXT D33](docs/CONTEXT.md)). Chưa có agent thật: handler của CV và JD trả kết quả giả cho tới US-2.3, US-2.4.
+
+```bash
+docker compose -f deploy/docker-compose.yml up -d --scale ai-worker=2     # thêm bản sao worker
+docker compose -f deploy/docker-compose.yml logs -f ai-worker
+```
+
+- Queue `ai.cv.parse`, `ai.jd.analyze`, `ai.results` và các `*.dlq` được khai báo khi `api` hoặc `ai-worker` kết nối. Xem ở giao diện RabbitMQ `http://localhost:<RABBITMQ_UI_HOST_PORT>` (tài khoản `RABBITMQ_DEFAULT_USER`).
+- Job lỗi tạm thời được thử lại sau 2 s rồi 10 s; lần thứ 3 lỗi thì vào `<queue>.dlq`. Message trong DLQ có header `x-srm-dlq-reason`, `x-srm-attempts`, `x-srm-source-queue`. Chưa có màn quản trị DLQ trong web; xử lý bằng giao diện RabbitMQ (*Get messages*, *Move messages*).
+- Trạng thái từng job nằm ở bảng `ai.jobs` (`status`, `attempts`, `last_error`).
 
 ## Dừng, dữ liệu và làm sạch
 
@@ -90,6 +106,8 @@ Nguồn: `deploy/.env` (sao từ [`deploy/.env.example`](deploy/.env.example)). 
 | `MINIO_CONSOLE_HOST_PORT` | Optional (9001) | Tự đặt | Console |
 | `MAILPIT_SMTP_HOST_PORT` | Optional (1025) | Tự đặt | |
 | `MAILPIT_UI_HOST_PORT` | Optional (8025) | Tự đặt | |
+| `AI_API_HOST_PORT` | Optional (8000) | Tự đặt | Cổng của `ai-api` (`/health`) trên 127.0.0.1 |
+| `AI_DATABASE_URL` | – (compose tự ghép) | `postgres://ai_service:AI_DB_PASSWORD@postgres:5432/POSTGRES_DB` | `ai-worker`, `ai-api` đọc. Role `ai_service` chỉ đọc view `core.v_ai_*` và đọc ghi schema `ai` |
 | `JWT_ACCESS_SECRET` | Required | Chuỗi ngẫu nhiên ≥ 32 ký tự (`openssl rand -base64 48`) | Khóa ký access token HS256 (CONTEXT D25). Đổi khóa thì mọi người phải đăng nhập lại trong vòng 15 phút |
 | `REFRESH_TOKEN_TTL_DAYS` | Optional (7) | Tự đặt, 1–90 | Thời hạn refresh token (cookie httpOnly, Redis lưu hash) |
 | `REDIS_URL` | – (compose đặt `redis://redis:6379`) | | Chạy API ngoài Docker thì tự đặt, host `localhost` và cổng `REDIS_HOST_PORT` |
@@ -100,7 +118,7 @@ Nguồn: `deploy/.env` (sao từ [`deploy/.env.example`](deploy/.env.example)). 
 | `SMTP_USER`, `SMTP_PASSWORD` | Optional (trống) | Tài khoản SMTP | Để trống khi máy chủ không cần đăng nhập (Mailpit) |
 | `MAIL_FROM` | Optional (`Smart Recruit Match <no-reply@srm.local>`) | Địa chỉ người gửi | Dùng tên miền mà máy chủ SMTP được phép gửi thay |
 | `SEED_PASSWORD` | Optional (`Srm-Dev-12345`) | Tự đặt | Chỉ cho `pnpm --filter @srm/api db:seed` (dữ liệu dev/test), không dùng trong compose |
-| `LOG_LEVEL` | Optional (`info`) | `fatal`/`error`/`warn`/`info`/`debug`/`trace`/`silent` | Mức log pino của API |
+| `LOG_LEVEL` | Optional (`info`) | `fatal`/`error`/`warn`/`info`/`debug`/`trace`/`silent` | Mức log pino của API; `ai-worker`, `ai-api` cũng đọc (`trace` → DEBUG, `fatal`, `silent` → CRITICAL) |
 | `PORT`, `NODE_ENV` | – | Đặt sẵn trong `deploy/docker-compose.yml` (`3000`, `production`) | API đọc và kiểm bằng Zod (`apps/api/src/common/config/env.ts`); không cần khai báo trong `.env` |
 
 ## Đổi sang MinIO hoặc S3 bên ngoài
