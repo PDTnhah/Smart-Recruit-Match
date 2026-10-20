@@ -59,7 +59,7 @@ Ranh giới kiến trúc mà epic này giữ (AD-1, AD-4): AI Service không chu
 - **Sinh ngân hàng câu hỏi** — thuộc [EPIC-4](EPIC-4.md) (US-4.1), dù job này chạy ngay sau khi JD được duyệt.
 - **Dashboard chi phí LLM** — thuộc [EPIC-6](EPIC-6.md) (US-6.2). EPIC-2 chỉ ghi `ai.llm_calls`.
 - **Bộ đánh giá chất lượng trích xuất (P/R/F1)** — thuộc [EPIC-6](EPIC-6.md) (US-6.3).
-- **Mô hình mở tự host thay Claude (PRD Q8)** — chỉ thiết kế `LLMClient` để đổi được, không cài đặt.
+- **Mô hình mở tự host (PRD Q8, phần còn mở)** — `LLMClient` có hai nhà cung cấp thương mại (Gemini mặc định, Claude thay thế, [CONTEXT D34](../../CONTEXT.md)); mô hình tự host chỉ cần thêm một adapter, chưa cài đặt.
 
 ## FR Coverage
 
@@ -81,7 +81,7 @@ Ranh giới kiến trúc mà epic này giữ (AD-1, AD-4): AI Service không chu
 | AD-4 | Schema `ai`, view `core.v_ai_*` đã che PII | US-2.1 |
 | AD-5 | Job AI bất đồng bộ qua RabbitMQ, idempotent, DLQ | US-2.1 |
 | AD-6 | Hợp đồng dữ liệu Zod → JSON Schema → Pydantic | US-2.1 |
-| AD-10 | Một model Claude Opus 5.5, mọi lượt gọi qua `LLMClient` | US-2.2 |
+| AD-10 | Một model cho mỗi nhà cung cấp (Gemini mặc định, Claude thay thế, D34), mọi lượt gọi qua `LLMClient` | US-2.2 |
 | AD-11 | Embedding `bge-m3` tự host | US-2.5 |
 | AD-12 | Prompt có phiên bản (phần Batches/caching dùng ở EPIC-3, EPIC-4) | US-2.2 |
 
@@ -90,7 +90,7 @@ Ranh giới kiến trúc mà epic này giữ (AD-1, AD-4): AI Service không chu
 | ID | Title | Goal | Status | Version |
 |---|---|---|---|---|
 | US-2.1 | Hạ tầng job AI và hợp đồng message | Job AI đi từ backend sang AI Service và quay về, idempotent, có DLQ | 👀 review | 0.7.0 |
-| US-2.2 | LLMClient và prompt có phiên bản | Mọi lượt gọi Claude đi qua một lớp có retry, refusal, ghi chi phí, fixture | 📋 backlog | — |
+| US-2.2 | LLMClient và prompt có phiên bản | Mọi lượt gọi LLM (Gemini hoặc Claude) đi qua một lớp có retry, refusal, ghi chi phí, fixture | 👀 review | 0.8.0 |
 | US-2.3 | JD Analyzer và HR xác nhận yêu cầu | HR nhận yêu cầu chuẩn hóa do AI đề xuất, sửa và xác nhận | 📋 backlog | — |
 | US-2.4 | CV Parser: chữ ẩn, tách PII | CV thành hồ sơ năng lực có `profile_masked`, chặn chữ ẩn | 📋 backlog | — |
 | US-2.5 | Embedding và danh mục kỹ năng | Tên kỹ năng được chuẩn hóa; quản trị duyệt kỹ năng mới | 📋 backlog | — |

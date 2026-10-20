@@ -15,3 +15,15 @@ class PermanentError(Exception):
     def __init__(self, message: str, *, code: str = "PERMANENT_ERROR") -> None:
         super().__init__(message)
         self.code = code
+
+
+class NeedsHumanReview(PermanentError):
+    """The LLM refused, or its output stayed invalid after LLMClient's retries (US-2.2 AC-3, AC-4).
+
+    `category` is the provider's refusal category when it gave one, e.g. Claude's
+    `stop_details.category` or Gemini's finish reason.
+    """
+
+    def __init__(self, message: str, *, code: str, category: str | None = None) -> None:
+        super().__init__(message, code=code)
+        self.category = category

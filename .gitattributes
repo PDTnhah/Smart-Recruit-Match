@@ -1,5 +1,8 @@
 # Generated contracts: CI regenerates them and fails on any byte difference (CONTEXT D33).
 packages/shared/contracts/json-schema/** text eol=lf
 ai-service/app/contracts/** text eol=lf
+# Released prompts are pinned by hash (CONTEXT D34); the hash also normalises CRLF.
+ai-service/app/prompts/** text eol=lf
+ai-service/tests/fixtures/prompts/** text eol=lf
 # Shell scripts run inside Linux containers and CI.
 *.sh text eol=lf

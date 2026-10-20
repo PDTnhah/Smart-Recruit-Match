@@ -50,6 +50,20 @@
       "when": 1792456343832,
       "tag": "0006_ai_views_roles",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792508010696,
+      "tag": "0007_ai_llm_calls",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792509597965,
+      "tag": "0008_ai_llm_calls_append_only",
+      "breakpoints": true
     }
   ]
 }

@@ -132,6 +132,7 @@ jobs:
       - name: Lint
         run: ruff check .
 
-      # Tests use fixtures only; no ANTHROPIC_API_KEY in CI (AGENTS › Gọi Claude API).
+      # Tests use fixtures only; no LLM API key in CI, and tests/conftest.py blocks outbound connections
+      # (AGENTS › Gọi LLM, CONTEXT D34).
       - name: Test
         run: pytest

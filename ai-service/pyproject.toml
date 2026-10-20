@@ -15,6 +15,12 @@ dependencies = [
   "pydantic==2.13.5",
   "psycopg[binary]==3.3.6",
   "psycopg-pool==3.3.3",
+  # LLM providers, used only from app/llm (CONTEXT D34).
+  "google-genai==2.28.0",
+  "anthropic==1.11.0",
+  "jinja2==3.1.6",
+  # Request/response logs in the llm-logs bucket (AC-6).
+  "minio==7.2.20",
 ]
 
 [project.optional-dependencies]
@@ -32,6 +38,8 @@ include = ["app*"]
 
 [tool.setuptools.package-data]
 "app.contracts" = ["*.json"]
+# Versioned prompts ship in the image; the manifest pins released files (AD-12).
+"app.prompts" = ["*.json", "*/*.md"]
 
 [tool.ruff]
 target-version = "py312"

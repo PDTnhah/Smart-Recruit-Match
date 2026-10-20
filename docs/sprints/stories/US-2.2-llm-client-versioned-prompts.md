@@ -2,19 +2,19 @@
 id: US-2.2
 title: "LLMClient và prompt có phiên bản"
 epic: EPIC-2
-status: backlog
+status: review
 priority: P0
 points: 5
-sprint:
-version_shipped:
+sprint: sprint-2026-W43
+version_shipped: 0.8.0
 prd_ref: [NFR-11, NFR-12]
 arch_ref: [AD-10, AD-12]
 depends_on: [US-2.1]
-assignee:
-commit:
+assignee: PDTnhah
+commit: 2cca379c9a1f128774776e8b7610e3fbe9604ffb
 created: 2026-10-07
-updated: 2026-10-07
-external_deps: [anthropic_api]
+updated: 2026-10-20
+external_deps: [gemini_api, anthropic_api]
 ---
 
 ## Goal
@@ -29,47 +29,61 @@ AD-12 ([D12](../../CONTEXT.md)) yêu cầu prompt là file có phiên bản tron
 
 PRD › *Kiểm soát rủi ro AI (guardrails)* quy định: sai schema thì thử lại tối đa 2 lần, vẫn lỗi thì chuyển người xử lý; lưu prompt, phản hồi, phiên bản mô hình và thời điểm của mọi lượt gọi AI ảnh hưởng đến điểm. NFR-11 yêu cầu theo dõi token và chi phí; NFR-12 yêu cầu lớp trừu tượng để đổi nhà cung cấp mà không sửa nghiệp vụ. Câu hỏi Q8 (API thương mại hay mô hình mở tự host) chưa chốt, nên story chỉ thiết kế để đổi được.
 
-**Lessons applied**: none — LESSONS.md mới có §1 (Claude Code chỉ nạp skill từ `.claude/skills`), không liên quan nội dung story này; đọc lại khi bắt đầu story.
+**Lessons applied**: §4 (code chỉ phụ thuộc biến `MINIO_*`, không phụ thuộc server cụ thể), §6 (commit cả `drizzle/meta`, mốc thời gian migration tăng dần), §14 (biến môi trường rỗng coi như chưa đặt), §17 (lỗi LLM phân loại rõ `RetryableError` / `PermanentError`, không để thư viện tự quyết), §18 (Dockerfile giữ layer phụ thuộc riêng; thêm thư viện thì layer đó build lại một lần).
+
+### Story refresh (2026-10-20)
+
+Spec đổi theo [CONTEXT D34](../../CONTEXT.md): cài hai nhà cung cấp sau `LLMClient`, mặc định Gemini (`gemini-3.8-flash`), Claude (`claude-opus-5-5`) là phương án thay thế. Các AC bên dưới đọc theo cách sau; chỗ nào khác chữ gốc thì theo khối này:
+
+- **AC-1:** `model` đọc từ cấu hình theo nhà cung cấp (`LLM_PROVIDER`, `LLM_MODEL`). Effort luôn tường minh: Claude `output_config.effort`, Gemini `thinking_config.thinking_level`. Schema đầu ra: Claude `output_config.format`, Gemini `response_json_schema`. Không `temperature`, không `tool_choice`.
+- **AC-3:** refusal chuẩn hóa thành `StopReason.REFUSAL`. Claude: `stop_reason == "refusal"`, category lấy từ `stop_details.category`. Gemini: `prompt_feedback.block_reason`, hoặc `finish_reason` thuộc nhóm an toàn, category là mã gốc. `ai.llm_calls` ghi `stop_reason = REFUSAL`, `outcome = REFUSED`, mã gốc ở `raw_stop_reason`.
+- **AC-4:** `MAX_TOKENS` và `OTHER` (Gemini `LANGUAGE`, `MALFORMED_FUNCTION_CALL`…) xử lý như sai schema.
+- **AC-5:** thêm cột `provider`, `attempt`, `outcome`, `raw_stop_reason`. Lỗi API sau khi SDK đã thử lại cũng ghi một dòng (`outcome = API_ERROR`, `model` là model cấu hình vì không có phản hồi).
+- **AC-11:** không cần `GEMINI_API_KEY`, `GOOGLE_API_KEY` hay `ANTHROPIC_API_KEY`; fixture trung lập nhà cung cấp.
+- **AC-12:** chỉ `ai-service/app/llm/` được import `anthropic` và `google.genai`.
+- `fallbacks` chỉ có ở Claude; Gemini không có model dự phòng phía server.
+- Agent lấy tên từ `prompt_version` của prompt đã render, không truyền riêng (tránh lệch giữa hai giá trị).
+- Không nối `LLMClient` vào `worker.py`, không thêm biến LLM vào compose: US-2.3 làm khi có handler thật đầu tiên.
 
 ## Acceptance criteria
 
-- [ ] **AC-1** — **Given** một agent gọi `LLMClient`, **When** request được dựng, **Then** `model` là `claude-opus-5-5` (đọc từ cấu hình, không viết cứng trong agent), `output_config.effort` luôn có giá trị tường minh, `output_config.format` chứa JSON Schema của schema đầu ra **And** request không có `tool_choice` loại `any`/`tool`, không có `temperature`.
-- [ ] **AC-2** — **Given** một agent gọi `LLMClient` mà không truyền `effort`, **When** chạy, **Then** lỗi ngay ở lúc gọi (tham số bắt buộc, không có giá trị mặc định ngầm). Bảng effort của từng agent khớp ARCH › *Bản đồ sử dụng LLM theo giai đoạn*.
-- [ ] **AC-3** — **Given** phản hồi có `stop_reason == "refusal"`, **When** `LLMClient` xử lý, **Then** không đọc `content`, ghi `ai.llm_calls` với `stop_reason = refusal`, ném `NeedsHumanReview` (một `PermanentError` của US-2.1) kèm `stop_details.category` nếu có.
-- [ ] **AC-4** — **Given** phản hồi không qua được kiểm tra Pydantic (hoặc `stop_reason == "max_tokens"`), **When** `LLMClient` xử lý, **Then** thử lại tối đa 2 lần; lần thứ 3 vẫn lỗi thì ném `NeedsHumanReview`. Mỗi lần thử ghi một dòng `ai.llm_calls`.
-- [ ] **AC-5** — **Given** một lượt gọi xong (thành công hay lỗi), **When** kiểm tra `ai.llm_calls`, **Then** có một dòng với `job_id`, `agent`, `prompt_version` (dạng `<agent>/v<N>`), `model` (model thực sự trả lời, lấy từ phản hồi), `effort`, `input_tokens`, `cache_read_tokens`, `cache_write_tokens`, `output_tokens`, `cost_usd`, `latency_ms`, `stop_reason`, `log_key`, `created_at`. `cost_usd` tính từ usage theo bảng giá cấu hình được.
-- [ ] **AC-6** — **Given** một lượt gọi, **When** xong, **Then** request và phản hồi đầy đủ được lưu thành file JSON trong bucket MinIO `llm-logs` tại `log_key`, không lưu trong DB.
-- [ ] **AC-7** — **Given** `LLMClient` trả kết quả thành công, **When** agent nhận, **Then** kết quả là object Pydantic đã kiểm, kèm `model` và `prompt_version` để agent đưa vào `ai.results`.
-- [ ] **AC-8** — **Given** file prompt `ai-service/app/prompts/<agent>/v<N>.md` đã được ghi trong manifest, **When** nội dung file bị sửa, **Then** test kiểm tra manifest thất bại và yêu cầu tạo `v<N+1>`. Phiên bản prompt đang dùng của mỗi agent được chọn bằng cấu hình, không tự lấy file mới nhất.
-- [ ] **AC-9** — **Given** hai lần dựng request cho cùng agent với dữ liệu khác nhau, **When** so sánh phần `system`, **Then** phần `system` giống hệt từng byte (không có thời gian, UUID); dữ liệu thay đổi nằm sau phần cố định; mọi JSON đưa vào prompt được dump bằng helper `sort_keys=True`.
-- [ ] **AC-10** — **Given** CV/JD/bài làm đưa vào prompt, **When** dựng request, **Then** dữ liệu nằm trong khối thẻ riêng (VD `<cv_document>…</cv_document>`) ở phần `user`, thẻ đóng xuất hiện trong dữ liệu bị vô hiệu hóa, và phần `system` nói rõ nội dung trong thẻ là dữ liệu, không phải chỉ dẫn (AGENTS › Nguyên tắc 6).
-- [ ] **AC-11** — **Given** chế độ fixture (mặc định khi chạy test), **When** chạy toàn bộ test của `ai-service/tests/`, **Then** không có lượt gọi mạng nào tới Claude API và không cần `ANTHROPIC_API_KEY`. Fixture thiếu thì test lỗi rõ ràng, không rơi sang gọi API thật. Fixture mô phỏng được: thành công, refusal, sai schema, `max_tokens`.
-- [ ] **AC-12** — **Given** mã nguồn `ai-service/app/agents/`, **When** quét import, **Then** không agent nào import `anthropic` trực tiếp; chỉ `ai-service/app/llm/` được import SDK.
+- [x] **AC-1** — **Given** một agent gọi `LLMClient`, **When** request được dựng, **Then** `model` là `claude-opus-5-5` (đọc từ cấu hình, không viết cứng trong agent), `output_config.effort` luôn có giá trị tường minh, `output_config.format` chứa JSON Schema của schema đầu ra **And** request không có `tool_choice` loại `any`/`tool`, không có `temperature`.
+- [x] **AC-2** — **Given** một agent gọi `LLMClient` mà không truyền `effort`, **When** chạy, **Then** lỗi ngay ở lúc gọi (tham số bắt buộc, không có giá trị mặc định ngầm). Bảng effort của từng agent khớp ARCH › *Bản đồ sử dụng LLM theo giai đoạn*.
+- [x] **AC-3** — **Given** phản hồi có `stop_reason == "refusal"`, **When** `LLMClient` xử lý, **Then** không đọc `content`, ghi `ai.llm_calls` với `stop_reason = refusal`, ném `NeedsHumanReview` (một `PermanentError` của US-2.1) kèm `stop_details.category` nếu có.
+- [x] **AC-4** — **Given** phản hồi không qua được kiểm tra Pydantic (hoặc `stop_reason == "max_tokens"`), **When** `LLMClient` xử lý, **Then** thử lại tối đa 2 lần; lần thứ 3 vẫn lỗi thì ném `NeedsHumanReview`. Mỗi lần thử ghi một dòng `ai.llm_calls`.
+- [x] **AC-5** — **Given** một lượt gọi xong (thành công hay lỗi), **When** kiểm tra `ai.llm_calls`, **Then** có một dòng với `job_id`, `agent`, `prompt_version` (dạng `<agent>/v<N>`), `model` (model thực sự trả lời, lấy từ phản hồi), `effort`, `input_tokens`, `cache_read_tokens`, `cache_write_tokens`, `output_tokens`, `cost_usd`, `latency_ms`, `stop_reason`, `log_key`, `created_at`. `cost_usd` tính từ usage theo bảng giá cấu hình được.
+- [x] **AC-6** — **Given** một lượt gọi, **When** xong, **Then** request và phản hồi đầy đủ được lưu thành file JSON trong bucket MinIO `llm-logs` tại `log_key`, không lưu trong DB.
+- [x] **AC-7** — **Given** `LLMClient` trả kết quả thành công, **When** agent nhận, **Then** kết quả là object Pydantic đã kiểm, kèm `model` và `prompt_version` để agent đưa vào `ai.results`.
+- [x] **AC-8** — **Given** file prompt `ai-service/app/prompts/<agent>/v<N>.md` đã được ghi trong manifest, **When** nội dung file bị sửa, **Then** test kiểm tra manifest thất bại và yêu cầu tạo `v<N+1>`. Phiên bản prompt đang dùng của mỗi agent được chọn bằng cấu hình, không tự lấy file mới nhất.
+- [x] **AC-9** — **Given** hai lần dựng request cho cùng agent với dữ liệu khác nhau, **When** so sánh phần `system`, **Then** phần `system` giống hệt từng byte (không có thời gian, UUID); dữ liệu thay đổi nằm sau phần cố định; mọi JSON đưa vào prompt được dump bằng helper `sort_keys=True`.
+- [x] **AC-10** — **Given** CV/JD/bài làm đưa vào prompt, **When** dựng request, **Then** dữ liệu nằm trong khối thẻ riêng (VD `<cv_document>…</cv_document>`) ở phần `user`, thẻ đóng xuất hiện trong dữ liệu bị vô hiệu hóa, và phần `system` nói rõ nội dung trong thẻ là dữ liệu, không phải chỉ dẫn (AGENTS › Nguyên tắc 6).
+- [x] **AC-11** — **Given** chế độ fixture (mặc định khi chạy test), **When** chạy toàn bộ test của `ai-service/tests/`, **Then** không có lượt gọi mạng nào tới Claude API và không cần `ANTHROPIC_API_KEY`. Fixture thiếu thì test lỗi rõ ràng, không rơi sang gọi API thật. Fixture mô phỏng được: thành công, refusal, sai schema, `max_tokens`.
+- [x] **AC-12** — **Given** mã nguồn `ai-service/app/agents/`, **When** quét import, **Then** không agent nào import `anthropic` trực tiếp; chỉ `ai-service/app/llm/` được import SDK.
 
 ## Tasks
 
-- [ ] **TASK-2.2.1** — Dùng skill `claude-api` trước khi viết code gọi LLM; không viết tham số API theo trí nhớ (AC: 1, 3, 5)
-  - [ ] Subtask 2.2.1.1 — Đối chiếu với skill: tên tham số `output_config.effort`, `output_config.format`, cách đọc `stop_reason`/`stop_details`, tên trường usage cache (`cache_read_input_tokens`, `cache_creation_input_tokens`), tham số `fallbacks` + beta header cho lượt gọi đồng bộ (ARCH › *Code mẫu – lượt gọi của Matching Agent*), giới hạn JSON Schema của structured outputs, giá hiện hành của `claude-opus-5-5`.
-  - [ ] Subtask 2.2.1.2 — Ghi kết quả đối chiếu (phiên bản SDK, tham số đã kiểm) vào *Implementation notes*.
-- [ ] **TASK-2.2.2** — `LLMClient` và bản cài đặt Anthropic (AC: 1, 2, 3, 4, 7, 12)
-  - [ ] Subtask 2.2.2.1 — `ai-service/app/llm/client.py`: `Protocol` `LLMClient` với hàm sinh đầu ra có cấu trúc (tham số: `agent`, `prompt`, `output_model`, `effort` bắt buộc, `job_id`, tài liệu đính kèm tùy chọn) trả `LLMResult[T]` (`data`, `model`, `prompt_version`, `call_id`).
-  - [ ] Subtask 2.2.2.2 — `ai-service/app/llm/anthropic_client.py`: dùng Anthropic Python SDK; kiểm refusal trước; validate bằng Pydantic; thử lại khi sai schema tối đa 2 lần; ném `NeedsHumanReview`. Lỗi mạng/429/5xx để SDK tự thử lại, hết lượt thì ném `RetryableError` cho tầng job (US-2.1).
-  - [ ] Subtask 2.2.2.3 — `ai-service/app/llm/effort.py`: bảng effort theo agent lấy từ ARCH › *Bản đồ sử dụng LLM* (`jd_analyzer`, `cv_parser`, chuẩn hóa kỹ năng: `low`; `matching`, câu hỏi xác minh CV: `medium`; `test_generator`, `validator`, `grader`: `high`).
-  - [ ] Subtask 2.2.2.4 — `ai-service/app/llm/settings.py`: `model`, chế độ (`live` / `fixture`), bảng giá, tên bucket log — đọc từ biến môi trường; API key chỉ nằm ở AI Service (ARCH › *Security architecture*).
-- [ ] **TASK-2.2.3** — Ghi `ai.llm_calls` và log MinIO (AC: 5, 6)
-  - [ ] Subtask 2.2.3.1 — Migration Drizzle trong `apps/api/drizzle/`: bảng `ai.llm_calls` đúng cột ARCH › *Các bảng chính*, `index(agent, created_at)`; quyền ghi cho role `ai_service`.
-  - [ ] Subtask 2.2.3.2 — `ai-service/app/llm/usage.py`: tính `cost_usd` từ usage (token vào, cache đọc, cache ghi, token ra) và bảng giá.
-  - [ ] Subtask 2.2.3.3 — Ghi file JSON request/phản hồi vào bucket `llm-logs`; khóa dạng `<agent>/<yyyy>/<mm>/<call_id>.json` (đề xuất).
-- [ ] **TASK-2.2.4** — Prompt có phiên bản (AC: 8, 9, 10)
-  - [ ] Subtask 2.2.4.1 — `ai-service/app/prompts/registry.py`: nạp `ai-service/app/prompts/<agent>/v<N>.md` bằng Jinja2, trả `prompt_version = "<agent>/v<N>"`; phiên bản đang dùng của từng agent lấy từ cấu hình.
-  - [ ] Subtask 2.2.4.2 — `ai-service/app/prompts/manifest.json` (đề xuất): băm SHA-256 của mọi file prompt đã phát hành; test so băm.
-  - [ ] Subtask 2.2.4.3 — `ai-service/app/llm/render.py`: helper `dumps_sorted()` (`ensure_ascii=False`, `sort_keys=True`) và helper bọc dữ liệu không tin cậy trong thẻ, vô hiệu hóa thẻ đóng lẫn trong dữ liệu.
-- [ ] **TASK-2.2.5** — Chế độ fixture (AC: 11)
-  - [ ] Subtask 2.2.5.1 — `ai-service/app/llm/fixture_client.py`: tra phản hồi theo khóa băm của (agent, `prompt_version`, request đã chuẩn hóa) trong `ai-service/tests/fixtures/llm/<agent>/`.
-  - [ ] Subtask 2.2.5.2 — `ai-service/tests/conftest.py`: ép chế độ fixture, xóa `ANTHROPIC_API_KEY`, chặn khởi tạo client thật.
-  - [ ] Subtask 2.2.5.3 — Fixture dùng chung: `success`, `refusal`, `invalid_schema`, `max_tokens` cho một agent mẫu.
-- [ ] **TASK-2.2.6** — Test (AC: 1–12)
-  - [ ] Subtask 2.2.6.1 — `ai-service/tests/llm/test_llm_client.py`, `ai-service/tests/llm/test_usage_cost.py`, `ai-service/tests/prompts/test_prompt_manifest.py`, `ai-service/tests/llm/test_no_direct_sdk_import.py`.
+- [x] **TASK-2.2.1** — Dùng skill `claude-api` trước khi viết code gọi LLM; không viết tham số API theo trí nhớ (AC: 1, 3, 5)
+  - [x] Subtask 2.2.1.1 — Đối chiếu với skill: tên tham số `output_config.effort`, `output_config.format`, cách đọc `stop_reason`/`stop_details`, tên trường usage cache (`cache_read_input_tokens`, `cache_creation_input_tokens`), tham số `fallbacks` + beta header cho lượt gọi đồng bộ (ARCH › *Code mẫu – lượt gọi của Matching Agent*), giới hạn JSON Schema của structured outputs, giá hiện hành của `claude-opus-5-5`.
+  - [x] Subtask 2.2.1.2 — Ghi kết quả đối chiếu (phiên bản SDK, tham số đã kiểm) vào *Implementation notes*.
+- [x] **TASK-2.2.2** — `LLMClient` và bản cài đặt Anthropic (AC: 1, 2, 3, 4, 7, 12)
+  - [x] Subtask 2.2.2.1 — `ai-service/app/llm/client.py`: `Protocol` `LLMClient` với hàm sinh đầu ra có cấu trúc (tham số: `agent`, `prompt`, `output_model`, `effort` bắt buộc, `job_id`, tài liệu đính kèm tùy chọn) trả `LLMResult[T]` (`data`, `model`, `prompt_version`, `call_id`). *(agent lấy từ `prompt.prompt_version`; tài liệu đính kèm để US-2.4 thêm khi cần gửi PDF scan, xem Implementation notes)*
+  - [x] Subtask 2.2.2.2 — `ai-service/app/llm/anthropic_client.py`: dùng Anthropic Python SDK; kiểm refusal trước; validate bằng Pydantic; thử lại khi sai schema tối đa 2 lần; ném `NeedsHumanReview`. Lỗi mạng/429/5xx để SDK tự thử lại, hết lượt thì ném `RetryableError` cho tầng job (US-2.1). *(theo D34: lõi chung `app/llm/structured.py` + `app/llm/providers/anthropic_provider.py` và `gemini_provider.py`)*
+  - [x] Subtask 2.2.2.3 — `ai-service/app/llm/effort.py`: bảng effort theo agent lấy từ ARCH › *Bản đồ sử dụng LLM* (`jd_analyzer`, `cv_parser`, chuẩn hóa kỹ năng: `low`; `matching`, câu hỏi xác minh CV: `medium`; `test_generator`, `validator`, `grader`: `high`).
+  - [x] Subtask 2.2.2.4 — `ai-service/app/llm/settings.py`: `model`, chế độ (`live` / `fixture`), bảng giá, tên bucket log — đọc từ biến môi trường; API key chỉ nằm ở AI Service (ARCH › *Security architecture*).
+- [x] **TASK-2.2.3** — Ghi `ai.llm_calls` và log MinIO (AC: 5, 6)
+  - [x] Subtask 2.2.3.1 — Migration Drizzle trong `apps/api/drizzle/`: bảng `ai.llm_calls` đúng cột ARCH › *Các bảng chính*, `index(agent, created_at)`; quyền ghi cho role `ai_service`.
+  - [x] Subtask 2.2.3.2 — `ai-service/app/llm/usage.py`: tính `cost_usd` từ usage (token vào, cache đọc, cache ghi, token ra) và bảng giá.
+  - [x] Subtask 2.2.3.3 — Ghi file JSON request/phản hồi vào bucket `llm-logs`; khóa dạng `<agent>/<yyyy>/<mm>/<call_id>.json` (đề xuất).
+- [x] **TASK-2.2.4** — Prompt có phiên bản (AC: 8, 9, 10)
+  - [x] Subtask 2.2.4.1 — `ai-service/app/prompts/registry.py`: nạp `ai-service/app/prompts/<agent>/v<N>.md` bằng Jinja2, trả `prompt_version = "<agent>/v<N>"`; phiên bản đang dùng của từng agent lấy từ cấu hình.
+  - [x] Subtask 2.2.4.2 — `ai-service/app/prompts/manifest.json` (đề xuất): băm SHA-256 của mọi file prompt đã phát hành; test so băm.
+  - [x] Subtask 2.2.4.3 — `ai-service/app/llm/render.py`: helper `dumps_sorted()` (`ensure_ascii=False`, `sort_keys=True`) và helper bọc dữ liệu không tin cậy trong thẻ, vô hiệu hóa thẻ đóng lẫn trong dữ liệu.
+- [x] **TASK-2.2.5** — Chế độ fixture (AC: 11)
+  - [x] Subtask 2.2.5.1 — `ai-service/app/llm/fixture_client.py`: tra phản hồi theo khóa băm của (agent, `prompt_version`, request đã chuẩn hóa) trong `ai-service/tests/fixtures/llm/<agent>/`. *(`app/llm/providers/fixture_provider.py`)*
+  - [x] Subtask 2.2.5.2 — `ai-service/tests/conftest.py`: ép chế độ fixture, xóa `ANTHROPIC_API_KEY`, chặn khởi tạo client thật. *(chặn kết nối ra ngoài thay cho chặn khởi tạo client: mạnh hơn và bắt được cả SDK; LESSONS §19)*
+  - [x] Subtask 2.2.5.3 — Fixture dùng chung: `success`, `refusal`, `invalid_schema`, `max_tokens` cho một agent mẫu.
+- [x] **TASK-2.2.6** — Test (AC: 1–12)
+  - [x] Subtask 2.2.6.1 — `ai-service/tests/llm/test_llm_client.py`, `ai-service/tests/llm/test_usage_cost.py`, `ai-service/tests/prompts/test_prompt_manifest.py`, `ai-service/tests/llm/test_no_direct_sdk_import.py`.
 
 ## Dev notes
 
@@ -115,45 +129,87 @@ PRD › *Kiểm soát rủi ro AI (guardrails)* quy định: sai schema thì th�
 
 ## Verification commands
 
-> Lệnh chạy cụ thể (`pytest …`) sẽ điền khi US-1.1 tạo script (AGENTS › Lệnh). Bảng dưới ghi file test và tên case.
+Chạy trong `ai-service/` (Windows: `.venv/Scripts/`, Linux: `.venv/bin/`): `pytest tests/llm tests/prompts tests/test_no_network.py`.
 
 | AC | Command |
 |---|---|
-| AC-1 | `ai-service/tests/llm/test_llm_client.py::test_ad10_request_has_model_effort_format_no_tool_choice` |
-| AC-2 | `ai-service/tests/llm/test_llm_client.py::test_ad10_missing_effort_raises`; `::test_ad10_effort_map_matches_arch` |
-| AC-3 | `ai-service/tests/llm/test_llm_client.py::test_refusal_checked_before_content` |
-| AC-4 | `ai-service/tests/llm/test_llm_client.py::test_guardrail_invalid_schema_retries_twice_then_human_review` |
-| AC-5 | `ai-service/tests/llm/test_usage_cost.py::test_nfr11_llm_calls_row_has_usage_cost_model_prompt_version` |
-| AC-6 | `ai-service/tests/llm/test_llm_client.py::test_nfr5_request_response_logged_to_minio` |
-| AC-7 | `ai-service/tests/llm/test_llm_client.py::test_result_carries_model_and_prompt_version` |
-| AC-8 | `ai-service/tests/prompts/test_prompt_manifest.py::test_ad12_released_prompt_unchanged` |
-| AC-9 | `ai-service/tests/llm/test_llm_client.py::test_ad12_system_prefix_stable_and_json_sorted` |
-| AC-10 | `ai-service/tests/llm/test_llm_client.py::test_untrusted_data_wrapped_in_tags` |
-| AC-11 | Chạy toàn bộ `ai-service/tests/` khi không có `ANTHROPIC_API_KEY` và không có mạng ra ngoài: mọi test qua |
-| AC-12 | `ai-service/tests/llm/test_no_direct_sdk_import.py`; hoặc `rg -l "import anthropic\|from anthropic" ai-service/app` chỉ trả file trong `ai-service/app/llm/` |
+| AC-1 | `tests/llm/test_gemini_provider.py::test_ad10_request_has_model_effort_format_no_tool_choice`, `::test_ad10_effort_maps_to_thinking_level`; `tests/llm/test_anthropic_provider.py::test_ad10_request_has_model_effort_format_no_tool_choice`; `tests/llm/test_schema.py` |
+| AC-2 | `tests/llm/test_llm_client.py::test_ad10_missing_effort_raises`, `::test_ad10_effort_has_no_default_in_the_protocol`, `::test_ad10_effort_map_matches_arch` |
+| AC-3 | `tests/llm/test_llm_client.py::test_refusal_checked_before_content`, `::test_refusal_from_fixture`; `test_gemini_provider.py::test_refusal_finish_reasons_are_refusals_without_text`, `::test_blocked_prompt_is_a_refusal`; `test_anthropic_provider.py::test_refusal_has_category_and_no_text` |
+| AC-4 | `tests/llm/test_llm_client.py::test_guardrail_invalid_schema_retries_twice_then_human_review`, `::test_guardrail_invalid_output_then_valid_succeeds`, `::test_guardrail_max_tokens_is_retried`, `::test_guardrail_unfinished_reply_counts_as_invalid` |
+| AC-5 | `tests/llm/test_usage_cost.py::test_nfr11_llm_calls_row_has_usage_cost_model_prompt_version` và các test giá; `tests/llm/test_llm_calls_table.py`; `apps/api/test/integration/ai-service-role.int-spec.ts` › `NFR-11 ai_service logs an LLM call…` |
+| AC-6 | `tests/llm/test_llm_client.py::test_nfr5_request_response_logged_to_minio`, `::test_each_attempt_has_its_own_log_file`; `tests/llm/test_recorder.py` |
+| AC-7 | `tests/llm/test_llm_client.py::test_result_carries_model_and_prompt_version` |
+| AC-8 | `tests/prompts/test_prompt_manifest.py::test_ad12_released_prompt_unchanged`, `::test_ad12_released_prompts_in_the_repo_are_unchanged`, `::test_ad12_active_version_comes_from_config_not_newest_file` |
+| AC-9 | `tests/llm/test_llm_client.py::test_ad12_system_prefix_stable_and_json_sorted`, `::test_ad12_system_block_with_variables_is_rejected` |
+| AC-10 | `tests/llm/test_llm_client.py::test_untrusted_data_wrapped_in_tags` |
+| AC-11 | `tests/test_no_network.py` (hai SDK gọi thật đều bị chặn); `tests/llm/test_llm_client.py::test_missing_fixture_fails_clearly`; cả bộ `pytest` chạy không có key nào |
+| AC-12 | `tests/llm/test_no_direct_sdk_import.py`; hoặc `rg -l "import anthropic\|from anthropic\|google.genai\|from google import genai" ai-service/app` chỉ trả file trong `ai-service/app/llm/` |
+| Thủ công | `evals/smoke_llm.py` với `LLM_PROVIDER=gemini` + `GEMINI_API_KEY` (và `anthropic` nếu có key) |
 
 ## Changelog entry
 
-### Added
-- `LLMClient` trong `ai-service/app/llm/`: mọi lượt gọi Claude ghi rõ `effort`, lấy JSON bằng structured outputs, kiểm tra refusal trước khi đọc nội dung, thử lại tối đa 2 lần khi sai schema rồi chuyển người xử lý.
-- Bảng `ai.llm_calls` ghi token, chi phí, độ trễ, `model`, `prompt_version` của từng lượt gọi; request và phản hồi đầy đủ lưu trong bucket `llm-logs`.
-- Prompt có phiên bản tại `ai-service/app/prompts/<agent>/v<N>.md` kèm manifest băm, test báo lỗi khi sửa prompt đã phát hành.
-- Chế độ fixture cho `LLMClient`: test của AI Service không gọi API thật.
+Xem [CHANGELOG › 0.8.0](../../CHANGELOG.md). Tóm tắt:
 
-**Commit**:
+### Added
+- `LLMClient` trong `ai-service/app/llm/` với hai nhà cung cấp (Gemini mặc định, Claude thay thế): effort tường minh, structured output, refusal kiểm trước, thử lại tối đa 2 lần khi sai schema rồi chuyển người xử lý.
+- Bảng `ai.llm_calls` (migration `0007`) ghi token, chi phí, độ trễ, `provider`, `model`, `prompt_version`, `outcome` của từng lần thử; request và phản hồi đầy đủ lưu trong bucket `llm-logs`.
+- Prompt có phiên bản tại `ai-service/app/prompts/<agent>/v<N>.md` kèm manifest băm, test báo lỗi khi sửa prompt đã phát hành.
+- Chế độ fixture cho `LLMClient`; test của AI Service chặn mọi kết nối ra ngoài.
+
+**Commit**: 2cca379
 
 ## Implementation notes
 
-_Chưa bắt đầu._
+**Đối chiếu API (TASK-2.2.1, 2026-10-20).**
+- Claude: theo skill `claude-api`, kiểm trên `anthropic` 1.11.0. `client.beta.messages.create` nhận `output_config` (`effort`: `low`…`max`; `format`: `{"type": "json_schema", "schema": …}`) và `fallbacks="default"` cùng beta `server-side-fallback-2026-07-01`. `stop_details` (`category`, `explanation`) chỉ có khi `stop_reason == "refusal"`. Usage: `input_tokens`, `cache_read_input_tokens`, `cache_creation_input_tokens`, `output_tokens`. Structured outputs bắt buộc `additionalProperties: false`, nhận `$ref`, không nhận `minLength`/`maxLength`/`minimum`/`maximum`/schema đệ quy. SDK tự thử lại 408/409/429/5xx và lỗi mạng 2 lần. Giá `claude-opus-5-5`: 4 / 20 USD, cache đọc 0,20, cache ghi (TTL 5 phút) bằng 1,25 lần giá vào = 5. Lỗi: `APIStatusError` (`status_code`), `APIConnectionError` (gồm timeout). SDK 1.x chạy trên `httpx2`.
+- Gemini: không có skill; đối chiếu ai.google.dev (structured output, thinking, pricing, Interactions) và kiểu dữ liệu của `google-genai` 2.28.0. `GenerateContentConfig` có `system_instruction`, `response_mime_type`, `response_json_schema`, `thinking_config` (`ThinkingLevel`: `MINIMAL`/`LOW`/`MEDIUM`/`HIGH`), `max_output_tokens`. Phản hồi: `model_version`, `candidates[0].finish_reason` (`STOP`, `MAX_TOKENS`, `SAFETY`, `RECITATION`, `BLOCKLIST`, `PROHIBITED_CONTENT`, `SPII`, `IMAGE_*`, `LANGUAGE`, `OTHER`…), `prompt_feedback.block_reason`, `usage_metadata` (`prompt_token_count` gồm cả phần cache, `cached_content_token_count`, `candidates_token_count`, `thoughts_token_count`). **SDK mặc định không thử lại** (`retry_options=None` nghĩa là chỉ 1 lần), nên bật `HttpRetryOptions(attempts=3)` (thử lại 408/429/5xx và lỗi mạng của httpx). `HttpOptions.timeout` tính bằng mili giây. Lỗi: `errors.APIError` (`code`), `ClientError` 4xx, `ServerError` 5xx. `gemini-3.8-flash` có free tier; paid 0,75 / 3,75 / cache 0,075 USD, gấp đôi từ 2027-01-01. Interactions API là API Google khuyên cho dự án mới nhưng mặc định `store=true`; `generate_content` vẫn được hỗ trợ đầy đủ (D34).
+- Phiên bản: bản mới nhất phát hành trước 2026-10-06 (luật ≥ 2 tuần của D33): google-genai 2.28.0 (2026-10-02), anthropic 1.11.0 (2026-09-30), minio 7.2.20, Jinja2 3.1.6.
+
+**Khác so với Tasks gốc:**
+- Hai nhà cung cấp (D34) nên tách lõi chung `StructuredLLMClient` khỏi adapter. Adapter có `build_params` (thuần, JSON-serializable, chính là thứ ghi vào log) và `send`; test AC-1 chỉ cần gọi `build_params`.
+- `generate` không nhận `agent`: lấy từ `prompt.prompt_version`, tránh hai giá trị lệch nhau. Tài liệu đính kèm (PDF scan) chưa làm vì chưa agent nào cần; US-2.4 thêm vào `LLMRequest` cho cả hai adapter.
+- `ai.llm_calls` chỉ ghi thêm với `ai_service` (migration `0008`), thêm `provider`, `attempt`, `outcome`, `raw_stop_reason`; có FK `job_id → ai.jobs` (nullable cho evals) và CHECK `stop_reason IS NULL ⇔ outcome = API_ERROR`. Giá trị liệt kê viết hoa như mọi CHECK khác (`effort` = `LOW`/`MEDIUM`/`HIGH`). Quyền đến từ `ALTER DEFAULT PRIVILEGES` của `0006`, không cần GRANT mới.
+- Không nối `LLMClient` vào `worker.py` và không thêm biến LLM vào compose (chưa có handler thật); `build_llm_client` sẵn trong `app/llm/factory.py` cho US-2.3.
+- `tests/conftest.py` chặn kết nối ra ngoài thay vì chặn khởi tạo client. Bản đầu chỉ thay `socket.connect` và không chặn được client async trên Windows (LESSONS §19); `tests/test_no_network.py` giữ cho hàng rào đúng.
+- Prompt mẫu `echo/v1` nằm ở `tests/fixtures/prompts/`, không phải prompt sản phẩm; `app/prompts/manifest.json` và `active.json` bắt đầu rỗng. Prompt smoke riêng ở `evals/prompts/smoke/v1.md`.
+- Thử lại sai schema gửi lại request y hệt (không chèn thông báo lỗi) để giữ phần đầu prompt cache được.
+- Chưa chạy được `evals/smoke_llm.py` với API thật vì máy phát triển không có key. Đã chạy khô qua `FixtureProvider` (2 lần thử, 2 file log, 2 dòng). Người dùng cần chạy với `GEMINI_API_KEY` trước khi US-2.3 dùng.
+
+**Review (`/code-review`, 2026-10-20)**: 10 điểm, sửa 9:
+- Ghi log hỏng không còn che refusal hay lỗi gốc: log của lần thử thất bại ghi best-effort, log của kết quả được dùng vẫn bắt buộc.
+- Lỗi lạ từ adapter vẫn ghi một dòng `API_ERROR` rồi lan lên nguyên dạng.
+- `oneOf` (discriminated union) đổi thành `anyOf`; tuple, `not`, điều kiện và `allOf` nhiều nhánh báo lỗi thay vì thành `{}`.
+- Registry production kiểm manifest lúc render.
+- `ai.llm_calls` chỉ ghi thêm (migration `0008`).
+- Fixture phát lại từ đầu cho mỗi lượt `generate`.
+- `max_output_tokens=0` báo lỗi.
+- Test migration báo rõ khi thiếu `apps/api`.
+- `_Attempt` không còn đọc thuộc tính private của client.
+
+Giữ nguyên: `MAX_TOKENS` được thử lại với cùng `max_output_tokens`, đúng chữ AC-4. Tăng ngân sách token khi thử lại sẽ đụng giới hạn thời gian của request không streaming trong SDK Anthropic (khoảng trên 21 nghìn token). Agent có đầu ra dài (Test Generator) truyền `max_output_tokens` lớn hơn, hoặc dùng streaming ở US-4.1.
+
+**Lessons**: §19 (hàng rào mạng trong pytest phải chặn cả `getaddrinfo` và `loop.create_connection`).
 
 ## Files modified
 
-_Chưa bắt đầu._
+- `ai-service/app/llm/`: `__init__.py`, `types.py`, `client.py`, `structured.py`, `schema.py`, `render.py`, `effort.py`, `usage.py`, `settings.py`, `recorder.py`, `factory.py`, `providers/__init__.py`, `providers/gemini_provider.py`, `providers/anthropic_provider.py`, `providers/fixture_provider.py` (mới)
+- `ai-service/app/prompts/`: `__init__.py`, `files.py`, `registry.py`, `manifest.py`, `manifest.json`, `active.json` (mới)
+- `ai-service/app/consumers/errors.py` (`NeedsHumanReview`)
+- `ai-service/pyproject.toml` (google-genai, anthropic, jinja2, minio; package-data `app.prompts`)
+- `ai-service/evals/smoke_llm.py`, `ai-service/evals/prompts/smoke/v1.md` (mới)
+- `ai-service/tests/conftest.py`, `tests/test_no_network.py`, `tests/llm/` (mới: `llm_support.py`, `conftest.py`, `test_llm_client.py`, `test_gemini_provider.py`, `test_anthropic_provider.py`, `test_usage_cost.py`, `test_llm_calls_table.py`, `test_recorder.py`, `test_schema.py`, `test_settings.py`, `test_no_direct_sdk_import.py`), `tests/prompts/test_prompt_manifest.py`, `tests/fixtures/prompts/`, `tests/fixtures/llm/echo/`
+- `apps/api/src/db/schema/ai.ts` (`aiLlmCalls`), `apps/api/drizzle/0007_ai_llm_calls.sql`, `apps/api/drizzle/0008_ai_llm_calls_append_only.sql` (viết tay), `apps/api/drizzle/meta/0007_snapshot.json`, `0008_snapshot.json`, `_journal.json`
+- `apps/api/test/integration/ai-service-role.int-spec.ts`
+- `.gitattributes`, `.gitignore`, `.github/workflows/ci.yml` (comment)
+- `docs/CONTEXT.md` (D34), `docs/ARCHITECTURE.md`, `docs/PRD.md`, `docs/LESSONS.md` (§19), `docs/CHANGELOG.md`, `AGENTS.md`, `docs/sprints/epics/EPIC-2.md`, `docs/sprints/stories/US-2.4-cv-parser-hidden-text-pii-split.md` (ghi chú)
+- `VERSION`, `package.json`, `apps/api/package.json`, `apps/web/package.json`, `packages/shared/package.json` (0.8.0)
 
 ## Cross-references
 
 - [PRD NFR-11, NFR-12](../../PRD.md#non-functional-requirements)
 - [Epic EPIC-2](../epics/EPIC-2.md)
 - [CHANGELOG](../../CHANGELOG.md)
-- [CONTEXT D10, D12](../../CONTEXT.md)
+- [CONTEXT D10, D12, D34](../../CONTEXT.md)
+- [LESSONS §19](../../LESSONS.md)
 - [ARCHITECTURE › Architecture decisions](../../ARCHITECTURE.md#architecture-decisions)

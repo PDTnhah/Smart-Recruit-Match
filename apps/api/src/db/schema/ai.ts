@@ -1,7 +1,7 @@
 import { AI_JOB_RUN_STATUSES, AI_JOB_TYPES, type AiJobRunStatus, type AiJobType } from '@srm/shared';
 import { sql } from 'drizzle-orm';
-import { check, integer, pgSchema, text, uuid } from 'drizzle-orm/pg-core';
-import { oneOf, timestamptz } from './columns.js';
+import { check, index, integer, numeric, pgSchema, text, uuid } from 'drizzle-orm/pg-core';
+import { id, oneOf, timestamptz } from './columns.js';
 
 /**
  * Owned by the AI Service: job state, LLM call log, embeddings (ARCHITECTURE › Phân vùng schema).
@@ -31,5 +31,59 @@ export const aiJobs = ai.table(
     check('jobs_attempts_check', sql`${t.attempts} >= 0`),
     // Finished exactly when the job left PROCESSING.
     check('jobs_finished_at_check', sql`(${t.status} = 'PROCESSING') = (${t.finishedAt} is null)`),
+  ],
+);
+
+// Written only by the AI Service; the values mirror ai-service/app/llm/types.py, and
+// ai-service/tests/llm/test_llm_calls_table.py checks both sides against this table's migration.
+export const LLM_PROVIDERS = ['GEMINI', 'ANTHROPIC', 'FIXTURE'] as const;
+export const LLM_EFFORTS = ['LOW', 'MEDIUM', 'HIGH'] as const;
+export const LLM_CALL_OUTCOMES = ['SUCCEEDED', 'INVALID_OUTPUT', 'TRUNCATED', 'REFUSED', 'API_ERROR'] as const;
+export const LLM_STOP_REASONS = ['END_TURN', 'MAX_TOKENS', 'REFUSAL', 'OTHER'] as const;
+
+/**
+ * One row per LLM attempt: tokens, cost, latency, and what produced the answer (NFR-11, US-2.2,
+ * CONTEXT D34). The full request and reply live in the MinIO bucket `llm-logs` at `log_key`.
+ * A call that failed at the provider has no reply, hence no stop reason.
+ */
+export const aiLlmCalls = ai.table(
+  'llm_calls',
+  {
+    id: id(),
+    jobId: uuid('job_id').references(() => aiJobs.jobId),
+    agent: text('agent').notNull(),
+    promptVersion: text('prompt_version').notNull(),
+    provider: text('provider').$type<(typeof LLM_PROVIDERS)[number]>().notNull(),
+    model: text('model').notNull(),
+    effort: text('effort').$type<(typeof LLM_EFFORTS)[number]>().notNull(),
+    attempt: integer('attempt').notNull(),
+    outcome: text('outcome').$type<(typeof LLM_CALL_OUTCOMES)[number]>().notNull(),
+    stopReason: text('stop_reason').$type<(typeof LLM_STOP_REASONS)[number]>(),
+    rawStopReason: text('raw_stop_reason'),
+    inputTokens: integer('input_tokens').notNull().default(0),
+    cacheReadTokens: integer('cache_read_tokens').notNull().default(0),
+    cacheWriteTokens: integer('cache_write_tokens').notNull().default(0),
+    outputTokens: integer('output_tokens').notNull().default(0),
+    costUsd: numeric('cost_usd', { precision: 12, scale: 6 }),
+    latencyMs: integer('latency_ms').notNull(),
+    logKey: text('log_key').notNull().unique(),
+    createdAt: timestamptz('created_at').notNull().defaultNow(),
+  },
+  (t) => [
+    index('llm_calls_agent_created_at_idx').on(t.agent, t.createdAt),
+    index('llm_calls_job_id_idx').on(t.jobId),
+    check('llm_calls_prompt_version_check', sql`${t.promptVersion} ~ '^[a-z][a-z0-9_]*/v[1-9][0-9]*$'`),
+    oneOf('llm_calls_provider_check', t.provider, LLM_PROVIDERS),
+    oneOf('llm_calls_effort_check', t.effort, LLM_EFFORTS),
+    oneOf('llm_calls_outcome_check', t.outcome, LLM_CALL_OUTCOMES),
+    oneOf('llm_calls_stop_reason_check', t.stopReason, LLM_STOP_REASONS),
+    check('llm_calls_stop_reason_present_check', sql`(${t.outcome} = 'API_ERROR') = (${t.stopReason} is null)`),
+    check('llm_calls_attempt_check', sql`${t.attempt} >= 1`),
+    check(
+      'llm_calls_tokens_check',
+      sql`${t.inputTokens} >= 0 and ${t.cacheReadTokens} >= 0 and ${t.cacheWriteTokens} >= 0 and ${t.outputTokens} >= 0`,
+    ),
+    check('llm_calls_cost_usd_check', sql`${t.costUsd} >= 0`),
+    check('llm_calls_latency_ms_check', sql`${t.latencyMs} >= 0`),
   ],
 );

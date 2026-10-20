@@ -1,18 +1,17 @@
 # Sprint Status
 
 > **AUTO-GENERATED** by `koni-docs status`. Do not hand-edit (RULE-5).
-> Last generated: 2026-10-20 14:06:00 UTC
+> Last generated: 2026-10-20 15:13:13 UTC
 > Total stories: 37
 
 ## ⏰ Deadlines (0)
 
 _No stories carry an explicit deadline._
 
-## 📋 Backlog (29)
+## 📋 Backlog (28)
 
 | ID | Title | Epic | Pri | Points | Sprint | Assignee |
 |---|---|---|---|---|---|---|
-| US-2.2 | LLMClient và prompt có phiên bản | EPIC-2 | P0 | 5 | — | — |
 | US-2.3 | JD Analyzer và HR xác nhận yêu cầu | EPIC-2 | P0 | 8 | — | — |
 | US-2.4 | CV Parser: chữ ẩn, tách PII | EPIC-2 | P0 | 8 | — | — |
 | US-2.5 | Embedding và danh mục kỹ năng | EPIC-2 | P1 | 5 | — | — |
@@ -50,7 +49,7 @@ _No stories_
 
 _No stories_
 
-## 👀 Review (7)
+## 👀 Review (8)
 
 | ID | Title | Epic | Pri | Points | Sprint | Assignee |
 |---|---|---|---|---|---|---|
@@ -61,6 +60,7 @@ _No stories_
 | US-1.6 | Đồng ý xử lý dữ liệu và nộp CV | EPIC-1 | P0 | 5 | sprint-2026-W43 | PDTnhah |
 | US-1.7 | Thông báo trong app, SSE, email, nhắc hạn | EPIC-1 | P1 | 5 | sprint-2026-W43 | PDTnhah |
 | US-2.1 | Hạ tầng job AI và hợp đồng message | EPIC-2 | P0 | 8 | sprint-2026-W43 | PDTnhah |
+| US-2.2 | LLMClient và prompt có phiên bản | EPIC-2 | P0 | 5 | sprint-2026-W43 | PDTnhah |
 
 ## ✅ Done (1)
 
@@ -80,10 +80,10 @@ _No stories_
 
 ## Summary
 
-- 📋 **Backlog**: 29
+- 📋 **Backlog**: 28
 - 🟢 **Ready**: 0
 - 🟡 **In Progress**: 0
-- 👀 **Review**: 7
+- 👀 **Review**: 8
 - ✅ **Done**: 1
 - 🚫 **Blocked**: 0
 - 🗑️ **Deprecated**: 0

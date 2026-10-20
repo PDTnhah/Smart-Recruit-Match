@@ -29,6 +29,8 @@ Về dữ liệu cá nhân: NFR-3 yêu cầu không gửi thông tin định dan
 
 **Lessons applied**: none — LESSONS.md mới có §1 (Claude Code chỉ nạp skill từ `.claude/skills`), không liên quan nội dung story này; đọc lại khi bắt đầu story.
 
+> **Ghi chú từ US-2.2 (2026-10-20, [CONTEXT D34](../../CONTEXT.md))** — đọc khi viết *Story refresh*: nhà cung cấp LLM mặc định giờ là Gemini (`gemini-3.8-flash`), Claude là phương án thay thế. (1) `TERMS_V1` (`packages/shared/consent/terms-v1.ts`, D30) ghi tên Anthropic: trước khi gửi CV thật cho Gemini phải có `TERMS_V2` ghi tên Google, thời gian lưu và việc dùng dữ liệu, và sinh viên đồng ý lại. (2) Free tier của Gemini có thể dùng dữ liệu để cải thiện sản phẩm: CV thật chỉ đi qua paid tier. (3) PDF scan: Claude nhận `document` block, Gemini nhận PDF trực tiếp; `LLMRequest` hiện chỉ có văn bản, cần thêm tài liệu đính kèm cho cả hai adapter. (4) Gọi `LLMClient.generate` với `effort=EFFORT_BY_AGENT["cv_parser"]`, prompt `cv_parser/v1` qua `PromptRegistry`; log của `cv_parser` chứa CV đầy đủ và nằm trong bucket `llm-logs` đã bật SSE-S3.
+
 ## Acceptance criteria
 
 - [ ] **AC-1** — **Given** SV nộp CV thành công (US-1.6), **When** bản ghi CV được tạo, **Then** module `student` dispatch job `CV_PARSE` (`job_id`, `cv_id`, `cv_version`, `file_key`) lên `ai.cv.parse`, CV ở trạng thái đang phân tích **And** giao diện SV hiện "Đang phân tích CV…" qua SSE.

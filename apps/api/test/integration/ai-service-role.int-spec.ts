@@ -1,5 +1,6 @@
 // US-2.1 AC-8, AC-9 (AD-4, CONTEXT D33): the AI Service's database role reads `core` only through
 // the PII-free views and writes only `ai`; the API's role writes `core` and only reads `ai`.
+// US-2.2 AC-5 (CONTEXT D34): ai.llm_calls takes the row the AI Service writes for each LLM call.
 import {
   CV_STATES,
   JOB_DESCRIPTION_STATES,
@@ -80,6 +81,40 @@ describe('AD-4: database roles of the AI Service and the API', () => {
     await ai.query('DELETE FROM ai.jobs WHERE job_id = $1', [jobId]);
   });
 
+  it('NFR-11 ai_service logs an LLM call in ai.llm_calls with every column it writes', async () => {
+    // Same columns, in the same order, as ai-service/app/llm/recorder.py LLM_CALL_COLUMNS.
+    const jobId = randomUUID();
+    const logKey = `cv_parser/2026/10/${randomUUID()}.json`;
+    await ai.query("INSERT INTO ai.jobs (job_id, type, status, attempts) VALUES ($1, 'CV_PARSE', 'PROCESSING', 1)", [
+      jobId,
+    ]);
+    await ai.query(
+      `INSERT INTO ai.llm_calls (job_id, agent, prompt_version, provider, model, effort, attempt, outcome,
+         stop_reason, raw_stop_reason, input_tokens, cache_read_tokens, cache_write_tokens, output_tokens,
+         cost_usd, latency_ms, log_key)
+       VALUES ($1, 'cv_parser', 'cv_parser/v1', 'GEMINI', 'gemini-3.8-flash', 'LOW', 1, 'SUCCEEDED',
+         'END_TURN', 'STOP', 4000, 0, 0, 2000, 0.0105, 1830, $2)`,
+      [jobId, logKey],
+    );
+    const { rows } = await ai.query<{ cost_usd: string }>('SELECT cost_usd FROM ai.llm_calls WHERE log_key = $1', [
+      logKey,
+    ]);
+    expect(rows).toEqual([{ cost_usd: '0.010500' }]);
+    // A provider failure has no reply, so no stop reason; any other outcome must have one.
+    await expect(
+      ai.query(
+        `INSERT INTO ai.llm_calls (agent, prompt_version, provider, model, effort, attempt, outcome, latency_ms, log_key)
+         VALUES ('cv_parser', 'cv_parser/v1', 'GEMINI', 'gemini-3.8-flash', 'LOW', 1, 'SUCCEEDED', 5, $1)`,
+        [`cv_parser/2026/10/${randomUUID()}.json`],
+      ),
+    ).rejects.toMatchObject({ code: '23514', constraint: 'llm_calls_stop_reason_present_check' });
+    // The audit trail is append-only for the service it audits (migration 0008).
+    await expectDenied(ai.query('UPDATE ai.llm_calls SET cost_usd = 0 WHERE log_key = $1', [logKey]));
+    await expectDenied(ai.query('DELETE FROM ai.llm_calls WHERE log_key = $1', [logKey]));
+    await owner.query('DELETE FROM ai.llm_calls WHERE log_key = $1', [logKey]);
+    await ai.query('DELETE FROM ai.jobs WHERE job_id = $1', [jobId]);
+  });
+
   it('AD-4 ai_service holds exactly these table grants', async () => {
     const { rows } = await owner.query<{ grant: string }>(
       `SELECT table_schema || '.' || table_name || ' ' || privilege_type AS grant
@@ -90,6 +125,8 @@ describe('AD-4: database roles of the AI Service and the API', () => {
       'ai.jobs INSERT',
       'ai.jobs SELECT',
       'ai.jobs UPDATE',
+      'ai.llm_calls INSERT',
+      'ai.llm_calls SELECT',
       `${CV_VIEW} SELECT`,
       `${JD_VIEW} SELECT`,
     ]);
@@ -111,8 +148,12 @@ describe('AD-4: database roles of the AI Service and the API', () => {
       expect([table, await can(`core.${table}`, 'DELETE')]).toEqual([table, !audit]);
       expect([table, await can(`core.${table}`, 'TRUNCATE')]).toEqual([table, false]);
     }
-    expect(await can('ai.jobs', 'SELECT')).toBe(true);
-    for (const privilege of ['INSERT', 'UPDATE', 'DELETE']) expect(await can('ai.jobs', privilege)).toBe(false);
+    for (const table of ['ai.jobs', 'ai.llm_calls']) {
+      expect([table, await can(table, 'SELECT')]).toEqual([table, true]);
+      for (const privilege of ['INSERT', 'UPDATE', 'DELETE']) {
+        expect([table, privilege, await can(table, privilege)]).toEqual([table, privilege, false]);
+      }
+    }
     const { rows } = await owner.query<{ core: boolean; ai: boolean }>(
       "SELECT has_schema_privilege('api_service', 'core', 'CREATE') AS core, has_schema_privilege('api_service', 'ai', 'CREATE') AS ai",
     );

@@ -260,3 +260,17 @@ See [CONTEXT D33](CONTEXT.md).
 - Test bị treo sau khi `beforeAll` lỗi thì tìm tiến trình `node` còn chạy và dừng nó; container đã dừng nhưng kết nối của app vẫn thử lại.
 
 See [US-2.1](sprints/stories/US-2.1-ai-job-pipeline-message-contracts.md) › Implementation notes.
+
+## 19. Chặn mạng trong pytest bằng `socket.connect` không chặn được client async trên Windows
+
+**What happened (0.8.0)**: US-2.2 cần chứng minh test của AI Service không gọi API LLM thật (AC-11). Bản đầu của `tests/conftest.py` chỉ thay `socket.socket.connect`. Kết nối đồng bộ bị chặn, nhưng khi thử gọi `genai.Client(...).aio.models.generate_content` với key giả, request vẫn tới Google và nhận về `400 API key not valid`. Toàn bộ test vẫn xanh, nên lỗ hổng chỉ lộ ra khi cố tình thử gọi API thật.
+
+**Why**:
+- Trên Windows, asyncio mặc định dùng Proactor event loop. `loop.sock_connect` của nó kết nối bằng `ConnectEx` (overlapped I/O), không đi qua `socket.socket.connect`.
+- httpx (google-genai), httpx2 (anthropic) và aiohttp đều kết nối qua `loop.create_connection`, nên vượt qua được hàng rào chỉ đặt ở tầng socket.
+
+**How to avoid**:
+- Chặn ở ba tầng: `socket.getaddrinfo` (từ chối tên miền không phải loopback), `asyncio.base_events.BaseEventLoop.create_connection` (từ chối host không phải loopback), và `socket.socket.connect` / `connect_ex` cho client đồng bộ. Để ngỏ loopback, vì Proactor tạo self-pipe bằng một cặp socket localhost.
+- Giữ một test gọi thật từng SDK (`tests/test_no_network.py`) và kiểm rằng lỗi trả về đến từ hàng rào. Chỉ test client tự viết thì không thấy được lỗ hổng.
+
+See [US-2.2](sprints/stories/US-2.2-llm-client-versioned-prompts.md) › Implementation notes.
