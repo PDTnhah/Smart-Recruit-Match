@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./cv_parse_result.json",
+  "type": "object",
+  "properties": {
+    "job_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "type": {
+      "type": "string",
+      "const": "CV_PARSE"
+    },
+    "status": {
+      "$ref": "./ai_result_status.json"
+    },
+    "job": {
+      "$ref": "./cv_parse_job.json"
+    },
+    "result": {
+      "anyOf": [
+        {
+          "$ref": "./cv_parse_output.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "error": {
+      "anyOf": [
+        {
+          "$ref": "./ai_job_error.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "job_id",
+    "type",
+    "status",
+    "job",
+    "result",
+    "error"
+  ],
+  "additionalProperties": false,
+  "title": "CvParseResult",
+  "description": "Message on ai.results for a CV_PARSE job"
+}

@@ -1,5 +1,4 @@
 # CI for the monorepo (ARCHITECTURE › CI, US-1.1 AC-4). Any failing step fails its job.
-# The TS ↔ Python message-contract check joins in US-2.1.
 name: CI
 
 on:
@@ -70,6 +69,28 @@ jobs:
           if [ -n "$changes" ]; then
             echo "$changes"
             echo "::error::API changed without regenerating the client: run 'pnpm api:sync' and commit apps/web/src/shared/api"
+            exit 1
+          fi
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: ai-service/pyproject.toml
+
+      - name: Install the AI Service (pins datamodel-code-generator)
+        run: pip install -e "ai-service[dev]"
+
+      # Zod → JSON Schema → Pydantic (AD-6, CONTEXT D33). Any new or changed file means a contract
+      # changed without `pnpm contracts:gen`, or a generated file was edited by hand.
+      - name: Message contracts match between TypeScript and Python
+        run: |
+          pnpm contracts:gen
+          changes=$(git status --porcelain packages/shared/contracts/json-schema ai-service/app/contracts)
+          if [ -n "$changes" ]; then
+            echo "$changes"
+            git diff -- packages/shared/contracts/json-schema ai-service/app/contracts
+            echo "::error::Message contracts drifted: run 'pnpm contracts:gen' and commit packages/shared/contracts/json-schema and ai-service/app/contracts"
             exit 1
           fi
 

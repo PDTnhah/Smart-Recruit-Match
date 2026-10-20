@@ -899,7 +899,7 @@ Ngoài ra còn phải giải quyết:
     - `result` của mọi kiểu job có `prompt_version` và `model` (Nguyên tắc 12); US-2.3, US-2.4 mở rộng.
     - `error`: `{ code, message, needs_human }`.
     - `status` ∈ `SUCCEEDED`, `PARTIAL`, `FAILED`. Kiểm chéo (`FAILED` thì có `error`, không có `result`; còn lại ngược lại) chỉ có ở phía TS, vì `z.toJSONSchema` bỏ qua refine. Phía Python dựng message ở một chỗ (`app/consumers/base.py`) và có test riêng.
-  - Script `pnpm contracts:gen` (`scripts/gen-contracts.mjs`) ghi `packages/shared/contracts/json-schema/*.json` và `ai-service/app/contracts/queues.json`, rồi sinh `ai-service/app/contracts/*.py` bằng `datamodel-code-generator`. Phiên bản `datamodel-code-generator`, `black`, `isort` ghim chính xác, vì output phụ thuộc chúng.
+  - Script `pnpm contracts:gen` (`scripts/gen-contracts.mjs`) ghi `packages/shared/contracts/json-schema/*.json` và `ai-service/app/contracts/queues.json`, rồi sinh `ai-service/app/contracts/*.py` bằng `datamodel-code-generator`. `datamodel-code-generator` ghim chính xác và dùng formatter `builtin` của nó, để output chỉ phụ thuộc một phiên bản.
   - CI chạy lại script rồi kiểm `git status --porcelain` trên hai thư mục, để bắt cả file mới chưa track.
 - **Queue:**
   - Tên queue, hậu tố `.dlq`, số lần thử (3) và độ trễ thử lại (2 s, 10 s) nằm ở `contracts/queues.ts`; Python đọc qua `queues.json`.

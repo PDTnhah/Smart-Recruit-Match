@@ -1,4 +1,6 @@
-import { canTransition, defineMachine, isState, nextStates } from '../machine.js';
+import { canTransition, defineMachine, isState, nextStates, reachableFrom } from '../machine.js';
+import { cvMachine } from '../cv.js';
+import { jobDescriptionMachine } from '../job-description.js';
 
 type S = 'A' | 'B' | 'C';
 const states = ['A', 'B', 'C'] as const;
@@ -29,5 +31,23 @@ describe('AD-8: defineMachine validates the table at load time', () => {
     expect(nextStates(m, 'B')).toEqual(['C']);
     expect(isState(m, 'C')).toBe(true);
     expect(isState(m, 'Z')).toBe(false);
+  });
+});
+
+describe('AD-8: reachableFrom lists a state and everything after it', () => {
+  it('follows every branch and keeps declaration order', () => {
+    const m = defineMachine<S>({ name: 't', states, initial: 'A', transitions: { A: ['C', 'B'], B: [], C: [] } });
+    expect(reachableFrom(m, 'A')).toEqual(['A', 'B', 'C']);
+    expect(reachableFrom(m, 'B')).toEqual(['B']);
+  });
+
+  it('terminates on a cycle', () => {
+    const m = defineMachine<S>({ name: 't', states, initial: 'A', transitions: { A: ['B'], B: ['A'], C: [] } });
+    expect(reachableFrom(m, 'B')).toEqual(['A', 'B']);
+  });
+
+  it('BR-01 BR-02: gives the states the AI Service may read', () => {
+    expect(reachableFrom(cvMachine, 'CONFIRMED')).toEqual(['CONFIRMED']);
+    expect(reachableFrom(jobDescriptionMachine, 'APPROVED')).toEqual(['APPROVED', 'RECRUITING', 'FILLED', 'CLOSED']);
   });
 });

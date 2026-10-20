@@ -59,6 +59,10 @@ python3.12 -m venv .venv          # hoặc bất kỳ Python ≥ 3.12
 .venv/bin/pip install -e ".[dev]"
 ```
 
+Trên Windows, venv đặt file chạy ở `.venv/Scripts/` thay cho `.venv/bin/` (VD `.venv/Scripts/pip install -e ".[dev]"`). Máy chưa có Python 3.12 thì có thể lấy từ conda rồi tạo venv chuẩn: `conda create -n srm-py312 python=3.12`, sau đó `<thư mục env>/python -m venv .venv`.
+
+`pnpm contracts:gen` cần venv này: nó gọi `datamodel-code-generator` để sinh model Pydantic. Script tìm Python theo thứ tự `$AI_SERVICE_PYTHON`, `ai-service/.venv`, rồi `python3`/`python` trên PATH.
+
 ### 5. Cổng commit koni-harness
 
 `.koni-harness/` đã được commit, nhưng hook git nằm trong `.git/hooks` nên mỗi bản clone phải tự cài:
@@ -98,9 +102,10 @@ Chạy tại gốc repo:
 | `pnpm --filter @srm/api db:migrate` | Áp migration lên DB ở `DATABASE_URL` |
 | `pnpm --filter @srm/api db:seed` | Tạo tài khoản demo cho bốn vai trò (chỉ dev/test; chạy lại không tạo trùng) |
 | `pnpm api:sync` | Xuất OpenAPI từ API rồi sinh kiểu client cho web (`apps/web/src/shared/api/`) |
+| `pnpm contracts:gen` | Sinh JSON Schema (`packages/shared/contracts/json-schema/`) và model Pydantic (`ai-service/app/contracts/`) từ hợp đồng Zod; chạy sau khi sửa `packages/shared/contracts` rồi commit cả hai thư mục ([CONTEXT D33](CONTEXT.md)) |
 | `pnpm --filter @srm/web dev` | Chạy web ở `localhost:5173`, proxy `/api` sang `localhost:3000` |
 | `pnpm docs:validate` / `docs:sync` / `docs:status` | Lệnh koni-docs ([docs/README.md](README.md)) |
-| `ai-service/.venv/bin/ruff check ai-service` | Lint AI Service |
+| `ai-service/.venv/bin/ruff check ai-service` | Lint AI Service (Windows: `.venv/Scripts/`) |
 | `ai-service/.venv/bin/pytest ai-service` | Test AI Service (không gọi API thật) |
 | `docker compose -f deploy/docker-compose.yml up -d --build --wait` | Dựng cả hệ thống ([DEPLOY.md](../DEPLOY.md)) |
 

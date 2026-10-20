@@ -74,7 +74,8 @@ pnpm --filter @srm/api dev             # API ở :3000
 pnpm --filter @srm/web dev             # web ở :5173, proxy /api → :3000
 pnpm --filter @srm/api db:generate     # sinh migration SQL từ src/db/schema; commit cả apps/api/drizzle (LESSONS §6)
 pnpm --filter @srm/api db:migrate      # áp migration lên DATABASE_URL (API ngoài Docker cần biến này)
-ai-service/.venv/bin/ruff check ai-service && ai-service/.venv/bin/pytest ai-service
+pnpm contracts:gen                     # Zod → JSON Schema → Pydantic sau khi sửa packages/shared/contracts; commit cả output (CONTEXT D33)
+ai-service/.venv/bin/ruff check ai-service && ai-service/.venv/bin/pytest ai-service   # Windows: .venv/Scripts/
 docker compose -f deploy/docker-compose.yml up -d --build --wait   # cả hệ thống, web ở :8080
 sh .koni-harness/gate-runner.sh --phase release-commit            # cổng trước commit ship version
 pnpm docs:sync && pnpm docs:status && pnpm docs:validate          # koni-docs (đọc LESSONS §2)

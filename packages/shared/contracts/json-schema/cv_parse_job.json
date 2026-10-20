@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./cv_parse_job.json",
+  "type": "object",
+  "properties": {
+    "job_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique id of this job; the AI Service processes each job_id once (AD-5)"
+    },
+    "cv_id": {
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "maximum": 9007199254740991,
+      "description": "core.cvs.id of the CV version to parse"
+    },
+    "cv_version": {
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "maximum": 9007199254740991,
+      "description": "core.cvs.version; results for an older version are ignored"
+    },
+    "file_key": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Object key of the uploaded CV file"
+    }
+  },
+  "required": [
+    "job_id",
+    "cv_id",
+    "cv_version",
+    "file_key"
+  ],
+  "additionalProperties": false,
+  "title": "CvParseJob",
+  "description": "Job on ai.cv.parse: extract the profile of one CV version"
+}
