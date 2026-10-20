@@ -9,7 +9,7 @@ import logging
 from collections.abc import Mapping
 
 from faststream import FastStream
-from faststream.rabbit import RabbitBroker
+from faststream.rabbit import Channel, RabbitBroker
 from psycopg_pool import AsyncConnectionPool
 
 from app.config import load_settings
@@ -22,6 +22,10 @@ from app.handlers import HANDLERS
 from app.queues import QUEUES
 
 logger = logging.getLogger(__name__)
+
+# Jobs one worker runs at once; aio-pika would otherwise start every delivered message in
+# parallel. Scale out with more ai-worker replicas instead.
+PREFETCH_COUNT = 8
 
 
 def build_runners(
@@ -45,7 +49,11 @@ def create_app() -> FastStream:
     logging.basicConfig(
         level=settings.log_level, format="%(asctime)s %(levelname)s %(name)s %(message)s"
     )
-    broker = RabbitBroker(settings.rabbitmq_url, graceful_timeout=30.0)
+    broker = RabbitBroker(
+        settings.rabbitmq_url,
+        graceful_timeout=30.0,
+        default_channel=Channel(prefetch_count=PREFETCH_COUNT),
+    )
     pool = AsyncConnectionPool(settings.ai_database_url, min_size=1, max_size=4, open=False)
     subscribe_all(broker, build_runners(PostgresJobStore(pool), RabbitOutbox(broker)))
     app = FastStream(broker)
