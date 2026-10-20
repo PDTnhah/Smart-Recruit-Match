@@ -12,6 +12,7 @@ import { StorageModule } from './common/storage/index.js';
 import { ZodRequestValidationPipe } from './common/validation/zod-validation.pipe.js';
 import { DbModule } from './db/db.module.js';
 import { HealthModule } from './health/health.module.js';
+import { AiGatewayModule } from './modules/aigateway/index.js';
 import { CampaignModule } from './modules/campaign/index.js';
 import { CompanyModule } from './modules/company/index.js';
 import { IamModule } from './modules/iam/index.js';
@@ -51,6 +52,7 @@ import { RedisModule } from './redis/redis.module.js';
     CompanyModule,
     StudentModule,
     NotificationModule,
+    AiGatewayModule,
   ],
   providers: [
     { provide: APP_PIPE, useClass: ZodRequestValidationPipe },

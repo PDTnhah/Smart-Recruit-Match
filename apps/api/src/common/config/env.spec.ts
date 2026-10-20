@@ -3,6 +3,7 @@ import { loadEnv } from './env.js';
 const base = {
   DATABASE_URL: 'postgres://srm:srm@localhost:5432/srm',
   REDIS_URL: 'redis://localhost:6379',
+  RABBITMQ_URL: 'amqp://srm:srm@localhost:5672',
   JWT_ACCESS_SECRET: 'test-only-jwt-secret-with-enough-length-0123',
   MINIO_ENDPOINT: 'http://localhost:9000',
   MINIO_ACCESS_KEY: 'srm-minio',
@@ -25,6 +26,15 @@ describe('environment (CONTEXT D25)', () => {
   it('requires REDIS_URL with a redis scheme', () => {
     expect(() => loadEnv({ ...base, REDIS_URL: undefined })).toThrow('REDIS_URL');
     expect(() => loadEnv({ ...base, REDIS_URL: 'http://localhost:6379' })).toThrow('REDIS_URL');
+  });
+
+  it('requires RABBITMQ_URL with an amqp scheme (CONTEXT D33)', () => {
+    expect(loadEnv({ ...base, RABBITMQ_URL: 'amqps://srm:srm@mq.example.edu:5671/srm' }).RABBITMQ_URL).toBe(
+      'amqps://srm:srm@mq.example.edu:5671/srm',
+    );
+    expect(() => loadEnv({ ...base, RABBITMQ_URL: undefined })).toThrow('RABBITMQ_URL');
+    expect(() => loadEnv({ ...base, RABBITMQ_URL: '' })).toThrow('RABBITMQ_URL');
+    expect(() => loadEnv({ ...base, RABBITMQ_URL: 'http://localhost:15672' })).toThrow('RABBITMQ_URL');
   });
 
   it('requires the MinIO endpoint and keys; the public endpoint is optional (CONTEXT D28)', () => {

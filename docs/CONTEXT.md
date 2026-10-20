@@ -916,7 +916,9 @@ Ngoài ra còn phải giải quyết:
   - Nhận cả message không phải JSON. Message sai JSON hoặc sai schema thì ghi log (kèm `job_id` nếu đọc được), publish nguyên văn sang `ai.results.dlq`, rồi ack. Consumer không dừng.
   - Message hợp lệ thì phát `ai.result.<TYPE>` bằng `emitAsync`, rồi `ai.job.settled`. Listener lỗi lần đầu thì requeue; lỗi khi message đã được giao lại thì vào DLQ.
 - **`AiGatewayService.dispatch(type, input)`:** sinh `job_id` (UUID), kiểm bằng schema strict, publish có confirm và timeout, rồi phát `ai.job.dispatched`. Chỉ gọi sau khi giao dịch nghiệp vụ đã commit, nên hàm không nhận `tx`.
-  - Kết nối RabbitMQ không chặn lúc khởi động (`wait: false`), để API và bước xuất OpenAPI chạy được khi broker chưa sẵn sàng.
+  - Kết nối RabbitMQ không chặn lúc khởi động (`wait: false`), để API và bước xuất OpenAPI chạy được khi broker chưa sẵn sàng. Consumer `ai.results` được gắn khi kết nối được, và gắn lại sau mỗi lần kết nối lại.
+  - Mỗi app Nest tự tạo một `AmqpConnection` của golevelup trong provider, không dùng `RabbitMQModule`. Module này giữ connection trong biến static theo tên, nên hai app trong một process (integration test) dùng chung và đóng connection của nhau.
+  - `amqp-connection-manager` 5 (dưới golevelup) cần `promise-breaker` 7, gói chỉ có ESM. Node 22 nạp được bằng require(esm); Jest thì không, nên `jest.config.cjs` biên dịch riêng gói này sang CommonJS ([LESSONS §9](LESSONS.md)).
 - **Quy ước cho listener `ai.result.<TYPE>`** (module sở hữu, US-2.3, US-2.4):
   - `@OnEvent(name, { suppressErrors: false })`, **không** `async: true`. Với `async: true`, `emitAsync` trả về trước khi listener chạy xong, nên lỗi không quay về consumer.
   - Kết quả đã áp dụng hoặc thuộc phiên bản cũ thì trả về im lặng. Ghi kiểu upsert theo khóa tự nhiên và đi qua `transitionTo`.

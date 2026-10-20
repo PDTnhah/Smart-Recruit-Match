@@ -74,7 +74,8 @@ Nguồn: `deploy/.env` (sao từ [`deploy/.env.example`](deploy/.env.example)). 
 | `API_DB_PASSWORD` | Required | Tự đặt, ≥ 12 ký tự chữ, số, `-_.~` | Mật khẩu role `api_service` mà `api` dùng: đọc ghi `core`, chỉ đọc `ai`. `migrate` đặt lại mật khẩu mỗi lần chạy, nên đổi trong `.env` rồi `up` là đủ ([CONTEXT D33](docs/CONTEXT.md)) |
 | `AI_DB_PASSWORD` | Required | Tự đặt, ≥ 12 ký tự chữ, số, `-_.~` | Mật khẩu role `ai_service` mà `ai-worker`, `ai-api` dùng: chỉ đọc view `core.v_ai_*`, đọc ghi `ai` |
 | `RABBITMQ_DEFAULT_USER` | Required | Tự đặt | User tạo lúc khởi tạo volume `rabbitmqdata` |
-| `RABBITMQ_DEFAULT_PASS` | Required | Tự đặt, mật khẩu mạnh | |
+| `RABBITMQ_DEFAULT_PASS` | Required | Tự đặt, mật khẩu mạnh, chỉ gồm chữ, số và `-_.~` | Được ghép vào `RABBITMQ_URL` |
+| `RABBITMQ_URL` | – (compose tự ghép) | `amqp://RABBITMQ_DEFAULT_USER:RABBITMQ_DEFAULT_PASS@rabbitmq:5672` | `api`, `ai-worker`, `ai-api` đọc: gửi job AI và nhận `ai.results` ([CONTEXT D33](docs/CONTEXT.md)). Chạy API ngoài Docker thì tự đặt, host `localhost` và cổng `RABBITMQ_HOST_PORT` |
 | `MINIO_ENDPOINT` | Required | `http://minio:9000` với service đi kèm; hoặc URL của MinIO/S3 ngoài | Địa chỉ API gọi MinIO. Ngoài Docker dùng `http://localhost:9000`. API tạo bucket `jd-files`, `cv-files` ở lần tải file đầu tiên và mã hóa mọi object bằng SSE-S3 (CONTEXT D28) |
 | `MINIO_ACCESS_KEY` | Required | Tự đặt với service đi kèm; hoặc access key của MinIO/S3 ngoài | Đồng thời là `MINIO_ROOT_USER` của service `minio` |
 | `MINIO_SECRET_KEY` | Required | Tự đặt (≥ 8 ký tự); hoặc secret key của MinIO/S3 ngoài | Đồng thời là `MINIO_ROOT_PASSWORD` |
