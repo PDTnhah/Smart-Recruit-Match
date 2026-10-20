@@ -899,7 +899,7 @@ Mỗi epic tương ứng một giai đoạn trong [ARCHITECTURE.md › Implement
 
 | Story | Title | Status | Version |
 |-------|-------|--------|---------|
-| US-2.1 | Hạ tầng job AI và hợp đồng message | 📋 backlog | — |
+| US-2.1 | Hạ tầng job AI và hợp đồng message | 👀 review | 0.7.0 |
 | US-2.2 | LLMClient và prompt có phiên bản | 📋 backlog | — |
 | US-2.3 | JD Analyzer và HR xác nhận yêu cầu | 📋 backlog | — |
 | US-2.4 | CV Parser: chữ ẩn, tách PII | 📋 backlog | — |

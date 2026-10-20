@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./ai_result_status.json",
+  "type": "string",
+  "enum": [
+    "SUCCEEDED",
+    "PARTIAL",
+    "FAILED"
+  ],
+  "title": "AiResultStatus",
+  "description": "SUCCEEDED and PARTIAL carry a result; FAILED carries an error"
+}

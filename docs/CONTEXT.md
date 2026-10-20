@@ -863,3 +863,91 @@ Ngoài ra còn phải giải quyết:
 
 **Date**: 2026-10-19
 **Version**: 0.6.0
+
+---
+
+## Phase 4 — Thực hiện EPIC-2 (2026-10-20)
+
+### D33. Đường ống job AI, hợp đồng message và role DB (US-2.1)
+
+**Context**: US-2.1 dựng đường ống job AI cho cả EPIC-2 đến EPIC-4. Spec của story và ARCH còn để mở các điểm sau:
+
+1. **Driver PostgreSQL của AI Service.** ARCH › *Tech stack* chưa liệt kê thư viện nào (subtask 2.1.6.3).
+2. **Tài khoản DB của API.** Subtask 2.1.3.3 nói `api_service` "chỉ đọc `ai.*`", nhưng compose đang cho API đăng nhập bằng tài khoản chủ của DB.
+3. **Chỗ thử lại.** NFR-10 chỉ ghi "tối đa 3 lần rồi vào DLQ".
+4. **Nội dung `ai.results`.** ARCH › *Hàng đợi* ghi `job_id, type, status, result`. Khi `FAILED` thì không có `result`, nên backend không biết CV hay JD nào lỗi để báo người dùng (AC-6).
+5. **Thứ tự ghi, gửi kết quả và ack trong worker**, cách khai báo queue và DLQ, cách xử lý message hỏng ở cả hai phía.
+6. **Sự kiện tiến độ job** (subtask 2.1.4.4): `aigateway` không biết ai là người nhận.
+
+**Decision** (người dùng chốt bốn mục đầu ngày 2026-10-20):
+
+- **Driver:** psycopg 3 (`psycopg[binary,pool]`, `AsyncConnectionPool`). Thêm `uvicorn` để chạy FastAPI, `httpx` cho test. MinIO client và adapter pgvector thêm ở US-2.4, US-2.5.
+- **Role DB:**
+  - Migration `0006` (viết tay bằng `drizzle-kit generate --custom`) tạo `api_service` và `ai_service` ở dạng `NOLOGIN` nếu chưa có, rồi cấp quyền.
+  - Bước `migrate` đặt `LOGIN` và mật khẩu từ `API_DB_PASSWORD`, `AI_DB_PASSWORD` (`configureServiceRoles` trong `src/db/migrate.ts`). Biến chưa đặt thì role giữ nguyên. Mật khẩu được nhúng vào URL kết nối, nên chỉ nhận ký tự an toàn trong URL.
+  - API trong compose đăng nhập bằng `api_service`. `migrate` vẫn dùng tài khoản chủ.
+  - `api_service`: `SELECT`, `INSERT`, `UPDATE`, `DELETE` trên mọi bảng `core`, riêng `audit_logs` chỉ `SELECT` và `INSERT`; chỉ đọc `ai.*`. `ALTER DEFAULT PRIVILEGES` cấp sẵn cho bảng tạo sau.
+  - `ai_service`: `USAGE` trên `core` và `SELECT` riêng trên hai view; `SELECT`, `INSERT`, `UPDATE`, `DELETE` trên `ai.*`, không có `CREATE`.
+- **View che PII:** `core.v_ai_cv_profile_masked (cv_id, version, campaign_id, profile_masked)` và `core.v_ai_jd_requirements (jd_id, version, campaign_id, position_group, requirements)`.
+  - `WITH (security_barrier)`, chạy theo quyền của chủ view, nên `ai_service` không cần quyền trên bảng gốc.
+  - Điều kiện lọc lấy từ bảng chuyển trạng thái: CV `active` ở trạng thái từ `CONFIRMED` trở đi; JD ở trạng thái từ `APPROVED` trở đi (`reachableFrom` trong `packages/shared/states/machine.ts`). Test so view với bảng chuyển trạng thái, nên thêm trạng thái mới mà quên sửa view thì test đỏ.
+  - `core.v_ai_jd_source` chốt cùng US-2.3.
+- **Hợp đồng message** (`packages/shared/contracts`):
+  - Mọi message là `z.strictObject`. JSON Schema có `additionalProperties: false`, Pydantic có `extra='forbid'`.
+  - `ai.results`: `{ job_id, type, status, job, result, error }`, union phân biệt theo `type`.
+    - `job` là bản sao payload job gốc.
+    - `result` của mọi kiểu job có `prompt_version` và `model` (Nguyên tắc 12); US-2.3, US-2.4 mở rộng.
+    - `error`: `{ code, message, needs_human }`.
+    - `status` ∈ `SUCCEEDED`, `PARTIAL`, `FAILED`. Kiểm chéo (`FAILED` thì có `error`, không có `result`; còn lại ngược lại) chỉ có ở phía TS, vì `z.toJSONSchema` bỏ qua refine. Phía Python dựng message ở một chỗ (`app/consumers/base.py`) và có test riêng.
+  - Script `pnpm contracts:gen` (`scripts/gen-contracts.mjs`) ghi `packages/shared/contracts/json-schema/*.json` và `ai-service/app/contracts/queues.json`, rồi sinh `ai-service/app/contracts/*.py` bằng `datamodel-code-generator`. `datamodel-code-generator` ghim chính xác và dùng formatter `builtin` của nó, để output chỉ phụ thuộc một phiên bản.
+  - CI chạy lại script rồi kiểm `git status --porcelain` trên hai thư mục, để bắt cả file mới chưa track.
+- **Queue:**
+  - Tên queue, hậu tố `.dlq`, số lần thử (3) và độ trễ thử lại (2 s, 10 s) nằm ở `contracts/queues.ts`; Python đọc qua `queues.json`.
+  - Hai phía khai báo queue giống hệt nhau: `durable: true`, `x-queue-type: classic`. FastStream 0.7 luôn thêm tham số này; RabbitMQ từ chối khai báo lại khi tham số khác.
+  - Không dùng tham số dead-letter của RabbitMQ. Code tự publish sang `<queue>.dlq`, kèm header lý do lỗi, số lần thử và queue gốc.
+- **Worker** (`ai-service/app/consumers/base.py`):
+  - Nhận job bằng một câu SQL: chèn `ai.jobs` ở `PROCESSING` với `attempts = 1`; nếu đã có dòng `PROCESSING` thì tăng `attempts`; nếu job đã xong thì không trả dòng nào và message được ack mà không chạy handler.
+  - Thử lại ngay trong worker: `RetryableError` (và mọi lỗi không phân loại được) thì ghi `last_error`, chờ 2 s rồi 10 s. Lần thứ 3 lỗi thì `FAILED`, gửi `ai.results` `FAILED`, publish message gốc sang DLQ, rồi ack.
+  - `PermanentError`: không thử lại, `FAILED`, gửi `ai.results` với `needs_human = true`.
+  - Payload sai schema: publish sang DLQ rồi ack.
+  - Thứ tự: publish kết quả (có confirm) → ghi `SUCCEEDED`/`FAILED` → ack. Giao ít nhất một lần: worker chết giữa chừng thì message được giao lại và `attempts` tăng; backend hấp thụ kết quả trùng.
+  - Bắt mọi ngoại lệ trong handler, vì mặc định FastStream reject không requeue, tức là mất message.
+  - Mỗi worker nhận tối đa 8 job cùng lúc (`prefetch_count`); muốn nhanh hơn thì tăng số bản sao `ai-worker`.
+- **Consumer `ai.results`** (`aigateway`):
+  - Nhận cả message không phải JSON. Message sai JSON hoặc sai schema thì ghi log (kèm `job_id` nếu đọc được), publish nguyên văn sang `ai.results.dlq`, rồi ack. Consumer không dừng.
+  - Message hợp lệ thì phát `ai.result.<TYPE>` bằng `emitAsync`, rồi `ai.job.settled`. Listener lỗi lần đầu thì requeue; lỗi khi message đã được giao lại thì vào DLQ.
+- **`AiGatewayService.dispatch(type, input)`:** sinh `job_id` (UUID), kiểm bằng schema strict, publish có confirm và timeout, rồi phát `ai.job.dispatched`. Chỉ gọi sau khi giao dịch nghiệp vụ đã commit, nên hàm không nhận `tx`.
+  - Kết nối RabbitMQ không chặn lúc khởi động (`wait: false`), để API và bước xuất OpenAPI chạy được khi broker chưa sẵn sàng. Consumer `ai.results` được gắn khi kết nối được, và gắn lại sau mỗi lần kết nối lại.
+  - Mỗi app Nest tự tạo một `AmqpConnection` của golevelup trong provider, không dùng `RabbitMQModule`. Module này giữ connection trong biến static theo tên, nên hai app trong một process (integration test) dùng chung và đóng connection của nhau.
+  - `amqp-connection-manager` 5 (dưới golevelup) cần `promise-breaker` 7, gói chỉ có ESM. Node 22 nạp được bằng require(esm); Jest thì không, nên `jest.config.cjs` biên dịch riêng gói này sang CommonJS ([LESSONS §9](LESSONS.md)).
+- **Quy ước cho listener `ai.result.<TYPE>`** (module sở hữu, US-2.3, US-2.4):
+  - `@OnEvent(name, { suppressErrors: false })`, **không** `async: true`. Với `async: true`, `emitAsync` trả về trước khi listener chạy xong, nên lỗi không quay về consumer.
+  - Kết quả đã áp dụng hoặc thuộc phiên bản cũ thì trả về im lặng. Ghi kiểu upsert theo khóa tự nhiên và đi qua `transitionTo`.
+- **Sự kiện tiến độ:** `aigateway` chỉ phát sự kiện nội bộ `ai.job.dispatched`, `ai.job.settled`. Module sở hữu đối tượng (US-2.3, US-2.4) tự đẩy SSE qua `RealtimePublisher` và thêm tên sự kiện vào `SERVER_EVENTS`.
+
+**Rationale**:
+
+- Quyền DB là lớp bảo vệ chính của AD-4. API đổi sang `api_service` ngay thì lỗi thiếu quyền lộ ra từ bây giờ, không phải lúc demo.
+- Thử lại trong worker không cần exchange hay queue trễ riêng, và `attempts` ở `ai.jobs` cho biết chính xác số lần đã chạy. Chi phí là một worker bị giữ tối đa khoảng 12 s cho một job lỗi.
+- Gửi kèm payload job trong `ai.results` thì backend xử lý `FAILED` như mọi kết quả khác, không cần bảng tra `job_id` → đối tượng.
+- Tự publish DLQ thì hai phía không phải khớp thêm tham số dead-letter, và message trong DLQ mang đủ thông tin để xử lý tay.
+- Bắt mọi lỗi ở cả hai phía vì mặc định của hai thư viện đều sai cho trường hợp này: golevelup requeue mãi (vòng lặp message độc), FastStream bỏ message.
+
+**Alternatives considered**:
+- **asyncpg, SQLAlchemy:** loại theo lựa chọn của người dùng. psycopg 3 có pool async và cú pháp tham số an toàn, không thêm lớp ORM.
+- **Thử lại bằng queue trễ (TTL + dead-letter về queue gốc):** loại vì thêm ba queue cho mỗi kiểu job và hai phía phải khớp tham số.
+- **Giữ API ở tài khoản chủ, chỉ tạo `ai_service`:** loại theo lựa chọn của người dùng.
+- **Transactional outbox cho việc gửi job:** hoãn như story đã ghi. Trigger: phát hiện job bị mất.
+- **Lưu `job_id` → đối tượng ở backend thay cho gửi kèm payload:** loại vì cần thêm bảng và một lần đọc cho mỗi kết quả.
+
+**Impact**:
+- Migration `0005` (schema `ai`, bảng `ai.jobs`) và `0006` (view, role, quyền).
+- `packages/shared/contracts/*`, `packages/shared/states/machine.ts` (`reachableFrom`), `scripts/gen-contracts.mjs`, `.gitattributes`.
+- Module mới `aigateway`; `@golevelup/nestjs-rabbitmq` 9.1.0.
+- `ai-service`: `app/contracts` (sinh tự động), `app/consumers`, `app/handlers`, `app/worker.py`, `app/main.py`, `Dockerfile`.
+- Biến môi trường mới: `RABBITMQ_URL` (API), `API_DB_PASSWORD`, `AI_DB_PASSWORD`, `AI_DATABASE_URL`, `AI_API_HOST_PORT`.
+- ARCHITECTURE: *Phân vùng schema*, *Các bảng chính*, *Hàng đợi*, *Docker Compose*, *CI*, *Tech stack*.
+- Story sau: US-2.2 (`PermanentError` khi LLM từ chối), US-2.3 và US-2.4 (thay handler giả, thêm `result`, viết listener theo quy ước trên), US-2.5 (`ai.embeddings` dưới role `ai_service`).
+
+**Date**: 2026-10-20
+**Version**: 0.7.0

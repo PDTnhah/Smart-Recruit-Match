@@ -1,7 +1,7 @@
 ---
 id: EPIC-2
 title: "Phân tích CV và JD bằng AI"
-status: backlog
+status: in-progress
 prd_ref:
   - FR-9
   - FR-10
@@ -89,7 +89,7 @@ Ranh giới kiến trúc mà epic này giữ (AD-1, AD-4): AI Service không chu
 
 | ID | Title | Goal | Status | Version |
 |---|---|---|---|---|
-| US-2.1 | Hạ tầng job AI và hợp đồng message | Job AI đi từ backend sang AI Service và quay về, idempotent, có DLQ | 📋 backlog | — |
+| US-2.1 | Hạ tầng job AI và hợp đồng message | Job AI đi từ backend sang AI Service và quay về, idempotent, có DLQ | 👀 review | 0.7.0 |
 | US-2.2 | LLMClient và prompt có phiên bản | Mọi lượt gọi Claude đi qua một lớp có retry, refusal, ghi chi phí, fixture | 📋 backlog | — |
 | US-2.3 | JD Analyzer và HR xác nhận yêu cầu | HR nhận yêu cầu chuẩn hóa do AI đề xuất, sửa và xác nhận | 📋 backlog | — |
 | US-2.4 | CV Parser: chữ ẩn, tách PII | CV thành hồ sơ năng lực có `profile_masked`, chặn chữ ẩn | 📋 backlog | — |

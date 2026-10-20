@@ -7,7 +7,15 @@ const common = {
   testEnvironment: 'node',
   transform: {
     '^.+\\.ts$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.json' }],
+    // promise-breaker 7 (used by amqp-connection-manager 5 under @golevelup/nestjs-rabbitmq) ships
+    // ESM only. Node 22 loads it through require(esm); Jest does not, so compile just this package
+    // to CommonJS (LESSONS §9).
+    '[\\\\/]promise-breaker[\\\\/].+\\.js$': [
+      'ts-jest',
+      { tsconfig: { allowJs: true, module: 'commonjs', target: 'es2022' }, isolatedModules: true },
+    ],
   },
+  transformIgnorePatterns: ['[\\\\/]node_modules[\\\\/](?!\\.pnpm[\\\\/]promise-breaker@|promise-breaker[\\\\/])'],
   moduleFileExtensions: ['ts', 'js', 'json'],
   // Source files import siblings with `.js` (nodenext); map them back to the `.ts` sources.
   moduleNameMapper: {

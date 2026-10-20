@@ -50,7 +50,7 @@ flowchart TB
 | Frontend | React 19 + TypeScript + Vite; Tailwind CSS + shadcn/ui (Radix); TanStack Query; TanStack Table; React Router; React Hook Form + Zod; date-fns; react-day-picker (Calendar của shadcn, [CONTEXT D27](CONTEXT.md)); openapi-typescript + openapi-fetch; shadcn Chart (Recharts); react-pdf; dnd-kit | shadcn/ui đưa component vào repo dưới dạng mã nguồn nên tùy biến được, dùng token màu ngữ nghĩa thống nhất với DESIGN.md và là chuẩn review UI của quy trình koni (CONTEXT D14); TanStack Table cho các bảng dữ liệu ở màn quản trị; TanStack Query quản lý dữ liệu từ server gọn |
 | Core Backend | Node.js LTS + TypeScript (strict) + NestJS; Drizzle ORM + drizzle-kit (migration); Zod (nestjs-zod); @nestjs/swagger; @golevelup/nestjs-rabbitmq; ioredis; chi tiết ở mục *Thư viện chính* (Component architecture › Core Backend) | NestJS có module, dependency injection, guard, interceptor — đủ cấu trúc cho nghiệp vụ nhiều trạng thái và phân quyền; cùng ngôn ngữ với frontend nên dùng chung được kiểu dữ liệu và schema kiểm tra |
 | Monorepo | pnpm workspaces; gói `packages/shared` | Frontend và backend dùng chung Zod schema, enum trạng thái, kiểu DTO |
-| AI Service | Python 3.12+; FastAPI; FastStream (RabbitMQ); Anthropic Python SDK; Pydantic v2; PyMuPDF, python-docx; sentence-transformers; RapidFuzz; Jinja2 | Hệ sinh thái AI tốt nhất ở Python: đọc PDF, embedding, viết script đánh giá |
+| AI Service | Python 3.12+; FastAPI + uvicorn; FastStream (RabbitMQ); psycopg 3 + psycopg_pool (PostgreSQL, [CONTEXT D33](CONTEXT.md)); Anthropic Python SDK; Pydantic v2 (model hợp đồng sinh bằng datamodel-code-generator); PyMuPDF, python-docx; sentence-transformers; RapidFuzz; Jinja2 | Hệ sinh thái AI tốt nhất ở Python: đọc PDF, embedding, viết script đánh giá |
 | LLM | Claude Opus 5.5 (`claude-opus-5-5`) qua Claude API | Chi tiết ở mục *LLM usage and cost* |
 | Embedding | `BAAI/bge-m3` tự host (đa ngôn ngữ, hỗ trợ tiếng Việt, vector 1024 chiều) | Claude không có API embedding; tự host miễn phí và dữ liệu không rời máy chủ |
 | CSDL | PostgreSQL 16+ với extension pgvector | Quan hệ + giao dịch + JSONB cho kết quả LLM + tìm kiếm vector trong cùng một hệ |
@@ -136,7 +136,7 @@ Module gọi nhau qua service đã export hoặc phát sự kiện qua `@nestjs/
 | `notification` | Email (nodemailer + template), thông báo trong app, SSE (`@Sse()` của NestJS, Redis pub/sub khi chạy nhiều instance), nhắc hạn. Export `NotificationService.notify({ type, payload, userIds, channels, dedupeKey? }, { tx? })` (ghi trong giao dịch của caller; caller gọi `push` sau commit), `RealtimePublisher`, `DeadlineReminderRegistry` (story sau đăng ký nguồn nhắc hạn). Nghe `campaign.opened`, `hr.invited`. Người nhận lấy qua `CampaignService`, `StudentService`, `CvService`, `UserDirectory` ([CONTEXT D31](CONTEXT.md)) | PRD › Thông báo |
 | `reporting` | Dashboard, xuất Excel/PDF | GĐ10, PRD › Success Criteria |
 | `audit` | Nhật ký thao tác: `AuditService.record(tx, …)` ghi trong cùng giao dịch với thay đổi nghiệp vụ, không dùng interceptor vì interceptor chạy ngoài giao dịch; bảng append-only (CONTEXT D24) | BR-10, BR-17 |
-| `aigateway` | Phát job sang RabbitMQ, nhận kết quả, chống xử lý trùng, theo dõi trạng thái job | – |
+| `aigateway` | Cầu nối với AI Service qua RabbitMQ, không sở hữu bảng nào ([CONTEXT D33](CONTEXT.md)). Export `AiGatewayService.dispatch(type, input)`: sinh `job_id`, kiểm payload bằng hợp đồng Zod strict, publish có confirm, phát `ai.job.dispatched`; chỉ gọi sau khi giao dịch nghiệp vụ đã commit. Consumer `ai.results` kiểm message bằng Zod, phát `ai.result.<TYPE>` (module sở hữu kiểu job nghe, ghi upsert, chuyển trạng thái qua `transitionTo`) rồi `ai.job.settled`; message sai schema vào `ai.results.dlq`, listener lỗi được requeue một lần rồi vào DLQ. Mỗi app Nest tự tạo `AmqpConnection` của golevelup | – |
 
 #### Quản lý trạng thái
 
@@ -217,7 +217,7 @@ Từ US-1.7 ([CONTEXT D31](CONTEXT.md)):
 | ORM, migration | Drizzle ORM + drizzle-kit; driver `pg` (node-postgres) | Gần SQL, kiểu dữ liệu suy ra từ schema; hỗ trợ partial index (BR-08), JSONB, `FOR UPDATE`, giao dịch. File migration SQL được commit vào repo |
 | Kiểm tra dữ liệu, OpenAPI | Zod + nestjs-zod, @nestjs/swagger | Một Zod schema dùng cho cả validate request và sinh tài liệu OpenAPI |
 | Xác thực, phân quyền | @nestjs/jwt; một guard global `AccessGuard` tự viết (`@Public()`, `@Roles()`), không dùng passport ([CONTEXT D25](CONTEXT.md)) | Kiểm tra cấp bản ghi (HR chỉ xem JD của công ty mình) đặt trong service, qua `common/auth/record-access.ts` |
-| RabbitMQ | @golevelup/nestjs-rabbitmq | Gửi/nhận JSON thuần qua exchange/queue tự khai báo, trao đổi dễ với Python (transport RMQ mặc định của NestJS bọc message theo định dạng riêng) |
+| RabbitMQ | @golevelup/nestjs-rabbitmq 9.1.0 | Gửi/nhận JSON thuần qua exchange/queue tự khai báo, trao đổi dễ với Python (transport RMQ mặc định của NestJS bọc message theo định dạng riêng). Dùng `AmqpConnection` theo từng app thay cho `RabbitMQModule` (giữ connection trong biến static). `promise-breaker` 7 bên dưới chỉ có ESM; Jest biên dịch riêng gói này ([CONTEXT D33](CONTEXT.md), [LESSONS §9](LESSONS.md)) |
 | Redis | ioredis | – |
 | Lưu file | @aws-sdk/client-s3 + @aws-sdk/s3-request-presigner 3.1142.0 (trỏ tới MinIO); multer (qua `FileInterceptor` của `@nestjs/platform-express`); file-type 16.5.4 | file-type đọc "magic bytes" để kiểm tra MIME thật; ghim bản 16 vì từ bản 17 chỉ có ESM ([LESSONS §9](LESSONS.md)). `common/storage` gom `StorageService`, `SingleFileUpload()` (5 MB, tên file UTF-8), `detectDocument()`, `FileAccessRegistry` và `GET /api/files/{id}/url` |
 | Lập lịch, sự kiện | @nestjs/schedule, @nestjs/event-emitter | Dòng cho NestJS 11 (6.x, 3.x). Bản 12.x chỉ có ESM, Jest của API không nạp được ([LESSONS §9](LESSONS.md)) |
@@ -426,6 +426,11 @@ Nên đặt giới hạn chi tiêu trên trang quản lý Claude API và theo d�
 - `core` — do Core Backend sở hữu, là nơi duy nhất ghi dữ liệu nghiệp vụ.
 - `ai` — do AI Service sở hữu: embedding, log gọi LLM, trạng thái job.
 - AI Service đọc dữ liệu `core` qua **các view chỉ đọc đã che PII** (VD: `core.v_ai_cv_profile_masked`, `core.v_ai_jd_requirements`) bằng một tài khoản DB riêng. Như vậy việc "không gửi thông tin nhạy cảm cho LLM khi chấm điểm" (BR-03) được đảm bảo ngay ở tầng CSDL.
+- Ba tài khoản (từ US-2.1, [CONTEXT D33](CONTEXT.md)):
+  - chủ DB (`POSTGRES_USER`): chỉ bước `migrate` dùng; tạo bảng, view, role;
+  - `api_service` (Core Backend): đọc ghi mọi bảng `core`, riêng `audit_logs` chỉ `SELECT` và `INSERT`; chỉ đọc `ai.*`;
+  - `ai_service` (AI Service): `SELECT` trên hai view `core.v_ai_*`, không có quyền gì khác ở `core`; đọc ghi `ai.*`, không `CREATE`.
+- View `core.v_ai_cv_profile_masked (cv_id, version, campaign_id, profile_masked)` chỉ trả CV `active` đã được sinh viên xác nhận (BR-01); `core.v_ai_jd_requirements (jd_id, version, campaign_id, position_group, requirements)` chỉ trả JD từ `APPROVED` trở đi (BR-02). Cả hai `security_barrier`. Migration tạo role ở dạng `NOLOGIN`; `migrate` bật đăng nhập bằng `API_DB_PASSWORD`, `AI_DB_PASSWORD`. View nguồn JD cho JD Analyzer (`core.v_ai_jd_source`) thêm ở US-2.3.
 
 ### Các bảng chính
 
@@ -455,7 +460,7 @@ Nên đặt giới hạn chi tiêu trên trang quản lý Claude API và theo d�
 | `audit_logs` | NHAT_KY | id, actor_kind (`USER`/`SYSTEM`), actor_id, action, entity, entity_id, before JSONB, after JSONB, reason, at | chỉ thêm: trigger `ENABLE ALWAYS` chặn UPDATE/DELETE/TRUNCATE; CHECK actor_id có khi và chỉ khi `USER`; index(entity, entity_id, at); không FK tới users (CONTEXT D24) |
 | `ai.embeddings` | – | owner_type (cv/jd/question/skill/essay), owner_id, version, model, embedding vector(1024) | index HNSW (vector_cosine_ops) |
 | `ai.llm_calls` | – | id, job_id, agent, prompt_version, model, effort, input_tokens, cache_read_tokens, cache_write_tokens, output_tokens, cost_usd, latency_ms, stop_reason, log_key, created_at | index(agent, created_at) |
-| `ai.jobs` | – | job_id, type, status, attempts, last_error, created_at, finished_at | PK(job_id) — chống xử lý trùng |
+| `ai.jobs` | – | job_id, type, status (`PROCESSING` rồi `SUCCEEDED`/`PARTIAL`/`FAILED`), attempts, last_error, created_at, finished_at | PK(job_id) — chống xử lý trùng; CHECK `type`, `status`, `attempts ≥ 0`, có `finished_at` khi và chỉ khi đã rời `PROCESSING`. Chỉ `ai_service` ghi (migration `0005`, [CONTEXT D33](CONTEXT.md)) |
 
 Quy ước chung của schema `core` (US-1.2, CONTEXT D24): khóa chính `bigint generated always as identity`; cột `status` là `text` kèm CHECK, danh sách giá trị sinh từ `packages/shared/states`; bảng có vòng đời có `row_version integer not null default 0`. Cột `pii` của `cvs` thêm ở US-2.4; cột `active`, `file_name`, partial unique index và bảng `consents` có từ US-1.6 (migration `0003`).
 
@@ -504,27 +509,34 @@ Prompt và phản hồi đầy đủ của từng lần gọi LLM lưu thành fi
 | `ai.questions.generate` | Backend → AI | job_id, bank_id |
 | `ai.match.run` | Backend → AI | job_id, campaign_id, danh sách cặp (cv_id, jd_id) đã qua điều kiện cứng |
 | `ai.essay.grade` | Backend → AI | job_id, danh sách exam_session_id |
-| `ai.results` | AI → Backend | job_id, type, status (SUCCEEDED / PARTIAL / FAILED), result |
-| `*.dlq` | – | Message lỗi sau 3 lần thử; hiện trên màn quản trị để xử lý |
+| `ai.results` | AI → Backend | job_id, type, status (SUCCEEDED / PARTIAL / FAILED), job (bản sao payload job), result (khi không FAILED), error `{ code, message, needs_human }` (khi FAILED) |
+| `*.dlq` | – | Message lỗi sau 3 lần thử, hoặc sai schema; kèm header `x-srm-dlq-reason`, `x-srm-attempts`, `x-srm-source-queue`. MVP xử lý bằng giao diện RabbitMQ management |
 
 Payload chỉ chứa ID; dữ liệu lớn được đọc từ DB/MinIO. Mỗi job có `job_id` duy nhất: AI Service kiểm tra `ai.jobs` trước khi xử lý, Backend ghi kết quả theo kiểu upsert — nhận trùng message cũng không sai dữ liệu.
 
-**Hợp đồng message giữa TypeScript và Python:** schema của mỗi loại message được định nghĩa một lần bằng Zod trong `packages/shared/contracts`, xuất ra JSON Schema (`z.toJSONSchema` của Zod 4), rồi sinh model Pydantic cho AI Service bằng `datamodel-code-generator`. Đổi schema mà quên cập nhật một phía thì CI báo lỗi ngay.
+Cơ chế (từ US-2.1, [CONTEXT D33](CONTEXT.md)):
+
+- Mọi queue khai báo `durable`, `x-queue-type: classic`, giống hệt nhau ở hai phía; gửi qua exchange mặc định. Không dùng tham số dead-letter của RabbitMQ: code tự publish sang `<queue>.dlq`.
+- Worker nhận job bằng một câu SQL trên `ai.jobs` (job đã xong thì bỏ qua), thử lại ngay trong worker sau 2 s rồi 10 s; lần thứ 3 lỗi thì gửi `ai.results` `FAILED` và chuyển message sang DLQ. `PermanentError` (LLM từ chối…) thất bại ngay với `needs_human`.
+- Thứ tự: publish kết quả (có confirm) → ghi `ai.jobs` → ack. Giao ít nhất một lần; backend hấp thụ kết quả trùng.
+- Backend kiểm `ai.results` bằng Zod (kể cả kiểm chéo `status`/`result`/`error`), phát `ai.result.<TYPE>` cho module sở hữu kiểu job.
+
+**Hợp đồng message giữa TypeScript và Python:** schema của mỗi loại message được định nghĩa một lần bằng Zod trong `packages/shared/contracts`, xuất ra JSON Schema (`z.toJSONSchema` của Zod 4) vào `packages/shared/contracts/json-schema/`, rồi sinh model Pydantic vào `ai-service/app/contracts/` bằng `datamodel-code-generator` (`pnpm contracts:gen`). Tên queue, số lần thử và header DLQ sang Python qua `queues.json`. Đổi schema mà quên cập nhật một phía thì CI báo lỗi ngay.
 
 ```json
 {
   "job_id": "7f6c1e2a-...",
   "type": "CV_PARSE",
   "status": "SUCCEEDED",
+  "job": { "job_id": "7f6c1e2a-...", "cv_id": 457, "cv_version": 2, "file_key": "cv-files/..." },
   "result": {
-    "cv_id": 457,
-    "cv_version": 2,
     "profile": { "...": "..." },
     "profile_masked": { "...": "..." },
     "hidden_text_detected": false,
     "prompt_version": "cv_parser/v3",
     "model": "claude-opus-5-5"
-  }
+  },
+  "error": null
 }
 ```
 
@@ -656,8 +668,8 @@ REST, mô tả bằng OpenAPI.
 | `nginx` | nginx | Phục vụ file build của frontend, reverse proxy `/api`; chuyển `/jd-files/`, `/cv-files/` (URL tạm ký sẵn) tới `minio` |
 | `migrate` | build từ `apps/api/` (cùng image `api`) | Chạy một lần: áp migration SQL (`node dist/db/migrate.js`) rồi thoát; `api` chờ bằng `service_completed_successfully` (CONTEXT D24) |
 | `api` | build từ `apps/api/` | NestJS (Node.js LTS) |
-| `ai-worker` | build từ `ai-service/` | FastStream worker; chạy được nhiều bản sao |
-| `ai-api` | build từ `ai-service/` | FastAPI (health, quản trị, chatbot) |
+| `ai-worker` | build từ `ai-service/` | FastStream worker; chạy được nhiều bản sao (`--scale ai-worker=N`); đăng nhập DB bằng `ai_service` |
+| `ai-api` | build từ `ai-service/` (cùng image) | FastAPI (health, quản trị, chatbot); `GET /health` trả 200 khi kết nối được PostgreSQL và RabbitMQ; cổng `127.0.0.1:${AI_API_HOST_PORT:-8000}` |
 | `postgres` | pgvector/pgvector | Có sẵn extension pgvector |
 | `redis` | redis | – |
 | `rabbitmq` | rabbitmq:management | Có giao diện quản lý |
@@ -674,7 +686,7 @@ Mô hình `bge-m3` chạy trên CPU được với quy mô đồ án (cần kho�
 
 ### CI
 
-GitHub Actions (`.github/workflows/ci.yml`): `pnpm install` một lần cho cả monorepo; typecheck, lint (ESLint), test backend (có testcontainers) và build frontend; kiểm tra ranh giới module (dependency-cruiser, kèm fixture vi phạm chứng minh luật có hiệu lực); kiểm tra hợp đồng message TS ↔ Python (từ US-2.1); lint (ruff) + test (pytest) AI Service (dùng fixture, không gọi API thật). Bộ đánh giá AI với API thật chạy thủ công khi đổi prompt.
+GitHub Actions (`.github/workflows/ci.yml`): `pnpm install` một lần cho cả monorepo; typecheck, lint (ESLint), test backend (có testcontainers) và build frontend; kiểm tra ranh giới module (dependency-cruiser, kèm fixture vi phạm chứng minh luật có hiệu lực); kiểm tra hợp đồng message TS ↔ Python (`pnpm contracts:gen` rồi `git status --porcelain` trên `packages/shared/contracts/json-schema` và `ai-service/app/contracts`, US-2.1); lint (ruff) + test (pytest) AI Service (dùng fixture, không gọi API thật). Bộ đánh giá AI với API thật chạy thủ công khi đổi prompt.
 
 ---
 

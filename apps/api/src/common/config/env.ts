@@ -15,6 +15,8 @@ const EnvSchema = z.object({
   DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
   // Refresh tokens live here (CONTEXT D25).
   REDIS_URL: z.url({ protocol: /^rediss?$/ }),
+  // AI jobs and their results (AD-5, CONTEXT D33): amqp://user:password@host:5672[/vhost].
+  RABBITMQ_URL: z.url({ protocol: /^amqps?$/ }),
   // HS256 key for access tokens; at least 32 characters (CONTEXT D25). A copied example value
   // would let anyone forge tokens, so placeholders are refused.
   JWT_ACCESS_SECRET: z

@@ -6,6 +6,50 @@ Lịch sử phát hành của Smart Recruit Match. Mỗi commit ship code tăng 
 
 ---
 
+## [0.7.0] — 2026-10-20 — Hạ tầng job AI và hợp đồng message — v0.7.0
+
+US-2.1. Một job AI đi được trọn vòng: Core Backend gửi job qua RabbitMQ, AI Service nhận, xử lý và trả kết quả qua `ai.results`, Core Backend kiểm kết quả rồi giao cho module sở hữu. Nhận trùng không ghi trùng, lỗi tạm thời tự thử lại, lỗi lâu dài vào dead-letter queue. Quyền PostgreSQL bảo đảm AI Service chỉ đọc dữ liệu đã che PII và chỉ ghi schema `ai`. Chưa gọi LLM: handler của CV và JD trả kết quả giả cho tới US-2.3, US-2.4.
+
+### Added
+- **Hợp đồng message** (`packages/shared/contracts`, [CONTEXT D33](CONTEXT.md)):
+  - Zod strict cho `ai.cv.parse` (`job_id`, `cv_id`, `cv_version`, `file_key`), `ai.jd.analyze` (`job_id`, `jd_id`, `jd_version`) và `ai.results` (`job_id`, `type`, `status`, `job`, `result`, `error`), kiểm chéo `status`/`result`/`error`.
+  - `pnpm contracts:gen`: xuất JSON Schema vào `packages/shared/contracts/json-schema/`, sinh model Pydantic vào `ai-service/app/contracts/` (datamodel-code-generator 0.83.0), cùng `queues.json` cho tên queue, số lần thử, header DLQ.
+  - CI sinh lại cả hai phía và báo lỗi khi lệch, kể cả khi sửa tay file đã sinh.
+- **Module `aigateway`** ở Core Backend:
+  - `AiGatewayService.dispatch(type, input)`: sinh `job_id`, kiểm payload, publish có confirm, phát `ai.job.dispatched`.
+  - Consumer `ai.results`: message đúng thành sự kiện `ai.result.<TYPE>` cho module sở hữu, rồi `ai.job.settled`; message sai schema hoặc không phải JSON vào `ai.results.dlq`; listener lỗi được requeue một lần rồi vào DLQ.
+  - Quy ước listener (upsert theo khóa tự nhiên, bỏ qua kết quả cũ, `suppressErrors: false`) và listener mẫu trong `test/helpers/ai-results.ts`.
+- **Worker FastStream** (`ai-service/app/consumers`):
+  - Nhận job bằng một câu SQL trên `ai.jobs`; job đã xong thì bỏ qua (idempotent theo `job_id`).
+  - Lỗi tạm thời thử lại sau 2 s rồi 10 s; lần thứ 3 lỗi thì gửi `FAILED` và chuyển message sang `<queue>.dlq` kèm header lý do, số lần thử, queue gốc. `PermanentError` thất bại ngay với `needs_human`.
+  - Mỗi worker chạy tối đa 8 job cùng lúc; chạy nhiều bản sao được.
+- **FastAPI** của AI Service: `GET /health` trả 200 khi kết nối được PostgreSQL và RabbitMQ, ngược lại 503.
+- **Cơ sở dữ liệu:**
+  - Migration `0005_ai_jobs`: schema `ai`, bảng `ai.jobs` (CHECK `type`, `status`, `attempts`, `finished_at`).
+  - Migration `0006_ai_views_roles`: view `core.v_ai_cv_profile_masked`, `core.v_ai_jd_requirements` (không cột PII, chỉ CV đã xác nhận và JD đã duyệt, `security_barrier`); role `api_service` (đọc ghi `core`, `audit_logs` chỉ thêm, chỉ đọc `ai`) và `ai_service` (chỉ đọc hai view, đọc ghi `ai`).
+- **Docker Compose:** service `ai-worker` (FastStream, `--scale` được) và `ai-api` (`127.0.0.1:8000`), build từ `ai-service/Dockerfile`.
+- **Biến môi trường:** `API_DB_PASSWORD`, `AI_DB_PASSWORD` (bắt buộc), `AI_API_HOST_PORT`; compose tự ghép `RABBITMQ_URL`, `AI_DATABASE_URL`.
+- **Test:** `ai-service-role.int-spec.ts` (quyền DB, cột và bộ lọc của view theo bảng chuyển trạng thái), `ai-job-roundtrip.int-spec.ts` (RabbitMQ thật, worker build từ Dockerfile: trọn vòng, nhận trùng kết quả, nhận trùng job, 3 lần lỗi vào DLQ, lỗi không hồi phục, message sai schema), pytest cho runner, broker test của FastStream và health.
+
+### Changed
+- **API đăng nhập PostgreSQL bằng role `api_service`** thay cho tài khoản chủ; bước `migrate` vẫn dùng tài khoản chủ và đặt mật khẩu cho hai role mỗi lần chạy. Integration test cũng chạy app bằng `api_service`.
+- **API cần `RABBITMQ_URL`.** Kết nối không chặn lúc khởi động; consumer gắn vào khi broker sẵn sàng.
+- **AI Service** có phụ thuộc ghim chính xác: FastStream 0.7.7, FastAPI 0.142.2, uvicorn 0.54.0, Pydantic 2.13.5, psycopg 3.3.6 + psycopg-pool 3.3.3; dev: httpx 0.28.1, datamodel-code-generator 0.83.0.
+- **Integration test** dựng thêm RabbitMQ và một Docker network chung (`postgres`, `rabbitmq`).
+- `packages/shared/states`: thêm `reachableFrom(machine, state)`.
+- `.gitattributes`: file sinh tự động và `*.sh` luôn dùng LF.
+- **Tài liệu:**
+  - ARCHITECTURE: *Tech stack*, *Các module*, *Thư viện chính*, *Phân vùng schema*, *Các bảng chính*, *Hàng đợi*, *Docker Compose*, *CI*.
+  - DEPLOY, SETUP: biến mới, mục *AI Service và hàng đợi*, venv trên Windows.
+  - CONTEXT D33; LESSONS §9 (bổ sung), §16, §17, §18.
+- **Sprint:** đóng `sprint-2026-W42`, mở `sprint-2026-W43`.
+
+### Upgrade notes
+- `deploy/.env` cũ cần thêm `API_DB_PASSWORD` và `AI_DB_PASSWORD` (≥ 12 ký tự chữ, số, `-_.~`); `RABBITMQ_DEFAULT_PASS` phải an toàn trong URL.
+- Chạy API ngoài Docker cần `RABBITMQ_URL`; `db:migrate` nên có hai biến mật khẩu trên để role đăng nhập được.
+
+**Commit**: 7fbb833 (chuỗi 8 commit 9f66dcd…7fbb833)
+
 ## [0.6.0] — 2026-10-19 — Thông báo trong app, SSE, email, nhắc hạn — v0.6.0
 
 US-1.7. Người dùng nhận thông báo theo sự kiện nghiệp vụ: trong ứng dụng ngay lúc xảy ra (Server-Sent Events, nhiều instance qua Redis pub/sub) và qua email (outbox trong PostgreSQL, tự thử lại). Sinh viên được báo khi đợt mở và được nhắc trước hạn nộp CV; HR được mời nhận email kích hoạt. Module khác báo tin bằng `NotificationService.notify` hoặc phát sự kiện. Không có lời gọi LLM nào.

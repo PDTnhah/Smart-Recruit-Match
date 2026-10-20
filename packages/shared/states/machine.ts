@@ -37,3 +37,21 @@ export function nextStates<S extends string>(machine: StateMachine<S>, from: S):
 export function canTransition<S extends string>(machine: StateMachine<S>, from: S, to: S): boolean {
   return nextStates(machine, from).includes(to);
 }
+
+/**
+ * `from` and every state reachable from it, in declaration order. Used where a rule holds "from
+ * this point of the lifecycle on", e.g. which CVs and JDs the AI Service may read (CONTEXT D33).
+ */
+export function reachableFrom<S extends string>(machine: StateMachine<S>, from: S): readonly S[] {
+  const seen = new Set<S>([from]);
+  const queue: S[] = [from];
+  for (let state = queue.shift(); state !== undefined; state = queue.shift()) {
+    for (const next of machine.transitions[state]) {
+      if (!seen.has(next)) {
+        seen.add(next);
+        queue.push(next);
+      }
+    }
+  }
+  return machine.states.filter((s) => seen.has(s));
+}

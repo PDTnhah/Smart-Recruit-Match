@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./ai_result_message.json",
+  "oneOf": [
+    {
+      "$ref": "./cv_parse_result.json"
+    },
+    {
+      "$ref": "./jd_analyze_result.json"
+    }
+  ],
+  "title": "AiResultMessage",
+  "description": "Message on ai.results"
+}

@@ -1,5 +1,5 @@
 import { Client } from 'pg';
-import { databaseUrl } from '../helpers/db.js';
+import { ownerDatabaseUrl } from '../helpers/db.js';
 
 const INSERT_ENTRY = `INSERT INTO core.audit_logs (actor_kind, action, entity, entity_id, reason)
   VALUES ('SYSTEM', 'TRANSITION', 'append_only_check', $1, 'seed') RETURNING id`;
@@ -28,7 +28,7 @@ describe('BR-10: UPDATE, DELETE and TRUNCATE on audit_logs are rejected by the d
 
   beforeAll(async () => {
     // The container user is a superuser and owns the tables, like the compose stack's account.
-    owner = new Client({ connectionString: databaseUrl() });
+    owner = new Client({ connectionString: ownerDatabaseUrl() });
     await owner.connect();
     await owner.query(`CREATE ROLE ${role} LOGIN PASSWORD '${password}'`);
     await owner.query(`GRANT USAGE ON SCHEMA core TO ${role}`);
@@ -48,7 +48,7 @@ describe('BR-10: UPDATE, DELETE and TRUNCATE on audit_logs are rejected by the d
   });
 
   it('rejects the rest for an ordinary role granted ALL on the table', async () => {
-    const url = new URL(databaseUrl());
+    const url = new URL(ownerDatabaseUrl());
     url.username = role;
     url.password = password;
     const app = new Client({ connectionString: url.toString() });

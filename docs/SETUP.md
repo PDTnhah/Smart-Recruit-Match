@@ -59,6 +59,10 @@ python3.12 -m venv .venv          # hoặc bất kỳ Python ≥ 3.12
 .venv/bin/pip install -e ".[dev]"
 ```
 
+Trên Windows, venv đặt file chạy ở `.venv/Scripts/` thay cho `.venv/bin/` (VD `.venv/Scripts/pip install -e ".[dev]"`). Máy chưa có Python 3.12 thì có thể lấy từ conda rồi tạo venv chuẩn: `conda create -n srm-py312 python=3.12`, sau đó `<thư mục env>/python -m venv .venv`.
+
+`pnpm contracts:gen` cần venv này: nó gọi `datamodel-code-generator` để sinh model Pydantic. Script tìm Python theo thứ tự `$AI_SERVICE_PYTHON`, `ai-service/.venv`, rồi `python3`/`python` trên PATH.
+
 ### 5. Cổng commit koni-harness
 
 `.koni-harness/` đã được commit, nhưng hook git nằm trong `.git/hooks` nên mỗi bản clone phải tự cài:
@@ -98,9 +102,10 @@ Chạy tại gốc repo:
 | `pnpm --filter @srm/api db:migrate` | Áp migration lên DB ở `DATABASE_URL` |
 | `pnpm --filter @srm/api db:seed` | Tạo tài khoản demo cho bốn vai trò (chỉ dev/test; chạy lại không tạo trùng) |
 | `pnpm api:sync` | Xuất OpenAPI từ API rồi sinh kiểu client cho web (`apps/web/src/shared/api/`) |
+| `pnpm contracts:gen` | Sinh JSON Schema (`packages/shared/contracts/json-schema/`) và model Pydantic (`ai-service/app/contracts/`) từ hợp đồng Zod; chạy sau khi sửa `packages/shared/contracts` rồi commit cả hai thư mục ([CONTEXT D33](CONTEXT.md)) |
 | `pnpm --filter @srm/web dev` | Chạy web ở `localhost:5173`, proxy `/api` sang `localhost:3000` |
 | `pnpm docs:validate` / `docs:sync` / `docs:status` | Lệnh koni-docs ([docs/README.md](README.md)) |
-| `ai-service/.venv/bin/ruff check ai-service` | Lint AI Service |
+| `ai-service/.venv/bin/ruff check ai-service` | Lint AI Service (Windows: `.venv/Scripts/`) |
 | `ai-service/.venv/bin/pytest ai-service` | Test AI Service (không gọi API thật) |
 | `docker compose -f deploy/docker-compose.yml up -d --build --wait` | Dựng cả hệ thống ([DEPLOY.md](../DEPLOY.md)) |
 
@@ -117,6 +122,9 @@ POSTGRES_DB=srm
 
 # RabbitMQ (added in v0.1.0)
 # User mặc định; giao diện quản lý ở http://localhost:15672.
+# Compose tự ghép RABBITMQ_URL cho api, ai-worker, ai-api từ hai biến này (v0.7.0), nên mật khẩu phải an toàn trong URL.
+# Chỉ tự đặt khi chạy API ngoài Docker (cổng theo RABBITMQ_HOST_PORT):
+# RABBITMQ_URL=amqp://srm:change-me-rabbitmq@localhost:5672
 RABBITMQ_DEFAULT_USER=srm
 RABBITMQ_DEFAULT_PASS=change-me-rabbitmq
 
@@ -148,11 +156,21 @@ MINIO_HOST_PORT=9000
 MINIO_CONSOLE_HOST_PORT=9001
 MAILPIT_SMTP_HOST_PORT=1025
 MAILPIT_UI_HOST_PORT=8025
+# FastAPI của AI Service, GET /health (added in v0.7.0).
+AI_API_HOST_PORT=8000
 
 # Core Backend database (added in v0.1.1, CONTEXT D24)
 # Compose tự ghép DATABASE_URL cho migrate và api từ POSTGRES_*, nên mật khẩu phải an toàn trong URL.
 # Chỉ tự đặt khi chạy API hoặc db:migrate ngoài Docker (cổng theo POSTGRES_HOST_PORT):
 # DATABASE_URL=postgres://srm:change-me-postgres@localhost:5432/srm
+
+# Database roles of the services (added in v0.7.0, CONTEXT D33)
+# Migration 0006 tạo role api_service (API) và ai_service (AI Service); migrate đặt mật khẩu đăng nhập
+# từ hai biến này mỗi lần chạy. Bắt buộc; ≥ 12 ký tự an toàn trong URL (chữ, số, - _ . ~).
+# API ngoài Docker có thể dùng tài khoản chủ ở trên hoặc api_service:
+# DATABASE_URL=postgres://api_service:change-me-api-service@localhost:5432/srm
+API_DB_PASSWORD=change-me-api-service
+AI_DB_PASSWORD=change-me-ai-service
 
 # Authentication (added in v0.2.0, CONTEXT D25)
 # Khóa ký access token, ≥ 32 ký tự ngẫu nhiên (openssl rand -base64 48). Bắt buộc; để trống thì compose không chạy.
@@ -183,16 +201,17 @@ MAIL_FROM=Smart Recruit Match <no-reply@srm.local>
 LOG_LEVEL=info
 ```
 
-API chạy ngoài Docker (`pnpm --filter @srm/api dev`) đọc `PORT` (mặc định 3000), `LOG_LEVEL`, `REFRESH_TOKEN_TTL_DAYS`, `SCHEDULER_ENABLED` (mặc định `true`), `SMTP_HOST`/`SMTP_PORT` (mặc định `localhost:1025`, tức Mailpit của compose) và các biến bắt buộc `DATABASE_URL`, `REDIS_URL`, `JWT_ACCESS_SECRET`, `MINIO_*`, `WEB_ORIGIN` từ môi trường của shell. Dựng `postgres`, `redis`, `minio` và `mailpit` bằng compose, áp migration và seed trước lần chạy đầu:
+API chạy ngoài Docker (`pnpm --filter @srm/api dev`) đọc `PORT` (mặc định 3000), `LOG_LEVEL`, `REFRESH_TOKEN_TTL_DAYS`, `SCHEDULER_ENABLED` (mặc định `true`), `SMTP_HOST`/`SMTP_PORT` (mặc định `localhost:1025`, tức Mailpit của compose) và các biến bắt buộc `DATABASE_URL`, `REDIS_URL`, `RABBITMQ_URL`, `JWT_ACCESS_SECRET`, `MINIO_*`, `WEB_ORIGIN` từ môi trường của shell. Dựng `postgres`, `redis`, `rabbitmq`, `minio` và `mailpit` bằng compose, áp migration và seed trước lần chạy đầu. API khởi động được khi RabbitMQ chưa chạy, nhưng chỉ gửi job và nhận `ai.results` khi đã kết nối:
 
 ```bash
-docker compose -f deploy/docker-compose.yml up -d --wait postgres redis minio mailpit
+docker compose -f deploy/docker-compose.yml up -d --wait postgres redis rabbitmq minio mailpit
 export DATABASE_URL=postgres://srm:change-me-postgres@localhost:5432/srm   # cổng theo POSTGRES_HOST_PORT
 export REDIS_URL=redis://localhost:6379                                     # cổng theo REDIS_HOST_PORT
+export RABBITMQ_URL=amqp://srm:change-me-rabbitmq@localhost:5672            # cổng theo RABBITMQ_HOST_PORT
 export JWT_ACCESS_SECRET=dev-only-jwt-access-secret-0123456789
 export MINIO_ENDPOINT=http://localhost:9000 MINIO_ACCESS_KEY=srm-minio MINIO_SECRET_KEY=change-me-minio
 export WEB_ORIGIN=http://localhost:5173                                     # link trong email trỏ về web dev
-pnpm --filter @srm/api db:migrate
+API_DB_PASSWORD=change-me-api-service AI_DB_PASSWORD=change-me-ai-service pnpm --filter @srm/api db:migrate
 pnpm --filter @srm/api db:seed       # tài khoản demo, chạy lại không tạo trùng
 pnpm --filter @srm/api dev
 pnpm --filter @srm/web dev           # http://localhost:5173

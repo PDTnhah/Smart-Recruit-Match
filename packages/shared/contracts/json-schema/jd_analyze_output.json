@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./jd_analyze_output.json",
+  "type": "object",
+  "properties": {
+    "prompt_version": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Versioned prompt file, e.g. cv_parser/v3"
+    },
+    "model": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Model id that produced the output"
+    }
+  },
+  "required": [
+    "prompt_version",
+    "model"
+  ],
+  "additionalProperties": false,
+  "title": "JdAnalyzeOutput",
+  "description": "Result of JD_ANALYZE"
+}
