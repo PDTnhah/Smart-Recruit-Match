@@ -63,7 +63,7 @@ describe('BR-02: HR confirms, the center reads (US-2.3 AC-8, AC-9)', () => {
     }
   });
 
-  it('every JD state has a decision for every campaign phase and editor', () => {
+  it('BR-18 every JD state has a decision for every campaign phase and editor', () => {
     for (const jdStatus of JOB_DESCRIPTION_STATES) {
       for (const campaignStatus of CAMPAIGN_STATES) {
         for (const editor of ['HR', 'CENTER'] as const) {
@@ -79,7 +79,7 @@ describe('BR-02: HR confirms, the center reads (US-2.3 AC-8, AC-9)', () => {
     expect(canConfirm(decide('APPROVED', 'TESTING', 'HR'), 'APPROVED')).toBe(false);
   });
 
-  it('edit modes shown to the screen', () => {
+  it('GĐ1 edit modes shown to the screen', () => {
     expect(editModeOf({ kind: 'IN_PLACE' })).toBe('IN_PLACE');
     expect(editModeOf({ kind: 'NEW_VERSION' })).toBe('NEW_VERSION');
     expect(editModeOf(decide('DRAFT', 'INTAKE', 'HR'))).toBe('READ_ONLY');

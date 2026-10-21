@@ -166,6 +166,14 @@ describe('US-2.3: JD analysis and requirement confirmation', () => {
         expect(entry).toMatchObject({ action: 'JD_ANALYSIS_FAILED', actorKind: 'SYSTEM', reason: 'JD analysis failed: DISPATCH_FAILED' });
         const notices = await notificationsOf(t.db, fx.hrA.user.id);
         expect(notices.some((n) => n.type === 'JD_ANALYSIS_FAILED' && n.payload.jdId === created.id)).toBe(true);
+
+        // The broker had taken the job after all: its proposal still reaches HR.
+        await deliver(succeeded(created.id));
+        expect(await analysisOf(created.id)).toMatchObject({ analysisStatus: 'SUCCEEDED', requirements: PROPOSED });
+        const types = (await notificationsOf(t.db, fx.hrA.user.id))
+          .filter((n) => n.payload.jdId === created.id)
+          .map((n) => n.type);
+        expect(types).toEqual(['JD_ANALYSIS_FAILED', 'JD_REQUIREMENTS_READY']);
       } finally {
         spy.mockRestore();
       }
@@ -233,6 +241,15 @@ describe('US-2.3: JD analysis and requirement confirmation', () => {
       expect((await auditEntries(t.db, 'job_description', typed.id)).map((e) => e.action)).toEqual(['JD_REQUIREMENTS_UPDATED']);
     });
 
+    it('AC-12 a failed analysis of a file with hidden text still flags the JD for the center', async () => {
+      const jd = await awaitingAnalysis();
+      const result = failed(jd.id);
+      await deliver({ ...result, error: { ...result.error!, hidden_text_detected: true } });
+      expect(await analysisOf(jd.id)).toMatchObject({ analysisStatus: 'FAILED', hiddenTextFlag: true });
+      const view = JdRequirementsViewSchema.parse((await getRequirements(center.agent, jd.id).expect(200)).body);
+      expect(view.hiddenTextDetected).toBe(true);
+    });
+
     it('GĐ1 kết quả có kỹ năng trùng giữa hai nhóm bị coi là lỗi, HR nhập tay', async () => {
       const jd = await awaitingAnalysis();
       const duplicated = { ...PROPOSED, nice_to_have: [{ skill: 'java', level: 'BASIC', weight: 1 }] };
@@ -243,7 +260,12 @@ describe('US-2.3: JD analysis and requirement confirmation', () => {
     it('GĐ1 phân tích lỗi đặt FAILED, HR nhập tay và xác nhận được', async () => {
       const jd = await awaitingAnalysis();
       await deliver(failed(jd.id));
-      expect(await analysisOf(jd.id)).toMatchObject({ status: 'PENDING_HR_CONFIRMATION', analysisStatus: 'FAILED', requirements: null });
+      expect(await analysisOf(jd.id)).toMatchObject({
+        status: 'PENDING_HR_CONFIRMATION',
+        analysisStatus: 'FAILED',
+        requirements: null,
+        hiddenTextFlag: false,
+      });
       const notices = (await notificationsOf(t.db, fx.hrA.user.id)).filter((n) => n.payload.jdId === jd.id);
       expect(notices.map((n) => n.type)).toEqual(['JD_ANALYSIS_FAILED']);
 
@@ -285,7 +307,7 @@ describe('US-2.3: JD analysis and requirement confirmation', () => {
       });
     });
 
-    it('409 khi row_version cũ', async () => {
+    it('GĐ1 409 khi row_version cũ', async () => {
       const jd = await awaitingAnalysis();
       await deliver(succeeded(jd.id)); // the AI result bumped row_version under HR's open form
       const res = await confirm(fx.hrA.agent, jd.id, {
@@ -298,7 +320,7 @@ describe('US-2.3: JD analysis and requirement confirmation', () => {
       expect(await auditEntries(t.db, 'job_description', jd.id)).toHaveLength(1);
     });
 
-    it('AC-7 the API validates with the shared schema: a skill in both groups is 400', async () => {
+    it('GĐ1 the API validates with the shared schema: a skill in both groups is 400 (AC-7)', async () => {
       const jd = await awaitingAnalysis();
       const body = {
         rowVersion: jd.rowVersion,
@@ -450,7 +472,7 @@ describe('US-2.3: JD analysis and requirement confirmation', () => {
       expect(versioned.some((e) => e.jdId === jd.id)).toBe(false);
     });
 
-    it('a JD awaiting approval or closed is read only', async () => {
+    it('BR-18 a JD awaiting approval or closed is read only', async () => {
       for (const status of ['PENDING_APPROVAL', 'CLOSED'] as const) {
         const jd = await createJdInState(t.db, { companyId: fx.companyA.id, campaignId: intakeCampaignId, status });
         const res = await save(fx.hrA.agent, jd.id, { rowVersion: jd.rowVersion, requirements: TYPED_BY_HR, positionGroup: 'BA' }).expect(409);

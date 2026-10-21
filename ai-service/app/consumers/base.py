@@ -20,7 +20,7 @@ from typing import Any
 
 from pydantic import BaseModel, ValidationError
 
-from app.consumers.errors import PermanentError
+from app.consumers.errors import PermanentError, hidden_text_of
 from app.consumers.jobs_repo import JobStore
 from app.consumers.outbox import Outbox
 from app.contracts.ai_job_error import AiJobError
@@ -121,7 +121,15 @@ class JobRunner:
                 output = await self._handler(job)
             except PermanentError as error:
                 logger.warning("job %s: permanent failure: %s", job.job_id, error)
-                await self._fail(job, body, attempt, error.code, str(error), dead_letter=False)
+                await self._fail(
+                    job,
+                    body,
+                    attempt,
+                    error.code,
+                    str(error),
+                    dead_letter=False,
+                    hidden_text=hidden_text_of(error),
+                )
                 return Settle.ACK
             except Exception as error:  # RetryableError, and anything not classified
                 message = f"{type(error).__name__}: {error}"
@@ -130,7 +138,13 @@ class JobRunner:
                         "job %s: attempt %d failed, giving up: %s", job.job_id, attempt, message
                     )
                     await self._fail(
-                        job, body, attempt, RETRIES_EXHAUSTED, message, dead_letter=True
+                        job,
+                        body,
+                        attempt,
+                        RETRIES_EXHAUSTED,
+                        message,
+                        dead_letter=True,
+                        hidden_text=hidden_text_of(error),
                     )
                     return Settle.ACK
                 delay = self._manifest.retry_delays_seconds[attempt - 1]
@@ -150,10 +164,23 @@ class JobRunner:
             return Settle.ACK
 
     async def _fail(
-        self, job: Any, body: bytes, attempts: int, code: str, message: str, *, dead_letter: bool
+        self,
+        job: Any,
+        body: bytes,
+        attempts: int,
+        code: str,
+        message: str,
+        *,
+        dead_letter: bool,
+        hidden_text: bool | None = None,
     ) -> None:
         # Retries are spent or cannot help either way: staff must look at the CV or JD.
-        error = AiJobError(code=code, message=message[:MAX_ERROR_LENGTH], needs_human=True)
+        error = AiJobError(
+            code=code,
+            message=message[:MAX_ERROR_LENGTH],
+            needs_human=True,
+            hidden_text_detected=hidden_text,
+        )
         await self._outbox.publish_result(
             self._result(job, AiResultStatus.FAILED, None, error), str(job.job_id)
         )

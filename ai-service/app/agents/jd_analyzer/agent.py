@@ -17,7 +17,7 @@ from typing import Self
 import anyio
 from pydantic import ConfigDict, model_validator
 
-from app.consumers.errors import PermanentError
+from app.consumers.errors import PermanentError, flag_hidden_text
 from app.contracts.jd_analysis import JdAnalysis
 from app.contracts.jd_analyze_job import JdAnalyzeJob
 from app.contracts.jd_analyze_output import JdAnalyzeOutput
@@ -38,9 +38,10 @@ MAX_LOGGED_SPAN = 200
 
 
 class CheckedJdAnalysis(JdAnalysis):
-    """The generated contract plus the cross-field rule Zod checks with superRefine, which JSON
-    Schema cannot carry: a skill appears once across both groups. An answer that breaks it is
-    invalid output, so the LLMClient asks again (US-2.2 AC-4)."""
+    """The generated contract plus what Zod checks and JSON Schema cannot carry: texts are trimmed
+    before their length is checked (`.trim().min(1)`), and a skill appears once across both groups
+    (superRefine). An answer that breaks either is invalid output, so the LLMClient asks again
+    (US-2.2 AC-4) instead of the backend refusing the whole proposal."""
 
     # The schema sent to the LLM keeps the contract's description, not this docstring.
     model_config = ConfigDict(
@@ -49,9 +50,18 @@ class CheckedJdAnalysis(JdAnalysis):
     )
 
     @model_validator(mode="after")
-    def _distinct_skills(self) -> Self:
+    def _as_zod_reads_it(self) -> Self:
+        requirements = self.requirements
+        conditions = requirements.hard_conditions
+        texts = [
+            *(item.skill for item in (*requirements.must_have, *requirements.nice_to_have)),
+            *(major.root for major in conditions.majors),
+            *(language.root for language in conditions.required_languages),
+        ]
+        if any(not text.strip() for text in texts):
+            raise ValueError("skills, majors and languages must not be blank")
         seen: set[str] = set()
-        for item in (*self.requirements.must_have, *self.requirements.nice_to_have):
+        for item in (*requirements.must_have, *requirements.nice_to_have):
             key = item.skill.strip().lower()
             if key in seen:
                 raise ValueError(f"skill {item.skill!r} is listed more than once")
@@ -88,16 +98,21 @@ class JdAnalyzer:
         jd_text, removed = compose_jd_text(source, extracted)
         if removed:
             _log_removed(source, removed)
-        if not jd_text:
-            raise PermanentError(f"JD {source.jd_id} has no readable text", code="JD_NO_TEXT")
-
-        prompt = self._prompts.render(AGENT, {"jd_text": jd_text})
-        result = await self._llm.generate(
-            prompt=prompt,
-            output_model=CheckedJdAnalysis,
-            effort=EFFORT_BY_AGENT[AGENT],
-            job_id=job.job_id,
-        )
+        try:
+            if not jd_text:
+                raise PermanentError(f"JD {source.jd_id} has no readable text", code="JD_NO_TEXT")
+            prompt = self._prompts.render(AGENT, {"jd_text": jd_text})
+            result = await self._llm.generate(
+                prompt=prompt,
+                output_model=CheckedJdAnalysis,
+                effort=EFFORT_BY_AGENT[AGENT],
+                job_id=job.job_id,
+            )
+        except Exception as error:
+            # A failed analysis still tells staff the file hid text (AC-12).
+            if removed:
+                flag_hidden_text(error)
+            raise
         return JdAnalyzeOutput(
             prompt_version=result.prompt_version,
             model=result.model,

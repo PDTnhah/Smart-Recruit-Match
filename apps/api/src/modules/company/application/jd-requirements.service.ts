@@ -32,7 +32,7 @@ import {
   type RequirementsEdit,
   type RequirementsEditor,
 } from '../domain/requirements-versioning.js';
-import { type JdRecord, JdRepository } from '../infrastructure/jd.repository.js';
+import { type JdRecord, type JdRecordWithRequirements, JdRepository } from '../infrastructure/jd.repository.js';
 
 const ENTITY = jobDescriptionMachine.name;
 
@@ -67,10 +67,10 @@ export class JdRequirementsService {
 
   /** AC-7, AC-9: the requirements next to what the caller may do with them. */
   async get(user: AuthUser, id: number): Promise<JdRequirementsView> {
-    const record = assertRecordAccess(user, await this.repository.findById(id), ENTITY, id);
+    const record = assertRecordAccess(user, await this.repository.findWithRequirements(id), ENTITY, id);
     const campaign = await this.campaigns.getSettings(record.campaignId);
     const edit = decideRequirementsEdit({ jdStatus: record.status, campaignStatus: campaign.status, editor: editorOf(user) });
-    return this.view(record, await this.snapshot(record), edit);
+    return this.view(record, this.snapshot(record), edit);
   }
 
   /**
@@ -81,7 +81,7 @@ export class JdRequirementsService {
   async save(user: AuthUser, id: number, body: SaveJdRequirementsRequest): Promise<JdRequirementsView> {
     const changed = await this.db.transaction(async (tx) => {
       const { record, edit } = await this.lockEditable(tx, user, id, body.rowVersion);
-      const before = await this.snapshot(record, tx);
+      const before = this.snapshot(record);
       const after = { requirements: body.requirements, positionGroup: body.positionGroup };
       if (isDeepStrictEqual(before, after)) return null;
 
@@ -113,7 +113,7 @@ export class JdRequirementsService {
       if (!canConfirm(edit, record.status)) {
         throw new JdRequirementsNotEditableError(id, record.status, REQUIREMENTS_REASON_CODES.NOT_AWAITING_CONFIRMATION);
       }
-      const before = await this.snapshot(record, tx);
+      const before = this.snapshot(record);
       const after = { requirements: body.requirements, positionGroup: body.positionGroup };
       await this.repository.updateVersioned(tx, id, record.rowVersion, after);
       await this.audit.record(tx, {
@@ -146,8 +146,13 @@ export class JdRequirementsService {
     user: AuthUser,
     id: number,
     rowVersion: number,
-  ): Promise<{ record: JdRecord; edit: RequirementsEdit }> {
-    const record = assertRecordAccess(user, await this.repository.findById(id, { tx, lock: 'update' }), ENTITY, id);
+  ): Promise<{ record: JdRecordWithRequirements; edit: RequirementsEdit }> {
+    const record = assertRecordAccess(
+      user,
+      await this.repository.findWithRequirements(id, { tx, lock: 'update' }),
+      ENTITY,
+      id,
+    );
     if (record.rowVersion !== rowVersion) throw new RowVersionConflictError(ENTITY, id, rowVersion, record.rowVersion);
     const campaign = await this.campaigns.getSettings(record.campaignId);
     const edit = decideRequirementsEdit({ jdStatus: record.status, campaignStatus: campaign.status, editor: editorOf(user) });
@@ -160,9 +165,8 @@ export class JdRequirementsService {
    * Stored requirements as the shared schema reads them. JDs written before 0.9.0 may hold an
    * older shape; they show as "no requirements" and HR enters them again (logged, not thrown).
    */
-  private async snapshot(record: JdRecord, tx?: DbTx): Promise<Snapshot> {
-    const { positionGroup } = record;
-    const stored = await this.repository.findRequirements(record.id, tx ? { tx } : {});
+  private snapshot(record: JdRecordWithRequirements): Snapshot {
+    const { positionGroup, requirements: stored } = record;
     if (stored === null) return { requirements: null, positionGroup };
     const parsed = JdRequirementsSchema.safeParse(stored);
     if (!parsed.success) this.logger.warn(`JD ${record.id}: stored requirements do not match JdRequirements`);

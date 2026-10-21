@@ -33,7 +33,7 @@ type AnalysisOutcome =
       promptVersion: string;
       hiddenTextDetected: boolean;
     }
-  | { kind: 'FAILED'; jobId: string | null; code: string };
+  | { kind: 'FAILED'; jobId: string | null; code: string; hiddenTextDetected: boolean };
 
 /**
  * The AI analysis of a submitted JD (US-2.3 AC-1, AC-4 to AC-6, CONTEXT D28, D33, D35). The JD
@@ -67,7 +67,12 @@ export class JdAnalysisService {
     } catch (error) {
       this.logger.error(`JD ${event.jdId} v${event.version}: analysis not dispatched: ${errorMessage(error)}`);
       try {
-        await this.settle(event.jdId, event.version, { kind: 'FAILED', jobId: null, code: 'DISPATCH_FAILED' });
+        await this.settle(event.jdId, event.version, {
+          kind: 'FAILED',
+          jobId: null,
+          code: 'DISPATCH_FAILED',
+          hiddenTextDetected: false,
+        });
       } catch (settleError) {
         this.logger.error(`JD ${event.jdId}: could not record the failed dispatch: ${errorMessage(settleError)}`);
       }
@@ -85,6 +90,11 @@ export class JdAnalysisService {
   }
 
   private async settle(jdId: number, version: number, outcome: AnalysisOutcome): Promise<void> {
+    // Recipients first, outside the transaction: the JD row stays locked only for the writes.
+    const current = await this.repository.findById(jdId);
+    if (!current) return;
+    const recipients = await this.users.hrUserIdsOfCompany(current.companyId);
+
     const settled = await this.db.transaction(async (tx) => {
       const jd = await this.repository.findById(jdId, { tx, lock: 'update' });
       if (!jd) return null;
@@ -113,40 +123,43 @@ export class JdAnalysisService {
           reason: 'JD Analyzer result',
         });
       } else {
-        await this.repository.updateVersioned(tx, jdId, jd.rowVersion, { analysisStatus: 'FAILED' });
+        // The file's hidden text stays flagged for the center even though nothing was proposed (AC-12).
+        const failure = { analysisStatus: 'FAILED' as const, ...(outcome.hiddenTextDetected ? { hiddenTextFlag: true } : {}) };
+        await this.repository.updateVersioned(tx, jdId, jd.rowVersion, failure);
         await this.audit.record(tx, {
           actor: SYSTEM_ACTOR,
           action: COMPANY_AUDIT_ACTIONS.JD_ANALYSIS_FAILED,
           entity: ENTITY,
           entityId: jdId,
           before: { analysisStatus: jd.analysisStatus, rowVersion: jd.rowVersion },
-          after: { analysisStatus: 'FAILED', version, jobId: outcome.jobId, rowVersion: jd.rowVersion + 1 },
+          after: { ...failure, version, jobId: outcome.jobId, rowVersion: jd.rowVersion + 1 },
           reason: `JD analysis failed: ${outcome.code}`,
         });
       }
 
-      const recipients = await this.users.hrUserIdsOfCompany(jd.companyId);
       let pending: PendingNotifications | null = null;
       if (recipients.length > 0) {
+        const ready = outcome.kind === 'SUCCEEDED';
         pending = await this.notifications.notify(
           {
-            type: outcome.kind === 'SUCCEEDED' ? 'JD_REQUIREMENTS_READY' : 'JD_ANALYSIS_FAILED',
+            type: ready ? 'JD_REQUIREMENTS_READY' : 'JD_ANALYSIS_FAILED',
             payload: { jdId, jdTitle: jd.title },
             userIds: recipients,
             channels: ['IN_APP'],
-            dedupeKey: `jd_analysis:${jdId}:v${version}`,
+            // One notice per outcome: a proposal after a failed dispatch is announced too.
+            dedupeKey: `${ready ? 'jd_requirements_ready' : 'jd_analysis_failed'}:${jdId}:v${version}`,
           },
           { tx },
         );
       }
-      return { recipients, pending, analysisStatus: outcome.kind };
+      return { pending, analysisStatus: outcome.kind };
     });
     if (!settled) return;
 
     if (settled.pending) await this.notifications.push(settled.pending);
     const data: JdAnalysisEvent = { jdId, analysisStatus: settled.analysisStatus };
     const pushed = await Promise.allSettled(
-      settled.recipients.map((userId) => this.realtime.publishToUser(userId, { event: SERVER_EVENTS.JD_ANALYSIS, data })),
+      recipients.map((userId) => this.realtime.publishToUser(userId, { event: SERVER_EVENTS.JD_ANALYSIS, data })),
     );
     // Stored already: a client that missed the event sees the new state when it reloads.
     if (pushed.some((push) => push.status === 'rejected')) this.logger.warn(`JD ${jdId}: analysis event not pushed to everyone`);
@@ -160,13 +173,23 @@ export class JdAnalysisService {
  */
 function outcomeOf(result: AiResultEvent<'JD_ANALYZE'>): AnalysisOutcome {
   if (result.status === 'FAILED' || result.result === null) {
-    return { kind: 'FAILED', jobId: result.job_id, code: result.error?.code ?? 'FAILED' };
+    return {
+      kind: 'FAILED',
+      jobId: result.job_id,
+      code: result.error?.code ?? 'FAILED',
+      hiddenTextDetected: result.error?.hidden_text_detected === true,
+    };
   }
   const output = result.result;
   const requirements = JdRequirementsSchema.safeParse(output.requirements);
   const sameJd = output.jd_id === result.job.jd_id && output.jd_version === result.job.jd_version;
   if (!requirements.success || !sameJd) {
-    return { kind: 'FAILED', jobId: result.job_id, code: 'INVALID_REQUIREMENTS' };
+    return {
+      kind: 'FAILED',
+      jobId: result.job_id,
+      code: 'INVALID_REQUIREMENTS',
+      hiddenTextDetected: output.hidden_text_detected,
+    };
   }
   return {
     kind: 'SUCCEEDED',

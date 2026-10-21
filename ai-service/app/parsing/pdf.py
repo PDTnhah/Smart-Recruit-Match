@@ -1,9 +1,12 @@
 """Visible text of a PDF, span by span (US-2.4 TASK-2.4.2, US-2.3 AC-2, AC-12).
 
-PyMuPDF gives each text span its colour, size, opacity and box. A span is hidden when it is drawn
-in the colour of what lies under it (the last filled shape under its centre, else the white page),
-in a font under 2 pt, fully transparent, or with its centre outside the visible page. Text outside
-the page is read on purpose (PyMuPDF clips it away by default), so it can be flagged.
+PyMuPDF gives each text span its colour, size, opacity and box, and the page's painting order
+(`get_bboxlog`, whose positions are the `seqno` of `get_drawings`). A span is hidden when its centre
+is outside the visible page, its font is under 2 pt, it is fully transparent, an opaque shape is
+painted over it afterwards, or it has the colour of what was painted under it before (the last
+filled shape under its centre, else the white page). Under an image or a gradient the background
+is unknown, so the colour test is skipped there: white text on a dark banner image stays.
+Text outside the page is read on purpose (PyMuPDF clips it away by default), so it can be flagged.
 """
 
 from dataclasses import dataclass
@@ -25,12 +28,46 @@ from app.parsing.hidden_text import (
 TEXT_FLAGS = pymupdf.TEXTFLAGS_DICT & ~pymupdf.TEXT_MEDIABOX_CLIP
 MIN_FILL_OPACITY = 0.5
 """A shape more transparent than this does not hide the text drawn in its colour."""
+COVER_OPACITY = 0.9
+"""A shape painted over text hides it only when nearly opaque; watermarks are lighter."""
+LAST = float("inf")
+"""Painting position of a span not found in the log: drawn after everything."""
 
 
 @dataclass(frozen=True)
-class _Fill:
+class _Layer:
+    """Something painted on the page that text can sit on or under."""
+
+    order: int
     rect: pymupdf.Rect
-    colour: RGB
+    colour: RGB | None
+    """None for an image or a gradient: its colour under a given point is not known."""
+    opaque: bool
+
+
+@dataclass(frozen=True)
+class _Paint:
+    texts: list[tuple[int, pymupdf.Rect]]
+    layers: list[_Layer]
+
+    def order_of(self, centre: pymupdf.Point) -> float:
+        """Painting position of the first text drawing that holds this point."""
+        for order, rect in self.texts:
+            if rect.contains(centre):
+                return order
+        return LAST
+
+    def background(self, centre: pymupdf.Point, order: float) -> RGB | None:
+        for layer in reversed(self.layers):
+            if layer.order < order and layer.rect.contains(centre):
+                return layer.colour
+        return WHITE
+
+    def covered(self, centre: pymupdf.Point, order: float) -> bool:
+        return any(
+            layer.order > order and layer.opaque and layer.rect.contains(centre)
+            for layer in self.layers
+        )
 
 
 def extract_pdf(data: bytes) -> ExtractedText:
@@ -47,7 +84,7 @@ def extract_pdf(data: bytes) -> ExtractedText:
 
 
 def _read_page(page: pymupdf.Page, location: str) -> tuple[str, list[RemovedSpan], bool]:
-    fills = _fills(page)
+    paint = _paint(page)
     blocks: list[str] = []
     removed: list[RemovedSpan] = []
     has_text = False
@@ -65,7 +102,7 @@ def _read_page(page: pymupdf.Page, location: str) -> tuple[str, list[RemovedSpan
                     visible.append(text)
                     continue
                 has_text = True
-                reason = _hidden_reason(page, span, fills)
+                reason = _hidden_reason(page, span, paint)
                 if reason is None:
                     visible.append(text)
                 else:
@@ -77,7 +114,7 @@ def _read_page(page: pymupdf.Page, location: str) -> tuple[str, list[RemovedSpan
     return text, removed, has_text
 
 
-def _hidden_reason(page: pymupdf.Page, span: dict, fills: list[_Fill]) -> HiddenReason | None:
+def _hidden_reason(page: pymupdf.Page, span: dict, paint: _Paint) -> HiddenReason | None:
     box = pymupdf.Rect(span["bbox"])
     centre = pymupdf.Point((box.x0 + box.x1) / 2, (box.y0 + box.y1) / 2)
     if not page.rect.contains(centre):
@@ -86,28 +123,35 @@ def _hidden_reason(page: pymupdf.Page, span: dict, fills: list[_Fill]) -> Hidden
         return HiddenReason.TINY_FONT
     if span.get("alpha", 255) == 0:
         return HiddenReason.HIDDEN_ATTRIBUTE
-    if same_colour(_rgb(span["color"]), _background(centre, fills)):
+    order = paint.order_of(centre)
+    if paint.covered(centre, order):
+        return HiddenReason.COVERED
+    background = paint.background(centre, order)
+    if background is not None and same_colour(_rgb(span["color"]), background):
         return HiddenReason.SAME_COLOUR_AS_BACKGROUND
     return None
 
 
-def _fills(page: pymupdf.Page) -> list[_Fill]:
-    """Opaque filled shapes in painting order: a later one covers an earlier one."""
-    fills = []
-    for drawing in page.get_drawings():
-        colour = drawing.get("fill")
-        opacity = drawing.get("fill_opacity")
-        if colour is None or (opacity is not None and opacity < MIN_FILL_OPACITY):
-            continue
-        fills.append(_Fill(pymupdf.Rect(drawing["rect"]), _rgb_floats(colour)))
-    return fills
-
-
-def _background(point: pymupdf.Point, fills: list[_Fill]) -> RGB:
-    for fill in reversed(fills):
-        if fill.rect.contains(point):
-            return fill.colour
-    return WHITE
+def _paint(page: pymupdf.Page) -> _Paint:
+    """Text drawings and the shapes and images around them, in painting order."""
+    drawings = {drawing["seqno"]: drawing for drawing in page.get_drawings()}
+    texts: list[tuple[int, pymupdf.Rect]] = []
+    layers: list[_Layer] = []
+    for order, (kind, bbox) in enumerate(page.get_bboxlog()):
+        rect = pymupdf.Rect(bbox)
+        if kind.endswith("-text"):
+            texts.append((order, rect))
+        elif kind in ("fill-image", "fill-shade"):
+            layers.append(_Layer(order, rect, None, opaque=False))
+        elif kind == "fill-path":
+            drawing = drawings.get(order)
+            colour = drawing.get("fill") if drawing else None
+            opacity = drawing.get("fill_opacity") if drawing else None
+            opacity = 1.0 if opacity is None else opacity
+            if colour is None or opacity < MIN_FILL_OPACITY:
+                continue
+            layers.append(_Layer(order, rect, _rgb_floats(colour), opaque=opacity >= COVER_OPACITY))
+    return _Paint(texts, layers)
 
 
 def _rgb(colour: int) -> RGB:

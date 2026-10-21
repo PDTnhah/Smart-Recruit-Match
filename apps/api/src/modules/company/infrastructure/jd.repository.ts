@@ -31,7 +31,7 @@ export interface JdRecord extends JdContent {
   companyName: string;
   fileKey: string | null;
   fileName: string | null;
-  /** `requirements` is set (US-2.3); the JSON itself is read by `findRequirements`. */
+  /** `requirements` is set (US-2.3); the JSON itself is read by `findWithRequirements`. */
   requirementsReady: boolean;
   positionGroup: PositionGroup | null;
   analysisStatus: JdAnalysisStatus | null;
@@ -67,6 +67,11 @@ const RECORD_COLUMNS = {
   createdAt: jobDescriptions.createdAt,
   updatedAt: jobDescriptions.updatedAt,
 };
+
+/** A JD with its stored requirements JSON, unparsed: rows written before 0.9.0 may hold another shape. */
+export interface JdRecordWithRequirements extends JdRecord {
+  requirements: unknown;
+}
 
 export interface JdInsert extends JdContent {
   campaignId: number;
@@ -108,9 +113,7 @@ export class JdRepository {
    */
   async findById(id: number, options: { tx?: DbTx; lock?: 'update' } = {}): Promise<JdRecord | undefined> {
     const db = options.tx ?? this.db;
-    if (options.lock) {
-      await db.select({ id: jobDescriptions.id }).from(jobDescriptions).where(eq(jobDescriptions.id, id)).for(options.lock);
-    }
+    if (options.lock) await lockRow(db, id);
     const [row] = await db
       .select(RECORD_COLUMNS)
       .from(jobDescriptions)
@@ -119,14 +122,19 @@ export class JdRepository {
     return row;
   }
 
-  /** The stored requirements JSON; null when there are none yet or the JD does not exist. */
-  async findRequirements(id: number, options: { tx?: DbTx } = {}): Promise<unknown> {
+  /** As `findById`, with the requirements JSON read in the same query (US-2.3). */
+  async findWithRequirements(
+    id: number,
+    options: { tx?: DbTx; lock?: 'update' } = {},
+  ): Promise<JdRecordWithRequirements | undefined> {
     const db = options.tx ?? this.db;
+    if (options.lock) await lockRow(db, id);
     const [row] = await db
-      .select({ requirements: jobDescriptions.requirements })
+      .select({ ...RECORD_COLUMNS, requirements: jobDescriptions.requirements })
       .from(jobDescriptions)
+      .innerJoin(companies, eq(companies.id, jobDescriptions.companyId))
       .where(eq(jobDescriptions.id, id));
-    return row?.requirements ?? null;
+    return row;
   }
 
   /** Newest first; `where` already holds the caller's scope and filters. */
@@ -148,4 +156,9 @@ export class JdRepository {
       .returning({ id: jobDescriptions.id });
     if (updated.length === 0) throw new RowVersionConflictError(jobDescriptionMachine.name, id, expectedRowVersion);
   }
+}
+
+/** Locks the JD row alone: `FOR UPDATE OF` with a join is refused for `core` tables (LESSONS §12). */
+async function lockRow(db: Database | DbTx, id: number): Promise<void> {
+  await db.select({ id: jobDescriptions.id }).from(jobDescriptions).where(eq(jobDescriptions.id, id)).for('update');
 }

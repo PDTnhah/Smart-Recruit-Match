@@ -30,6 +30,8 @@ class HiddenReason(StrEnum):
     TINY_FONT = "TINY_FONT"
     OUTSIDE_PAGE = "OUTSIDE_PAGE"
     HIDDEN_ATTRIBUTE = "HIDDEN_ATTRIBUTE"
+    COVERED = "COVERED"
+    """An opaque shape is painted over the text after it."""
     INVISIBLE_CHARACTERS = "INVISIBLE_CHARACTERS"
 
 

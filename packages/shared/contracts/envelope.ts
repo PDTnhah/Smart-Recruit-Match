@@ -22,6 +22,10 @@ export const AiJobErrorSchema = z
     code: z.string().min(1).describe('Machine-readable reason, e.g. RETRIES_EXHAUSTED or LLM_REFUSAL'),
     message: z.string().describe('Detail for logs and staff; not shown to students as is'),
     needs_human: z.boolean().describe('True when retrying cannot help and staff must handle the item'),
+    hidden_text_detected: z
+      .boolean()
+      .nullish()
+      .describe('The input file had hidden text, removed before the prompt; null when not known (US-2.3 AC-12)'),
   })
   .meta({ title: 'AiJobError', description: 'Why a job failed' });
 
