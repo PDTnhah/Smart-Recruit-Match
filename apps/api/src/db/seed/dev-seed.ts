@@ -5,7 +5,7 @@
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { and, eq, inArray } from 'drizzle-orm';
 import { Pool } from 'pg';
-import { DEFAULT_CAMPAIGN_CONFIG, type Role } from '@srm/shared';
+import { DEFAULT_CAMPAIGN_CONFIG, type JdRequirements, type Role } from '@srm/shared';
 import { hashPassword } from '../../modules/iam/index.js';
 import * as schema from '../schema/index.js';
 import { campaigns, companies, jobDescriptions, students, users } from '../schema/index.js';
@@ -27,10 +27,19 @@ export const SEED_CAMPAIGN = {
   target: { cohorts: ['K66'], majors: ['Công nghệ thông tin', 'Khoa học máy tính'] },
 } as const;
 
+const SEED_REQUIREMENTS: JdRequirements = {
+  must_have: [
+    { skill: 'TypeScript', level: 'BASIC', weight: 3 },
+    { skill: 'SQL', level: 'BASIC', weight: 2 },
+  ],
+  nice_to_have: [{ skill: 'NestJS', level: 'BASIC', weight: 1 }],
+  hard_conditions: { majors: ['Công nghệ thông tin'], min_study_year: 3, min_gpa: null, required_languages: [] },
+};
+
 /**
- * A JD of Alpha already in PENDING_APPROVAL with sample requirements, so the center's "Duyệt JD"
- * screen can be shown before US-2.3 lets HR confirm requirements (milestone M1, CONTEXT D28).
- * Inserted directly in that state: dev data only, never a path production code takes (AD-8).
+ * A JD of Alpha already in PENDING_APPROVAL with sample requirements in the US-2.3 shape, so the
+ * center's "Duyệt JD" screen has something to approve (milestone M1, CONTEXT D28). Inserted
+ * directly in that state: dev data only, never a path production code takes (AD-8).
  */
 export const SEED_JD = {
   company: 'Công ty Demo Alpha',
@@ -41,10 +50,8 @@ export const SEED_JD = {
   internshipPeriod: '01/2027 – 04/2027',
   allowance: '3 triệu đồng/tháng',
   rawText: 'Tham gia phát triển API bằng NestJS và PostgreSQL; viết test tự động.',
-  requirements: {
-    must_have: [{ skill: 'TypeScript', level: 'basic' }, { skill: 'SQL', level: 'basic' }],
-    nice_to_have: [{ skill: 'NestJS' }],
-  },
+  positionGroup: 'BACKEND',
+  requirements: SEED_REQUIREMENTS,
 } as const;
 
 interface SeedAccount {
@@ -125,6 +132,7 @@ export async function seedDev(db: Database, password: string = DEFAULT_SEED_PASS
         internshipPeriod: SEED_JD.internshipPeriod,
         allowance: SEED_JD.allowance,
         rawText: SEED_JD.rawText,
+        positionGroup: SEED_JD.positionGroup,
         requirements: SEED_JD.requirements,
         campaignId,
         companyId: jdCompanyId,

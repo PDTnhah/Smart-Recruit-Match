@@ -5,7 +5,7 @@ import path from 'node:path';
 import { HeadObjectCommand, ListObjectsV2Command, type S3Client } from '@aws-sdk/client-s3';
 import type { INestApplication } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import type { JobDescriptionStatus } from '@srm/shared';
+import type { JdRequirements, JobDescriptionStatus } from '@srm/shared';
 import { loadEnv } from '../../src/common/config/env.js';
 import { type Bucket, BUCKETS, createS3Client, storageConfigFromEnv } from '../../src/common/storage/index.js';
 import type { Database } from '../../src/db/types.js';
@@ -39,8 +39,12 @@ export function jdBody(campaignId: number, overrides: Record<string, unknown> = 
   };
 }
 
-/** Sample requirements, as US-2.3 will store them once HR confirms. */
-export const SAMPLE_REQUIREMENTS = { must_have: [{ skill: 'TypeScript' }], nice_to_have: [] };
+/** Sample requirements in the shape HR confirms (US-2.3). */
+export const SAMPLE_REQUIREMENTS: JdRequirements = {
+  must_have: [{ skill: 'TypeScript', level: 'INTERMEDIATE', weight: 3 }],
+  nice_to_have: [{ skill: 'Docker', level: 'BASIC', weight: 1 }],
+  hard_conditions: { majors: [], min_study_year: null, min_gpa: null, required_languages: [] },
+};
 
 /**
  * A JD inserted directly in `status` with the FR-4 fields (test setup only; production code moves
@@ -48,7 +52,7 @@ export const SAMPLE_REQUIREMENTS = { must_have: [{ skill: 'TypeScript' }], nice_
  */
 export function createJdInState(
   db: Database,
-  values: { companyId: number; campaignId?: number; status: JobDescriptionStatus; requirements?: unknown },
+  values: { companyId: number; campaignId?: number; status: JobDescriptionStatus; requirements?: JdRequirements | null },
 ) {
   const confirmed = !['DRAFT', 'PENDING_HR_CONFIRMATION'].includes(values.status);
   return createJobDescription(db, {
@@ -59,11 +63,7 @@ export function createJdInState(
     workMode: 'ONSITE',
     internshipPeriod: '3 tháng',
     rawText: 'Mô tả công việc',
-    requirements: (values.requirements === undefined
-      ? confirmed
-        ? SAMPLE_REQUIREMENTS
-        : null
-      : values.requirements) as Record<string, unknown> | null,
+    requirements: values.requirements === undefined ? (confirmed ? SAMPLE_REQUIREMENTS : null) : values.requirements,
   });
 }
 
