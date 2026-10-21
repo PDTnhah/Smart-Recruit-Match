@@ -1,5 +1,12 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { jobDescriptionMachine, type JobDescriptionStatus, type WorkMode } from '@srm/shared';
+import {
+  type JdAnalysisStatus,
+  type JdRequirements,
+  jobDescriptionMachine,
+  type JobDescriptionStatus,
+  type PositionGroup,
+  type WorkMode,
+} from '@srm/shared';
 import { and, desc, eq, type SQL, sql } from 'drizzle-orm';
 import { RowVersionConflictError } from '../../../common/errors/index.js';
 import { companies, jobDescriptions } from '../../../db/schema/index.js';
@@ -24,8 +31,11 @@ export interface JdRecord extends JdContent {
   companyName: string;
   fileKey: string | null;
   fileName: string | null;
-  /** `requirements` is set (US-2.3); the JSON itself is not read here. */
+  /** `requirements` is set (US-2.3); the JSON itself is read by `findRequirements`. */
   requirementsReady: boolean;
+  positionGroup: PositionGroup | null;
+  analysisStatus: JdAnalysisStatus | null;
+  hiddenTextFlag: boolean;
   status: JobDescriptionStatus;
   version: number;
   rowVersion: number;
@@ -48,6 +58,9 @@ const RECORD_COLUMNS = {
   fileKey: jobDescriptions.fileKey,
   fileName: jobDescriptions.fileName,
   requirementsReady: sql<boolean>`${jobDescriptions.requirements} is not null`,
+  positionGroup: jobDescriptions.positionGroup,
+  analysisStatus: jobDescriptions.analysisStatus,
+  hiddenTextFlag: jobDescriptions.hiddenTextFlag,
   status: jobDescriptions.status,
   version: jobDescriptions.version,
   rowVersion: jobDescriptions.rowVersion,
@@ -60,8 +73,19 @@ export interface JdInsert extends JdContent {
   companyId: number;
 }
 
+/** The normalised requirements and the AI analysis that proposed them (US-2.3, CONTEXT D35). */
+export interface JdRequirementsChanges {
+  requirements?: JdRequirements;
+  positionGroup?: PositionGroup;
+  version?: number;
+  analysisStatus?: JdAnalysisStatus;
+  analysisModel?: string;
+  analysisPromptVersion?: string;
+  hiddenTextFlag?: boolean;
+}
+
 /** Columns a versioned update may write. Never `status`: only `transitionTo` changes it (AD-8). */
-export type JdChanges = Partial<JdContent> & { fileKey?: string; fileName?: string };
+export type JdChanges = Partial<JdContent> & { fileKey?: string; fileName?: string } & JdRequirementsChanges;
 
 /**
  * Drizzle access to `core.job_descriptions` (and the company name next to it); both tables belong
@@ -93,6 +117,16 @@ export class JdRepository {
       .innerJoin(companies, eq(companies.id, jobDescriptions.companyId))
       .where(eq(jobDescriptions.id, id));
     return row;
+  }
+
+  /** The stored requirements JSON; null when there are none yet or the JD does not exist. */
+  async findRequirements(id: number, options: { tx?: DbTx } = {}): Promise<unknown> {
+    const db = options.tx ?? this.db;
+    const [row] = await db
+      .select({ requirements: jobDescriptions.requirements })
+      .from(jobDescriptions)
+      .where(eq(jobDescriptions.id, id));
+    return row?.requirements ?? null;
   }
 
   /** Newest first; `where` already holds the caller's scope and filters. */

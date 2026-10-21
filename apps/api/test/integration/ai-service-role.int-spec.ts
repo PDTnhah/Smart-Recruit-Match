@@ -14,9 +14,11 @@ import { randomUUID } from 'node:crypto';
 import { Client } from 'pg';
 import { aiDatabaseUrl, createTestDb, ownerDatabaseUrl, type TestDb } from '../helpers/db.js';
 import { createCv, createJobDescription } from '../helpers/factories.js';
+import { SAMPLE_REQUIREMENTS } from '../helpers/jd.js';
 
 const CV_VIEW = 'core.v_ai_cv_profile_masked';
 const JD_VIEW = 'core.v_ai_jd_requirements';
+const JD_SOURCE_VIEW = 'core.v_ai_jd_source';
 
 /** PostgreSQL's insufficient_privilege, raised before the statement touches any row. */
 async function expectDenied(promise: Promise<unknown>): Promise<void> {
@@ -129,6 +131,7 @@ describe('AD-4: database roles of the AI Service and the API', () => {
       'ai.llm_calls SELECT',
       `${CV_VIEW} SELECT`,
       `${JD_VIEW} SELECT`,
+      `${JD_SOURCE_VIEW} SELECT`,
     ]);
   });
 
@@ -191,6 +194,45 @@ describe('AD-4: views the AI Service reads', () => {
     // An exact allow-list: any new column, PII or not, has to be added here on purpose.
     expect(await columnsOf(CV_VIEW)).toEqual(['cv_id', 'version', 'campaign_id', 'profile_masked']);
     expect(await columnsOf(JD_VIEW)).toEqual(['jd_id', 'version', 'campaign_id', 'position_group', 'requirements']);
+    // The company's own text; no student data and nothing of the JD's workflow (US-2.3).
+    expect(await columnsOf(JD_SOURCE_VIEW)).toEqual(['jd_id', 'version', 'title', 'raw_text', 'file_key']);
+  });
+
+  it('AD-4 v_ai_jd_source shows only JDs awaiting analysis (US-2.3, CONTEXT D35)', async () => {
+    const cases = [
+      { status: 'PENDING_HR_CONFIRMATION', analysisStatus: 'PENDING', requirements: null, visible: true },
+      { status: 'PENDING_HR_CONFIRMATION', analysisStatus: 'PENDING', requirements: SAMPLE_REQUIREMENTS, visible: false },
+      { status: 'PENDING_HR_CONFIRMATION', analysisStatus: 'SUCCEEDED', requirements: SAMPLE_REQUIREMENTS, visible: false },
+      { status: 'PENDING_HR_CONFIRMATION', analysisStatus: 'FAILED', requirements: null, visible: false },
+      { status: 'PENDING_HR_CONFIRMATION', analysisStatus: null, requirements: null, visible: false },
+      { status: 'DRAFT', analysisStatus: null, requirements: null, visible: false },
+      { status: 'APPROVED', analysisStatus: 'PENDING', requirements: null, visible: false },
+    ] as const;
+    const jds = await Promise.all(
+      cases.map(async (c) => ({
+        ...c,
+        id: (
+          await createJobDescription(seed.db, {
+            status: c.status,
+            analysisStatus: c.analysisStatus,
+            requirements: c.requirements,
+            rawText: 'Mô tả',
+          })
+        ).id,
+      })),
+    );
+    const { rows } = await ai.query<{ jd_id: string }>(`SELECT jd_id FROM ${JD_SOURCE_VIEW} WHERE jd_id = ANY($1)`, [
+      jds.map((jd) => jd.id),
+    ]);
+    const visible = new Set(rows.map((r) => Number(r.jd_id)));
+    for (const jd of jds) {
+      expect([jd.status, jd.analysisStatus, jd.requirements !== null, visible.has(jd.id)]).toEqual([
+        jd.status,
+        jd.analysisStatus,
+        jd.requirements !== null,
+        jd.visible,
+      ]);
+    }
   });
 
   it('BR-01 BR-02 view chỉ trả dữ liệu đã xác nhận', async () => {

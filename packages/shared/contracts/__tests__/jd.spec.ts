@@ -109,6 +109,17 @@ describe('FR-9 JdRequirements: one schema for the LLM output, the HR form and th
     });
   });
 
+  it.each([undefined, null, 'x', {}, { must_have: 'x', nice_to_have: [{}] }])(
+    'AC-3 malformed input %p is reported, never thrown',
+    (input) => {
+      expect(JdRequirementsSchema.safeParse(input).success).toBe(false);
+    },
+  );
+
+  it('AC-3 an output without requirements is reported, never thrown', () => {
+    expect(JdAnalyzeOutputSchema.safeParse({ prompt_version: 'jd_analyzer/v1', model: 'm' }).success).toBe(false);
+  });
+
   it('skillKey so khớp không phân biệt hoa thường, giữ dấu tiếng Việt', () => {
     expect(skillKey('  Kiểm Thử ')).toBe('kiểm thử');
     expect(skillKey('Kiểm thử')).not.toBe(skillKey('Kiem thu'));

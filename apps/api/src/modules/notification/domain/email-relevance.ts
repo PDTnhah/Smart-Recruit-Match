@@ -14,5 +14,10 @@ export function emailStillRelevant(content: NotificationContent, now: Date): boo
     case 'HR_INVITED':
       // Checked against iam when the link is issued: no pending invitation, no email.
       return true;
+    case 'JD_REQUIREMENTS_READY':
+    case 'JD_ANALYSIS_FAILED':
+    case 'JD_REQUIREMENTS_VERSIONED':
+      // Shown in the app only; never queued as email (CONTEXT D35).
+      return false;
   }
 }

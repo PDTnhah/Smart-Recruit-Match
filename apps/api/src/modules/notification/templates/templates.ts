@@ -1,4 +1,4 @@
-import type { NotificationType } from '@srm/shared';
+import type { EmailNotificationType } from '@srm/shared';
 
 // Email templates in Vietnamese (Handlebars, ARCHITECTURE › Thư viện chính). Kept as TS strings
 // rather than .hbs files: tsc does not copy .hbs into dist (CONTEXT D31, same reason as
@@ -34,7 +34,8 @@ const TEXT_FOOTER = `
 --
 Email này được gửi tự động từ hệ thống Smart Recruit Match. Vui lòng không trả lời email này.`;
 
-export const EMAIL_TEMPLATES: Record<NotificationType, EmailTemplate> = {
+/** In-app-only types have no template: `notify` refuses EMAIL for them (CONTEXT D35). */
+export const EMAIL_TEMPLATES: Record<EmailNotificationType, EmailTemplate> = {
   CAMPAIGN_OPENED: {
     subject: 'Đợt thực tập "{{campaignName}}" đã mở',
     html: `<p>Chào {{recipientName}},</p>

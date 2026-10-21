@@ -23,6 +23,23 @@ export const NOTIFICATION_TYPES = [
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 
+/**
+ * Types shown in the app only (PRD › Thông báo, CONTEXT D35): the recipient is usually on the page
+ * already, and an email seconds later would repeat it. `notify` refuses the EMAIL channel for them.
+ */
+export const IN_APP_ONLY_NOTIFICATION_TYPES = [
+  'JD_REQUIREMENTS_READY',
+  'JD_ANALYSIS_FAILED',
+  'JD_REQUIREMENTS_VERSIONED',
+] as const satisfies readonly NotificationType[];
+
+/** Types that may be sent by email, each with a template in the notification module. */
+export type EmailNotificationType = Exclude<NotificationType, (typeof IN_APP_ONLY_NOTIFICATION_TYPES)[number]>;
+
+export function isEmailNotificationType(type: NotificationType): type is EmailNotificationType {
+  return !(IN_APP_ONLY_NOTIFICATION_TYPES as readonly NotificationType[]).includes(type);
+}
+
 const id = z.number().int().positive();
 const instant = z.iso.datetime({ offset: true });
 
@@ -95,7 +112,12 @@ export const NotificationDeliverySchema = z.object({
 });
 
 /** Argument of `NotificationService.notify` (in-process, not an HTTP body). */
-export const NotifyInputSchema = z.intersection(NotificationContentSchema, NotificationDeliverySchema);
+export const NotifyInputSchema = z
+  .intersection(NotificationContentSchema, NotificationDeliverySchema)
+  .refine((input) => isEmailNotificationType(input.type) || !input.channels.includes('EMAIL'), {
+    error: 'this notification type is shown in the app only',
+    path: ['channels'],
+  });
 
 export type NotifyInput = z.input<typeof NotifyInputSchema>;
 

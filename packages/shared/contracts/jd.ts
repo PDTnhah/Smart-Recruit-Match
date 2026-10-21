@@ -94,8 +94,10 @@ function checkDistinctSkills(
 ): void {
   const seen = new Set<string>();
   for (const group of SKILL_GROUPS) {
-    requirements[group].forEach((item, index) => {
-      if (typeof item.skill !== 'string' || item.skill.trim() === '') return;
+    const items: unknown = requirements[group];
+    if (!Array.isArray(items)) continue;
+    (items as readonly { skill?: unknown }[]).forEach((item, index) => {
+      if (typeof item?.skill !== 'string' || item.skill.trim() === '') return;
       const key = skillKey(item.skill);
       if (seen.has(key)) {
         ctx.addIssue({ code: 'custom', path: [group, index, 'skill'], message: `Kỹ năng "${item.skill.trim()}" bị trùng` });
@@ -106,11 +108,12 @@ function checkDistinctSkills(
 }
 
 // The duplicate check also runs while other fields are invalid (LESSONS §10); it only waits for the
-// two lists and their items to be well formed.
+// object itself, the two lists and their items to be well formed.
 const whenSkillListsParsed = {
   when: (payload: z.core.ParsePayload) =>
     payload.issues.every((issue) => {
       const path = issue.path ?? [];
+      if (path.length === 0) return false;
       return !(SKILL_GROUPS as readonly PropertyKey[]).includes(path[0] ?? '') || path.length > 2;
     }),
 };

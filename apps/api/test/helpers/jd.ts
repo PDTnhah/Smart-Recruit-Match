@@ -5,7 +5,7 @@ import path from 'node:path';
 import { HeadObjectCommand, ListObjectsV2Command, type S3Client } from '@aws-sdk/client-s3';
 import type { INestApplication } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import type { JdRequirements, JobDescriptionStatus } from '@srm/shared';
+import type { JdAnalysisStatus, JdRequirements, JobDescriptionStatus } from '@srm/shared';
 import { loadEnv } from '../../src/common/config/env.js';
 import { type Bucket, BUCKETS, createS3Client, storageConfigFromEnv } from '../../src/common/storage/index.js';
 import type { Database } from '../../src/db/types.js';
@@ -52,7 +52,13 @@ export const SAMPLE_REQUIREMENTS: JdRequirements = {
  */
 export function createJdInState(
   db: Database,
-  values: { companyId: number; campaignId?: number; status: JobDescriptionStatus; requirements?: JdRequirements | null },
+  values: {
+    companyId: number;
+    campaignId?: number;
+    status: JobDescriptionStatus;
+    requirements?: JdRequirements | null;
+    analysisStatus?: JdAnalysisStatus | null;
+  },
 ) {
   const confirmed = !['DRAFT', 'PENDING_HR_CONFIRMATION'].includes(values.status);
   return createJobDescription(db, {
@@ -64,6 +70,7 @@ export function createJdInState(
     internshipPeriod: '3 tháng',
     rawText: 'Mô tả công việc',
     requirements: values.requirements === undefined ? (confirmed ? SAMPLE_REQUIREMENTS : null) : values.requirements,
+    analysisStatus: values.analysisStatus ?? null,
   });
 }
 

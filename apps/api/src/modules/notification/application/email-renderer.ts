@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { CampaignDeadlineKey, NotificationContent } from '@srm/shared';
+import { type CampaignDeadlineKey, type EmailNotificationType, isEmailNotificationType, type NotificationContent } from '@srm/shared';
 import Handlebars from 'handlebars';
 import { loadEnv } from '../../../common/config/env.js';
 import type { UserContact } from '../../iam/index.js';
@@ -57,15 +57,18 @@ export class EmailRenderer {
   private readonly webOrigin = loadEnv().WEB_ORIGIN;
   private readonly handlebars = Handlebars.create();
   private readonly layout = this.handlebars.compile(HTML_LAYOUT, { strict: true });
-  private readonly compiled = new Map<NotificationContent['type'], Compiled>();
+  private readonly compiled = new Map<EmailNotificationType, Compiled>();
 
   render(
     content: NotificationContent,
     recipient: UserContact,
     links: { invitation?: InvitationLink } = {},
   ): Omit<MailMessage, 'to'> {
+    const { type } = content;
+    // Unreachable for rows written through notify, which refuses EMAIL for these types.
+    if (!isEmailNotificationType(type)) throw new Error(`${type} is shown in the app only, never emailed`);
     const context = { recipientName: recipient.fullName ?? recipient.email, ...this.contextOf(content, links) };
-    const template = this.templateOf(content.type);
+    const template = this.templateOf(type);
     const subject = template.subject(context).replace(LINE_BREAKS, ' ');
     return {
       subject,
@@ -97,10 +100,14 @@ export class EmailRenderer {
           link: `${this.webOrigin}${path}`,
         };
       }
+      case 'JD_REQUIREMENTS_READY':
+      case 'JD_ANALYSIS_FAILED':
+      case 'JD_REQUIREMENTS_VERSIONED':
+        throw new Error(`${content.type} is shown in the app only, never emailed`);
     }
   }
 
-  private templateOf(type: NotificationContent['type']): Compiled {
+  private templateOf(type: EmailNotificationType): Compiled {
     let compiled = this.compiled.get(type);
     if (!compiled) {
       const source = EMAIL_TEMPLATES[type];
