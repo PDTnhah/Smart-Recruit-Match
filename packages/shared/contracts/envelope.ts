@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { JdRequirementsSchema, PositionGroupSchema } from './jd.js';
 import { CvParseJobSchema, JdAnalyzeJobSchema, type AiJobType } from './jobs.js';
 
 /** Outcome of a job as reported on `ai.results` (ARCHITECTURE › Hàng đợi). */
@@ -37,9 +38,19 @@ export const CvParseOutputSchema = z
   .strictObject({ ...outputBase })
   .meta({ title: 'CvParseOutput', description: 'Result of CV_PARSE' });
 
-/** Output of JD_ANALYZE. US-2.3 adds the normalised requirements. */
+/**
+ * Output of JD_ANALYZE (US-2.3 AC-3): the proposed requirements, which HR reviews and confirms. The
+ * text the AI Service dropped as hidden is never part of it, only the flag (AC-12).
+ */
 export const JdAnalyzeOutputSchema = z
-  .strictObject({ ...outputBase })
+  .strictObject({
+    ...outputBase,
+    jd_id: z.int().positive().describe('core.job_descriptions.id the requirements belong to'),
+    jd_version: z.int().positive().describe('JD version that was analysed'),
+    requirements: JdRequirementsSchema,
+    position_group: PositionGroupSchema,
+    hidden_text_detected: z.boolean().describe('The JD file contained hidden text, removed before the prompt'),
+  })
   .meta({ title: 'JdAnalyzeOutput', description: 'Result of JD_ANALYZE' });
 
 /**

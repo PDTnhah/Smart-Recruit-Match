@@ -8,6 +8,14 @@ import {
   JdAnalyzeOutputSchema,
   JdAnalyzeResultSchema,
 } from './envelope.js';
+import {
+  JdAnalysisSchema,
+  JdHardConditionsSchema,
+  JdRequirementsSchema,
+  JdSkillRequirementSchema,
+  PositionGroupSchema,
+  SkillLevelSchema,
+} from './jd.js';
 import { CvParseJobSchema, JdAnalyzeJobSchema } from './jobs.js';
 
 /**
@@ -20,6 +28,12 @@ const CONTRACTS: ReadonlyArray<[z.ZodType, string]> = [
   [JdAnalyzeJobSchema, 'jd_analyze_job'],
   [AiResultStatusSchema, 'ai_result_status'],
   [AiJobErrorSchema, 'ai_job_error'],
+  [SkillLevelSchema, 'skill_level'],
+  [PositionGroupSchema, 'position_group'],
+  [JdSkillRequirementSchema, 'jd_skill_requirement'],
+  [JdHardConditionsSchema, 'jd_hard_conditions'],
+  [JdRequirementsSchema, 'jd_requirements'],
+  [JdAnalysisSchema, 'jd_analysis'],
   [CvParseOutputSchema, 'cv_parse_output'],
   [JdAnalyzeOutputSchema, 'jd_analyze_output'],
   [CvParseResultSchema, 'cv_parse_result'],

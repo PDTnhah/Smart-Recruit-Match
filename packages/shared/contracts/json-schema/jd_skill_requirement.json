@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./jd_skill_requirement.json",
+  "type": "object",
+  "properties": {
+    "skill": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100,
+      "description": "Skill name as written in the JD"
+    },
+    "level": {
+      "$ref": "./skill_level.json"
+    },
+    "weight": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "maximum": 10,
+      "description": "Relative importance within its group, greater than 0 and at most 10"
+    }
+  },
+  "required": [
+    "skill",
+    "level",
+    "weight"
+  ],
+  "additionalProperties": false,
+  "title": "JdSkillRequirement",
+  "description": "One required skill with its level and weight"
+}

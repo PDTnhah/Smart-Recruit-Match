@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./jd_analysis.json",
+  "type": "object",
+  "properties": {
+    "requirements": {
+      "$ref": "./jd_requirements.json"
+    },
+    "position_group": {
+      "$ref": "./position_group.json"
+    }
+  },
+  "required": [
+    "requirements",
+    "position_group"
+  ],
+  "additionalProperties": false,
+  "title": "JdAnalysis",
+  "description": "Structured output of the JD Analyzer"
+}

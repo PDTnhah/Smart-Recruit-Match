@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { JdRequirementsSchema, PositionGroupSchema } from '../contracts/jd.js';
 import { JOB_DESCRIPTION_STATES } from '../states/job-description.js';
 import { optionalText, RowVersionFieldSchema, RowVersionSchema } from './common.js';
 
@@ -60,6 +61,14 @@ export type JdActionRequest = z.output<typeof JdActionRequestSchema>;
 /** Text fields of the multipart body of `PUT /api/jds/{id}/file` (the file itself is `file`). */
 export const UploadJdFileFieldsSchema = z.object({ rowVersion: RowVersionFieldSchema });
 
+/**
+ * Progress of the AI analysis of a submitted JD (US-2.3, CONTEXT D35). Null for a draft and for JDs
+ * submitted before the analysis existed; HR then enters the requirements by hand.
+ */
+export const JD_ANALYSIS_STATUSES = ['PENDING', 'SUCCEEDED', 'FAILED'] as const;
+
+export type JdAnalysisStatus = (typeof JD_ANALYSIS_STATUSES)[number];
+
 export const JdListQuerySchema = z.object({
   campaignId: z.coerce.number().int().positive().optional(),
   status: z.enum(JOB_DESCRIPTION_STATES).optional(),
@@ -84,8 +93,12 @@ export const JobDescriptionSchema = z.object({
   status: z.enum(JOB_DESCRIPTION_STATES),
   version: z.number().int(),
   rowVersion: z.number().int(),
-  /** Normalized requirements exist (US-2.3). Submitted without them, the JD awaits analysis. */
+  /** Normalized requirements exist: proposed by the AI or entered by HR (US-2.3). */
   requirementsReady: z.boolean(),
+  positionGroup: PositionGroupSchema.nullable(),
+  analysisStatus: z.enum(JD_ANALYSIS_STATUSES).nullable(),
+  /** The JD file had hidden text, removed before the analysis (AC-12); shown to the center. */
+  hiddenTextDetected: z.boolean(),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
 });
@@ -95,3 +108,40 @@ export type JobDescription = z.output<typeof JobDescriptionSchema>;
 export const JdListSchema = z.object({ items: z.array(JobDescriptionSchema) });
 
 export type JdList = z.output<typeof JdListSchema>;
+
+// --- Normalised requirements (US-2.3, FR-10, BR-02, BR-18, CONTEXT D35) -----------------------
+
+/**
+ * What a save does for the caller: edit in place (HR, before confirmation), create version + 1 (an
+ * approved JD, BR-18) or nothing (read only).
+ */
+export const JD_REQUIREMENTS_EDIT_MODES = ['IN_PLACE', 'NEW_VERSION', 'READ_ONLY'] as const;
+
+export type JdRequirementsEditMode = (typeof JD_REQUIREMENTS_EDIT_MODES)[number];
+
+/** Body of `GET /api/jds/{id}/requirements`. */
+export const JdRequirementsViewSchema = z.object({
+  jdId: z.number().int(),
+  status: z.enum(JOB_DESCRIPTION_STATES),
+  version: z.number().int(),
+  rowVersion: z.number().int(),
+  analysisStatus: z.enum(JD_ANALYSIS_STATUSES).nullable(),
+  hiddenTextDetected: z.boolean(),
+  /** Null until the AI proposes them or HR saves them. */
+  requirements: JdRequirementsSchema.nullable(),
+  positionGroup: PositionGroupSchema.nullable(),
+  editMode: z.enum(JD_REQUIREMENTS_EDIT_MODES),
+  /** The caller may confirm now (HR of the company, JD awaiting confirmation, campaign in INTAKE). */
+  canConfirm: z.boolean(),
+});
+
+export type JdRequirementsView = z.output<typeof JdRequirementsViewSchema>;
+
+/** Body of `PUT /api/jds/{id}/requirements` and `PUT /api/jds/{id}/requirements/confirm`. */
+export const SaveJdRequirementsRequestSchema = z.object({
+  rowVersion: RowVersionSchema,
+  requirements: JdRequirementsSchema,
+  positionGroup: PositionGroupSchema,
+});
+
+export type SaveJdRequirementsRequest = z.output<typeof SaveJdRequirementsRequestSchema>;

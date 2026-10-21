@@ -11,7 +11,15 @@ export const NOTIFICATION_CHANNELS = ['IN_APP', 'EMAIL'] as const;
 
 export type NotificationChannel = (typeof NOTIFICATION_CHANNELS)[number];
 
-export const NOTIFICATION_TYPES = ['CAMPAIGN_OPENED', 'HR_INVITED', 'DEADLINE_REMINDER'] as const;
+export const NOTIFICATION_TYPES = [
+  'CAMPAIGN_OPENED',
+  'HR_INVITED',
+  'DEADLINE_REMINDER',
+  // JD analysis and requirement versions (US-2.3, CONTEXT D35).
+  'JD_REQUIREMENTS_READY',
+  'JD_ANALYSIS_FAILED',
+  'JD_REQUIREMENTS_VERSIONED',
+] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 
@@ -42,11 +50,34 @@ export const DeadlineReminderPayloadSchema = z.object({
   deadline: instant,
 });
 
+/** The AI proposed normalised requirements for a JD; HR of its company reviews and confirms them. */
+export const JdRequirementsReadyPayloadSchema = z.object({
+  jdId: id,
+  jdTitle: z.string().min(1),
+});
+
+/** The AI could not analyse a JD; HR of its company enters the requirements by hand. */
+export const JdAnalysisFailedPayloadSchema = z.object({
+  jdId: id,
+  jdTitle: z.string().min(1),
+});
+
+/** An approved JD got a new requirements version (BR-18); sent to center staff. */
+export const JdRequirementsVersionedPayloadSchema = z.object({
+  jdId: id,
+  jdTitle: z.string().min(1),
+  companyName: z.string().min(1),
+  version: id,
+});
+
 /** `type` and the `payload` that goes with it. */
 export const NotificationContentSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('CAMPAIGN_OPENED'), payload: CampaignOpenedPayloadSchema }),
   z.object({ type: z.literal('HR_INVITED'), payload: HrInvitedPayloadSchema }),
   z.object({ type: z.literal('DEADLINE_REMINDER'), payload: DeadlineReminderPayloadSchema }),
+  z.object({ type: z.literal('JD_REQUIREMENTS_READY'), payload: JdRequirementsReadyPayloadSchema }),
+  z.object({ type: z.literal('JD_ANALYSIS_FAILED'), payload: JdAnalysisFailedPayloadSchema }),
+  z.object({ type: z.literal('JD_REQUIREMENTS_VERSIONED'), payload: JdRequirementsVersionedPayloadSchema }),
 ]);
 
 export type NotificationContent = z.output<typeof NotificationContentSchema>;
@@ -112,6 +143,16 @@ export const SERVER_EVENTS = {
   READY: 'ready',
   PING: 'ping',
   NOTIFICATION: 'notification',
+  /** The analysis of a JD settled (US-2.3); data is `JdAnalysisEvent`, sent to HR of its company. */
+  JD_ANALYSIS: 'jd.analysis',
 } as const;
 
 export type ServerEventName = (typeof SERVER_EVENTS)[keyof typeof SERVER_EVENTS];
+
+/** Data of the `jd.analysis` event: the client refetches the JD. */
+export const JdAnalysisEventSchema = z.object({
+  jdId: id,
+  analysisStatus: z.enum(['SUCCEEDED', 'FAILED']),
+});
+
+export type JdAnalysisEvent = z.output<typeof JdAnalysisEventSchema>;
