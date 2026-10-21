@@ -12,8 +12,16 @@ depends_on: [US-1.6, US-2.2]
 assignee:
 commit:
 created: 2026-10-07
-updated: 2026-10-07
+updated: 2026-10-21
 ---
+
+## Story refresh — 2026-10-21 (từ US-2.3)
+
+Ghi lúc US-2.3 bắt đầu. Khi bắt đầu story này, đọc lại và chốt với người dùng ([CONTEXT D35](../../CONTEXT.md)).
+
+- **TASK-2.4.2 đã do US-2.3 làm.** `ai-service/app/parsing/` có `pdf.py` (PyMuPDF 1.28.2), `docx.py` (python-docx 1.2.0), `hidden_text.py`, cùng bộ test và script sinh file mẫu. Story này dùng lại, chỉ thêm phần riêng của CV: PDF scan gửi thẳng cho model (AC-4), che PII (`parsing/pii.py`).
+- **Nối LLM vào worker đã có.** `worker.py` dựng `LLMClient` và `PromptRegistry`; handler thật đăng ký qua `build_handlers`. Thay handler giả của `CV_PARSE` theo mẫu `app/agents/jd_analyzer/`.
+- **Đọc file từ MinIO:** dùng lại `ObjectReader` mà US-2.3 thêm.
 
 ## Goal
 

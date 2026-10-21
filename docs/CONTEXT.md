@@ -989,3 +989,60 @@ Ngoài ra còn phải giải quyết:
 
 **Date**: 2026-10-20
 **Version**: 0.8.0
+
+### D35. Phân tích JD, xác nhận yêu cầu chuẩn hóa và phiên bản yêu cầu (US-2.3)
+
+**Context**: Khi bắt đầu US-2.3, spec và code còn để mở các điểm sau:
+
+1. **Đọc JD dạng file.** AC-2 và AC-12 cần trích văn bản PDF/DOCX và loại chữ ẩn bằng `ai-service/app/parsing/`, nhưng thư mục này thuộc US-2.4, vẫn đang `backlog`.
+2. **Trạng thái phân tích.** D28 giữ JD ở `PENDING_HR_CONFIRMATION` từ lúc nộp, nên giao diện chỉ còn `requirements` null để đoán "đang phân tích". Không phân biệt được đang chạy với đã lỗi. Bảng `job_descriptions` cũng chưa có cột cho cờ chữ ẩn (subtask 2.3.3.3) hay model, prompt của đề xuất (Nguyên tắc 12).
+3. **BR-18.** "Đã mở test" chưa định nghĩa bằng dữ liệu. Spec không nói phiên bản mới có phải qua Trung tâm duyệt lại không.
+4. **Kiểm AC-7.** `apps/web` chưa có hạ tầng test component.
+5. **View nguồn JD.** D33 để `core.v_ai_jd_source` chốt cùng story này.
+
+**Decision** (người dùng chốt bốn mục đầu ngày 2026-10-21):
+
+- **`parsing/` do US-2.3 dựng**, theo spec TASK-2.4.2: `pdf.py` (PyMuPDF 1.28.2), `docx.py` (python-docx 1.2.0), `hidden_text.py` (kiểu kết quả chung). US-2.4 dùng lại và chỉ thêm phần riêng của CV (PDF scan gửi thẳng cho model, tách PII). JD là PDF không có lớp chữ thì kết quả `FAILED` mã `JD_NO_TEXT`, HR nhập tay. PyMuPDF 2.0 ra ngày 2026-10-19, chưa đủ 2 tuần nên chưa dùng.
+- **Bốn cột mới của `job_descriptions`:**
+  - `analysis_status` (`PENDING`, `SUCCEEDED`, `FAILED`; null khi JD chưa từng được gửi phân tích);
+  - `hidden_text_flag` (boolean, mặc định `false`, giống `cvs`);
+  - `analysis_model`, `analysis_prompt_version` (model và prompt của đề xuất AI).
+  - JD nộp trước 0.9.0 giữ `analysis_status` null. Giao diện coi như không có phân tích và cho HR nhập tay.
+- **Luồng phân tích (sửa AC-1, AC-4, AC-6 theo D28):**
+  - Nộp JD thì đặt `analysis_status = PENDING` trong cùng giao dịch với `DRAFT → PENDING_HR_CONFIRMATION`. Sau commit, một listener của `jd.submitted` gọi `AiGatewayService.dispatch('JD_ANALYZE', …)`. Gửi lỗi thì `analysis_status = FAILED` (mã `DISPATCH_FAILED`) và báo HR.
+  - Kết quả `SUCCEEDED` chỉ lưu `requirements`, `position_group`, cờ chữ ẩn, model và prompt, **không chuyển trạng thái**. Kết quả `FAILED` đặt `analysis_status = FAILED`. Cả hai đều có audit (actor hệ thống) và thông báo cho HR của công ty.
+  - Kết quả chỉ được áp dụng khi JD vẫn ở `PENDING_HR_CONFIRMATION`, đúng `version`, `analysis_status = PENDING` và `requirements` còn null. Ngược lại thì bỏ qua im lặng (AC-5). Nhờ vậy HR được bấm "Nhập tay" ngay khi đang phân tích: lưu của HR thắng, kết quả AI đến sau bị bỏ qua.
+- **View `core.v_ai_jd_source (jd_id, version, title, raw_text, file_key)`**: chỉ JD ở `PENDING_HR_CONFIRMATION` với `analysis_status = PENDING`, `security_barrier`, `SELECT` cho `ai_service`. AI Service tải file gốc từ bucket `jd-files` bằng tài khoản MinIO của nó.
+- **Xác nhận:** `PUT /api/jds/{id}/requirements/confirm` (chỉ HR của công ty sở hữu, đợt ở `INTAKE`) ghi `requirements` rồi `transitionTo('PENDING_APPROVAL')` trong cùng giao dịch. Trung tâm đọc được, không xác nhận thay.
+- **BR-18 (sửa AC-11):** sau khi JD đã `APPROVED` hoặc `RECRUITING` (đợt chưa `CLOSED`), **mọi** lần sửa yêu cầu, của HR hay của Trung tâm, đều tạo `version + 1`, bất kể đợt đã sang `TESTING` hay chưa. Phiên bản mới có hiệu lực ngay, không phải duyệt lại. Sau commit phát `jd.requirements.versioned` và báo Trung tâm. Yêu cầu cũ truy qua `before`/`after` của `audit_logs`. Hàm thuần `decideRequirementsEdit` (`company/domain/requirements-versioning.ts`) quyết định sửa tại chỗ, tạo phiên bản mới hay từ chối.
+- **Hợp đồng `JdRequirements`** (`packages/shared/contracts/jd.ts`):
+  - `level` ∈ `BASIC`, `INTERMEDIATE`, `ADVANCED` (Cơ bản / Khá / Thành thạo); `weight` là số tương đối, > 0 và ≤ 10;
+  - `position_group` ∈ `BACKEND`, `FRONTEND`, `MOBILE`, `DATA_AI`, `TESTER_QA`, `BA`, `DEVOPS`, `OTHER` (`OTHER` thay cho "…" của PRD);
+  - điều kiện cứng: `majors[]`, `min_study_year` (1–6), `min_gpa` (thang 4), `required_languages[]`; trường không có trong JD để null hoặc mảng rỗng.
+  - Một kỹ năng không được nằm ở cả hai nhóm. Phía TS kiểm bằng `superRefine`, phía Python bằng lớp con của model sinh tự động trong agent, nên LLM trả sai thì `StructuredLLMClient` thử lại.
+- **Nhãn tiếng Việt** của enum đặt ở `apps/web/src/features/jds/labels.ts`, theo quy ước có sẵn, không ở `packages/shared`.
+- **AC-7** kiểm bằng Jest cho Zod schema ở `packages/shared` (form và API dùng chung schema) và kiểm tay trong trình duyệt. Không thêm Vitest hay Testing Library.
+- **Compose:** `ai-worker` nhận `LLM_PROVIDER` (mặc định `fixture`, để stack chạy được khi chưa có key), `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `MINIO_*`. Ở chế độ `fixture`, JD thật không có fixture nên phân tích lỗi và HR nhập tay; muốn phân tích thật thì đặt `LLM_PROVIDER=gemini` và key.
+
+**Rationale**:
+
+- Dựng `parsing/` ngay thì story đóng đủ 12 AC mà không phải chờ làn khác. US-2.4 chưa bắt đầu nên không có xung đột.
+- `analysis_status` cho giao diện đủ bốn trạng thái kể cả sau khi tải lại trang. Nó cũng làm điều kiện lọc của view nguồn, nên AI không đọc được JD đã xong hoặc HR đã nhập tay.
+- Sau khi duyệt, ngân hàng câu hỏi (GĐ1 bước 5) và điểm phù hợp có thể đã dùng yêu cầu. Tạo phiên bản cho mọi lần sửa thì luôn truy được kết quả nào chấm theo yêu cầu nào. Không duyệt lại để không chặn sinh viên giữa đợt test.
+
+**Alternatives considered**:
+- **Chỉ làm JD nhập form, chờ US-2.4 cho phần file:** loại theo lựa chọn của người dùng; AC-12 sẽ để mở.
+- **Chỉ thêm `hidden_text_flag`, suy trạng thái từ `requirements`:** loại vì không phân biệt được đang chạy với đã lỗi; model và prompt chỉ còn trong audit.
+- **Theo chữ BR-18 (chỉ tạo phiên bản khi đợt từ `TESTING` trở đi):** loại vì sửa tại chỗ một JD đã duyệt làm mất dấu yêu cầu mà ngân hàng câu hỏi và điểm phù hợp đã dùng.
+- **Phiên bản mới quay lại `PENDING_APPROVAL`:** loại vì cần cạnh trạng thái mới và JD rời view chấm điểm giữa đợt.
+- **Vitest + Testing Library cho `apps/web`:** loại vì ngoài danh sách thư viện của ARCH; giữ cách kiểm tay như các story EPIC-1.
+
+**Impact**:
+- Migration `0009` (bốn cột, CHECK `analysis_status`, CHECK `notifications_type_check` thêm ba loại) và `0010` (viết tay: view `v_ai_jd_source`, quyền).
+- `packages/shared`: `contracts/jd.ts`, `JdAnalyzeOutput`, `schemas/job-description.ts`, loại thông báo `JD_REQUIREMENTS_READY`, `JD_ANALYSIS_FAILED`, `JD_REQUIREMENTS_VERSIONED`, sự kiện SSE `jd.analysis`, mã lỗi `JD_REQUIREMENTS_NOT_EDITABLE`.
+- `apps/api`: module `company` (dispatch, listener kết quả, ba endpoint yêu cầu), `iam` (`UserDirectory` tìm HR của công ty và cán bộ Trung tâm), `notification` (template).
+- `ai-service`: `app/parsing/`, `app/agents/jd_analyzer/`, prompt `jd_analyzer/v1`, nối `LLMClient` vào `worker.py`; thư viện PyMuPDF 1.28.2, python-docx 1.2.0.
+- ARCH › *Các bảng chính* (`job_descriptions`), *Phân vùng schema* (view), *API architecture*; story US-2.4 (refresh: `parsing/` đã có).
+
+**Date**: 2026-10-21
+**Version**: 0.9.0
