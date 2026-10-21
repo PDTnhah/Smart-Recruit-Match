@@ -40,6 +40,24 @@ def test_empty_values_count_as_unset():
     assert settings.minio_endpoint is None
 
 
+def test_compose_defaults_start_without_a_key():
+    """deploy/docker-compose.yml with an empty deploy/.env (US-2.3, CONTEXT D35)."""
+    settings = load_llm_settings(
+        {
+            "LLM_PROVIDER": "fixture",
+            "LLM_MODEL": "",
+            "GEMINI_API_KEY": "",
+            "ANTHROPIC_API_KEY": "",
+            "LLM_FIXTURES_DIR": "/tmp/llm-fixtures",
+            "MINIO_ENDPOINT": "http://minio:9000",
+            "MINIO_ACCESS_KEY": "srm-minio",
+            "MINIO_SECRET_KEY": "change-me-minio",
+        }
+    )
+    assert (settings.provider, settings.model) == ("fixture", "fixture")
+    assert settings.gemini_api_key is None
+
+
 def test_overrides_from_the_environment(tmp_path: Path):
     settings = load_llm_settings(
         {

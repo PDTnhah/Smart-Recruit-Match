@@ -6,3 +6,5 @@ ai-service/app/prompts/** text eol=lf
 ai-service/tests/fixtures/prompts/** text eol=lf
 # Shell scripts run inside Linux containers and CI.
 *.sh text eol=lf
+# Sample JD text goes into prompts whose hash keys the LLM fixtures (US-2.3): same bytes everywhere.
+ai-service/tests/fixtures/jd/*.txt text eol=lf

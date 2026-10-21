@@ -11,11 +11,40 @@ from faststream.rabbit.annotations import RabbitMessage
 from app.consumers.outbox import RabbitOutbox
 from app.contracts.cv_parse_job import CvParseJob
 from app.contracts.cv_parse_output import CvParseOutput
-from app.handlers import HANDLERS
+from app.contracts.jd_analyze_job import JdAnalyzeJob
+from app.contracts.jd_analyze_output import JdAnalyzeOutput
+from app.handlers import build_handlers
 from app.queues import QUEUES
 from app.worker import build_runners, subscribe_all
 
 pytestmark = pytest.mark.anyio
+
+JD_OUTPUT = {
+    "prompt_version": "jd_analyzer/v1",
+    "model": "fixture",
+    "requirements": {
+        "must_have": [{"skill": "Java", "level": "BASIC", "weight": 3.0}],
+        "nice_to_have": [],
+        "hard_conditions": {
+            "majors": [],
+            "min_study_year": None,
+            "min_gpa": None,
+            "required_languages": [],
+        },
+    },
+    "position_group": "BACKEND",
+    "hidden_text_detected": False,
+}
+
+
+async def stub_jd_analyze(job: JdAnalyzeJob) -> JdAnalyzeOutput:
+    """Stands in for the JD Analyzer, which has its own tests (tests/agents)."""
+    return JdAnalyzeOutput.model_validate(
+        {**JD_OUTPUT, "jd_id": job.jd_id, "jd_version": job.jd_version}
+    )
+
+
+HANDLERS = build_handlers(jd_analyzer=stub_jd_analyze)
 
 
 def wired_broker(store, handlers) -> tuple[RabbitBroker, list[Any], list[Any]]:
@@ -62,17 +91,18 @@ async def test_ad5_duplicate_job_id_processed_once(store) -> None:
     assert (row["status"], row["attempts"]) == ("SUCCEEDED", 1)
 
 
-async def test_ad5_fake_handlers_answer_both_job_types(store) -> None:
+async def test_ad5_both_job_types_reach_their_handler(store) -> None:
     broker, results, _ = wired_broker(store, HANDLERS)
     jd = {"job_id": str(uuid4()), "jd_id": 3, "jd_version": 2}
     async with TestRabbitBroker(broker) as test_broker:
         await test_broker.publish(json.dumps(cv_job()), queue=QUEUES.jobs["CV_PARSE"])
         await test_broker.publish(json.dumps(jd), queue=QUEUES.jobs["JD_ANALYZE"])
 
-    assert sorted(r["type"] for r in results) == ["CV_PARSE", "JD_ANALYZE"]
-    for result in results:
-        assert result["result"] == {"prompt_version": "fake/v0", "model": "fake"}
-        assert result["error"] is None
+    by_type = {r["type"]: r for r in results}
+    assert sorted(by_type) == ["CV_PARSE", "JD_ANALYZE"]
+    assert by_type["CV_PARSE"]["result"] == {"prompt_version": "fake/v0", "model": "fake"}
+    assert by_type["JD_ANALYZE"]["result"] == {**JD_OUTPUT, "jd_id": 3, "jd_version": 2}
+    assert all(r["error"] is None for r in results)
 
 
 async def test_nfr10_permanent_marker_fails_without_dlq(store) -> None:
@@ -101,7 +131,8 @@ async def test_nfr10_invalid_job_reaches_the_dlq_with_headers(store) -> None:
 
 
 def test_ad5_every_queue_has_a_consumer() -> None:
-    assert {r.kind.queue for r in build_runners(object(), object())} == set(QUEUES.jobs.values())  # type: ignore[arg-type]
+    runners = build_runners(object(), object(), HANDLERS)  # type: ignore[arg-type]
+    assert {r.kind.queue for r in runners} == set(QUEUES.jobs.values())
 
 
 def test_ad5_a_job_type_without_handler_fails_at_startup() -> None:

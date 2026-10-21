@@ -61,6 +61,9 @@ export default async function globalSetup(): Promise<void> {
       })
       // The image runs as a non-root user that cannot create /data; /tmp is writable.
       .withCommand(['server', '/tmp/data'])
+      // On the test network too: the AI worker container reads uploaded files from it (US-2.3).
+      .withNetwork(network)
+      .withNetworkAliases('minio')
       .withWaitStrategy(Wait.forHttp('/minio/health/ready', MINIO_PORT))
       .start(),
     new GenericContainer(RABBITMQ_IMAGE)

@@ -11,7 +11,6 @@ import logging
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any, Protocol
-from urllib.parse import urlsplit
 from uuid import UUID
 
 import anyio
@@ -21,6 +20,7 @@ from minio.sseconfig import Rule, SSEConfig
 from psycopg_pool import AsyncConnectionPool
 
 from app.llm.types import Usage
+from app.storage import minio_client
 
 logger = logging.getLogger(__name__)
 
@@ -134,14 +134,7 @@ class MinioObjectStore:
     def from_endpoint(
         cls, endpoint: str, access_key: str, secret_key: str, bucket: str
     ) -> "MinioObjectStore":
-        url = urlsplit(endpoint)
-        client = Minio(
-            url.netloc,
-            access_key=access_key,
-            secret_key=secret_key,
-            secure=url.scheme == "https",
-        )
-        return cls(client, bucket)
+        return cls(minio_client(endpoint, access_key, secret_key), bucket)
 
     async def put_json(self, key: str, document: dict[str, Any]) -> None:
         data = json.dumps(document, ensure_ascii=False, sort_keys=True, default=str).encode()

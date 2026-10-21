@@ -184,6 +184,19 @@ services:
       AI_DATABASE_URL: *ai-database-url
       RABBITMQ_URL: *rabbitmq-url
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      # LLM behind LLMClient (CONTEXT D34, D35). `fixture` answers only recorded requests, so the
+      # stack starts without a key and every real JD analysis fails into manual entry. Set
+      # LLM_PROVIDER=gemini and GEMINI_API_KEY in deploy/.env to analyse JDs (DEPLOY.md).
+      LLM_PROVIDER: ${LLM_PROVIDER:-fixture}
+      LLM_MODEL: ${LLM_MODEL:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      LLM_FIXTURES_DIR: ${LLM_FIXTURES_DIR:-/tmp/llm-fixtures}
+      # Original JD files (jd-files) and LLM logs (llm-logs, created with SSE-S3 on first write).
+      # No minio dependency, as for api: an external S3 runs with `--scale minio=0`.
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:?set MINIO_ENDPOINT in deploy/.env}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
     depends_on:
       migrate:
         condition: service_completed_successfully
