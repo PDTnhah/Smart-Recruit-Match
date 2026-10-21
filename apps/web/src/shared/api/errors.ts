@@ -41,6 +41,7 @@ const MESSAGES: Record<ApiErrorCode, string> = {
   CONSENT_REQUIRED: 'Cần đồng ý điều khoản xử lý dữ liệu của đợt này trước khi nộp CV.',
   TERMS_OUTDATED: 'Điều khoản vừa được cập nhật. Tải lại trang, đọc bản mới rồi đồng ý lại.',
   CV_SUBMISSION_CONFLICT: 'Một CV khác vừa được nộp cùng lúc. Tải lại trang để xem phiên bản mới nhất.',
+  JD_REQUIREMENTS_NOT_EDITABLE: 'Yêu cầu chuẩn hóa của JD này hiện không sửa được.',
   INTERNAL_ERROR: 'Hệ thống đang gặp sự cố. Thử lại sau ít phút.',
 };
 
