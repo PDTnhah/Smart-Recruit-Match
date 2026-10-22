@@ -1,5 +1,17 @@
 """How a handler tells the job runner whether another attempt can help (NFR-10)."""
 
+HIDDEN_TEXT_ATTRIBUTE = "hidden_text_detected"
+
+
+def flag_hidden_text(error: BaseException) -> None:
+    """Records on a handler's exception that its input file had hidden text. The FAILED result
+    then still carries the flag, so staff see it on the CV or JD (US-2.3 AC-12, CONTEXT D35)."""
+    setattr(error, HIDDEN_TEXT_ATTRIBUTE, True)
+
+
+def hidden_text_of(error: BaseException) -> bool | None:
+    return getattr(error, HIDDEN_TEXT_ATTRIBUTE, None)
+
 
 class RetryableError(Exception):
     """A failure that may pass on a later attempt: network, timeout, rate limit, overload.

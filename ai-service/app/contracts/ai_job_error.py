@@ -27,3 +27,7 @@ class AiJobError(BaseModel):
     """
     True when retrying cannot help and staff must handle the item
     """
+    hidden_text_detected: bool | None = None
+    """
+    The input file had hidden text, removed before the prompt; null when not known (US-2.3 AC-12)
+    """

@@ -6,6 +6,55 @@ Lịch sử phát hành của Smart Recruit Match. Mỗi commit ship code tăng 
 
 ---
 
+## [0.9.0] — 2026-10-22 — JD Analyzer và HR xác nhận yêu cầu chuẩn hóa — v0.9.0
+
+US-2.3. HR nộp JD thì AI Service đọc JD (mô tả nhập tay và file PDF/DOCX), loại chữ ẩn, rồi đề xuất yêu cầu chuẩn hóa: kỹ năng bắt buộc và bổ trợ có mức độ và trọng số, điều kiện cứng, nhóm vị trí. HR xem đề xuất cạnh JD gốc, sửa trực tiếp rồi xác nhận; JD chuyển sang chờ Trung tâm duyệt. AI chỉ đề xuất: kết quả phân tích không chuyển trạng thái JD. Sửa yêu cầu của JD đã duyệt tạo phiên bản mới (BR-18). Đây là handler AI thật đầu tiên: worker dựng `LLMClient` lúc khởi động ([CONTEXT D35](CONTEXT.md)).
+
+### Added
+- **Hợp đồng `JdRequirements`** (`packages/shared/contracts/jd.ts`), dùng chung cho đầu ra LLM, form HR và API (AD-6):
+  - `must_have[]` (ít nhất một), `nice_to_have[]`; mỗi kỹ năng có `skill`, `level` ∈ `BASIC`/`INTERMEDIATE`/`ADVANCED` (Cơ bản / Khá / Thành thạo), `weight` > 0 và ≤ 10;
+  - `hard_conditions`: `majors[]`, `min_study_year` (1–6), `min_gpa` (thang 4), `required_languages[]`;
+  - `position_group` ∈ `BACKEND`, `FRONTEND`, `MOBILE`, `DATA_AI`, `TESTER_QA`, `BA`, `DEVOPS`, `OTHER`;
+  - một kỹ năng không được nằm hai lần (so sau khi trim, không phân biệt hoa thường).
+  - `JdAnalyzeOutput` thêm `jd_id`, `jd_version`, `requirements`, `position_group`, `hidden_text_detected`. `AiJobError` thêm `hidden_text_detected` tùy chọn.
+- **Trích văn bản và loại chữ ẩn** (`ai-service/app/parsing/`, PyMuPDF 1.28.2, python-docx 1.2.0):
+  - PDF: loại chữ trùng màu nền, cỡ < 2pt, ngoài trang, trong suốt, hoặc bị hình đục vẽ sau che lấp; nền tính theo thứ tự vẽ, chữ trên ảnh không bị so màu; nhận ra PDF không có lớp chữ.
+  - DOCX: loại chữ có thuộc tính ẩn, cỡ < 2pt, trùng màu với shading, highlight, ô bảng hoặc màu trang; thuộc tính giải theo style như Word; đọc cả bảng và text box.
+  - Mọi nguồn bỏ ký tự định dạng vô hình; ký tự tag Unicode bị coi là chữ ẩn.
+- **Agent `jd_analyzer`** (`ai-service/app/agents/jd_analyzer/`):
+  - đọc JD qua view `core.v_ai_jd_source` và file gốc trong `jd-files`;
+  - đặt tiêu đề, mô tả và văn bản file trong một thẻ `<jd_document>`;
+  - gọi `LLMClient` với `effort: low`, prompt `jd_analyzer/v1` (đã phát hành trong manifest);
+  - kiểm thêm như Zod (chuỗi trắng, kỹ năng trùng) để LLM được hỏi lại.
+  - JD không có chữ nào (chỉ có file scan) thất bại `JD_NO_TEXT`, không gọi LLM.
+- **Module `company`:**
+  - nộp JD đặt `analysis_status = PENDING` trong cùng giao dịch, rồi gửi `JD_ANALYZE` sau commit; gửi lỗi thì phân tích thất bại ngay để HR nhập tay;
+  - nghe `ai.result.JD_ANALYZE`: lưu `requirements`, `position_group`, `hidden_text_flag`, `analysis_model`, `analysis_prompt_version`, có audit (actor hệ thống); bỏ qua kết quả trùng, phiên bản cũ và kết quả đến sau khi HR đã nhập tay; báo HR trong app và đẩy SSE `jd.analysis`;
+  - `GET /api/jds/{id}/requirements`, `PUT /api/jds/{id}/requirements`, `PUT /api/jds/{id}/requirements/confirm`. HR chỉ JD của công ty mình (404 với công ty khác), Trung tâm đọc được nhưng không xác nhận thay; `row_version` cũ trả 409; xác nhận ghi yêu cầu và chuyển `PENDING_APPROVAL` bằng `transitionTo` trong một giao dịch, audit có `before`/`after`.
+  - Sửa yêu cầu của JD đã duyệt (HR hoặc Trung tâm) tạo `version + 1`, có hiệu lực ngay, phát `jd.requirements.versioned` và báo Trung tâm (BR-18).
+  - Mã lỗi `JD_REQUIREMENTS_NOT_EDITABLE` (409, kèm `reasonCode`).
+- **Màn hình:** trang chi tiết JD của HR và của Trung tâm đặt JD gốc cạnh khối yêu cầu chuẩn hóa: đang phân tích (cập nhật qua SSE, có nút nhập tay), phân tích lỗi (form trống), đề xuất của hệ thống, bảng kỹ năng sửa trực tiếp, điều kiện cứng, nhóm vị trí, hộp thoại xác nhận, báo xung đột 409 kèm "Tải bản mới nhất", sửa JD đã duyệt thành phiên bản mới, cảnh báo file có chữ ẩn.
+- **Thông báo trong app:** `JD_REQUIREMENTS_READY`, `JD_ANALYSIS_FAILED` (HR của công ty), `JD_REQUIREMENTS_VERSIONED` (cán bộ Trung tâm). Ba loại này không gửi email.
+- **Test:** pytest cho `parsing/` và agent (fixture LLM, bộ JD mẫu tổng hợp kèm script sinh lại); Jest cho hợp đồng, hai hàm quyết định thuần (`decideAnalysisResult`, `decideRequirementsEdit`) và 16 ca integration (dispatch, kết quả, trùng/cũ, lỗi, xác nhận, 409, IDOR, view BR-02, phiên bản BR-18, cờ chữ ẩn).
+
+### Changed
+- **`job_descriptions`** (migration `0009_jd_analysis`): thêm `analysis_status`, `analysis_model`, `analysis_prompt_version`, `hidden_text_flag`; CHECK cho `position_group`, `analysis_status` và cặp model/prompt. CHECK loại thông báo thêm ba loại mới.
+- **View `core.v_ai_jd_source`** (migration viết tay `0010_ai_jd_source_view`): chỉ JD đang chờ phân tích, `SELECT` cho `ai_service`.
+- **Worker:** dựng `LLMClient`, registry prompt (kiểm manifest) và MinIO lúc khởi động; handler đăng ký qua `build_handlers`. Thiếu fixture LLM là `PermanentError` (`LLM_FIXTURE_MISSING`), không thử lại.
+- **Compose:** `ai-worker` nhận `LLM_PROVIDER` (mặc định `fixture`), `LLM_MODEL`, `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `LLM_FIXTURES_DIR`, `MINIO_*`.
+- Nhãn JD: "Đang phân tích" khi chờ kết quả, "Chờ HR nhập yêu cầu" khi phân tích lỗi (thay "Chờ phân tích").
+- `UserDirectory` (iam) thêm `hrUserIdsOfCompany`, `centerUserIds`.
+- `submit` tăng `row_version` hai lần (chuyển trạng thái và cột phân tích).
+- **Tài liệu:** CONTEXT D35; ARCHITECTURE (module `company`, `job_descriptions`, view, `ai.results`, endpoint); PRD › Thông báo (kênh của thông báo JD); AGENTS (*Trạng thái*); LESSONS §20 mới, §10 bổ sung; DEPLOY (bật LLM); US-2.4 (refresh: `parsing/` đã có).
+
+### Upgrade notes
+- Chạy migration `0009`, `0010` (dịch vụ `migrate` của compose tự chạy). JD đã nộp trước 0.9.0 có `analysis_status` rỗng: giao diện cho HR nhập yêu cầu bằng tay.
+- `requirements` lưu trước 0.9.0 theo dạng cũ (dữ liệu seed) không đọc được theo `JdRequirements` và hiện như chưa có; chạy lại `pnpm --filter @srm/api db:seed` hoặc nhập lại.
+- Muốn phân tích JD thật: đặt `LLM_PROVIDER=gemini` và `GEMINI_API_KEY` trong `deploy/.env` (free tier chỉ với dữ liệu giả, CONTEXT D34). Để mặc định `fixture` thì mọi JD phân tích lỗi và HR nhập tay.
+- Image `ai-service` cài thêm PyMuPDF và python-docx: build lại (`docker compose … up -d --build`).
+
+**Commit**: d16eec1 (chuỗi 8 commit d1f7c17…d16eec1)
+
 ## [0.8.0] — 2026-10-20 — LLMClient hai nhà cung cấp và prompt có phiên bản — v0.8.0
 
 US-2.2. Mọi lượt gọi LLM của AI Service đi qua một lớp `LLMClient`. Lớp này chạy được với Gemini (mặc định, `gemini-3.8-flash`) hoặc Claude (`claude-opus-5-5`), chọn bằng biến môi trường mà không sửa agent ([CONTEXT D34](CONTEXT.md), NFR-12). Effort luôn tường minh, JSON lấy bằng structured output, refusal được kiểm trước khi đọc nội dung, sai schema thì thử lại tối đa 2 lần rồi chuyển người xử lý. Mỗi lần thử ghi token, chi phí, độ trễ, model và phiên bản prompt vào `ai.llm_calls`; request và phản hồi đầy đủ lưu trong bucket `llm-logs`. Chưa agent nào dùng lớp này: US-2.3 nối nó vào worker.

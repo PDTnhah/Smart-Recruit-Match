@@ -6,6 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useJd } from '@/features/jds/api';
 import { JdDetails } from '@/features/jds/jd-details';
 import { JdStatusBadge } from '@/features/jds/jd-status-badge';
+import { RequirementsPanel } from '@/features/jds/requirements/requirements-panel';
 import { apiErrorMessage } from '@/shared/api/errors';
 import { ApproveJdDialog } from './approve-jd-dialog';
 import { JD_APPROVAL_PATH } from './paths';
@@ -21,7 +22,11 @@ function BackLink() {
   );
 }
 
-/** `/admin/job-descriptions/:id`: a JD with its original file and the approve action (AC-7, AC-10). */
+/**
+ * `/admin/job-descriptions/:id`: a JD with its original file, the requirements HR confirmed and the
+ * hidden-text flag (US-2.3 AC-12), and the approve action (US-1.5 AC-7, AC-10). An approved JD's
+ * requirements can be versioned here (BR-18).
+ */
 export function JdApprovalDetailPage() {
   const id = Number(useParams().id);
   if (!Number.isInteger(id) || id <= 0) return <Navigate to={JD_APPROVAL_PATH} replace />;
@@ -61,7 +66,7 @@ function JdApprovalDetail({ id }: { id: number }) {
 
   const data = jd.data;
   return (
-    <div className="flex w-full max-w-3xl flex-col gap-6">
+    <div className="flex w-full max-w-6xl flex-col gap-6">
       <div className="flex flex-col gap-2">
         <BackLink />
         <div className="flex flex-wrap items-center gap-3">
@@ -74,7 +79,10 @@ function JdApprovalDetail({ id }: { id: number }) {
           )}
         </div>
       </div>
-      <JdDetails jd={data} showCompany />
+      <div className="grid items-start gap-6 lg:grid-cols-2">
+        <JdDetails jd={data} showCompany />
+        {data.status !== 'DRAFT' && <RequirementsPanel jdId={data.id} />}
+      </div>
     </div>
   );
 }

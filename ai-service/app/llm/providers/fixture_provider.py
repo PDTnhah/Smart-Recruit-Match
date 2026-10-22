@@ -13,6 +13,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
+from app.consumers.errors import PermanentError
 from app.llm.render import dumps_sorted
 from app.llm.types import LLMRequest, Provider, ProviderResponse
 
@@ -20,8 +21,15 @@ KEY_FIELDS = ("agent", "prompt_version", "system", "user", "output_schema", "eff
 KEY_LENGTH = 16
 
 
-class FixtureMissingError(Exception):
-    """No recorded reply for this request. Record one by hand (story US-2.2: no auto-recording)."""
+class FixtureMissingError(PermanentError):
+    """No recorded reply for this request. Record one by hand (story US-2.2: no auto-recording).
+
+    Permanent: the same request finds no fixture on the next attempt either, so the job fails at
+    once instead of being retried into the DLQ (compose runs `fixture` without a key, CONTEXT D35).
+    """
+
+    def __init__(self, message: str) -> None:
+        super().__init__(message, code="LLM_FIXTURE_MISSING")
 
 
 def fixture_key(params: dict[str, Any]) -> str:

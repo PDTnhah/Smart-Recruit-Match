@@ -1,5 +1,5 @@
 import type { JobDescription } from '@srm/shared';
-import { ArrowLeft, CircleAlert, Hourglass } from 'lucide-react';
+import { ArrowLeft, CircleAlert } from 'lucide-react';
 import { type ReactNode, useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router';
 import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useJd } from '@/features/jds/api';
 import { JdDetails } from '@/features/jds/jd-details';
 import { JdStatusBadge } from '@/features/jds/jd-status-badge';
+import { RequirementsPanel } from '@/features/jds/requirements/requirements-panel';
 import { apiErrorMessage } from '@/shared/api/errors';
 import { JdFileCard } from './jd-file-card';
 import { JdForm } from './jd-form';
@@ -42,7 +43,10 @@ export function HrJdCreatePage() {
   );
 }
 
-/** `/hr/job-descriptions/:id`: edit and submit a draft, or follow a submitted JD (AC-6, AC-10). */
+/**
+ * `/hr/job-descriptions/:id`: edit and submit a draft (US-1.5 AC-6, AC-10); once submitted, the
+ * JD next to its normalised requirements, which HR reviews and confirms (US-2.3 AC-7, AC-8).
+ */
 export function HrJdDetailPage() {
   const id = Number(useParams().id);
   if (!Number.isInteger(id) || id <= 0) return <Navigate to={HR_JDS_PATH} replace />;
@@ -93,20 +97,14 @@ function HrJdDetail({ id }: { id: number }) {
     );
   }
 
-  const awaitingAnalysis = data.status === 'PENDING_HR_CONFIRMATION' && !data.requirementsReady;
+  // The original JD on the left, the requirements on the right (AC-7); stacked below lg.
   return (
-    <div className="flex w-full max-w-3xl flex-col gap-6">
+    <div className="flex w-full max-w-6xl flex-col gap-6">
       <PageHeader title={data.title} jd={data} />
-      {awaitingAnalysis && (
-        <Alert>
-          <Hourglass />
-          <AlertTitle>JD đang chờ phân tích</AlertTitle>
-          <AlertDescription>
-            Hệ thống sẽ trích yêu cầu chuẩn hóa từ JD. Khi xong, HR xác nhận các yêu cầu rồi Trung tâm duyệt JD.
-          </AlertDescription>
-        </Alert>
-      )}
-      <JdDetails jd={data} />
+      <div className="grid items-start gap-6 lg:grid-cols-2">
+        <JdDetails jd={data} />
+        <RequirementsPanel jdId={data.id} />
+      </div>
     </div>
   );
 }

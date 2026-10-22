@@ -55,7 +55,16 @@ docker compose -f deploy/docker-compose.yml logs migrate     # "migrate: applied
 
 ## AI Service và hàng đợi
 
-Từ 0.7.0, `api` gửi job AI qua RabbitMQ và `ai-worker` xử lý, rồi trả kết quả qua `ai.results` ([CONTEXT D33](docs/CONTEXT.md)). Chưa có agent thật: handler của CV và JD trả kết quả giả cho tới US-2.3, US-2.4.
+Từ 0.7.0, `api` gửi job AI qua RabbitMQ và `ai-worker` xử lý, rồi trả kết quả qua `ai.results` ([CONTEXT D33](docs/CONTEXT.md)). Từ 0.9.0, job `JD_ANALYZE` chạy JD Analyzer thật qua LLM; handler của CV vẫn trả kết quả giả cho tới US-2.4 ([CONTEXT D35](docs/CONTEXT.md)).
+
+**Bật LLM.** Mặc định `LLM_PROVIDER=fixture`: stack chạy được khi chưa có key, nhưng LLM chỉ trả lời các request đã ghi sẵn cho test. Vì vậy mọi JD thật đều phân tích lỗi, và HR nhập yêu cầu bằng tay. Muốn phân tích thật, đặt trong `deploy/.env`:
+
+```bash
+LLM_PROVIDER=gemini
+GEMINI_API_KEY=...        # free tier chỉ dùng với dữ liệu giả (CONTEXT D34)
+```
+
+rồi chạy `docker compose -f deploy/docker-compose.yml up -d ai-worker`. Thiếu key của nhà cung cấp đã chọn thì `ai-worker` dừng ngay lúc khởi động và in tên biến thiếu. Từng lượt gọi LLM được ghi ở bảng `ai.llm_calls`; request và response đầy đủ nằm ở bucket `llm-logs`. AI Service tạo bucket này, bật SSE-S3, ở lần ghi đầu.
 
 ```bash
 docker compose -f deploy/docker-compose.yml up -d --scale ai-worker=2     # thêm bản sao worker
@@ -92,7 +101,7 @@ Nguồn: `deploy/.env` (sao từ [`deploy/.env.example`](deploy/.env.example)). 
 | `RABBITMQ_DEFAULT_USER` | Required | Tự đặt | User tạo lúc khởi tạo volume `rabbitmqdata` |
 | `RABBITMQ_DEFAULT_PASS` | Required | Tự đặt, mật khẩu mạnh, chỉ gồm chữ, số và `-_.~` | Được ghép vào `RABBITMQ_URL` |
 | `RABBITMQ_URL` | – (compose tự ghép) | `amqp://RABBITMQ_DEFAULT_USER:RABBITMQ_DEFAULT_PASS@rabbitmq:5672` | `api`, `ai-worker`, `ai-api` đọc: gửi job AI và nhận `ai.results` ([CONTEXT D33](docs/CONTEXT.md)). Chạy API ngoài Docker thì tự đặt, host `localhost` và cổng `RABBITMQ_HOST_PORT` |
-| `MINIO_ENDPOINT` | Required | `http://minio:9000` với service đi kèm; hoặc URL của MinIO/S3 ngoài | Địa chỉ API gọi MinIO. Ngoài Docker dùng `http://localhost:9000`. API tạo bucket `jd-files`, `cv-files` ở lần tải file đầu tiên và mã hóa mọi object bằng SSE-S3 (CONTEXT D28) |
+| `MINIO_ENDPOINT` | Required | `http://minio:9000` với service đi kèm; hoặc URL của MinIO/S3 ngoài | Địa chỉ API và `ai-worker` gọi MinIO. Ngoài Docker dùng `http://localhost:9000`. API tạo bucket `jd-files`, `cv-files` ở lần tải file đầu tiên và mã hóa mọi object bằng SSE-S3 (CONTEXT D28); `ai-worker` đọc file JD gốc và ghi log LLM vào `llm-logs` bằng cùng tài khoản |
 | `MINIO_ACCESS_KEY` | Required | Tự đặt với service đi kèm; hoặc access key của MinIO/S3 ngoài | Đồng thời là `MINIO_ROOT_USER` của service `minio` |
 | `MINIO_SECRET_KEY` | Required | Tự đặt (≥ 8 ký tự); hoặc secret key của MinIO/S3 ngoài | Đồng thời là `MINIO_ROOT_PASSWORD` |
 | `MINIO_PUBLIC_ENDPOINT` | Optional (`http://localhost:<NGINX_PORT>`) | Địa chỉ người dùng mở web, ví dụ `https://srm.example.edu.vn` | URL tải file (hạn 5 phút) được ký với host này; nginx chuyển `/jd-files/`, `/cv-files/` sang MinIO nên cổng MinIO không cần mở ra ngoài. Sai host thì MinIO từ chối chữ ký (CONTEXT D29) |
@@ -108,6 +117,10 @@ Nguồn: `deploy/.env` (sao từ [`deploy/.env.example`](deploy/.env.example)). 
 | `MAILPIT_UI_HOST_PORT` | Optional (8025) | Tự đặt | |
 | `AI_API_HOST_PORT` | Optional (8000) | Tự đặt | Cổng của `ai-api` (`/health`) trên 127.0.0.1 |
 | `AI_DATABASE_URL` | – (compose tự ghép) | `postgres://ai_service:AI_DB_PASSWORD@postgres:5432/POSTGRES_DB` | `ai-worker`, `ai-api` đọc. Role `ai_service` chỉ đọc view `core.v_ai_*` và đọc ghi schema `ai` |
+| `LLM_PROVIDER` | Optional (`fixture` trong compose) | `gemini`, `anthropic` hoặc `fixture` | Nhà cung cấp LLM của `ai-worker` ([CONTEXT D34](docs/CONTEXT.md), [D35](docs/CONTEXT.md)). `fixture` chỉ trả lời request đã ghi sẵn, nên phân tích JD thật luôn lỗi và HR nhập tay |
+| `GEMINI_API_KEY` | Required khi `LLM_PROVIDER=gemini` | Google AI Studio | Free tier chỉ dùng với dữ liệu giả; dữ liệu thật dùng paid tier (CONTEXT D34) |
+| `ANTHROPIC_API_KEY` | Required khi `LLM_PROVIDER=anthropic` | Claude Console | |
+| `LLM_MODEL` | Optional (trống = mặc định của nhà cung cấp) | Tên model | Mặc định `gemini-3.8-flash` hoặc `claude-opus-5-5` |
 | `JWT_ACCESS_SECRET` | Required | Chuỗi ngẫu nhiên ≥ 32 ký tự (`openssl rand -base64 48`) | Khóa ký access token HS256 (CONTEXT D25). Đổi khóa thì mọi người phải đăng nhập lại trong vòng 15 phút |
 | `REFRESH_TOKEN_TTL_DAYS` | Optional (7) | Tự đặt, 1–90 | Thời hạn refresh token (cookie httpOnly, Redis lưu hash) |
 | `REDIS_URL` | – (compose đặt `redis://redis:6379`) | | Chạy API ngoài Docker thì tự đặt, host `localhost` và cổng `REDIS_HOST_PORT` |

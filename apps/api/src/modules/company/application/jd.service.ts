@@ -53,7 +53,7 @@ const HR_PHASES: readonly CampaignStatus[] = ['INTAKE'];
  * FR-5, US-1.5, CONTEXT D28). HR only ever reaches JDs of its own company: the company comes from
  * the token, and a JD of another company answers 404 (BR-11). Status changes go through
  * `transitionTo` (AD-8); events are published only after the transaction commits. No LLM here:
- * analysis starts in US-2.3 from `jd.submitted`.
+ * the analysis starts from `jd.submitted` (JdAnalysisService, US-2.3).
  */
 @Injectable()
 export class JdService implements OnModuleInit {
@@ -170,22 +170,30 @@ export class JdService implements OnModuleInit {
     return this.get(user, id);
   }
 
-  /** AC-6: DRAFT → PENDING_HR_CONFIRMATION; the JD then awaits analysis (CONTEXT D28). */
+  /**
+   * AC-6: DRAFT → PENDING_HR_CONFIRMATION, and the analysis is awaited from the same transaction
+   * (US-2.3 AC-1, CONTEXT D28, D35); the job is dispatched after commit, on `jd.submitted`.
+   */
   async submit(user: AuthUser, id: number, rowVersion: number): Promise<JobDescription> {
     // Out-of-scope JDs answer 404 before transitionTo can reveal their state.
     assertRecordAccess(user, await this.repository.findById(id), ENTITY, id);
-    const result = await this.transitions.transitionTo<JobDescriptionStatus>({
-      lifecycle: jobDescriptionLifecycle,
-      id,
-      to: 'PENDING_HR_CONFIRMATION',
-      actor: userActor(user),
-      reason: 'JD submitted by HR',
-      expectedRowVersion: rowVersion,
-      guard: async (_row, tx) => {
-        const record = await this.requireRecord(id, tx);
-        await this.campaigns.assertPhase(record.campaignId, HR_PHASES, { tx });
-        return checkSubmittable(record);
-      },
+    const result = await this.db.transaction(async (tx) => {
+      const moved = await this.transitions.transitionTo<JobDescriptionStatus>({
+        lifecycle: jobDescriptionLifecycle,
+        id,
+        to: 'PENDING_HR_CONFIRMATION',
+        actor: userActor(user),
+        reason: 'JD submitted by HR',
+        expectedRowVersion: rowVersion,
+        guard: async (_row, guardTx) => {
+          const record = await this.requireRecord(id, guardTx);
+          await this.campaigns.assertPhase(record.campaignId, HR_PHASES, { tx: guardTx });
+          return checkSubmittable(record);
+        },
+        tx,
+      });
+      await this.repository.updateVersioned(tx, id, moved.rowVersion, { analysisStatus: 'PENDING' });
+      return { ...moved, rowVersion: moved.rowVersion + 1 };
     });
     return this.publishAndGet(user, JD_SUBMITTED, result);
   }
@@ -314,6 +322,9 @@ function toJobDescription(record: JdRecord): JobDescription {
     version: record.version,
     rowVersion: record.rowVersion,
     requirementsReady: record.requirementsReady,
+    positionGroup: record.positionGroup,
+    analysisStatus: record.analysisStatus,
+    hiddenTextDetected: record.hiddenTextFlag,
     createdAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString(),
   };

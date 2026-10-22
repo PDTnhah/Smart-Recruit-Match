@@ -1324,6 +1324,138 @@
         ]
       }
     },
+    "/api/jds/{id}/requirements": {
+      "get": {
+        "operationId": "JdRequirementsController_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "maximum": 9007199254740991,
+              "exclusiveMinimum": true,
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JdRequirementsViewDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "job-descriptions"
+        ]
+      },
+      "put": {
+        "operationId": "JdRequirementsController_save",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "maximum": 9007199254740991,
+              "exclusiveMinimum": true,
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveJdRequirementsRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JdRequirementsViewDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "job-descriptions"
+        ]
+      }
+    },
+    "/api/jds/{id}/requirements/confirm": {
+      "put": {
+        "operationId": "JdRequirementsController_confirm",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "maximum": 9007199254740991,
+              "exclusiveMinimum": true,
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveJdRequirementsRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JdRequirementsViewDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "job-descriptions"
+        ]
+      }
+    },
     "/api/notifications": {
       "get": {
         "operationId": "NotificationController_list",
@@ -3262,6 +3394,36 @@
           "requirementsReady": {
             "type": "boolean"
           },
+          "positionGroup": {
+            "type": "string",
+            "enum": [
+              "BACKEND",
+              "FRONTEND",
+              "MOBILE",
+              "DATA_AI",
+              "TESTER_QA",
+              "BA",
+              "DEVOPS",
+              "OTHER",
+              null
+            ],
+            "title": "PositionGroup",
+            "description": "Position group of a JD (PRD GĐ1)",
+            "nullable": true
+          },
+          "analysisStatus": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "SUCCEEDED",
+              "FAILED",
+              null
+            ],
+            "nullable": true
+          },
+          "hiddenTextDetected": {
+            "type": "boolean"
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time",
@@ -3290,6 +3452,9 @@
           "version",
           "rowVersion",
           "requirementsReady",
+          "positionGroup",
+          "analysisStatus",
+          "hiddenTextDetected",
           "createdAt",
           "updatedAt"
         ],
@@ -3401,6 +3566,36 @@
                 "requirementsReady": {
                   "type": "boolean"
                 },
+                "positionGroup": {
+                  "type": "string",
+                  "enum": [
+                    "BACKEND",
+                    "FRONTEND",
+                    "MOBILE",
+                    "DATA_AI",
+                    "TESTER_QA",
+                    "BA",
+                    "DEVOPS",
+                    "OTHER",
+                    null
+                  ],
+                  "title": "PositionGroup",
+                  "description": "Position group of a JD (PRD GĐ1)",
+                  "nullable": true
+                },
+                "analysisStatus": {
+                  "type": "string",
+                  "enum": [
+                    "PENDING",
+                    "SUCCEEDED",
+                    "FAILED",
+                    null
+                  ],
+                  "nullable": true
+                },
+                "hiddenTextDetected": {
+                  "type": "boolean"
+                },
                 "createdAt": {
                   "type": "string",
                   "format": "date-time",
@@ -3429,6 +3624,9 @@
                 "version",
                 "rowVersion",
                 "requirementsReady",
+                "positionGroup",
+                "analysisStatus",
+                "hiddenTextDetected",
                 "createdAt",
                 "updatedAt"
               ],
@@ -3504,6 +3702,411 @@
         },
         "required": [
           "rowVersion"
+        ]
+      },
+      "JdRequirementsViewDto_Output": {
+        "type": "object",
+        "properties": {
+          "jdId": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "PENDING_HR_CONFIRMATION",
+              "PENDING_APPROVAL",
+              "APPROVED",
+              "RECRUITING",
+              "FILLED",
+              "CLOSED"
+            ]
+          },
+          "version": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "rowVersion": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "analysisStatus": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "SUCCEEDED",
+              "FAILED",
+              null
+            ],
+            "nullable": true
+          },
+          "hiddenTextDetected": {
+            "type": "boolean"
+          },
+          "requirements": {
+            "type": "object",
+            "properties": {
+              "must_have": {
+                "minItems": 1,
+                "maxItems": 30,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "skill": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100,
+                      "description": "Skill name as written in the JD"
+                    },
+                    "level": {
+                      "type": "string",
+                      "enum": [
+                        "BASIC",
+                        "INTERMEDIATE",
+                        "ADVANCED"
+                      ],
+                      "title": "SkillLevel",
+                      "description": "BASIC = basic, INTERMEDIATE = working knowledge, ADVANCED = proficient"
+                    },
+                    "weight": {
+                      "type": "number",
+                      "exclusiveMinimum": true,
+                      "maximum": 10,
+                      "description": "Relative importance within its group, greater than 0 and at most 10",
+                      "minimum": 0
+                    }
+                  },
+                  "required": [
+                    "skill",
+                    "level",
+                    "weight"
+                  ],
+                  "additionalProperties": false,
+                  "title": "JdSkillRequirement",
+                  "description": "One required skill with its level and weight"
+                },
+                "description": "Must-have skills"
+              },
+              "nice_to_have": {
+                "maxItems": 30,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "skill": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100,
+                      "description": "Skill name as written in the JD"
+                    },
+                    "level": {
+                      "type": "string",
+                      "enum": [
+                        "BASIC",
+                        "INTERMEDIATE",
+                        "ADVANCED"
+                      ],
+                      "title": "SkillLevel",
+                      "description": "BASIC = basic, INTERMEDIATE = working knowledge, ADVANCED = proficient"
+                    },
+                    "weight": {
+                      "type": "number",
+                      "exclusiveMinimum": true,
+                      "maximum": 10,
+                      "description": "Relative importance within its group, greater than 0 and at most 10",
+                      "minimum": 0
+                    }
+                  },
+                  "required": [
+                    "skill",
+                    "level",
+                    "weight"
+                  ],
+                  "additionalProperties": false,
+                  "title": "JdSkillRequirement",
+                  "description": "One required skill with its level and weight"
+                },
+                "description": "Nice-to-have skills; never repeats a must-have skill"
+              },
+              "hard_conditions": {
+                "type": "object",
+                "properties": {
+                  "majors": {
+                    "maxItems": 20,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100
+                    },
+                    "description": "Accepted majors; empty when the JD accepts any major"
+                  },
+                  "min_study_year": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 6,
+                    "description": "Lowest year of study accepted (1 = first year); null when the JD states none",
+                    "nullable": true
+                  },
+                  "min_gpa": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 4,
+                    "description": "Minimum GPA on a 4-point scale; null when the JD states none",
+                    "nullable": true
+                  },
+                  "required_languages": {
+                    "maxItems": 10,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100
+                    },
+                    "description": "Mandatory foreign languages with any stated level, e.g. \"English (TOEIC 550)\""
+                  }
+                },
+                "required": [
+                  "majors",
+                  "min_study_year",
+                  "min_gpa",
+                  "required_languages"
+                ],
+                "additionalProperties": false,
+                "title": "JdHardConditions",
+                "description": "Eligibility conditions checked by code, not scored (US-3.1)"
+              }
+            },
+            "required": [
+              "must_have",
+              "nice_to_have",
+              "hard_conditions"
+            ],
+            "additionalProperties": false,
+            "title": "JdRequirements",
+            "description": "Normalised requirements of a JD (FR-9)",
+            "nullable": true
+          },
+          "positionGroup": {
+            "type": "string",
+            "enum": [
+              "BACKEND",
+              "FRONTEND",
+              "MOBILE",
+              "DATA_AI",
+              "TESTER_QA",
+              "BA",
+              "DEVOPS",
+              "OTHER",
+              null
+            ],
+            "title": "PositionGroup",
+            "description": "Position group of a JD (PRD GĐ1)",
+            "nullable": true
+          },
+          "editMode": {
+            "type": "string",
+            "enum": [
+              "IN_PLACE",
+              "NEW_VERSION",
+              "READ_ONLY"
+            ]
+          },
+          "canConfirm": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "jdId",
+          "status",
+          "version",
+          "rowVersion",
+          "analysisStatus",
+          "hiddenTextDetected",
+          "requirements",
+          "positionGroup",
+          "editMode",
+          "canConfirm"
+        ],
+        "additionalProperties": false
+      },
+      "SaveJdRequirementsRequestDto": {
+        "type": "object",
+        "properties": {
+          "rowVersion": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "requirements": {
+            "type": "object",
+            "properties": {
+              "must_have": {
+                "minItems": 1,
+                "maxItems": 30,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "skill": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100,
+                      "description": "Skill name as written in the JD"
+                    },
+                    "level": {
+                      "type": "string",
+                      "enum": [
+                        "BASIC",
+                        "INTERMEDIATE",
+                        "ADVANCED"
+                      ],
+                      "title": "SkillLevel",
+                      "description": "BASIC = basic, INTERMEDIATE = working knowledge, ADVANCED = proficient"
+                    },
+                    "weight": {
+                      "type": "number",
+                      "exclusiveMinimum": true,
+                      "maximum": 10,
+                      "description": "Relative importance within its group, greater than 0 and at most 10",
+                      "minimum": 0
+                    }
+                  },
+                  "required": [
+                    "skill",
+                    "level",
+                    "weight"
+                  ],
+                  "additionalProperties": false,
+                  "title": "JdSkillRequirement",
+                  "description": "One required skill with its level and weight"
+                },
+                "description": "Must-have skills"
+              },
+              "nice_to_have": {
+                "maxItems": 30,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "skill": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100,
+                      "description": "Skill name as written in the JD"
+                    },
+                    "level": {
+                      "type": "string",
+                      "enum": [
+                        "BASIC",
+                        "INTERMEDIATE",
+                        "ADVANCED"
+                      ],
+                      "title": "SkillLevel",
+                      "description": "BASIC = basic, INTERMEDIATE = working knowledge, ADVANCED = proficient"
+                    },
+                    "weight": {
+                      "type": "number",
+                      "exclusiveMinimum": true,
+                      "maximum": 10,
+                      "description": "Relative importance within its group, greater than 0 and at most 10",
+                      "minimum": 0
+                    }
+                  },
+                  "required": [
+                    "skill",
+                    "level",
+                    "weight"
+                  ],
+                  "additionalProperties": false,
+                  "title": "JdSkillRequirement",
+                  "description": "One required skill with its level and weight"
+                },
+                "description": "Nice-to-have skills; never repeats a must-have skill"
+              },
+              "hard_conditions": {
+                "type": "object",
+                "properties": {
+                  "majors": {
+                    "maxItems": 20,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100
+                    },
+                    "description": "Accepted majors; empty when the JD accepts any major"
+                  },
+                  "min_study_year": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 6,
+                    "description": "Lowest year of study accepted (1 = first year); null when the JD states none",
+                    "nullable": true
+                  },
+                  "min_gpa": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 4,
+                    "description": "Minimum GPA on a 4-point scale; null when the JD states none",
+                    "nullable": true
+                  },
+                  "required_languages": {
+                    "maxItems": 10,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100
+                    },
+                    "description": "Mandatory foreign languages with any stated level, e.g. \"English (TOEIC 550)\""
+                  }
+                },
+                "required": [
+                  "majors",
+                  "min_study_year",
+                  "min_gpa",
+                  "required_languages"
+                ],
+                "additionalProperties": false,
+                "title": "JdHardConditions",
+                "description": "Eligibility conditions checked by code, not scored (US-3.1)"
+              }
+            },
+            "required": [
+              "must_have",
+              "nice_to_have",
+              "hard_conditions"
+            ],
+            "additionalProperties": false,
+            "title": "JdRequirements",
+            "description": "Normalised requirements of a JD (FR-9)"
+          },
+          "positionGroup": {
+            "type": "string",
+            "enum": [
+              "BACKEND",
+              "FRONTEND",
+              "MOBILE",
+              "DATA_AI",
+              "TESTER_QA",
+              "BA",
+              "DEVOPS",
+              "OTHER"
+            ],
+            "title": "PositionGroup",
+            "description": "Position group of a JD (PRD GĐ1)"
+          }
+        },
+        "required": [
+          "rowVersion",
+          "requirements",
+          "positionGroup"
         ]
       },
       "NotificationListDto_Output": {
@@ -3681,6 +4284,183 @@
                         "campaignName",
                         "deadlineKey",
                         "deadline"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "readAt",
+                    "createdAt",
+                    "type",
+                    "payload"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "readAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                      "nullable": true
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "JD_REQUIREMENTS_READY"
+                      ]
+                    },
+                    "payload": {
+                      "type": "object",
+                      "properties": {
+                        "jdId": {
+                          "type": "integer",
+                          "exclusiveMinimum": true,
+                          "maximum": 9007199254740991,
+                          "minimum": 0
+                        },
+                        "jdTitle": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      },
+                      "required": [
+                        "jdId",
+                        "jdTitle"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "readAt",
+                    "createdAt",
+                    "type",
+                    "payload"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "readAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                      "nullable": true
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "JD_ANALYSIS_FAILED"
+                      ]
+                    },
+                    "payload": {
+                      "type": "object",
+                      "properties": {
+                        "jdId": {
+                          "type": "integer",
+                          "exclusiveMinimum": true,
+                          "maximum": 9007199254740991,
+                          "minimum": 0
+                        },
+                        "jdTitle": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      },
+                      "required": [
+                        "jdId",
+                        "jdTitle"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "readAt",
+                    "createdAt",
+                    "type",
+                    "payload"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "readAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                      "nullable": true
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "JD_REQUIREMENTS_VERSIONED"
+                      ]
+                    },
+                    "payload": {
+                      "type": "object",
+                      "properties": {
+                        "jdId": {
+                          "type": "integer",
+                          "exclusiveMinimum": true,
+                          "maximum": 9007199254740991,
+                          "minimum": 0
+                        },
+                        "jdTitle": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "companyName": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "version": {
+                          "type": "integer",
+                          "exclusiveMinimum": true,
+                          "maximum": 9007199254740991,
+                          "minimum": 0
+                        }
+                      },
+                      "required": [
+                        "jdId",
+                        "jdTitle",
+                        "companyName",
+                        "version"
                       ],
                       "additionalProperties": false
                     }

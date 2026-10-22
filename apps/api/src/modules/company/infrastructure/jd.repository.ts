@@ -1,5 +1,12 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { jobDescriptionMachine, type JobDescriptionStatus, type WorkMode } from '@srm/shared';
+import {
+  type JdAnalysisStatus,
+  type JdRequirements,
+  jobDescriptionMachine,
+  type JobDescriptionStatus,
+  type PositionGroup,
+  type WorkMode,
+} from '@srm/shared';
 import { and, desc, eq, type SQL, sql } from 'drizzle-orm';
 import { RowVersionConflictError } from '../../../common/errors/index.js';
 import { companies, jobDescriptions } from '../../../db/schema/index.js';
@@ -24,8 +31,11 @@ export interface JdRecord extends JdContent {
   companyName: string;
   fileKey: string | null;
   fileName: string | null;
-  /** `requirements` is set (US-2.3); the JSON itself is not read here. */
+  /** `requirements` is set (US-2.3); the JSON itself is read by `findWithRequirements`. */
   requirementsReady: boolean;
+  positionGroup: PositionGroup | null;
+  analysisStatus: JdAnalysisStatus | null;
+  hiddenTextFlag: boolean;
   status: JobDescriptionStatus;
   version: number;
   rowVersion: number;
@@ -48,6 +58,9 @@ const RECORD_COLUMNS = {
   fileKey: jobDescriptions.fileKey,
   fileName: jobDescriptions.fileName,
   requirementsReady: sql<boolean>`${jobDescriptions.requirements} is not null`,
+  positionGroup: jobDescriptions.positionGroup,
+  analysisStatus: jobDescriptions.analysisStatus,
+  hiddenTextFlag: jobDescriptions.hiddenTextFlag,
   status: jobDescriptions.status,
   version: jobDescriptions.version,
   rowVersion: jobDescriptions.rowVersion,
@@ -55,13 +68,29 @@ const RECORD_COLUMNS = {
   updatedAt: jobDescriptions.updatedAt,
 };
 
+/** A JD with its stored requirements JSON, unparsed: rows written before 0.9.0 may hold another shape. */
+export interface JdRecordWithRequirements extends JdRecord {
+  requirements: unknown;
+}
+
 export interface JdInsert extends JdContent {
   campaignId: number;
   companyId: number;
 }
 
+/** The normalised requirements and the AI analysis that proposed them (US-2.3, CONTEXT D35). */
+export interface JdRequirementsChanges {
+  requirements?: JdRequirements;
+  positionGroup?: PositionGroup;
+  version?: number;
+  analysisStatus?: JdAnalysisStatus;
+  analysisModel?: string;
+  analysisPromptVersion?: string;
+  hiddenTextFlag?: boolean;
+}
+
 /** Columns a versioned update may write. Never `status`: only `transitionTo` changes it (AD-8). */
-export type JdChanges = Partial<JdContent> & { fileKey?: string; fileName?: string };
+export type JdChanges = Partial<JdContent> & { fileKey?: string; fileName?: string } & JdRequirementsChanges;
 
 /**
  * Drizzle access to `core.job_descriptions` (and the company name next to it); both tables belong
@@ -84,11 +113,24 @@ export class JdRepository {
    */
   async findById(id: number, options: { tx?: DbTx; lock?: 'update' } = {}): Promise<JdRecord | undefined> {
     const db = options.tx ?? this.db;
-    if (options.lock) {
-      await db.select({ id: jobDescriptions.id }).from(jobDescriptions).where(eq(jobDescriptions.id, id)).for(options.lock);
-    }
+    if (options.lock) await lockRow(db, id);
     const [row] = await db
       .select(RECORD_COLUMNS)
+      .from(jobDescriptions)
+      .innerJoin(companies, eq(companies.id, jobDescriptions.companyId))
+      .where(eq(jobDescriptions.id, id));
+    return row;
+  }
+
+  /** As `findById`, with the requirements JSON read in the same query (US-2.3). */
+  async findWithRequirements(
+    id: number,
+    options: { tx?: DbTx; lock?: 'update' } = {},
+  ): Promise<JdRecordWithRequirements | undefined> {
+    const db = options.tx ?? this.db;
+    if (options.lock) await lockRow(db, id);
+    const [row] = await db
+      .select({ ...RECORD_COLUMNS, requirements: jobDescriptions.requirements })
       .from(jobDescriptions)
       .innerJoin(companies, eq(companies.id, jobDescriptions.companyId))
       .where(eq(jobDescriptions.id, id));
@@ -114,4 +156,9 @@ export class JdRepository {
       .returning({ id: jobDescriptions.id });
     if (updated.length === 0) throw new RowVersionConflictError(jobDescriptionMachine.name, id, expectedRowVersion);
   }
+}
+
+/** Locks the JD row alone: `FOR UPDATE OF` with a join is refused for `core` tables (LESSONS §12). */
+async function lockRow(db: Database | DbTx, id: number): Promise<void> {
+  await db.select({ id: jobDescriptions.id }).from(jobDescriptions).where(eq(jobDescriptions.id, id)).for('update');
 }

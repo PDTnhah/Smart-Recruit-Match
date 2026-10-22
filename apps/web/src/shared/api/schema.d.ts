@@ -372,6 +372,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/jds/{id}/requirements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["JdRequirementsController_get"];
+        put: operations["JdRequirementsController_save"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jds/{id}/requirements/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["JdRequirementsController_confirm"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/notifications": {
         parameters: {
             query?: never;
@@ -836,6 +868,15 @@ export interface components {
             version: number;
             rowVersion: number;
             requirementsReady: boolean;
+            /**
+             * PositionGroup
+             * @description Position group of a JD (PRD GĐ1)
+             * @enum {string|null}
+             */
+            positionGroup: "BACKEND" | "FRONTEND" | "MOBILE" | "DATA_AI" | "TESTER_QA" | "BA" | "DEVOPS" | "OTHER" | null;
+            /** @enum {string|null} */
+            analysisStatus: "PENDING" | "SUCCEEDED" | "FAILED" | null;
+            hiddenTextDetected: boolean;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -863,6 +904,15 @@ export interface components {
                 version: number;
                 rowVersion: number;
                 requirementsReady: boolean;
+                /**
+                 * PositionGroup
+                 * @description Position group of a JD (PRD GĐ1)
+                 * @enum {string|null}
+                 */
+                positionGroup: "BACKEND" | "FRONTEND" | "MOBILE" | "DATA_AI" | "TESTER_QA" | "BA" | "DEVOPS" | "OTHER" | null;
+                /** @enum {string|null} */
+                analysisStatus: "PENDING" | "SUCCEEDED" | "FAILED" | null;
+                hiddenTextDetected: boolean;
                 /** Format: date-time */
                 createdAt: string;
                 /** Format: date-time */
@@ -882,6 +932,126 @@ export interface components {
         };
         JdActionRequestDto: {
             rowVersion: number;
+        };
+        JdRequirementsViewDto_Output: {
+            jdId: number;
+            /** @enum {string} */
+            status: "DRAFT" | "PENDING_HR_CONFIRMATION" | "PENDING_APPROVAL" | "APPROVED" | "RECRUITING" | "FILLED" | "CLOSED";
+            version: number;
+            rowVersion: number;
+            /** @enum {string|null} */
+            analysisStatus: "PENDING" | "SUCCEEDED" | "FAILED" | null;
+            hiddenTextDetected: boolean;
+            /**
+             * JdRequirements
+             * @description Normalised requirements of a JD (FR-9)
+             */
+            requirements: {
+                /** @description Must-have skills */
+                must_have: {
+                    /** @description Skill name as written in the JD */
+                    skill: string;
+                    /**
+                     * SkillLevel
+                     * @description BASIC = basic, INTERMEDIATE = working knowledge, ADVANCED = proficient
+                     * @enum {string}
+                     */
+                    level: "BASIC" | "INTERMEDIATE" | "ADVANCED";
+                    /** @description Relative importance within its group, greater than 0 and at most 10 */
+                    weight: number;
+                }[];
+                /** @description Nice-to-have skills; never repeats a must-have skill */
+                nice_to_have: {
+                    /** @description Skill name as written in the JD */
+                    skill: string;
+                    /**
+                     * SkillLevel
+                     * @description BASIC = basic, INTERMEDIATE = working knowledge, ADVANCED = proficient
+                     * @enum {string}
+                     */
+                    level: "BASIC" | "INTERMEDIATE" | "ADVANCED";
+                    /** @description Relative importance within its group, greater than 0 and at most 10 */
+                    weight: number;
+                }[];
+                /**
+                 * JdHardConditions
+                 * @description Eligibility conditions checked by code, not scored (US-3.1)
+                 */
+                hard_conditions: {
+                    /** @description Accepted majors; empty when the JD accepts any major */
+                    majors: string[];
+                    /** @description Lowest year of study accepted (1 = first year); null when the JD states none */
+                    min_study_year: number | null;
+                    /** @description Minimum GPA on a 4-point scale; null when the JD states none */
+                    min_gpa: number | null;
+                    /** @description Mandatory foreign languages with any stated level, e.g. "English (TOEIC 550)" */
+                    required_languages: string[];
+                };
+            } | null;
+            /**
+             * PositionGroup
+             * @description Position group of a JD (PRD GĐ1)
+             * @enum {string|null}
+             */
+            positionGroup: "BACKEND" | "FRONTEND" | "MOBILE" | "DATA_AI" | "TESTER_QA" | "BA" | "DEVOPS" | "OTHER" | null;
+            /** @enum {string} */
+            editMode: "IN_PLACE" | "NEW_VERSION" | "READ_ONLY";
+            canConfirm: boolean;
+        };
+        SaveJdRequirementsRequestDto: {
+            rowVersion: number;
+            /**
+             * JdRequirements
+             * @description Normalised requirements of a JD (FR-9)
+             */
+            requirements: {
+                /** @description Must-have skills */
+                must_have: {
+                    /** @description Skill name as written in the JD */
+                    skill: string;
+                    /**
+                     * SkillLevel
+                     * @description BASIC = basic, INTERMEDIATE = working knowledge, ADVANCED = proficient
+                     * @enum {string}
+                     */
+                    level: "BASIC" | "INTERMEDIATE" | "ADVANCED";
+                    /** @description Relative importance within its group, greater than 0 and at most 10 */
+                    weight: number;
+                }[];
+                /** @description Nice-to-have skills; never repeats a must-have skill */
+                nice_to_have: {
+                    /** @description Skill name as written in the JD */
+                    skill: string;
+                    /**
+                     * SkillLevel
+                     * @description BASIC = basic, INTERMEDIATE = working knowledge, ADVANCED = proficient
+                     * @enum {string}
+                     */
+                    level: "BASIC" | "INTERMEDIATE" | "ADVANCED";
+                    /** @description Relative importance within its group, greater than 0 and at most 10 */
+                    weight: number;
+                }[];
+                /**
+                 * JdHardConditions
+                 * @description Eligibility conditions checked by code, not scored (US-3.1)
+                 */
+                hard_conditions: {
+                    /** @description Accepted majors; empty when the JD accepts any major */
+                    majors: string[];
+                    /** @description Lowest year of study accepted (1 = first year); null when the JD states none */
+                    min_study_year: number | null;
+                    /** @description Minimum GPA on a 4-point scale; null when the JD states none */
+                    min_gpa: number | null;
+                    /** @description Mandatory foreign languages with any stated level, e.g. "English (TOEIC 550)" */
+                    required_languages: string[];
+                };
+            };
+            /**
+             * PositionGroup
+             * @description Position group of a JD (PRD GĐ1)
+             * @enum {string}
+             */
+            positionGroup: "BACKEND" | "FRONTEND" | "MOBILE" | "DATA_AI" | "TESTER_QA" | "BA" | "DEVOPS" | "OTHER";
         };
         NotificationListDto_Output: {
             items: ({
@@ -924,6 +1094,44 @@ export interface components {
                     deadlineKey: "intake_end" | "preference_end" | "testing_end";
                     /** Format: date-time */
                     deadline: string;
+                };
+            } | {
+                id: number;
+                /** Format: date-time */
+                readAt: string | null;
+                /** Format: date-time */
+                createdAt: string;
+                /** @enum {string} */
+                type: "JD_REQUIREMENTS_READY";
+                payload: {
+                    jdId: number;
+                    jdTitle: string;
+                };
+            } | {
+                id: number;
+                /** Format: date-time */
+                readAt: string | null;
+                /** Format: date-time */
+                createdAt: string;
+                /** @enum {string} */
+                type: "JD_ANALYSIS_FAILED";
+                payload: {
+                    jdId: number;
+                    jdTitle: string;
+                };
+            } | {
+                id: number;
+                /** Format: date-time */
+                readAt: string | null;
+                /** Format: date-time */
+                createdAt: string;
+                /** @enum {string} */
+                type: "JD_REQUIREMENTS_VERSIONED";
+                payload: {
+                    jdId: number;
+                    jdTitle: string;
+                    companyName: string;
+                    version: number;
                 };
             })[];
             unreadCount: number;
@@ -1730,6 +1938,77 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["JobDescriptionDto_Output"];
+                };
+            };
+        };
+    };
+    JdRequirementsController_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JdRequirementsViewDto_Output"];
+                };
+            };
+        };
+    };
+    JdRequirementsController_save: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveJdRequirementsRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JdRequirementsViewDto_Output"];
+                };
+            };
+        };
+    };
+    JdRequirementsController_confirm: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveJdRequirementsRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JdRequirementsViewDto_Output"];
                 };
             };
         };

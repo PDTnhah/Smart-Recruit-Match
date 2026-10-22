@@ -92,7 +92,14 @@ describe('AiResultsConsumer (US-2.1 AC-4, AC-10)', () => {
 
   it('AD-5 acks a result no module listens to yet', async () => {
     const { consumer, publish, settled } = setup();
-    const jd = { ...RESULT, type: 'JD_ANALYZE', job: { job_id: JOB_ID, jd_id: 9, jd_version: 1 } };
+    const jd = {
+      ...RESULT,
+      type: 'JD_ANALYZE',
+      status: 'FAILED',
+      job: { job_id: JOB_ID, jd_id: 9, jd_version: 1 },
+      result: null,
+      error: { code: 'LLM_REFUSED', message: 'refused', needs_human: true },
+    };
     await expect(consumer.handle(jd, delivery(JSON.stringify(jd)))).resolves.toBeUndefined();
     expect(publish).not.toHaveBeenCalled();
     expect(settled).toHaveLength(1);

@@ -9,7 +9,9 @@ import {
   JdActionRequestSchema,
   JdListQuerySchema,
   JdListSchema,
+  JdRequirementsViewSchema,
   JobDescriptionSchema,
+  SaveJdRequirementsRequestSchema,
   UpdateCompanyRequestSchema,
   UpdateJdRequestSchema,
   UploadJdFileFieldsSchema,
@@ -33,3 +35,6 @@ export class UploadJdFileFieldsDto extends createZodDto(UploadJdFileFieldsSchema
 export class JdListQueryDto extends createZodDto(JdListQuerySchema) {}
 export class JobDescriptionDto extends createZodDto(JobDescriptionSchema) {}
 export class JdListDto extends createZodDto(JdListSchema) {}
+
+export class JdRequirementsViewDto extends createZodDto(JdRequirementsViewSchema) {}
+export class SaveJdRequirementsRequestDto extends createZodDto(SaveJdRequirementsRequestSchema) {}

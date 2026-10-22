@@ -12,8 +12,19 @@ depends_on: [US-1.6, US-2.2]
 assignee:
 commit:
 created: 2026-10-07
-updated: 2026-10-07
+updated: 2026-10-21
 ---
+
+## Story refresh — 2026-10-21 (từ US-2.3)
+
+Ghi lúc US-2.3 bắt đầu. Khi bắt đầu story này, đọc lại và chốt với người dùng ([CONTEXT D35](../../CONTEXT.md)).
+
+- **TASK-2.4.2 đã do US-2.3 làm.** `ai-service/app/parsing/` có `pdf.py` (PyMuPDF 1.28.2), `docx.py` (python-docx 1.2.0) và `hidden_text.py` (`extract_text`, `ExtractedText`, `HiddenReason`, `clean_text`), cùng bộ test (`tests/parsing/`) và script sinh file mẫu (`tests/fixtures/jd/make_fixtures.py`).
+  - Ngoài ba kiểu của AC-2, PDF còn bắt chữ bị hình vẽ sau che lấp (`COVERED`) và ký tự tag Unicode. Chữ trên ảnh không bị so màu.
+  - Story này dùng lại, chỉ thêm phần riêng của CV: PDF scan gửi thẳng cho model (AC-4), che PII (`parsing/pii.py`).
+- **Nối LLM vào worker đã có.** `worker.py` dựng `LLMClient` và `PromptRegistry`; handler thật đăng ký qua `build_handlers(jd_analyzer=…)`. Thêm tham số cho CV parser và thay `fake_cv_parse`, theo mẫu `app/agents/jd_analyzer/`.
+- **Đọc file từ MinIO:** dùng lại `MinioObjectReader` (`app/storage.py`, giới hạn 5 MB, `build_file_reader` trong `app/llm/factory.py`).
+- **Cờ chữ ẩn khi job lỗi:** gọi `flag_hidden_text(error)` (`app/consumers/errors.py`) trên exception để kết quả `FAILED` vẫn mang `error.hidden_text_detected` (D35).
 
 ## Goal
 

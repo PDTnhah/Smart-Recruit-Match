@@ -178,6 +178,23 @@ export class JdNotEditableError extends DomainError {
   }
 }
 
+/**
+ * The JD's normalised requirements cannot be changed by this caller now (US-2.3, CONTEXT D35);
+ * `reasonCode` says why: still a draft, awaiting approval, confirmation belongs to HR, …
+ */
+export class JdRequirementsNotEditableError extends DomainError {
+  readonly code = 'JD_REQUIREMENTS_NOT_EDITABLE';
+  readonly httpStatus = 409;
+
+  constructor(id: number, status: string, reasonCode: string) {
+    super(`job_description ${id} (${status}): requirements cannot be changed (${reasonCode})`, {
+      id,
+      status,
+      reasonCode,
+    });
+  }
+}
+
 /** The upload exceeded the size limit; multer stopped reading it before it reached storage. */
 export class FileTooLargeError extends DomainError {
   readonly code = 'FILE_TOO_LARGE';

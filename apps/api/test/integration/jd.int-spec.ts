@@ -112,10 +112,12 @@ describe('GĐ1: JD posting and submission (US-1.5 AC-4, AC-6)', () => {
   it('GĐ1: submit moves DRAFT to PENDING_HR_CONFIRMATION with audit and emits jd.submitted', async () => {
     const jd = await createDraft();
     const res = await hr.agent.post(api(`jds/${jd.id}/submit`)).send({ rowVersion: jd.rowVersion }).expect(200);
+    // The transition and `analysis_status = PENDING` are two versioned writes (US-2.3 AC-1).
     expect(JobDescriptionSchema.parse(res.body)).toMatchObject({
       status: 'PENDING_HR_CONFIRMATION',
-      rowVersion: jd.rowVersion + 1,
+      rowVersion: jd.rowVersion + 2,
       requirementsReady: false,
+      analysisStatus: 'PENDING',
     });
     expect(await readState(t.db, 'jobDescription', jd.id)).toMatchObject({ status: 'PENDING_HR_CONFIRMATION' });
     const [entry] = await auditEntries(t.db, 'job_description', jd.id);

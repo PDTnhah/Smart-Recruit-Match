@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { JdRequirementsSchema, PositionGroupSchema } from './jd.js';
 import { CvParseJobSchema, JdAnalyzeJobSchema, type AiJobType } from './jobs.js';
 
 /** Outcome of a job as reported on `ai.results` (ARCHITECTURE › Hàng đợi). */
@@ -21,6 +22,10 @@ export const AiJobErrorSchema = z
     code: z.string().min(1).describe('Machine-readable reason, e.g. RETRIES_EXHAUSTED or LLM_REFUSAL'),
     message: z.string().describe('Detail for logs and staff; not shown to students as is'),
     needs_human: z.boolean().describe('True when retrying cannot help and staff must handle the item'),
+    hidden_text_detected: z
+      .boolean()
+      .nullish()
+      .describe('The input file had hidden text, removed before the prompt; null when not known (US-2.3 AC-12)'),
   })
   .meta({ title: 'AiJobError', description: 'Why a job failed' });
 
@@ -37,9 +42,19 @@ export const CvParseOutputSchema = z
   .strictObject({ ...outputBase })
   .meta({ title: 'CvParseOutput', description: 'Result of CV_PARSE' });
 
-/** Output of JD_ANALYZE. US-2.3 adds the normalised requirements. */
+/**
+ * Output of JD_ANALYZE (US-2.3 AC-3): the proposed requirements, which HR reviews and confirms. The
+ * text the AI Service dropped as hidden is never part of it, only the flag (AC-12).
+ */
 export const JdAnalyzeOutputSchema = z
-  .strictObject({ ...outputBase })
+  .strictObject({
+    ...outputBase,
+    jd_id: z.int().positive().describe('core.job_descriptions.id the requirements belong to'),
+    jd_version: z.int().positive().describe('JD version that was analysed'),
+    requirements: JdRequirementsSchema,
+    position_group: PositionGroupSchema,
+    hidden_text_detected: z.boolean().describe('The JD file contained hidden text, removed before the prompt'),
+  })
   .meta({ title: 'JdAnalyzeOutput', description: 'Result of JD_ANALYZE' });
 
 /**

@@ -6,7 +6,7 @@ from uuid import UUID, uuid4
 import pytest
 
 from app.consumers.base import JobRunner, Settle
-from app.consumers.errors import PermanentError, RetryableError
+from app.consumers.errors import PermanentError, RetryableError, flag_hidden_text
 from app.consumers.kinds import JOB_KINDS
 from app.contracts.ai_result_message import AiResultMessage
 from app.contracts.cv_parse_output import CvParseOutput
@@ -129,6 +129,7 @@ async def test_nfr10_permanent_error_fails_without_retry(store, outbox, sleep) -
         "code": "LLM_REFUSAL",
         "message": "LLM refused the CV",
         "needs_human": True,
+        "hidden_text_detected": None,
     }
     assert outbox.dead_letters == []
     row = row_of(store, job)
@@ -182,3 +183,31 @@ async def test_ad5_infrastructure_failure_requeues(store, outbox, sleep) -> None
     assert handler.calls == 0
     assert outbox.results == []
     assert outbox.dead_letters == []
+
+
+def flagged(error: Exception) -> Exception:
+    flag_hidden_text(error)
+    return error
+
+
+async def test_ac12_failed_result_keeps_the_hidden_text_flag(store, outbox, sleep) -> None:
+    """US-2.3 AC-12: a file whose hidden text was removed stays flagged when the job fails."""
+    permanent = cv_job()
+    await runner(
+        Script(flagged(PermanentError("refused", code="LLM_REFUSED"))), store, outbox, sleep
+    ).process(body_of(permanent))
+    exhausted = cv_job()
+    errors = [flagged(RetryableError("outage")) for _ in range(3)]
+    await runner(Script(*errors), store, outbox, sleep).process(body_of(exhausted))
+    plain = cv_job()
+    await runner(Script(PermanentError("bad file", code="BAD")), store, outbox, sleep).process(
+        body_of(plain)
+    )
+
+    by_job = {message["job_id"]: message for message in outbox.results}
+    assert by_job[permanent["job_id"]]["error"]["hidden_text_detected"] is True
+    assert by_job[exhausted["job_id"]]["error"]["code"] == "RETRIES_EXHAUSTED"
+    assert by_job[exhausted["job_id"]]["error"]["hidden_text_detected"] is True
+    assert by_job[plain["job_id"]]["error"]["hidden_text_detected"] is None
+    for job in (permanent, exhausted, plain):
+        assert_envelope(by_job[job["job_id"]], job)

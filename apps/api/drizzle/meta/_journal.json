@@ -64,6 +64,20 @@
       "when": 1792509597965,
       "tag": "0008_ai_llm_calls_append_only",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1792594915603,
+      "tag": "0009_jd_analysis",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792594924435,
+      "tag": "0010_ai_jd_source_view",
+      "breakpoints": true
     }
   ]
 }

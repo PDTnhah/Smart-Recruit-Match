@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./jd_requirements.json",
+  "type": "object",
+  "properties": {
+    "must_have": {
+      "minItems": 1,
+      "maxItems": 30,
+      "type": "array",
+      "items": {
+        "$ref": "./jd_skill_requirement.json"
+      },
+      "description": "Must-have skills"
+    },
+    "nice_to_have": {
+      "maxItems": 30,
+      "type": "array",
+      "items": {
+        "$ref": "./jd_skill_requirement.json"
+      },
+      "description": "Nice-to-have skills; never repeats a must-have skill"
+    },
+    "hard_conditions": {
+      "$ref": "./jd_hard_conditions.json"
+    }
+  },
+  "required": [
+    "must_have",
+    "nice_to_have",
+    "hard_conditions"
+  ],
+  "additionalProperties": false,
+  "title": "JdRequirements",
+  "description": "Normalised requirements of a JD (FR-9)"
+}

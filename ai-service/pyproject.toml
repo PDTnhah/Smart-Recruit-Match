@@ -21,6 +21,10 @@ dependencies = [
   "jinja2==3.1.6",
   # Request/response logs in the llm-logs bucket (AC-6).
   "minio==7.2.20",
+  # Text and hidden-text extraction from uploaded PDF and DOCX files (app/parsing, CONTEXT D35).
+  # PyMuPDF reports colour, size and position per span (CONTEXT D3).
+  "pymupdf==1.28.2",
+  "python-docx==1.2.0",
 ]
 
 [project.optional-dependencies]

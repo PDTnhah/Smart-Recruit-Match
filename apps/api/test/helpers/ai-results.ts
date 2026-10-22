@@ -79,7 +79,18 @@ export async function startAiWorker(vhost: RabbitVhost): Promise<StartedTestCont
   database.port = '5432';
   return image
     .withNetworkMode(requiredEnv('TEST_DOCKER_NETWORK'))
-    .withEnvironment({ AI_DATABASE_URL: database.toString(), RABBITMQ_URL: vhost.networkUrl, LOG_LEVEL: 'info' })
+    .withEnvironment({
+      AI_DATABASE_URL: database.toString(),
+      RABBITMQ_URL: vhost.networkUrl,
+      LOG_LEVEL: 'info',
+      // The worker builds its LLMClient at startup (US-2.3). Recorded replies only, never a real
+      // API; the directory is empty in the image, so a JD job here would fail with a missing fixture.
+      LLM_PROVIDER: 'fixture',
+      LLM_FIXTURES_DIR: '/tmp/llm-fixtures',
+      MINIO_ENDPOINT: 'http://minio:9000',
+      MINIO_ACCESS_KEY: requiredEnv('MINIO_ACCESS_KEY'),
+      MINIO_SECRET_KEY: requiredEnv('MINIO_SECRET_KEY'),
+    })
     .withCommand(['faststream', 'run', 'app.worker:create_app', '--factory'])
     .withWaitStrategy(Wait.forLogMessage(/ai-worker ready/))
     .withStartupTimeout(120_000)

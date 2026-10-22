@@ -6,6 +6,9 @@ from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from . import jd_requirements
+from . import position_group as position_group_1
+
 
 class JdAnalyzeOutput(BaseModel):
     """
@@ -22,4 +25,18 @@ class JdAnalyzeOutput(BaseModel):
     model: Annotated[str, Field(min_length=1)]
     """
     Model id that produced the output
+    """
+    jd_id: Annotated[int, Field(gt=0, le=9007199254740991)]
+    """
+    core.job_descriptions.id the requirements belong to
+    """
+    jd_version: Annotated[int, Field(gt=0, le=9007199254740991)]
+    """
+    JD version that was analysed
+    """
+    requirements: jd_requirements.JdRequirements
+    position_group: position_group_1.PositionGroup
+    hidden_text_detected: bool
+    """
+    The JD file contained hidden text, removed before the prompt
     """
