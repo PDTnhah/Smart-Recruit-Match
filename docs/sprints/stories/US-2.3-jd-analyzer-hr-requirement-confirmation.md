@@ -11,7 +11,7 @@ prd_ref: [FR-9, FR-10]
 arch_ref: [AD-1, AD-2, AD-4, AD-6, AD-8, AD-10, AD-12]
 depends_on: [US-1.5, US-2.2]
 assignee: PDTnhah
-commit:
+commit: d16eec17fd57442e7e9102d16adb492b92896311
 created: 2026-10-07
 updated: 2026-10-21
 external_deps: [gemini_api]
@@ -185,7 +185,7 @@ ai-service/.venv/Scripts/pytest ai-service          # AC-2, AC-3, AC-12
 - Màn HR xem JD gốc cạnh bảng yêu cầu, sửa trực tiếp và xác nhận; JD chuyển sang chờ Trung tâm duyệt.
 - Sửa yêu cầu của JD đã duyệt tạo phiên bản mới và phát sự kiện để chấm lại (BR-18).
 
-**Commit**:
+**Commit**: d16eec1 (chuỗi 8 commit d1f7c17…d16eec1)
 
 ## Implementation notes
 

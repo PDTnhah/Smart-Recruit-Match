@@ -53,7 +53,7 @@ US-2.3. HR nộp JD thì AI Service đọc JD (mô tả nhập tay và file PDF/
 - Muốn phân tích JD thật: đặt `LLM_PROVIDER=gemini` và `GEMINI_API_KEY` trong `deploy/.env` (free tier chỉ với dữ liệu giả, CONTEXT D34). Để mặc định `fixture` thì mọi JD phân tích lỗi và HR nhập tay.
 - Image `ai-service` cài thêm PyMuPDF và python-docx: build lại (`docker compose … up -d --build`).
 
-**Commit**:
+**Commit**: d16eec1 (chuỗi 8 commit d1f7c17…d16eec1)
 
 ## [0.8.0] — 2026-10-20 — LLMClient hai nhà cung cấp và prompt có phiên bản — v0.8.0
 
