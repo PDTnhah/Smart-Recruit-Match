@@ -752,7 +752,8 @@ Mọi thông báo đều hiện trong ứng dụng (chuông ở ba cổng, cập
 | Mở đợt; sắp hết hạn nộp CV / chọn NV / làm test | Sinh viên | Trong app + email |
 | Lời mời tham gia hệ thống (tài khoản HR) | HR được mời | Chỉ email (link kích hoạt) |
 | Hồ sơ năng lực sẵn sàng để xác nhận | Sinh viên | |
-| Yêu cầu chuẩn hóa JD sẵn sàng để xác nhận | HR | |
+| Yêu cầu chuẩn hóa JD sẵn sàng để xác nhận; phân tích JD lỗi, cần nhập tay | HR | Chỉ trong app ([CONTEXT D35](CONTEXT.md)) |
+| Yêu cầu của JD đã duyệt có phiên bản mới (BR-18) | Cán bộ Trung tâm | Chỉ trong app ([CONTEXT D35](CONTEXT.md)) |
 | Có kết quả test, kết quả phúc khảo | Sinh viên | |
 | Công bố đề cử | Sinh viên, HR | |
 | Nhắc hạn duyệt hồ sơ; quá SLA | HR, Cán bộ Trung tâm | |
@@ -791,8 +792,8 @@ Mọi thông báo đều hiện trong ứng dụng (chuông ở ba cổng, cập
 | FR-6 | Sinh viên đồng ý điều khoản xử lý dữ liệu cá nhân; nộp và cập nhật CV (PDF/DOCX), mỗi lần cập nhật tạo phiên bản mới, tối đa 1 CV hiệu lực mỗi đợt (UC-10, BR-01, GĐ2) | P0 | 📋 backlog | EPIC-1 |
 | FR-7 | Nhật ký thao tác chỉ ghi thêm cho mọi thay đổi trạng thái và điều chỉnh thủ công (BR-10) | P0 | ✅ done | EPIC-1 |
 | FR-8 | Thông báo trong ứng dụng và email theo sự kiện nghiệp vụ, nhắc hạn tự động (UC-35, mục *Thông báo*) | P1 | 📋 backlog | EPIC-1 |
-| FR-9 | AI phân tích JD thành yêu cầu chuẩn hóa: kỹ năng bắt buộc/bổ trợ có mức độ và trọng số, điều kiện cứng, nhóm vị trí (UC-30, GĐ1) | P0 | 📋 backlog | EPIC-2 |
-| FR-10 | HR xem, sửa và xác nhận yêu cầu chuẩn hóa; sửa sau khi đã mở test phải tạo phiên bản mới và chấm lại (UC-21, BR-02, BR-18) | P0 | 📋 backlog | EPIC-2 |
+| FR-9 | AI phân tích JD thành yêu cầu chuẩn hóa: kỹ năng bắt buộc/bổ trợ có mức độ và trọng số, điều kiện cứng, nhóm vị trí (UC-30, GĐ1) | P0 | 👀 review | EPIC-2 |
+| FR-10 | HR xem, sửa và xác nhận yêu cầu chuẩn hóa; sửa sau khi đã mở test phải tạo phiên bản mới và chấm lại (UC-21, BR-02, BR-18) | P0 | 👀 review | EPIC-2 |
 | FR-11 | AI phân tích CV thành hồ sơ năng lực: chuẩn hóa tên kỹ năng theo danh mục, tách thông tin nhạy cảm, phát hiện chữ ẩn (UC-30, BR-03, GĐ2) | P0 | 📋 backlog | EPIC-2 |
 | FR-12 | Sinh viên xem, sửa và xác nhận hồ sơ năng lực; chỉ hồ sơ đã xác nhận mới được chấm (UC-11, BR-01) | P0 | 📋 backlog | EPIC-2 |
 | FR-13 | Quản trị quản lý danh mục kỹ năng và duyệt kỹ năng mới do AI phát hiện | P1 | 📋 backlog | EPIC-2 |
@@ -900,8 +901,8 @@ Mỗi epic tương ứng một giai đoạn trong [ARCHITECTURE.md › Implement
 | Story | Title | Status | Version |
 |-------|-------|--------|---------|
 | US-2.1 | Hạ tầng job AI và hợp đồng message | 👀 review | 0.7.0 |
-| US-2.2 | LLMClient và prompt có phiên bản | 📋 backlog | — |
-| US-2.3 | JD Analyzer và HR xác nhận yêu cầu | 📋 backlog | — |
+| US-2.2 | LLMClient và prompt có phiên bản | 👀 review | 0.8.0 |
+| US-2.3 | JD Analyzer và HR xác nhận yêu cầu | 👀 review | 0.9.0 |
 | US-2.4 | CV Parser: chữ ẩn, tách PII | 📋 backlog | — |
 | US-2.5 | Embedding và danh mục kỹ năng | 📋 backlog | — |
 | US-2.6 | SV xác nhận hồ sơ năng lực | 📋 backlog | — |

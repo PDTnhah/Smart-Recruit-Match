@@ -145,6 +145,7 @@ See [US-1.4](sprints/stories/US-1.4-campaign-setup-and-config.md) › Implementa
 - Kiểm tra chéo trường trong form dùng `superRefine(fn, { when })`, với `when` chỉ xét lỗi của các trường mà nó đọc. Xem `whenValid` trong `packages/shared/schemas/campaign.ts`.
 - Test schema có ca gửi lỗi chéo cùng lỗi của trường khác, để chắc lỗi chéo vẫn hiện.
 - Không trông đợi lỗi chéo khi một trường nó đọc đang sai kiểu.
+- (0.9.0) Ngược lại, `when` **có** chạy khi chính object sai kiểu (thiếu hẳn, `undefined`): lỗi đó có `path` rỗng nên không khớp tên trường nào, và hàm kiểm tra nhận `undefined`. `JdRequirementsSchema` lồng trong `JdAnalyzeOutput` đã ném `TypeError` khi `requirements` vắng mặt (US-2.3). `when` phải trả `false` khi có lỗi `path.length === 0`, và hàm kiểm tra không giả định kiểu của dữ liệu. Xem `whenSkillListsParsed` trong `packages/shared/contracts/jd.ts`; test bằng `safeParse(undefined)`.
 
 See [US-1.4](sprints/stories/US-1.4-campaign-setup-and-config.md) › Implementation notes.
 
@@ -274,3 +275,25 @@ See [US-2.1](sprints/stories/US-2.1-ai-job-pipeline-message-contracts.md) › Im
 - Giữ một test gọi thật từng SDK (`tests/test_no_network.py`) và kiểm rằng lỗi trả về đến từ hàng rào. Chỉ test client tự viết thì không thấy được lỗ hổng.
 
 See [US-2.2](sprints/stories/US-2.2-llm-client-versioned-prompts.md) › Implementation notes.
+
+## 20. PyMuPDF: chữ ngoài trang bị cắt mất, màu nền phải lấy theo thứ tự vẽ
+
+**What happened (0.9.0)**: Khi dựng `ai-service/app/parsing/pdf.py` (US-2.3), có hai bẫy:
+
+1. Đã bỏ cờ `TEXT_MEDIABOX_CLIP` khỏi `get_text("dict")`, nhưng chữ đặt ngoài trang vẫn không xuất hiện. Không thấy chữ thì không gắn được cờ chữ ẩn.
+2. Bản đầu lấy màu nền bằng "hình tô cuối cùng chứa tâm của chữ" trong `get_drawings()`, không xét chữ vẽ trước hay sau hình. Code review chỉ ra hai lỗ:
+   - chữ đen bị một hình chữ nhật trắng vẽ đè lên vẫn lọt vào prompt;
+   - chữ trắng trên banner là ảnh bị loại nhầm, vì ảnh không có trong `get_drawings()` nên nền bị coi là trang trắng.
+
+**Why**:
+- `get_text` mặc định cắt theo `page.rect`, độc lập với cờ `TEXT_MEDIABOX_CLIP`.
+- `get_drawings()` chỉ có hình vector. Ảnh và gradient nằm ở `get_bboxlog()`.
+- Chỉ `get_bboxlog()` cho thứ tự vẽ của cả chữ, hình và ảnh. Vị trí của một mục trong log trùng `seqno` của `get_drawings()`.
+
+**How to avoid**:
+- Đọc chữ bằng `page.get_text("dict", flags=…, clip=pymupdf.INFINITE_RECT())`, rồi tự quyết định chữ nào nằm ngoài trang.
+- Nền của một span là hình tô gần nhất vẽ **trước** nó và chứa tâm của nó. Hình tô gần như đục vẽ **sau** nó thì nó bị che. Dưới ảnh hay gradient thì không biết màu nền, nên không so màu.
+- Lấy thông tin một hình tô (màu, độ đục) bằng `seqno` của `get_drawings()` theo vị trí trong `get_bboxlog()`.
+- Dựng PDF thử bằng PyMuPDF ngay trong test (`insert_text`, `draw_rect`, `insert_image`). Font `helv` có sẵn không có dấu tiếng Việt; ca tiếng Việt để cho DOCX.
+
+See [US-2.3](sprints/stories/US-2.3-jd-analyzer-hr-requirement-confirmation.md) › Implementation notes.

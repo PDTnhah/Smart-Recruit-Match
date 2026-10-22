@@ -1022,7 +1022,11 @@ Ngoài ra còn phải giải quyết:
   - Một kỹ năng không được nằm ở cả hai nhóm. Phía TS kiểm bằng `superRefine`, phía Python bằng lớp con của model sinh tự động trong agent, nên LLM trả sai thì `StructuredLLMClient` thử lại.
 - **Nhãn tiếng Việt** của enum đặt ở `apps/web/src/features/jds/labels.ts`, theo quy ước có sẵn, không ở `packages/shared`.
 - **AC-7** kiểm bằng Jest cho Zod schema ở `packages/shared` (form và API dùng chung schema) và kiểm tay trong trình duyệt. Không thêm Vitest hay Testing Library.
-- **Compose:** `ai-worker` nhận `LLM_PROVIDER` (mặc định `fixture`, để stack chạy được khi chưa có key), `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `MINIO_*`. Ở chế độ `fixture`, JD thật không có fixture nên phân tích lỗi và HR nhập tay; muốn phân tích thật thì đặt `LLM_PROVIDER=gemini` và key.
+- **Compose:** `ai-worker` nhận `LLM_PROVIDER` (mặc định `fixture`, để stack chạy được khi chưa có key), `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `MINIO_*`. Ở chế độ `fixture`, JD thật không có fixture nên phân tích lỗi ngay (`LLM_FIXTURE_MISSING` là `PermanentError`, không thử lại vào DLQ) và HR nhập tay; muốn phân tích thật thì đặt `LLM_PROVIDER=gemini` và key.
+- **Thông báo chỉ trong app** (PRD › *Thông báo* để story chốt kênh): `JD_REQUIREMENTS_READY`, `JD_ANALYSIS_FAILED` cho HR của công ty, `JD_REQUIREMENTS_VERSIONED` cho cán bộ Trung tâm. HR đang ở trang JD khi kết quả về sau vài giây; email ngay sau đó chỉ lặp lại. `notify` từ chối kênh EMAIL cho các loại này.
+- **Gửi job lỗi:** broker không xác nhận thì phân tích `FAILED` ngay (`DISPATCH_FAILED`). Mỗi phiên bản chỉ gửi một lần, nên một kết quả `SUCCEEDED` đến sau `FAILED` là job broker thực ra đã nhận; nó vẫn được áp dụng nếu HR chưa nhập gì.
+- **Cờ chữ ẩn khi job lỗi:** `AiJobError` thêm `hidden_text_detected` (tùy chọn, dùng chung cho CV). Handler gắn cờ vào exception (`flag_hidden_text`), `JobRunner` đưa nó vào kết quả `FAILED`, backend lưu `hidden_text_flag` cả khi không có đề xuất.
+- **Chữ ẩn trong PDF** tính theo thứ tự vẽ (`get_bboxlog`): ngoài ba kiểu của US-2.4 AC-2 còn loại chữ bị hình đục vẽ sau che lấp; chữ trên ảnh không bị so màu. Chữ render mode "invisible" (lớp OCR) chưa bị coi là chữ ẩn.
 
 **Rationale**:
 
