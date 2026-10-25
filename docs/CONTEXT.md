@@ -1050,3 +1050,36 @@ Ngoài ra còn phải giải quyết:
 
 **Date**: 2026-10-21
 **Version**: 0.9.0
+
+### D36. Ma trận S_cv đọc theo hai chiều: danh sách JD gợi ý cho sinh viên, CV phù hợp theo JD cho Trung tâm
+
+**Context**: PRD › GĐ3 chấm mọi cặp (SV, JD) nhưng chỉ dùng kết quả theo một chiều: shortlist của từng sinh viên. Report thiết kế bài test ngày 25/10 ([reports/2026-10-15-exam-generation-design.md](../reports/2026-10-15-exam-generation-design.md), mục 1.1 và 15.5) chỉ ra rằng cùng kết quả đó còn trả lời được câu hỏi "JD này có những CV nào phù hợp". Theo PRD, Trung tâm chỉ biết JD thiếu hồ sơ sau khi khóa nguyện vọng (biện pháp 4 của *Cơ chế hỗ trợ JD ít hồ sơ*, US-3.4 AC-5). Report đề xuất thêm chiều đọc theo JD ở điểm cần chốt số 12.
+
+**Decision** (người dùng chốt ngày 2026-10-25):
+
+- Kết quả chấm phù hợp của cả đợt là **ma trận S_cv**, đọc theo hai chiều (PRD › GĐ3 bước 2, 3, 5).
+- **Theo sinh viên:** shortlist chính là **danh sách JD gợi ý** cho sinh viên. Định nghĩa giữ nguyên (đủ điều kiện cứng, S_cv ≥ θ_cv, sắp giảm dần theo S_cv). Danh sách do code lập; AI không chọn, không xếp hạng JD. Giao diện sinh viên gọi là "danh sách JD gợi ý"; code giữ tên `shortlist`.
+- **Theo JD:** Cán bộ Trung tâm xem với mỗi JD các CV phù hợp (đạt điều kiện cứng, S_cv ≥ θ_cv) sắp theo S_cv, tỷ lệ CV phù hợp / chỉ tiêu và số cặp bị lọc sơ bộ (UC-09, FR-38, P1).
+- **Cảnh báo sớm:** ngay khi lượt chấm phù hợp xong, Trung tâm được báo các JD có tỷ lệ CV phù hợp / chỉ tiêu < 1, trước khi mở chọn NV. Đây là biện pháp 5 của *Cơ chế hỗ trợ JD ít hồ sơ*. Biện pháp 1–4 giữ số cũ vì US-3.4 và US-6.1 tham chiếu theo số.
+- **HR không xem** danh sách hay số lượng này trước khi có đề cử (BR-11). Trung tâm tự quyết định có liên hệ doanh nghiệp hay không.
+- Số liệu đếm từ `match_results`, không gọi LLM (ARCH › *Những chỗ cố ý KHÔNG dùng LLM*).
+
+**Rationale**:
+
+- Dữ liệu đã có sẵn sau GĐ3, nên chiều đọc theo JD không tốn thêm lượt gọi LLM nào.
+- JD ít CV phù hợp thì cũng khó đủ NV. Biết từ sau GĐ3 cho Trung tâm thời gian đề nghị doanh nghiệp nới yêu cầu trước khi sinh viên chọn NV; nếu chờ tới sau khi khóa NV thì sinh viên đã chọn xong và phải đợi vòng bổ sung.
+- Cặp bị lọc sơ bộ không có S_cv. Đếm riêng thì Trung tâm không hiểu nhầm là các CV đó đã chấm và không đạt.
+
+**Alternatives considered**:
+- **Chỉ dùng biện pháp 4 (NV / chỉ tiêu sau GĐ4):** loại vì tín hiệu đến muộn, khi sinh viên đã chọn xong nguyện vọng.
+- **Cho HR xem số CV phù hợp (không kèm danh tính):** loại vì BR-11 chỉ cho HR thấy hồ sơ được đề cử, và con số này có thể làm doanh nghiệp đổi yêu cầu theo tập sinh viên cụ thể. Trung tâm là bên liên hệ.
+- **Đánh số lại biện pháp theo thứ tự thời gian:** loại vì làm sai tham chiếu "biện pháp 1", "biện pháp 4" trong US-3.4 và US-6.1.
+
+**Impact**:
+- PRD: GĐ3 bước 2–5, sơ đồ *Luồng nghiệp vụ tổng thể*, bảng GĐ, UC-09 (mới), UC-12, Personas, *Cơ chế hỗ trợ JD ít hồ sơ* biện pháp 5, FR-38 (mới, EPIC-3), Glossary, EPIC-3 Goal và dải FR.
+- Chưa có story nào nhận FR-38. Đề xuất: cảnh báo sớm thêm vào US-3.4 (dùng cơ chế thông báo của AC-5), màn xem theo JD thêm vào dashboard US-6.1. Hai story này thêm khối *Story refresh* và `FR-38` vào `prd_ref` khi bắt đầu.
+- ARCH › *Màn hình theo cổng* (cổng Trung tâm) cần thêm màn xem theo JD khi làm story tương ứng.
+- Report thiết kế bài test: điểm cần chốt số 12 chuyển thành đã chốt.
+
+**Date**: 2026-10-25
+**Version**: 0.9.0

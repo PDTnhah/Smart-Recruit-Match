@@ -7,12 +7,14 @@ classification:
   complexity: 'High'
   projectContext: 'Greenfield'
 workflowType: 'prd'
-lastEdited: '2026-10-05'
+lastEdited: '2026-10-25'
 editHistory:
   - date: '2026-10-04'
     changes: 'Bản nháp 0.1 — đặc tả nghiệp vụ (docs/dac-ta-nghiep-vu.md)'
   - date: '2026-10-05'
     changes: 'Chuyển sang cấu trúc koni-docs: tách BRIEF.md, thêm Functional/Non-Functional Requirements và Epics & User Stories, đổi tham chiếu số mục sang tên mục'
+  - date: '2026-10-25'
+    changes: 'GĐ3: ma trận S_cv đọc theo hai chiều — shortlist là danh sách JD gợi ý cho sinh viên; Trung tâm xem CV phù hợp theo JD và được báo sớm JD thiếu CV phù hợp (UC-09, FR-38, biện pháp 5 của Cơ chế hỗ trợ JD ít hồ sơ; CONTEXT D36)'
 ---
 
 # Smart Recruit Match — Product Requirements Document
@@ -138,7 +140,8 @@ flowchart TD
     C1 --> C2{Sinh viên xác nhận}
     B2 --> D[AI chấm độ phù hợp<br/>mọi cặp SV × JD]
     C2 --> D
-    D --> E[Sinh viên xem shortlist,<br/>chọn tối đa N nguyện vọng]
+    D --> E[Sinh viên xem danh sách JD gợi ý,<br/>chọn tối đa N nguyện vọng]
+    D -.-> D1[Trung tâm xem CV phù hợp theo JD,<br/>nhận cảnh báo JD thiếu CV phù hợp]
     B3 --> F[Sinh viên làm test cho từng nguyện vọng]
     E --> F
     F --> G[AI chấm test → điểm tổng hợp]
@@ -162,7 +165,7 @@ flowchart TD
 | 0 | Thiết lập đợt | Cán bộ Trung tâm | Đợt với mốc thời gian và cấu hình |
 | 1 | Tiếp nhận JD | HR, AI | JD có yêu cầu chuẩn hóa, ngân hàng câu hỏi |
 | 2 | Tiếp nhận CV | Sinh viên, AI | Hồ sơ năng lực đã xác nhận |
-| 3 | Chấm độ phù hợp | AI | S_cv mọi cặp SV × JD, shortlist từng sinh viên |
+| 3 | Chấm độ phù hợp | AI | Ma trận S_cv mọi cặp SV × JD; shortlist (danh sách JD gợi ý) từng sinh viên; CV phù hợp của từng JD |
 | 4 | Chọn nguyện vọng | Sinh viên | Danh sách NV có thứ tự |
 | 5 | Làm bài test | Sinh viên | Bài làm |
 | 6 | Chấm test, tính điểm | AI (+ người chấm khi cần) | S_test, S_final |
@@ -196,12 +199,13 @@ flowchart TD
 - UC-06 Xử lý phúc khảo; chấm tay các câu tự luận được chuyển
 - UC-07 Mở vòng bổ sung; đóng đợt
 - UC-08 Xuất báo cáo
+- UC-09 Xem kết quả chấm phù hợp theo JD: CV phù hợp, tỷ lệ CV phù hợp / chỉ tiêu, JD thiếu CV phù hợp
 
 **Sinh viên**
 
 - UC-10 Nộp/cập nhật CV
 - UC-11 Xem và xác nhận hồ sơ năng lực
-- UC-12 Xem shortlist, điểm phù hợp và gợi ý cải thiện
+- UC-12 Xem shortlist (danh sách JD gợi ý), điểm phù hợp và gợi ý cải thiện
 - UC-13 Chọn và sắp xếp nguyện vọng
 - UC-14 Làm bài test
 - UC-15 Xem điểm, yêu cầu phúc khảo, báo lỗi câu hỏi
@@ -232,8 +236,8 @@ flowchart TD
 
 | Tác nhân | Mô tả | Quyền chính |
 |---|---|---|
-| **Cán bộ Trung tâm** (điều phối viên) | Người vận hành đợt thực tập | Tạo, cấu hình đợt; duyệt doanh nghiệp và JD; chạy phân bổ; điều chỉnh thủ công (bắt buộc ghi lý do); xử lý ngoại lệ, phúc khảo; xem báo cáo |
-| **Sinh viên** | Người tìm nơi thực tập | Nộp/cập nhật CV; xác nhận hồ sơ năng lực do AI trích xuất; xem gợi ý; chọn nguyện vọng; làm test; xác nhận lịch phỏng vấn; nhận/từ chối lời mời thực tập |
+| **Cán bộ Trung tâm** (điều phối viên) | Người vận hành đợt thực tập | Tạo, cấu hình đợt; duyệt doanh nghiệp và JD; xem kết quả chấm phù hợp theo JD; chạy phân bổ; điều chỉnh thủ công (bắt buộc ghi lý do); xử lý ngoại lệ, phúc khảo; xem báo cáo |
+| **Sinh viên** | Người tìm nơi thực tập | Nộp/cập nhật CV; xác nhận hồ sơ năng lực do AI trích xuất; xem danh sách JD gợi ý; chọn nguyện vọng; làm test; xác nhận lịch phỏng vấn; nhận/từ chối lời mời thực tập |
 | **HR doanh nghiệp** | Đại diện tuyển dụng | Đăng JD và chỉ tiêu; xác nhận yêu cầu đã chuẩn hóa; (tùy chọn) duyệt đề test mẫu; duyệt danh sách đề cử; lên lịch và nhập kết quả phỏng vấn |
 | **Quản trị hệ thống** | Bộ phận kỹ thuật | Quản lý tài khoản, danh mục kỹ năng, cấu hình mô hình AI và prompt, giám sát chi phí |
 | **Hệ thống AI** (tác nhân tự động) | Các agent LLM và thuật toán | Phân tích CV/JD, chấm phù hợp, sinh và chấm test, tính điểm, chạy phân bổ, gửi thông báo. **Không** ra quyết định cuối cùng |
@@ -318,9 +322,10 @@ Quy tắc: mỗi sinh viên có 1 CV hiệu lực trong một đợt. Thông tin
    - **Lọc điều kiện cứng** bằng luật: không đạt → "Không đủ điều kiện", kèm lý do.
    - **Lọc sơ bộ bằng embedding** (khi số lượng lớn): chỉ giữ top-M JD gần nhất với mỗi sinh viên để giảm số lần gọi LLM.
    - **Matching Agent** đánh giá từng tiêu chí, có trích dẫn bằng chứng từ CV (mục *Điểm phù hợp CV–JD (S_cv)*).
-2. Kết quả mỗi cặp: S_cv, điểm từng tiêu chí, kỹ năng đáp ứng/còn thiếu, nhận xét ngắn.
-3. **Shortlist** của sinh viên = các JD đủ điều kiện và có S_cv ≥ θ_cv, sắp giảm dần theo S_cv.
-4. Sinh viên được xem điểm phù hợp, kỹ năng còn thiếu và gợi ý cải thiện cho từng JD trong shortlist.
+2. Kết quả mỗi cặp: S_cv, điểm từng tiêu chí, kỹ năng đáp ứng/còn thiếu, nhận xét ngắn. Kết quả của cả đợt là **ma trận S_cv**: mỗi hàng là một sinh viên, mỗi cột là một JD. Ma trận được đọc theo hai chiều ở bước 3 và bước 5.
+3. **Theo sinh viên — shortlist (danh sách JD gợi ý)** = các JD sinh viên đủ điều kiện và có S_cv ≥ θ_cv, sắp giảm dần theo S_cv. Danh sách do code lập từ S_cv; AI không chọn và không xếp hạng JD.
+4. Sinh viên được xem điểm phù hợp, kỹ năng còn thiếu và gợi ý cải thiện cho từng JD trong shortlist. JD không đạt điều kiện cứng hiện riêng kèm lý do và không chọn được.
+5. **Theo JD — CV phù hợp với JD.** Cán bộ Trung tâm xem, với mỗi JD, các CV phù hợp (đạt điều kiện cứng và S_cv ≥ θ_cv) sắp giảm dần theo S_cv, cùng tỷ lệ số CV phù hợp / chỉ tiêu (UC-09). Ngay khi chấm xong, hệ thống báo Trung tâm các JD có tỷ lệ này < 1, để Trung tâm liên hệ doanh nghiệp trước khi sinh viên chọn NV (mục *Cơ chế hỗ trợ JD ít hồ sơ*). Cặp bị loại ở bước lọc sơ bộ không có S_cv, nên được đếm riêng, không tính là CV không phù hợp. HR không xem được danh sách hay số lượng này (BR-11).
 
 #### GĐ4 – Sinh viên chọn nguyện vọng
 
@@ -555,6 +560,7 @@ Deferred Acceptance ngăn quá tải, nhưng một JD vẫn có thể thiếu h�
 2. Khuyến nghị/bắt buộc chọn đủ N_NV nguyện vọng.
 3. Ở vòng bổ sung, gợi ý cho sinh viên trong hàng chờ các JD còn suất mà mình có S_cv ≥ θ_cv.
 4. Ngay sau GĐ4, báo cáo cho Cán bộ Trung tâm các JD có tỷ lệ NV/chỉ tiêu < 1 để chủ động liên hệ doanh nghiệp (VD: đề nghị nới yêu cầu).
+5. Ngay sau GĐ3, trước khi mở chọn NV, báo cho Cán bộ Trung tâm các JD có tỷ lệ số CV phù hợp / chỉ tiêu < 1 (GĐ3 bước 5). Tín hiệu này đến sớm hơn biện pháp 4: JD ít CV phù hợp thì cũng khó có đủ NV. Doanh nghiệp đồng ý nới yêu cầu thì yêu cầu được sửa thành phiên bản mới và các cặp của JD đó được chấm lại (BR-18).
 
 #### Phương án đối chứng cho phần thực nghiệm
 
@@ -821,6 +827,7 @@ Mọi thông báo đều hiện trong ứng dụng (chuông ở ba cổng, cập
 | FR-35 | Bộ đánh giá chất lượng AI trên tập dữ liệu gán nhãn theo mục *Chỉ số đánh giá hệ thống* | P1 | 📋 backlog | EPIC-6 |
 | FR-36 | Mô phỏng so sánh Deferred Acceptance với các phương án đối chứng | P1 | 📋 backlog | EPIC-6 |
 | FR-37 | Theo dõi token và chi phí LLM theo agent và theo đợt | P1 | 📋 backlog | EPIC-6 |
+| FR-38 | Cán bộ Trung tâm xem kết quả chấm phù hợp theo JD: CV phù hợp sắp theo S_cv, tỷ lệ CV phù hợp / chỉ tiêu, số cặp bị lọc sơ bộ; ngay sau GĐ3 hệ thống báo các JD có tỷ lệ < 1. HR không xem được (UC-09, BR-11, GĐ3) | P1 | 📋 backlog | EPIC-3 |
 
 Priority: `P0` = bắt buộc cho MVP, `P1` = nên có, `P2` = tùy chọn, `P3` = mở rộng. Status: `✅ shipped (vX.Y.Z)` / `🚧 in-progress` / `📋 backlog` / `⏪ reverted in vX.Y.Z` / `🗑️ deprecated vX.Y.Z`.
 
@@ -859,7 +866,9 @@ Priority: `P0` = bắt buộc cho MVP, `P1` = nên có, `P2` = tùy chọn, `P3`
 | S_cv | Điểm phù hợp CV–JD (0–100) |
 | S_test | Điểm bài test của sinh viên cho một JD (0–100) |
 | S_final | Điểm tổng hợp dùng để xếp hạng và phân bổ |
-| Shortlist | Danh sách JD mà sinh viên đủ điều kiện cứng và có S_cv ≥ ngưỡng |
+| Ma trận S_cv | Kết quả chấm phù hợp của cả đợt: hàng là sinh viên, cột là JD. Đọc theo hàng ra shortlist; đọc theo cột ra các CV phù hợp với JD |
+| Shortlist (danh sách JD gợi ý) | Danh sách JD mà sinh viên đủ điều kiện cứng và có S_cv ≥ ngưỡng, sắp giảm dần theo S_cv. Giao diện sinh viên gọi là "danh sách JD gợi ý" |
+| CV phù hợp với JD | CV đạt điều kiện cứng của JD và có S_cv ≥ θ_cv với JD đó |
 | Nguyện vọng (NV) | JD sinh viên chọn từ shortlist, có thứ tự ưu tiên (NV1 cao nhất) |
 | Đề cử | Kết quả phân bổ: sinh viên X được gửi đến HR của JD Y để duyệt |
 | Hệ số đề cử (k) | Số suất đề cử = chỉ tiêu × k, để HR có dư lựa chọn |
@@ -909,11 +918,11 @@ Mỗi epic tương ứng một giai đoạn trong [ARCHITECTURE.md › Implement
 
 ### EPIC-3: Chấm phù hợp và chọn nguyện vọng
 
-**Goal**: Sinh viên thấy shortlist có giải thích và chọn được nguyện vọng.
+**Goal**: Sinh viên thấy danh sách JD gợi ý có giải thích và chọn được nguyện vọng; Trung tâm biết sớm JD nào thiếu CV phù hợp.
 
 **Status**: 📋 backlog
 
-**FR**: FR-14 – FR-17 · **Lịch**: T5–T8 (02/11–29/11/2026) · [EPIC-3](sprints/epics/EPIC-3.md)
+**FR**: FR-14 – FR-17, FR-38 · **Lịch**: T5–T8 (02/11–29/11/2026) · [EPIC-3](sprints/epics/EPIC-3.md)
 
 | Story | Title | Status | Version |
 |-------|-------|--------|---------|
