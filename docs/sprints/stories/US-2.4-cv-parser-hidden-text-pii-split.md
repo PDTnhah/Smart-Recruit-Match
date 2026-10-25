@@ -11,7 +11,7 @@ prd_ref: [FR-11, NFR-2, NFR-3, NFR-6]
 arch_ref: [AD-1, AD-4, AD-5, AD-6, AD-10, AD-12]
 depends_on: [US-1.6, US-2.2]
 assignee: PDTnhah
-commit:
+commit: 9e221cd76937c12f986ce49bff4c20c23b0e50f1
 created: 2026-10-07
 updated: 2026-10-25
 external_deps: [gemini_api]
@@ -200,7 +200,7 @@ ai-service/.venv/Scripts/pytest ai-service          # AC-2 … AC-8, AC-13
 - Điều khoản xử lý dữ liệu phiên bản 2 ghi tên Google (Gemini API) và Anthropic; sinh viên phải đồng ý lại.
 - Bộ CV mẫu tổng hợp có chữ ẩn, bản scan, DOCX trong `ai-service/tests/fixtures/cv/`.
 
-**Commit**:
+**Commit**: 9e221cd
 
 ## Implementation notes
 

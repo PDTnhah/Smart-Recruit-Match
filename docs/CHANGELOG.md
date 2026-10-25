@@ -55,7 +55,7 @@ US-2.4. Sinh viên nộp CV thì AI Service biến CV (PDF có chữ, PDF scan, 
 - Muốn phân tích CV thật: `LLM_PROVIDER=gemini` với gói trả phí. Để mặc định `fixture` thì mọi CV thật phân tích lỗi.
 - Build lại image `ai-service` và `api` (`docker compose … up -d --build`).
 
-**Commit**:
+**Commit**: 9e221cd
 
 ---
 
