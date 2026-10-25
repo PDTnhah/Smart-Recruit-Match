@@ -42,3 +42,34 @@ export type Cv = z.output<typeof CvSchema>;
 export const CvListSchema = z.object({ items: z.array(CvSchema) });
 
 export type CvList = z.output<typeof CvListSchema>;
+
+/**
+ * `GET /api/cvs` for center staff (US-2.4 AC-11, CONTEXT D37): the version that counts of each
+ * student. `attention=true` keeps the CVs staff must look at: analysis failed, or the file hid text.
+ */
+export const CenterCvListQuerySchema = z.object({
+  campaignId: z.coerce.number().int().positive().optional(),
+  /** A string, as query parameters are; `z.coerce.boolean` would read "false" as true. */
+  attention: z.enum(['true', 'false']).optional(),
+  limit: z.coerce.number().int().min(1).max(500).default(100),
+  offset: z.coerce.number().int().min(0).default(0),
+});
+
+export type CenterCvListQuery = z.output<typeof CenterCvListQuerySchema>;
+
+export const CenterCvSchema = CvSchema.extend({
+  studentId: z.number().int(),
+  studentCode: z.string(),
+  studentName: z.string(),
+  /** The file hid text from the reader; removed before the analysis (AC-2, AC-3). */
+  hiddenTextDetected: z.boolean(),
+  /** Why the analysis failed, e.g. CV_NO_TEXT, LLM_REFUSED; null unless ANALYSIS_FAILED. */
+  analysisErrorCode: z.string().nullable(),
+});
+
+export type CenterCv = z.output<typeof CenterCvSchema>;
+
+/** Body of `GET /api/cvs`: newest first. */
+export const CenterCvListSchema = z.object({ items: z.array(CenterCvSchema) });
+
+export type CenterCvList = z.output<typeof CenterCvListSchema>;

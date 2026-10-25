@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { CvPiiSchema, CvProfileSchema, CvSourceSchema } from './cv.js';
 import { JdRequirementsSchema, PositionGroupSchema } from './jd.js';
 import { CvParseJobSchema, JdAnalyzeJobSchema, type AiJobType } from './jobs.js';
 
@@ -37,10 +38,32 @@ const outputBase = {
   model: z.string().min(1).describe('Model id that produced the output'),
 };
 
-/** Output of CV_PARSE. US-2.4 adds the parsed profile, PII split and hidden-text flag. */
+/**
+ * Output of CV_PARSE (US-2.4 AC-8, CONTEXT D37). `pii` travels in clear over the broker and the
+ * backend encrypts it before storing; the text the AI Service dropped as hidden is never part of
+ * it, only the flag. `masked_text` is the CV's visible text with personal data replaced, kept for
+ * the evidence check of US-3.2; null for a scan, which has no text layer.
+ */
 export const CvParseOutputSchema = z
-  .strictObject({ ...outputBase })
+  .strictObject({
+    ...outputBase,
+    cv_id: z.int().positive().describe('core.cvs.id of the parsed CV version'),
+    cv_version: z.int().positive().describe('CV version that was parsed'),
+    source: CvSourceSchema,
+    profile: CvProfileSchema,
+    pii: CvPiiSchema,
+    // The profile with every personal value replaced by a token (BR-03); same shape, so same schema.
+    profile_masked: CvProfileSchema,
+    masked_text: z
+      .string()
+      .min(1)
+      .nullable()
+      .describe('Visible CV text with personal data replaced; null for a scanned PDF'),
+    hidden_text_detected: z.boolean().describe('The CV file contained hidden text, removed before the prompt'),
+  })
   .meta({ title: 'CvParseOutput', description: 'Result of CV_PARSE' });
+
+export type CvParseOutput = z.output<typeof CvParseOutputSchema>;
 
 /**
  * Output of JD_ANALYZE (US-2.3 AC-3): the proposed requirements, which HR reviews and confirms. The

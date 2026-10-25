@@ -6,6 +6,59 @@ Lịch sử phát hành của Smart Recruit Match. Mỗi commit ship code tăng 
 
 ---
 
+## [0.10.0] — 2026-10-25 — CV Parser: chữ ẩn, tách PII — v0.10.0
+
+US-2.4. Sinh viên nộp CV thì AI Service biến CV (PDF có chữ, PDF scan, DOCX) thành hồ sơ năng lực có cấu trúc. Chữ ẩn bị loại khỏi dữ liệu gửi LLM và CV bị gắn cờ. Email, SĐT được che trước khi gửi. Thông tin cá nhân được tách riêng, Core Backend mã hóa bằng pgcrypto. Bản `profile_masked` dùng cho chấm điểm và văn bản CV đã che do code tạo, không nhờ LLM (BR-03, NFR-3). Phân tích lỗi thì CV chuyển "Lỗi phân tích", sinh viên được mời tải lại và Trung tâm thấy CV ở trang "CV cần xử lý". Điều khoản xử lý dữ liệu lên phiên bản 2, ghi tên Google ([CONTEXT D37](CONTEXT.md)).
+
+### Added
+- **Hợp đồng CV** (`packages/shared/contracts/cv.ts`): `CvProfile` (`summary`, học vấn, kỹ năng, dự án, kinh nghiệm, ngoại ngữ, chứng chỉ; không có trường cá nhân), `CvPii` (họ tên, email, SĐT, link, địa chỉ, ngày sinh, giới tính và tình trạng hôn nhân dạng enum, quê quán, tôn giáo, có ảnh), `CvExtraction` (đầu ra LLM), `CvSource`. `CvParseOutput` thêm `cv_id`, `cv_version`, `source`, `profile`, `pii`, `profile_masked`, `masked_text`, `hidden_text_detected`.
+- **Agent `cv_parser`** (`ai-service/app/agents/cv_parser/`):
+  - đọc file từ `cv-files`, loại chữ ẩn, phân loại `TEXT_PDF` / `SCANNED_PDF` / `DOCX`;
+  - che email, SĐT bằng regex trước LLM (`CV_MASK_CONTACTS`, mặc định bật);
+  - gọi `LLMClient` với `effort: low`, prompt `cv_parser/v1` (CV trong thẻ `<cv_document>`);
+  - tách PII, tạo `profile_masked` và `masked_text`, kiểm sót lần cuối (`PII_MASK_FAILED`);
+  - chỗ cắm `profile_steps` cho US-2.5.
+  - Bản scan (không có lớp chữ, hoặc có ảnh mà chữ thấy được dưới 100 ký tự) gửi nguyên PDF cho model; bản scan có chữ ẩn bị từ chối (`CV_SCAN_WITH_HIDDEN_TEXT`); file không có chữ lỗi `CV_NO_TEXT`.
+- **Che PII bằng code** (`ai-service/app/parsing/pii.py`): so khớp không phân biệt hoa thường và dấu, tên theo cả hai thứ tự và dạng viết liền, SĐT theo dãy số, ngày sinh nhiều định dạng, mọi URL/email/SĐT còn lại, dòng có nhãn cá nhân. Giới tính và tình trạng hôn nhân không thay theo chuỗi. Bộ ca dùng chung `packages/shared/contracts/fixtures/pii-mask-cases.json`.
+- **Tài liệu đính kèm trong `LLMClient`:** `generate(documents=[Document(...)])`; Gemini nhận part `inline_data`, Claude nhận `document` block base64, fixture khớp theo `sha256`. Log `llm-logs` chỉ ghi tham chiếu, không chép file.
+- **Module `student`** (`CvAnalysisService`):
+  - gửi `CV_PARSE` sau khi nộp CV; gửi lỗi thì CV lỗi ngay (`DISPATCH_FAILED`);
+  - nghe `ai.result.CV_PARSE`: mã hóa `pii` bằng `pgp_sym_encrypt`, lưu hồ sơ, văn bản đã che, nguồn, model, prompt, cờ chữ ẩn, chuyển `PENDING_CONFIRMATION` bằng `transitionTo`, audit chỉ có metadata; bỏ qua kết quả trùng, phiên bản cũ, CV không còn dùng;
+  - kết quả lỗi, `PARTIAL` hoặc không khớp CV chuyển `ANALYSIS_FAILED`;
+  - phát `cv.analysis.settled` sau commit.
+  - `GET /api/cvs` cho Trung tâm và quản trị (lọc theo đợt và `attention`).
+  - Lệnh `pnpm --filter @srm/api cv:redispatch [--campaign N] [--retry-failed]`.
+- **Thông báo** (`CvAnalysisListener` ở `notification`): `CV_PROFILE_READY` (sinh viên, trong app), `CV_ANALYSIS_FAILED` (sinh viên, trong app và email), `CV_NEEDS_ATTENTION` (Trung tâm, trong app, khi lỗi hoặc có chữ ẩn); sự kiện SSE `cv.analysis`.
+- **Màn hình:** trang "Hồ sơ" của sinh viên hiện "Đang phân tích CV…", "Không phân tích được CV này" (mời tải lại) hoặc "Hồ sơ năng lực sẵn sàng để xác nhận", tự cập nhật qua SSE. Trang "CV cần xử lý" của Trung tâm (`/admin/cvs`): lọc theo đợt, mã và tên SV, lý do, tải CV.
+- **Điều khoản v2** (`packages/shared/consent/terms-v2.ts`): ghi Gemini API của Google (gói trả phí, lưu 55 ngày để chống lạm dụng, không dùng để cải thiện sản phẩm) và Claude API của Anthropic; bản scan gửi nguyên file.
+- **CV mẫu tổng hợp** (`ai-service/tests/fixtures/cv/`, kèm `make_fixtures.py`) và fixture LLM `cv_parser`; `evals/perf_cv_parse.py` đo NFR-6; `smoke_llm.py --cv`.
+- **Test:** pytest cho agent, che PII, chữ ẩn trong CV, tài liệu đính kèm ở ba provider; Jest cho hợp đồng, bảng trạng thái, `decideCvParseResult`, biến môi trường, và integration (dispatch, mã hóa và giải mã `pii`, audit không có PII, thông báo, SSE, trùng/cũ, lỗi, danh sách của Trung tâm và 403, lệnh chạy bù, đồng ý lại điều khoản). Test trọn vòng chạy parser thật trong container.
+
+### Changed
+- **`cvs`** (migration `0011_cv_analysis`): thêm `pii` (bytea), `masked_text`, `analysis_source`, `analysis_model`, `analysis_prompt_version`, `analysis_error_code`; CHECK nguồn, cặp model/prompt, CV đã phân tích có đủ dữ liệu, CV lỗi có mã lỗi. CHECK trạng thái thêm `ANALYSIS_FAILED`; CHECK loại thông báo thêm ba loại mới.
+- **View `core.v_ai_cv_profile_masked`** (migration viết tay `0012_ai_cv_masked_text_view`): thêm `masked_text`.
+- **Trạng thái CV:** `ANALYSIS_FAILED` ("Lỗi phân tích"); `PENDING_ANALYSIS` đổi nhãn thành "Đang phân tích".
+- **Điều khoản hiện hành** là v2: sinh viên chỉ đồng ý v1 nhận `403 CONSENT_REQUIRED` khi nộp CV và phải đồng ý lại.
+- **Trích văn bản DOCX** đọc thêm header và footer (có phát hiện chữ ẩn); `ExtractedText` có `has_images`.
+- **Handler giả của CV bị bỏ.** Marker `__fake__/…` chỉ còn khi `AI_FAKE_FILE_KEYS=true` (chỉ test đặt).
+- **Compose:** `api` bắt buộc `PII_ENCRYPTION_KEY`; `ai-worker` nhận `CV_MASK_CONTACTS`.
+- **Tài liệu:** CONTEXT D37; ARCHITECTURE (pipeline CV Parser, module `student`, `cvs`, view, SSE, API, bảo mật); DESIGN §6 (badge "Lỗi phân tích"); DEPLOY, SETUP (biến mới, lệnh chạy bù); LESSONS §21 mới; AGENTS (*Trạng thái*); sprint W43 đóng, W44 mở.
+
+### Security
+- Thông tin cá nhân trích từ CV chỉ nằm ở `cvs.pii` đã mã hóa; khóa chỉ có ở Core Backend và đi dạng tham số. Audit, log lỗi và thông điệp lỗi không chứa giá trị PII. AI Service chỉ đọc `profile_masked` và `masked_text` qua view.
+
+### Upgrade notes
+- Đặt `PII_ENCRYPTION_KEY` (≥ 32 ký tự, `openssl rand -base64 48`) trong `deploy/.env` trước khi chạy compose; lưu bản sao khóa. API ngoài Docker cũng cần biến này.
+- Chạy migration `0011`, `0012` (dịch vụ `migrate` của compose tự chạy).
+- CV nộp trước 0.10.0 vẫn ở "Đang phân tích" mà không có job: chạy `pnpm --filter @srm/api cv:redispatch`.
+- Sinh viên phải đồng ý điều khoản v2 trước khi nộp CV.
+- Muốn phân tích CV thật: `LLM_PROVIDER=gemini` với gói trả phí. Để mặc định `fixture` thì mọi CV thật phân tích lỗi.
+- Build lại image `ai-service` và `api` (`docker compose … up -d --build`).
+
+**Commit**:
+
+---
+
 ## [0.9.0] — 2026-10-22 — JD Analyzer và HR xác nhận yêu cầu chuẩn hóa — v0.9.0
 
 US-2.3. HR nộp JD thì AI Service đọc JD (mô tả nhập tay và file PDF/DOCX), loại chữ ẩn, rồi đề xuất yêu cầu chuẩn hóa: kỹ năng bắt buộc và bổ trợ có mức độ và trọng số, điều kiện cứng, nhóm vị trí. HR xem đề xuất cạnh JD gốc, sửa trực tiếp rồi xác nhận; JD chuyển sang chờ Trung tâm duyệt. AI chỉ đề xuất: kết quả phân tích không chuyển trạng thái JD. Sửa yêu cầu của JD đã duyệt tạo phiên bản mới (BR-18). Đây là handler AI thật đầu tiên: worker dựng `LLMClient` lúc khởi động ([CONTEXT D35](CONTEXT.md)).

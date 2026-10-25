@@ -1,4 +1,5 @@
 import type { CampaignDeadlineKey, Notification } from '@srm/shared';
+import { centerCvsPath } from '@/features/center/cvs/paths';
 import { jdApprovalPath } from '@/features/center/jd-approval/paths';
 import { hrJdPath } from '@/features/hr/jds/paths';
 import { formatDateTime } from '@/lib/format';
@@ -59,6 +60,33 @@ export function describeNotification(notification: Notification): NotificationVi
         title: 'Yêu cầu JD có phiên bản mới',
         body: `JD "${jdTitle}" của ${companyName} vừa chuyển sang phiên bản yêu cầu ${version}.`,
         href: jdApprovalPath(jdId),
+      };
+    }
+    case 'CV_PROFILE_READY': {
+      const { campaignId, campaignName } = notification.payload;
+      return {
+        title: 'Hồ sơ năng lực sẵn sàng để xác nhận',
+        body: `Hệ thống đã trích hồ sơ năng lực từ CV của đợt "${campaignName}".`,
+        href: `${DEADLINES.intake_end.href}?campaign=${campaignId}`,
+      };
+    }
+    case 'CV_ANALYSIS_FAILED': {
+      const { campaignId, campaignName } = notification.payload;
+      return {
+        title: 'Chưa phân tích được CV',
+        body: `Hệ thống không đọc được CV của đợt "${campaignName}". Tải lên lại CV trước hạn nộp.`,
+        href: `${DEADLINES.intake_end.href}?campaign=${campaignId}`,
+      };
+    }
+    case 'CV_NEEDS_ATTENTION': {
+      const { campaignId, campaignName, reason } = notification.payload;
+      return {
+        title: reason === 'HIDDEN_TEXT' ? 'CV có chữ ẩn' : 'Có CV không phân tích được',
+        body:
+          reason === 'HIDDEN_TEXT'
+            ? `Một CV của đợt "${campaignName}" có chữ ẩn; phần chữ ẩn đã bị loại trước khi phân tích.`
+            : `Một CV của đợt "${campaignName}" không phân tích được. Sinh viên đã được báo tải lại.`,
+        href: centerCvsPath(campaignId),
       };
     }
   }

@@ -75,12 +75,19 @@ def extract_pdf(data: bytes) -> ExtractedText:
         pages: list[str] = []
         removed: list[RemovedSpan] = []
         has_text = False
+        has_images = False
         for number, page in enumerate(document, start=1):
             text, page_removed, page_has_text = _read_page(page, f"page {number}")
             pages.append(text)
             removed.extend(page_removed)
             has_text = has_text or page_has_text
-    return ExtractedText(text=join_blocks(pages), removed=tuple(removed), has_text_layer=has_text)
+            has_images = has_images or bool(page.get_images())
+    return ExtractedText(
+        text=join_blocks(pages),
+        removed=tuple(removed),
+        has_text_layer=has_text,
+        has_images=has_images,
+    )
 
 
 def _read_page(page: pymupdf.Page, location: str) -> tuple[str, list[RemovedSpan], bool]:

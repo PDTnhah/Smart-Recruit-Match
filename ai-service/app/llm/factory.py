@@ -46,7 +46,8 @@ def build_log_store(settings: LlmSettings) -> MinioObjectStore:
 
 
 def build_file_reader(settings: LlmSettings) -> MinioObjectReader:
-    """Uploaded files (jd-files), read with the same MinIO account as the llm-logs bucket."""
+    """Uploaded files (jd-files, cv-files), read with the same MinIO account as the llm-logs
+    bucket."""
     return MinioObjectReader(_minio(settings))
 
 

@@ -19,18 +19,26 @@ export const NOTIFICATION_TYPES = [
   'JD_REQUIREMENTS_READY',
   'JD_ANALYSIS_FAILED',
   'JD_REQUIREMENTS_VERSIONED',
+  // CV analysis (US-2.4, CONTEXT D37).
+  'CV_PROFILE_READY',
+  'CV_ANALYSIS_FAILED',
+  'CV_NEEDS_ATTENTION',
 ] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 
 /**
- * Types shown in the app only (PRD › Thông báo, CONTEXT D35): the recipient is usually on the page
- * already, and an email seconds later would repeat it. `notify` refuses the EMAIL channel for them.
+ * Types shown in the app only (PRD › Thông báo, CONTEXT D35, D37): the recipient is usually on the
+ * page already, and an email seconds later would repeat it. `notify` refuses the EMAIL channel for
+ * them. CV_ANALYSIS_FAILED is emailed too: the student may have left, and must upload again before
+ * the deadline.
  */
 export const IN_APP_ONLY_NOTIFICATION_TYPES = [
   'JD_REQUIREMENTS_READY',
   'JD_ANALYSIS_FAILED',
   'JD_REQUIREMENTS_VERSIONED',
+  'CV_PROFILE_READY',
+  'CV_NEEDS_ATTENTION',
 ] as const satisfies readonly NotificationType[];
 
 /** Types that may be sent by email, each with a template in the notification module. */
@@ -87,6 +95,29 @@ export const JdRequirementsVersionedPayloadSchema = z.object({
   version: id,
 });
 
+/** The CV Parser read a student's CV; the student reviews and confirms the profile (US-2.6). */
+export const CvProfileReadyPayloadSchema = z.object({
+  cvId: id,
+  campaignId: id,
+  campaignName: z.string().min(1),
+});
+
+/** The CV Parser could not read a student's CV; the student uploads it again. */
+export const CvAnalysisFailedPayloadSchema = CvProfileReadyPayloadSchema;
+
+/** Why center staff look at a CV: its analysis failed, or its file hid text from the reader. */
+export const CV_ATTENTION_REASONS = ['ANALYSIS_FAILED', 'HIDDEN_TEXT'] as const;
+
+export type CvAttentionReason = (typeof CV_ATTENTION_REASONS)[number];
+
+/** A CV needs center staff (US-2.4 AC-11); the page "CV cần xử lý" lists them all. */
+export const CvNeedsAttentionPayloadSchema = z.object({
+  cvId: id,
+  campaignId: id,
+  campaignName: z.string().min(1),
+  reason: z.enum(CV_ATTENTION_REASONS),
+});
+
 /** `type` and the `payload` that goes with it. */
 export const NotificationContentSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('CAMPAIGN_OPENED'), payload: CampaignOpenedPayloadSchema }),
@@ -95,6 +126,9 @@ export const NotificationContentSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('JD_REQUIREMENTS_READY'), payload: JdRequirementsReadyPayloadSchema }),
   z.object({ type: z.literal('JD_ANALYSIS_FAILED'), payload: JdAnalysisFailedPayloadSchema }),
   z.object({ type: z.literal('JD_REQUIREMENTS_VERSIONED'), payload: JdRequirementsVersionedPayloadSchema }),
+  z.object({ type: z.literal('CV_PROFILE_READY'), payload: CvProfileReadyPayloadSchema }),
+  z.object({ type: z.literal('CV_ANALYSIS_FAILED'), payload: CvAnalysisFailedPayloadSchema }),
+  z.object({ type: z.literal('CV_NEEDS_ATTENTION'), payload: CvNeedsAttentionPayloadSchema }),
 ]);
 
 export type NotificationContent = z.output<typeof NotificationContentSchema>;
@@ -167,6 +201,8 @@ export const SERVER_EVENTS = {
   NOTIFICATION: 'notification',
   /** The analysis of a JD settled (US-2.3); data is `JdAnalysisEvent`, sent to HR of its company. */
   JD_ANALYSIS: 'jd.analysis',
+  /** The analysis of a CV settled (US-2.4); data is `CvAnalysisEvent`, sent to its student. */
+  CV_ANALYSIS: 'cv.analysis',
 } as const;
 
 export type ServerEventName = (typeof SERVER_EVENTS)[keyof typeof SERVER_EVENTS];
@@ -178,3 +214,11 @@ export const JdAnalysisEventSchema = z.object({
 });
 
 export type JdAnalysisEvent = z.output<typeof JdAnalysisEventSchema>;
+
+/** Data of the `cv.analysis` event: the client refetches the student's CVs. */
+export const CvAnalysisEventSchema = z.object({
+  cvId: id,
+  status: z.enum(['PENDING_CONFIRMATION', 'ANALYSIS_FAILED']),
+});
+
+export type CvAnalysisEvent = z.output<typeof CvAnalysisEventSchema>;

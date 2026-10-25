@@ -1,16 +1,19 @@
 """US-2.2 AC-1, AC-3, AC-5 for Gemini: request shape and reply mapping, with a fake SDK client."""
 
+import json
+from dataclasses import replace
 from types import SimpleNamespace
 from typing import Any
 
 import httpx
 import pytest
 from google.genai import errors, types
+from google.genai._transformers import t_contents
 from llm_support import EchoOutput
 
 from app.llm.providers.gemini_provider import GeminiProvider, to_provider_response
 from app.llm.schema import strict_json_schema
-from app.llm.types import LLMRequest, ProviderCallError, StopReason, Usage
+from app.llm.types import Document, LLMRequest, ProviderCallError, StopReason, Usage
 
 pytestmark = pytest.mark.anyio
 
@@ -173,3 +176,40 @@ async def test_api_errors_are_classified(error, retryable, status):
     with pytest.raises(ProviderCallError) as caught:
         await provider.send(provider.build_params(request()))
     assert (caught.value.retryable, caught.value.status) == (retryable, status)
+
+
+PDF = Document("application/pdf", b"%PDF-1.7 scanned page")
+
+
+async def test_gd2_document_goes_inline_before_the_prompt_and_is_logged_by_hash():
+    """US-2.4 AC-4: a scanned CV is sent whole, as inline data; the logged params hold its hash."""
+    fake = FakeGenai(gemini_reply())
+    provider = GeminiProvider(fake, MODEL)
+    params = provider.build_params(replace(request(), documents=(PDF.ref,)))
+
+    [turn] = params["contents"]
+    assert turn["role"] == "user"
+    [document, prompt] = turn["parts"]
+    assert document["inline_data"]["mime_type"] == "application/pdf"
+    assert document["inline_data"]["data"] == {"$document": PDF.ref.as_json()}
+    assert prompt == {"text": "<cv_profile>{}</cv_profile>"}
+    json.dumps(params)  # still loggable
+
+    await provider.send(params, [PDF])
+    [sent] = fake.calls
+    assert sent["contents"][0]["parts"][0]["inline_data"]["data"] == PDF.data
+    assert params["contents"][0]["parts"][0]["inline_data"]["data"] == {
+        "$document": PDF.ref.as_json()
+    }, "the logged params are not changed"
+    # The SDK reads the dict as a Content with a Blob part.
+    [content] = t_contents(sent["contents"])
+    assert content.parts[0].inline_data.data == PDF.data
+
+
+async def test_gd2_document_missing_from_send_is_refused():
+    provider = GeminiProvider(FakeGenai(gemini_reply()), MODEL)
+    params = provider.build_params(replace(request(), documents=(PDF.ref,)))
+    with pytest.raises(ValueError, match="no document"):
+        await provider.send(params, [])
+    with pytest.raises(ValueError, match="without a placeholder"):
+        await provider.send(provider.build_params(request()), [PDF])

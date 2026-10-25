@@ -75,4 +75,19 @@ Hạn {{task}} của đợt thực tập "{{campaignName}}" là {{deadline}} (gi
 Mở hệ thống: {{link}}
 ${TEXT_FOOTER}`,
   },
+  CV_ANALYSIS_FAILED: {
+    subject: 'Chưa phân tích được CV của bạn cho đợt "{{campaignName}}"',
+    html: `<p>Chào {{recipientName}},</p>
+<p>Hệ thống chưa phân tích được CV bạn nộp cho đợt thực tập <strong>{{campaignName}}</strong>, nên chưa có hồ sơ năng lực để bạn xác nhận.</p>
+<p>Hãy tải lên lại CV trước hạn nộp, tốt nhất là file PDF xuất từ Word hoặc trình soạn CV (chọn được chữ trong file), hoặc file DOCX. Nếu vẫn không được, liên hệ Trung tâm quan hệ doanh nghiệp.</p>
+${button('Tải lại CV')}`,
+    text: `Chào {{recipientName}},
+
+Hệ thống chưa phân tích được CV bạn nộp cho đợt thực tập "{{campaignName}}", nên chưa có hồ sơ năng lực để bạn xác nhận.
+
+Hãy tải lên lại CV trước hạn nộp, tốt nhất là file PDF xuất từ Word hoặc trình soạn CV (chọn được chữ trong file), hoặc file DOCX. Nếu vẫn không được, liên hệ Trung tâm quan hệ doanh nghiệp.
+
+Tải lại CV tại: {{link}}
+${TEXT_FOOTER}`,
+  },
 };

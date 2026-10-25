@@ -12,6 +12,7 @@ import { CampaignListPage } from '@/features/center/campaigns/campaign-list-page
 import { CampaignCreatePage, CampaignEditPage } from '@/features/center/campaigns/campaign-pages';
 import { CompanyListPage } from '@/features/center/companies/company-list-page';
 import { CompanyCreatePage, CompanyDetailPage } from '@/features/center/companies/company-pages';
+import { CvAttentionPage } from '@/features/center/cvs/cv-attention-page';
 import { JdApprovalDetailPage } from '@/features/center/jd-approval/jd-approval-detail-page';
 import { JdApprovalListPage } from '@/features/center/jd-approval/jd-approval-list-page';
 import { HrJdListPage } from '@/features/hr/jds/hr-jd-list-page';
@@ -77,6 +78,8 @@ export const router = createBrowserRouter([
     { path: 'companies/:id', element: centerOnly(<CompanyDetailPage />) },
     { path: 'job-descriptions', element: centerOnly(<JdApprovalListPage />) },
     { path: 'job-descriptions/:id', element: centerOnly(<JdApprovalDetailPage />) },
+    // US-2.4: CVs whose analysis failed or whose file hid text.
+    { path: 'cvs', element: centerOnly(<CvAttentionPage />) },
   ]),
   { path: '*', element: <Navigate to="/" replace /> },
 ]);

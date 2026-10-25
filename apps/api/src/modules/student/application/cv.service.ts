@@ -1,7 +1,17 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { type CampaignStatus, CURRENT_TERMS, type Cv, type CvList, type CvListQuery, cvMachine } from '@srm/shared';
+import {
+  type CampaignStatus,
+  type CenterCv,
+  type CenterCvList,
+  type CenterCvListQuery,
+  CURRENT_TERMS,
+  type Cv,
+  type CvList,
+  type CvListQuery,
+  cvMachine,
+} from '@srm/shared';
 import { assertRecordAccess, type AuthUser } from '../../../common/auth/index.js';
 import { ConsentRequiredError } from '../../../common/errors/index.js';
 import { emitSafely } from '../../../common/events/index.js';
@@ -20,7 +30,7 @@ import { AuditService, userActor } from '../../audit/index.js';
 import { CampaignService } from '../../campaign/index.js';
 import { STUDENT_AUDIT_ACTIONS } from '../domain/audit-actions.js';
 import { CV_SUBMITTED, type CvSubmittedEvent } from '../domain/events.js';
-import { type CvRecord, CvRepository } from '../infrastructure/cv.repository.js';
+import { type CenterCvRecord, type CvRecord, CvRepository } from '../infrastructure/cv.repository.js';
 import { ConsentService } from './consent.service.js';
 import { studentIdOf } from './current-student.js';
 
@@ -131,6 +141,12 @@ export class CvService implements OnModuleInit {
     return { items: rows.map(toCv) };
   }
 
+  /** US-2.4 AC-11: center staff's list; the route allows CENTER and ADMIN only. */
+  async listForCenter(query: CenterCvListQuery): Promise<CenterCvList> {
+    const rows = await this.repository.listForCenter(query);
+    return { items: rows.map(toCenterCv) };
+  }
+
   /**
    * The file of a CV version the caller may see, for `GET /api/files/cv:{id}/url` (AC-8): its
    * student, CENTER and ADMIN. HR gets 404 (a CV has no company) until nominations, US-5.3.
@@ -139,6 +155,19 @@ export class CvService implements OnModuleInit {
     const record = assertRecordAccess(user, await this.repository.findById(id), ENTITY, id);
     return { bucket: BUCKETS.CV_FILES, key: record.fileKey, fileName: record.fileName };
   }
+}
+
+function toCenterCv(record: CenterCvRecord): CenterCv {
+  return {
+    ...toCv(record),
+    studentId: record.studentId,
+    studentCode: record.studentCode,
+    studentName: record.studentName,
+    hiddenTextDetected: record.hiddenTextFlag,
+    // A code stays on the row after a later success (the CHECKs allow no other order); only a
+    // failed CV shows it.
+    analysisErrorCode: record.status === 'ANALYSIS_FAILED' ? record.analysisErrorCode : null,
+  };
 }
 
 function toCv(record: CvRecord): Cv {

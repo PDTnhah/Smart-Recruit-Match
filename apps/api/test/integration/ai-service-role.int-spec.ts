@@ -13,7 +13,7 @@ import {
 import { randomUUID } from 'node:crypto';
 import { Client } from 'pg';
 import { aiDatabaseUrl, createTestDb, ownerDatabaseUrl, type TestDb } from '../helpers/db.js';
-import { createCv, createJobDescription } from '../helpers/factories.js';
+import { createCv, createJobDescription, SAMPLE_CV_PROFILE } from '../helpers/factories.js';
 import { SAMPLE_REQUIREMENTS } from '../helpers/jd.js';
 
 const CV_VIEW = 'core.v_ai_cv_profile_masked';
@@ -192,7 +192,8 @@ describe('AD-4: views the AI Service reads', () => {
 
   it('BR-03 view v_ai_* không có cột PII', async () => {
     // An exact allow-list: any new column, PII or not, has to be added here on purpose.
-    expect(await columnsOf(CV_VIEW)).toEqual(['cv_id', 'version', 'campaign_id', 'profile_masked']);
+    // masked_text: the CV text with personal data replaced, for the evidence check (US-2.4, D37).
+    expect(await columnsOf(CV_VIEW)).toEqual(['cv_id', 'version', 'campaign_id', 'profile_masked', 'masked_text']);
     expect(await columnsOf(JD_VIEW)).toEqual(['jd_id', 'version', 'campaign_id', 'position_group', 'requirements']);
     // The company's own text; no student data and nothing of the JD's workflow (US-2.3).
     expect(await columnsOf(JD_SOURCE_VIEW)).toEqual(['jd_id', 'version', 'title', 'raw_text', 'file_key']);
@@ -242,20 +243,19 @@ describe('AD-4: views the AI Service reads', () => {
         [true, false].map(async (active) => ({
           status,
           active,
-          id: (await createCv(seed.db, { status, active, profile: { name: 'Nguyễn Văn A' }, profileMasked: { skills: ['sql'] } }))
-            .id,
+          id: (await createCv(seed.db, { status, active, maskedText: '[NAME] SQL' })).id,
         })),
       ),
     );
-    const { rows: cvRows } = await ai.query<{ cv_id: string; profile_masked: unknown }>(
-      `SELECT cv_id, profile_masked FROM ${CV_VIEW} WHERE cv_id = ANY($1)`,
+    const { rows: cvRows } = await ai.query<{ cv_id: string; profile_masked: unknown; masked_text: string }>(
+      `SELECT cv_id, profile_masked, masked_text FROM ${CV_VIEW} WHERE cv_id = ANY($1)`,
       [cvs.map((cv) => cv.id)],
     );
     const visibleCvs = new Set(cvRows.map((r) => Number(r.cv_id)));
     for (const cv of cvs) {
       expect([cv.status, cv.active, visibleCvs.has(cv.id)]).toEqual([cv.status, cv.active, cv.active && readable.has(cv.status)]);
     }
-    expect(cvRows.every((r) => JSON.stringify(r.profile_masked) === '{"skills":["sql"]}')).toBe(true);
+    for (const row of cvRows) expect([row.profile_masked, row.masked_text]).toEqual([SAMPLE_CV_PROFILE, '[NAME] SQL']);
 
     const approved = new Set<JobDescriptionStatus>(reachableFrom(jobDescriptionMachine, 'APPROVED'));
     const jds = await Promise.all(

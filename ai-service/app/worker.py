@@ -13,6 +13,7 @@ from faststream import FastStream
 from faststream.rabbit import Channel, RabbitBroker
 from psycopg_pool import AsyncConnectionPool
 
+from app.agents.cv_parser import CvParser
 from app.agents.jd_analyzer import JdAnalyzer, PostgresJdSourceRepo
 from app.config import load_settings
 from app.consumers.base import Handler, JobRunner
@@ -66,17 +67,20 @@ def create_app() -> FastStream:
     )
     pool = AsyncConnectionPool(settings.ai_database_url, min_size=1, max_size=4, open=False)
     llm_settings = load_llm_settings()
-    jd_analyzer = JdAnalyzer(
-        sources=PostgresJdSourceRepo(pool),
-        files=build_file_reader(llm_settings),
-        llm=build_llm_client(
-            llm_settings,
-            objects=build_log_store(llm_settings),
-            calls=PostgresLlmCallStore(pool),
-        ),
-        prompts=build_prompt_registry(llm_settings),
+    files = build_file_reader(llm_settings)
+    llm = build_llm_client(
+        llm_settings, objects=build_log_store(llm_settings), calls=PostgresLlmCallStore(pool)
     )
-    handlers = build_handlers(jd_analyzer=jd_analyzer)
+    prompts = build_prompt_registry(llm_settings)
+    handlers = build_handlers(
+        cv_parser=CvParser(
+            files=files, llm=llm, prompts=prompts, mask_contacts=settings.cv_mask_contacts
+        ),
+        jd_analyzer=JdAnalyzer(
+            sources=PostgresJdSourceRepo(pool), files=files, llm=llm, prompts=prompts
+        ),
+        fake_file_keys=settings.fake_file_keys,
+    )
     subscribe_all(broker, build_runners(PostgresJobStore(pool), RabbitOutbox(broker), handlers))
     app = FastStream(broker)
 
@@ -92,6 +96,8 @@ def create_app() -> FastStream:
             llm_settings.provider,
             llm_settings.model,
         )
+        if settings.fake_file_keys:
+            logger.warning("AI_FAKE_FILE_KEYS is set: __fake__/ file keys fail on purpose")
 
     @app.after_shutdown
     async def close_pool() -> None:

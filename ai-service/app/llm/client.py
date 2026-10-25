@@ -10,14 +10,17 @@
 
 `effort` has no default, so forgetting it fails at the call (AC-2). A refusal or output that stays
 invalid raises NeedsHumanReview; a provider outage raises RetryableError (US-2.1 job layer).
+`documents` are files the model reads before the prompt, e.g. a scanned CV (US-2.4 AC-4); the
+logs keep their hashes, not their bytes.
 """
 
+from collections.abc import Sequence
 from typing import Protocol
 from uuid import UUID
 
 from pydantic import BaseModel
 
-from app.llm.types import Effort, LLMResult, RenderedPrompt
+from app.llm.types import Document, Effort, LLMResult, RenderedPrompt
 
 
 class LLMClient(Protocol):
@@ -29,4 +32,5 @@ class LLMClient(Protocol):
         effort: Effort,
         job_id: UUID | None,
         max_output_tokens: int | None = None,
+        documents: Sequence[Document] = (),
     ) -> LLMResult[T]: ...

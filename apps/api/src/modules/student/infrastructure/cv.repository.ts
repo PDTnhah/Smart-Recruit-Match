@@ -1,9 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type { CvStatus } from '@srm/shared';
-import { and, desc, eq, max, sql } from 'drizzle-orm';
-import { CvSubmissionConflictError } from '../../../common/errors/index.js';
+import type { CenterCvListQuery, CvPii, CvProfile, CvSource, CvStatus } from '@srm/shared';
+import { and, desc, eq, inArray, max, or, type SQL, sql } from 'drizzle-orm';
+import { CvSubmissionConflictError, RowVersionConflictError } from '../../../common/errors/index.js';
 import { uniqueViolation } from '../../../db/errors.js';
-import { cvs } from '../../../db/schema/index.js';
+import { cvs, students } from '../../../db/schema/index.js';
 import { DRIZZLE } from '../../../db/tokens.js';
 import type { Database, DbTx } from '../../../db/types.js';
 
@@ -39,6 +39,64 @@ const RECORD_COLUMNS = {
   createdAt: cvs.createdAt,
 };
 
+/** A CV row as the analysis listener sees it, locked (US-2.4). */
+export interface CvAnalysisRow {
+  id: number;
+  studentId: number;
+  campaignId: number;
+  fileKey: string;
+  version: number;
+  status: CvStatus;
+  active: boolean;
+  rowVersion: number;
+}
+
+/** What a successful analysis stores (US-2.4 AC-9). `pii` is encrypted by the database. */
+export interface CvAnalysisResult {
+  profile: CvProfile;
+  profileMasked: CvProfile;
+  pii: CvPii;
+  maskedText: string | null;
+  source: CvSource;
+  model: string;
+  promptVersion: string;
+  hiddenTextDetected: boolean;
+}
+
+/** A row of the center's list: the CV with its student (US-2.4 AC-11). */
+export interface CenterCvRecord extends CvRecord {
+  studentCode: string;
+  studentName: string;
+  hiddenTextFlag: boolean;
+  analysisErrorCode: string | null;
+}
+
+/** Columns the analysis writes; `pii` is an SQL expression so the database encrypts it. */
+type CvAnalysisChanges = Partial<
+  Pick<
+    typeof cvs.$inferInsert,
+    | 'profile'
+    | 'profileMasked'
+    | 'maskedText'
+    | 'analysisSource'
+    | 'analysisModel'
+    | 'analysisPromptVersion'
+    | 'analysisErrorCode'
+    | 'hiddenTextFlag'
+  >
+> & { pii?: SQL };
+
+const ANALYSIS_COLUMNS = {
+  id: cvs.id,
+  studentId: cvs.studentId,
+  campaignId: cvs.campaignId,
+  fileKey: cvs.fileKey,
+  version: cvs.version,
+  status: cvs.status,
+  active: cvs.active,
+  rowVersion: cvs.rowVersion,
+};
+
 /** The two unique keys a concurrent upload of the same student and campaign can hit (BR-01). */
 const SUBMISSION_KEYS = new Set(['cvs_student_campaign_active_key', 'cvs_student_campaign_version_key']);
 
@@ -50,6 +108,96 @@ export class CvRepository {
   async findById(id: number): Promise<CvRecord | undefined> {
     const [row] = await this.db.select(RECORD_COLUMNS).from(cvs).where(eq(cvs.id, id));
     return row;
+  }
+
+  /**
+   * The CV versions center staff see (US-2.4 AC-11): the active one of each student, newest
+   * first. `attention` keeps those whose analysis failed or whose file hid text.
+   */
+  listForCenter(query: CenterCvListQuery): Promise<CenterCvRecord[]> {
+    const filters: (SQL | undefined)[] = [eq(cvs.active, true)];
+    if (query.campaignId !== undefined) filters.push(eq(cvs.campaignId, query.campaignId));
+    if (query.attention === 'true') filters.push(or(eq(cvs.status, 'ANALYSIS_FAILED'), eq(cvs.hiddenTextFlag, true)));
+    return this.db
+      .select({
+        ...RECORD_COLUMNS,
+        studentCode: students.studentCode,
+        studentName: students.fullName,
+        hiddenTextFlag: cvs.hiddenTextFlag,
+        analysisErrorCode: cvs.analysisErrorCode,
+      })
+      .from(cvs)
+      .innerJoin(students, eq(students.id, cvs.studentId))
+      .where(and(...filters))
+      .orderBy(desc(cvs.createdAt), desc(cvs.id))
+      .limit(query.limit)
+      .offset(query.offset);
+  }
+
+  /** Active CVs in one of `statuses`, oldest first, for the re-dispatch command (US-2.4). */
+  listActiveIn(statuses: readonly CvStatus[], campaignId?: number): Promise<CvAnalysisRow[]> {
+    return this.db
+      .select(ANALYSIS_COLUMNS)
+      .from(cvs)
+      .where(
+        and(
+          eq(cvs.active, true),
+          inArray(cvs.status, [...statuses]),
+          campaignId === undefined ? undefined : eq(cvs.campaignId, campaignId),
+        ),
+      )
+      .orderBy(cvs.id);
+  }
+
+  /** Locks one CV row for the analysis listener (LESSONS §12: no join, so plain `FOR UPDATE`). */
+  async lockForAnalysis(tx: DbTx, id: number): Promise<CvAnalysisRow | undefined> {
+    const [row] = await tx.select(ANALYSIS_COLUMNS).from(cvs).where(eq(cvs.id, id)).for('update');
+    return row;
+  }
+
+  /**
+   * Stores a successful analysis with `WHERE row_version = n` and bumps it (AD-8). `pii` goes in as
+   * JSON encrypted by pgcrypto under `key` (NFR-3); the key travels as a bound parameter, never in
+   * the SQL text. A hidden-text flag already set stays set.
+   */
+  async storeAnalysis(tx: DbTx, id: number, expectedRowVersion: number, result: CvAnalysisResult, key: string): Promise<void> {
+    await this.updateVersioned(tx, id, expectedRowVersion, {
+      profile: result.profile,
+      profileMasked: result.profileMasked,
+      pii: sql`pgp_sym_encrypt(${JSON.stringify(result.pii)}::text, ${key}::text)`,
+      maskedText: result.maskedText,
+      analysisSource: result.source,
+      analysisModel: result.model,
+      analysisPromptVersion: result.promptVersion,
+      ...(result.hiddenTextDetected ? { hiddenTextFlag: true } : {}),
+    });
+  }
+
+  /** Records why the analysis failed; the hidden-text flag is kept for the center (AC-11). */
+  async storeFailure(
+    tx: DbTx,
+    id: number,
+    expectedRowVersion: number,
+    failure: { errorCode: string; hiddenTextDetected: boolean },
+  ): Promise<void> {
+    await this.updateVersioned(tx, id, expectedRowVersion, {
+      analysisErrorCode: failure.errorCode,
+      ...(failure.hiddenTextDetected ? { hiddenTextFlag: true } : {}),
+    });
+  }
+
+  private async updateVersioned(
+    tx: DbTx,
+    id: number,
+    expectedRowVersion: number,
+    changes: CvAnalysisChanges,
+  ): Promise<void> {
+    const updated = await tx
+      .update(cvs)
+      .set({ ...changes, rowVersion: expectedRowVersion + 1 })
+      .where(and(eq(cvs.id, id), eq(cvs.rowVersion, expectedRowVersion)))
+      .returning({ id: cvs.id });
+    if (updated.length === 0) throw new RowVersionConflictError('cv', id, expectedRowVersion);
   }
 
   /** A student's versions, newest first; one campaign or all of them. */

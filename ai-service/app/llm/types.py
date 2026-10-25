@@ -4,8 +4,9 @@ Adapters turn an `LLMRequest` into their SDK's parameters and the SDK's reply in
 `ProviderResponse`, so retries, refusal handling and logging are written once.
 """
 
+import hashlib
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any, Literal
 from uuid import UUID
@@ -61,6 +62,35 @@ class RenderedPrompt:
         return self.prompt_version.split("/", 1)[0]
 
 
+DocumentType = Literal["application/pdf"]
+
+
+@dataclass(frozen=True)
+class DocumentRef:
+    """What the parameters and logs hold of a document: its identity, not its bytes. The file
+    itself stays in its bucket (cv-files), so a log of the call does not copy a 5 MB CV."""
+
+    media_type: DocumentType
+    sha256: str
+    size: int
+
+    def as_json(self) -> dict[str, Any]:
+        return {"media_type": self.media_type, "sha256": self.sha256, "size": self.size}
+
+
+@dataclass(frozen=True)
+class Document:
+    """A file the model reads before the user prompt, e.g. a scanned CV (US-2.4 AC-4). Claude
+    takes it as a `document` block, Gemini as inline data (CONTEXT D37)."""
+
+    media_type: DocumentType
+    data: bytes = field(repr=False)
+
+    @property
+    def ref(self) -> DocumentRef:
+        return DocumentRef(self.media_type, hashlib.sha256(self.data).hexdigest(), len(self.data))
+
+
 @dataclass(frozen=True)
 class LLMRequest:
     agent: str
@@ -70,6 +100,8 @@ class LLMRequest:
     output_schema: dict[str, Any]
     effort: Effort
     max_output_tokens: int
+    documents: tuple[DocumentRef, ...] = ()
+    """Read by the model before `user`; the bytes reach the provider through `send`."""
 
 
 class Usage(BaseModel):

@@ -100,9 +100,16 @@ export class EmailRenderer {
           link: `${this.webOrigin}${path}`,
         };
       }
+      case 'CV_ANALYSIS_FAILED':
+        return {
+          campaignName: content.payload.campaignName,
+          link: `${this.webOrigin}${DEADLINE_TASKS.intake_end.path}`,
+        };
       case 'JD_REQUIREMENTS_READY':
       case 'JD_ANALYSIS_FAILED':
       case 'JD_REQUIREMENTS_VERSIONED':
+      case 'CV_PROFILE_READY':
+      case 'CV_NEEDS_ATTENTION':
         throw new Error(`${content.type} is shown in the app only, never emailed`);
     }
   }

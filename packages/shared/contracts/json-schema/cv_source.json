@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./cv_source.json",
+  "type": "string",
+  "enum": [
+    "TEXT_PDF",
+    "SCANNED_PDF",
+    "DOCX"
+  ],
+  "title": "CvSource",
+  "description": "TEXT_PDF = PDF with a text layer, SCANNED_PDF = PDF without one, DOCX"
+}

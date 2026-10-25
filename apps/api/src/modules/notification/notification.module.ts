@@ -15,6 +15,7 @@ import {
   EventStreamService,
 } from './application/event-stream.service.js';
 import { CampaignOpenedListener } from './application/listeners/campaign-opened.listener.js';
+import { CvAnalysisListener } from './application/listeners/cv-analysis.listener.js';
 import { HrInvitedListener } from './application/listeners/hr-invited.listener.js';
 import { NotificationService } from './application/notification.service.js';
 import { CvIntakeReminderSource } from './application/sources/cv-intake.source.js';
@@ -45,6 +46,7 @@ import { RealtimePublisher, RealtimeSubscriber } from './infrastructure/redis-pu
     DeadlineReminderScheduler,
     CvIntakeReminderSource,
     CampaignOpenedListener,
+    CvAnalysisListener,
     HrInvitedListener,
   ],
   exports: [NotificationService, RealtimePublisher, DeadlineReminderRegistry],

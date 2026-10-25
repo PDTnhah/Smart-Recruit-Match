@@ -5,6 +5,7 @@ const base = {
   REDIS_URL: 'redis://localhost:6379',
   RABBITMQ_URL: 'amqp://srm:srm@localhost:5672',
   JWT_ACCESS_SECRET: 'test-only-jwt-secret-with-enough-length-0123',
+  PII_ENCRYPTION_KEY: 'test-only-pii-key-with-enough-length-0123456',
   MINIO_ENDPOINT: 'http://localhost:9000',
   MINIO_ACCESS_KEY: 'srm-minio',
   MINIO_SECRET_KEY: 'test-only-minio-secret',
@@ -21,6 +22,17 @@ describe('environment (CONTEXT D25)', () => {
     expect(() =>
       loadEnv({ ...base, JWT_ACCESS_SECRET: 'change-me-jwt-access-secret-at-least-32-chars' }),
     ).toThrow('placeholder');
+  });
+
+  it('NFR-3 requires a PII key of 32+ characters, not a placeholder (US-2.4, CONTEXT D37)', () => {
+    expect(loadEnv(base).PII_ENCRYPTION_KEY).toBe(base.PII_ENCRYPTION_KEY);
+    expect(() => loadEnv({ ...base, PII_ENCRYPTION_KEY: undefined })).toThrow('PII_ENCRYPTION_KEY');
+    // Compose passes an unset variable as an empty string (LESSONS §14).
+    expect(() => loadEnv({ ...base, PII_ENCRYPTION_KEY: '' })).toThrow('PII_ENCRYPTION_KEY');
+    expect(() => loadEnv({ ...base, PII_ENCRYPTION_KEY: 'too-short' })).toThrow('PII_ENCRYPTION_KEY');
+    expect(() => loadEnv({ ...base, PII_ENCRYPTION_KEY: 'change-me-pii-encryption-key-at-least-32' })).toThrow(
+      'placeholder',
+    );
   });
 
   it('requires REDIS_URL with a redis scheme', () => {

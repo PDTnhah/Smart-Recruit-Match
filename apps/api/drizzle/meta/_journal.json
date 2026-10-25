@@ -78,6 +78,20 @@
       "when": 1792594924435,
       "tag": "0010_ai_jd_source_view",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1792928808465,
+      "tag": "0011_cv_analysis",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1792928818108,
+      "tag": "0012_ai_cv_masked_text_view",
+      "breakpoints": true
     }
   ]
 }

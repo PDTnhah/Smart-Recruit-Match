@@ -21,7 +21,39 @@ const readJson = (file: string): unknown => JSON.parse(readFileSync(file, 'utf8'
 
 const JOB_ID = '7f6c1e2a-4b8d-4c1e-9a2b-3c4d5e6f7a8b';
 const cvJob = { job_id: JOB_ID, cv_id: 457, cv_version: 2, file_key: 'cvs/457/2.pdf' };
-const output = { prompt_version: 'cv_parser/v1', model: 'claude-opus-5-5' };
+const profile = {
+  summary: null,
+  education: [],
+  skills: [{ name: 'Java' }],
+  projects: [],
+  experience: [],
+  languages: [],
+  certificates: [],
+};
+const output = {
+  prompt_version: 'cv_parser/v1',
+  model: 'gemini-3.8-flash',
+  cv_id: 457,
+  cv_version: 2,
+  source: 'TEXT_PDF',
+  profile,
+  pii: {
+    full_name: 'Nguyễn Văn Test',
+    emails: [],
+    phones: [],
+    links: [],
+    address: null,
+    date_of_birth: null,
+    gender: null,
+    hometown: null,
+    religion: null,
+    marital_status: null,
+    has_photo: false,
+  },
+  profile_masked: profile,
+  masked_text: '[NAME] Java',
+  hidden_text_detected: false,
+};
 const succeeded = { job_id: JOB_ID, type: 'CV_PARSE', status: 'SUCCEEDED', job: cvJob, result: output, error: null };
 const failure = { code: 'RETRIES_EXHAUSTED', message: 'boom', needs_human: false };
 

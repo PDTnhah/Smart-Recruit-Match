@@ -55,9 +55,9 @@ docker compose -f deploy/docker-compose.yml logs migrate     # "migrate: applied
 
 ## AI Service và hàng đợi
 
-Từ 0.7.0, `api` gửi job AI qua RabbitMQ và `ai-worker` xử lý, rồi trả kết quả qua `ai.results` ([CONTEXT D33](docs/CONTEXT.md)). Từ 0.9.0, job `JD_ANALYZE` chạy JD Analyzer thật qua LLM; handler của CV vẫn trả kết quả giả cho tới US-2.4 ([CONTEXT D35](docs/CONTEXT.md)).
+Từ 0.7.0, `api` gửi job AI qua RabbitMQ và `ai-worker` xử lý, rồi trả kết quả qua `ai.results` ([CONTEXT D33](docs/CONTEXT.md)). Từ 0.9.0, job `JD_ANALYZE` chạy JD Analyzer thật qua LLM ([CONTEXT D35](docs/CONTEXT.md)). Từ 0.10.0, job `CV_PARSE` chạy CV Parser thật: `api` mã hóa thông tin cá nhân trích từ CV bằng `PII_ENCRYPTION_KEY` trước khi lưu ([CONTEXT D37](docs/CONTEXT.md)).
 
-**Bật LLM.** Mặc định `LLM_PROVIDER=fixture`: stack chạy được khi chưa có key, nhưng LLM chỉ trả lời các request đã ghi sẵn cho test. Vì vậy mọi JD thật đều phân tích lỗi, và HR nhập yêu cầu bằng tay. Muốn phân tích thật, đặt trong `deploy/.env`:
+**Bật LLM.** Mặc định `LLM_PROVIDER=fixture`: stack chạy được khi chưa có key, nhưng LLM chỉ trả lời các request đã ghi sẵn cho test. Vì vậy mọi JD và CV thật đều phân tích lỗi: HR nhập yêu cầu bằng tay, CV hiện "Lỗi phân tích" và nằm ở trang "CV cần xử lý" của Trung tâm. Muốn phân tích thật, đặt trong `deploy/.env`:
 
 ```bash
 LLM_PROVIDER=gemini
@@ -65,6 +65,14 @@ GEMINI_API_KEY=...        # free tier chỉ dùng với dữ liệu giả (CONTE
 ```
 
 rồi chạy `docker compose -f deploy/docker-compose.yml up -d ai-worker`. Thiếu key của nhà cung cấp đã chọn thì `ai-worker` dừng ngay lúc khởi động và in tên biến thiếu. Từng lượt gọi LLM được ghi ở bảng `ai.llm_calls`; request và response đầy đủ nằm ở bucket `llm-logs`. AI Service tạo bucket này, bật SSE-S3, ở lần ghi đầu.
+
+**Điều khoản v2.** Từ 0.10.0, điều khoản hiện hành là `TERMS_V2` (ghi tên Google và Anthropic). Sinh viên đã đồng ý v1 phải đồng ý lại trước khi nộp CV. Chỉ gửi CV thật cho Gemini với gói trả phí ([CONTEXT D34, D37](docs/CONTEXT.md)).
+
+**Gửi lại CV chưa phân tích.** CV nộp trước 0.10.0 (hoặc nộp khi RabbitMQ lỗi) nằm ở "Đang phân tích" mà không có job. Lệnh dưới gửi job cho mọi CV đang dùng còn chờ phân tích; `--retry-failed` gửi lại cả CV "Lỗi phân tích"; `--campaign N` giới hạn trong một đợt. Lệnh chạy từ máy host với cùng biến môi trường như API ngoài Docker ([SETUP](docs/SETUP.md)), cổng theo `POSTGRES_HOST_PORT`, `RABBITMQ_HOST_PORT`:
+
+```bash
+pnpm --filter @srm/api cv:redispatch -- --retry-failed --campaign 1
+```
 
 ```bash
 docker compose -f deploy/docker-compose.yml up -d --scale ai-worker=2     # thêm bản sao worker
@@ -121,7 +129,9 @@ Nguồn: `deploy/.env` (sao từ [`deploy/.env.example`](deploy/.env.example)). 
 | `GEMINI_API_KEY` | Required khi `LLM_PROVIDER=gemini` | Google AI Studio | Free tier chỉ dùng với dữ liệu giả; dữ liệu thật dùng paid tier (CONTEXT D34) |
 | `ANTHROPIC_API_KEY` | Required khi `LLM_PROVIDER=anthropic` | Claude Console | |
 | `LLM_MODEL` | Optional (trống = mặc định của nhà cung cấp) | Tên model | Mặc định `gemini-3.8-flash` hoặc `claude-opus-5-5` |
+| `CV_MASK_CONTACTS` | Optional (`true`) | `true`/`false` | `ai-worker` che email, SĐT của CV có chữ trước khi gửi LLM (NFR-3, [CONTEXT D37](docs/CONTEXT.md)). Giữ `true` |
 | `JWT_ACCESS_SECRET` | Required | Chuỗi ngẫu nhiên ≥ 32 ký tự (`openssl rand -base64 48`) | Khóa ký access token HS256 (CONTEXT D25). Đổi khóa thì mọi người phải đăng nhập lại trong vòng 15 phút |
+| `PII_ENCRYPTION_KEY` | Required | Chuỗi ngẫu nhiên ≥ 32 ký tự (`openssl rand -base64 48`), không bắt đầu bằng `change-me` | Khóa pgcrypto mã hóa cột `cvs.pii` (thông tin cá nhân trích từ CV, [CONTEXT D37](docs/CONTEXT.md)). Chỉ `api` có khóa. Lưu bản sao: mất hoặc đổi khóa thì không đọc được dữ liệu đã lưu |
 | `REFRESH_TOKEN_TTL_DAYS` | Optional (7) | Tự đặt, 1–90 | Thời hạn refresh token (cookie httpOnly, Redis lưu hash) |
 | `REDIS_URL` | – (compose đặt `redis://redis:6379`) | | Chạy API ngoài Docker thì tự đặt, host `localhost` và cổng `REDIS_HOST_PORT` |
 | `SCHEDULER_ENABLED` | Optional (`true`) | `true`/`false` | Bật tác vụ định kỳ của API, như chuyển pha đợt khi qua mốc (CONTEXT D27). Chạy nhiều instance vẫn để `true`: advisory lock của PostgreSQL chỉ cho một instance chạy mỗi tác vụ |

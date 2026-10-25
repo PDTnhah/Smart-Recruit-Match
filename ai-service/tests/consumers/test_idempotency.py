@@ -5,6 +5,7 @@ from typing import Any
 from uuid import uuid4
 
 import pytest
+from cv_output import fake_cv_output
 from faststream.rabbit import RabbitBroker, TestRabbitBroker
 from faststream.rabbit.annotations import RabbitMessage
 
@@ -44,7 +45,12 @@ async def stub_jd_analyze(job: JdAnalyzeJob) -> JdAnalyzeOutput:
     )
 
 
-HANDLERS = build_handlers(jd_analyzer=stub_jd_analyze)
+async def stub_cv_parse(job: CvParseJob) -> CvParseOutput:
+    """Stands in for the CV Parser, which has its own tests (tests/agents)."""
+    return fake_cv_output(job.cv_id, job.cv_version)
+
+
+HANDLERS = build_handlers(cv_parser=stub_cv_parse, jd_analyzer=stub_jd_analyze, fake_file_keys=True)
 
 
 def wired_broker(store, handlers) -> tuple[RabbitBroker, list[Any], list[Any]]:
@@ -74,7 +80,7 @@ async def test_ad5_duplicate_job_id_processed_once(store) -> None:
 
     async def counting(job: CvParseJob) -> CvParseOutput:
         calls.append(str(job.job_id))
-        return CvParseOutput(prompt_version="fake/v0", model="fake")
+        return fake_cv_output(job.cv_id, job.cv_version)
 
     broker, results, dead = wired_broker(store, {**HANDLERS, "CV_PARSE": counting})
     job = cv_job()
@@ -100,7 +106,7 @@ async def test_ad5_both_job_types_reach_their_handler(store) -> None:
 
     by_type = {r["type"]: r for r in results}
     assert sorted(by_type) == ["CV_PARSE", "JD_ANALYZE"]
-    assert by_type["CV_PARSE"]["result"] == {"prompt_version": "fake/v0", "model": "fake"}
+    assert by_type["CV_PARSE"]["result"] == fake_cv_output(7, 1).model_dump(mode="json")
     assert by_type["JD_ANALYZE"]["result"] == {**JD_OUTPUT, "jd_id": 3, "jd_version": 2}
     assert all(r["error"] is None for r in results)
 
@@ -133,6 +139,18 @@ async def test_nfr10_invalid_job_reaches_the_dlq_with_headers(store) -> None:
 def test_ad5_every_queue_has_a_consumer() -> None:
     runners = build_runners(object(), object(), HANDLERS)  # type: ignore[arg-type]
     assert {r.kind.queue for r in runners} == set(QUEUES.jobs.values())
+
+
+async def test_us24_fake_markers_only_when_the_test_setting_is_on(store) -> None:
+    """Without AI_FAKE_FILE_KEYS a marker is an ordinary key, read by the real handler."""
+    handlers = build_handlers(cv_parser=stub_cv_parse, jd_analyzer=stub_jd_analyze)
+    broker, results, _ = wired_broker(store, handlers)
+    job = {**cv_job(), "file_key": "__fake__/permanent/cv.pdf"}
+    async with TestRabbitBroker(broker) as test_broker:
+        await test_broker.publish(json.dumps(job), queue=QUEUES.jobs["CV_PARSE"])
+
+    [result] = results
+    assert result["status"] == "SUCCEEDED"
 
 
 def test_ad5_a_job_type_without_handler_fails_at_startup() -> None:

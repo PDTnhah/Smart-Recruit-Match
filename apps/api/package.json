@@ -1,6 +1,6 @@
 {
   "name": "@srm/api",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "private": true,
   "description": "Core Backend — NestJS modular monolith",
   "files": [
@@ -19,6 +19,7 @@
     "db:generate": "pnpm --filter @srm/shared build && drizzle-kit generate",
     "db:migrate": "tsc -p tsconfig.build.json && node dist/db/migrate.js",
     "db:seed": "tsc -p tsconfig.build.json && node dist/db/seed/dev-seed.js",
+    "cv:redispatch": "tsc -p tsconfig.build.json && node dist/cli/cv-parse-redispatch.js",
     "openapi:export": "tsc -p tsconfig.build.json && node dist/openapi/export.js"
   },
   "dependencies": {

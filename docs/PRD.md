@@ -800,7 +800,7 @@ Mọi thông báo đều hiện trong ứng dụng (chuông ở ba cổng, cập
 | FR-8 | Thông báo trong ứng dụng và email theo sự kiện nghiệp vụ, nhắc hạn tự động (UC-35, mục *Thông báo*) | P1 | 📋 backlog | EPIC-1 |
 | FR-9 | AI phân tích JD thành yêu cầu chuẩn hóa: kỹ năng bắt buộc/bổ trợ có mức độ và trọng số, điều kiện cứng, nhóm vị trí (UC-30, GĐ1) | P0 | 👀 review | EPIC-2 |
 | FR-10 | HR xem, sửa và xác nhận yêu cầu chuẩn hóa; sửa sau khi đã mở test phải tạo phiên bản mới và chấm lại (UC-21, BR-02, BR-18) | P0 | 👀 review | EPIC-2 |
-| FR-11 | AI phân tích CV thành hồ sơ năng lực: chuẩn hóa tên kỹ năng theo danh mục, tách thông tin nhạy cảm, phát hiện chữ ẩn (UC-30, BR-03, GĐ2) | P0 | 📋 backlog | EPIC-2 |
+| FR-11 | AI phân tích CV thành hồ sơ năng lực: chuẩn hóa tên kỹ năng theo danh mục, tách thông tin nhạy cảm, phát hiện chữ ẩn (UC-30, BR-03, GĐ2) | P0 | 👀 review | EPIC-2 |
 | FR-12 | Sinh viên xem, sửa và xác nhận hồ sơ năng lực; chỉ hồ sơ đã xác nhận mới được chấm (UC-11, BR-01) | P0 | 📋 backlog | EPIC-2 |
 | FR-13 | Quản trị quản lý danh mục kỹ năng và duyệt kỹ năng mới do AI phát hiện | P1 | 📋 backlog | EPIC-2 |
 | FR-14 | Lọc điều kiện cứng và chấm độ phù hợp mọi cặp SV × JD: điểm từng tiêu chí, bằng chứng, kỹ năng thiếu; tính S_cv và lập shortlist (UC-31, GĐ3) | P0 | 📋 backlog | EPIC-3 |

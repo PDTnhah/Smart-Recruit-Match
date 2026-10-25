@@ -49,7 +49,7 @@ Ranh giới kiến trúc mà epic này giữ (AD-1, AD-4): AI Service không chu
 | US-2.1 | 8 | T3 (W43) | B | US-1.2 |
 | US-2.2 | 5 | T4 (W44) | B | US-2.1 |
 | US-2.3 | 13 | T5 (W45), làm sớm ở W43 | A | US-1.5, US-2.2 |
-| US-2.4 | 8 | T5 (W45) | B | US-1.6, US-2.2 |
+| US-2.4 | 8 | T5 (W45), làm sớm ở W44 | B | US-1.6, US-2.2 |
 | US-2.5 | 5 | T6 (W46) | B | US-2.1, US-2.4 |
 | US-2.6 | 5 | T6 (W46) | A | US-2.4 |
 
@@ -67,7 +67,7 @@ Ranh giới kiến trúc mà epic này giữ (AD-1, AD-4): AI Service không chu
 |----|-------|--------|
 | FR-9 | US-2.3 | 👀 review |
 | FR-10 | US-2.3 | 👀 review |
-| FR-11 | US-2.4 | 📋 backlog |
+| FR-11 | US-2.4 | 👀 review |
 | FR-12 | US-2.6 | 📋 backlog |
 | FR-13 | US-2.5 | 📋 backlog |
 
@@ -92,7 +92,7 @@ Ranh giới kiến trúc mà epic này giữ (AD-1, AD-4): AI Service không chu
 | US-2.1 | Hạ tầng job AI và hợp đồng message | Job AI đi từ backend sang AI Service và quay về, idempotent, có DLQ | 👀 review | 0.7.0 |
 | US-2.2 | LLMClient và prompt có phiên bản | Mọi lượt gọi LLM (Gemini hoặc Claude) đi qua một lớp có retry, refusal, ghi chi phí, fixture | 👀 review | 0.8.0 |
 | US-2.3 | JD Analyzer và HR xác nhận yêu cầu | HR nhận yêu cầu chuẩn hóa do AI đề xuất, sửa và xác nhận | 👀 review | 0.9.0 |
-| US-2.4 | CV Parser: chữ ẩn, tách PII | CV thành hồ sơ năng lực có `profile_masked`, chặn chữ ẩn | 📋 backlog | — |
+| US-2.4 | CV Parser: chữ ẩn, tách PII | CV thành hồ sơ năng lực có `profile_masked`, chặn chữ ẩn | 👀 review | 0.10.0 |
 | US-2.5 | Embedding và danh mục kỹ năng | Tên kỹ năng được chuẩn hóa; quản trị duyệt kỹ năng mới | 📋 backlog | — |
 | US-2.6 | SV xác nhận hồ sơ năng lực | SV xem CV bên cạnh hồ sơ, sửa và xác nhận | 📋 backlog | — |
 
@@ -105,7 +105,7 @@ Ranh giới kiến trúc mà epic này giữ (AD-1, AD-4): AI Service không chu
 | US-2.1 | `packages/shared/contracts`; module `aigateway`; `ai.jobs`; `ai-service/app/consumers`; view `core.v_ai_*` | – |
 | US-2.2 | `ai-service/app/llm/`; `ai-service/app/prompts/`; `ai.llm_calls`; bucket `llm-logs` | – |
 | US-2.3 | agent `jd_analyzer`; `ai-service/app/parsing/` (US-2.4 dùng lại); `job_descriptions.requirements`, `version`, `analysis_*`, `hidden_text_flag`; view `core.v_ai_jd_source` | FR-9, FR-10 |
-| US-2.4 | agent `cv_parser`; `ai-service/app/parsing/`; `cvs.profile`, `cvs.pii`, `cvs.profile_masked`, `hidden_text_flag` | FR-11 |
+| US-2.4 | agent `cv_parser`; `ai-service/app/parsing/` (`pii.py`); `cvs.profile`, `cvs.pii`, `cvs.profile_masked`, `cvs.masked_text`, `analysis_*`, `hidden_text_flag`; trạng thái `ANALYSIS_FAILED` | FR-11 |
 | US-2.5 | `ai-service/app/embedding/`; `ai.embeddings`; `skills` | FR-13 |
 | US-2.6 | `apps/web/src/features/student/`; vòng đời CV | FR-12 |
 

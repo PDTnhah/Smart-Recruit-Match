@@ -26,6 +26,14 @@ const EnvSchema = z.object({
       error: 'still the example placeholder; generate one with `openssl rand -base64 48`',
     }),
   REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().min(1).max(90).default(7),
+  // pgcrypto key of `cvs.pii`, the personal data of each CV (US-2.4, NFR-3, CONTEXT D37). Only the
+  // API has it; losing it makes stored pii unreadable. Placeholders are refused as for the JWT key.
+  PII_ENCRYPTION_KEY: z
+    .string()
+    .min(32)
+    .refine((value) => !value.startsWith('change-me'), {
+      error: 'still the example placeholder; generate one with `openssl rand -base64 48`',
+    }),
   // Cron jobs such as the campaign phase scheduler (CONTEXT D27). Integration tests turn them off
   // and call `runOnce()` themselves.
   SCHEDULER_ENABLED: z.stringbool().default(true),

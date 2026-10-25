@@ -5,7 +5,7 @@ epic: EPIC-2
 status: review
 priority: P0
 points: 8
-sprint: sprint-2026-W43
+sprint: sprint-2026-W44
 version_shipped: 0.7.0
 prd_ref: [NFR-10]
 arch_ref: [AD-1, AD-4, AD-5, AD-6]

@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./cv_profile.json",
+  "type": "object",
+  "properties": {
+    "summary": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 3000
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Career objective or summary as written; no personal details"
+    },
+    "education": {
+      "maxItems": 10,
+      "type": "array",
+      "items": {
+        "$ref": "./cv_education.json"
+      },
+      "description": "Education, most recent first"
+    },
+    "skills": {
+      "maxItems": 100,
+      "type": "array",
+      "items": {
+        "$ref": "./cv_skill.json"
+      },
+      "description": "Skills, one entry each"
+    },
+    "projects": {
+      "maxItems": 30,
+      "type": "array",
+      "items": {
+        "$ref": "./cv_project.json"
+      },
+      "description": "Projects"
+    },
+    "experience": {
+      "maxItems": 30,
+      "type": "array",
+      "items": {
+        "$ref": "./cv_experience.json"
+      },
+      "description": "Work experience"
+    },
+    "languages": {
+      "maxItems": 10,
+      "type": "array",
+      "items": {
+        "$ref": "./cv_language.json"
+      },
+      "description": "Foreign languages"
+    },
+    "certificates": {
+      "maxItems": 30,
+      "type": "array",
+      "items": {
+        "$ref": "./cv_certificate.json"
+      },
+      "description": "Certificates and awards"
+    }
+  },
+  "required": [
+    "summary",
+    "education",
+    "skills",
+    "projects",
+    "experience",
+    "languages",
+    "certificates"
+  ],
+  "additionalProperties": false,
+  "title": "CvProfile",
+  "description": "Competence profile of a CV, without its personal section (FR-11)"
+}

@@ -1,0 +1,154 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./cv_pii.json",
+  "type": "object",
+  "properties": {
+    "full_name": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "The student's full name"
+    },
+    "emails": {
+      "maxItems": 10,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 320
+      },
+      "description": "Email addresses"
+    },
+    "phones": {
+      "maxItems": 10,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 40
+      },
+      "description": "Phone numbers as written"
+    },
+    "links": {
+      "maxItems": 20,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 500
+      },
+      "description": "Personal links: GitHub, LinkedIn, portfolio, social profiles"
+    },
+    "address": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Postal address"
+    },
+    "date_of_birth": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Date of birth as written"
+    },
+    "gender": {
+      "anyOf": [
+        {
+          "type": "string",
+          "enum": [
+            "MALE",
+            "FEMALE",
+            "OTHER"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Gender when the CV states it"
+    },
+    "hometown": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Hometown or place of origin (\"quê quán\")"
+    },
+    "religion": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Religion when the CV states it"
+    },
+    "marital_status": {
+      "anyOf": [
+        {
+          "type": "string",
+          "enum": [
+            "SINGLE",
+            "MARRIED",
+            "OTHER"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Marital status when the CV states it"
+    },
+    "has_photo": {
+      "type": "boolean",
+      "description": "The CV carries a photo of the student"
+    }
+  },
+  "required": [
+    "full_name",
+    "emails",
+    "phones",
+    "links",
+    "address",
+    "date_of_birth",
+    "gender",
+    "hometown",
+    "religion",
+    "marital_status",
+    "has_photo"
+  ],
+  "additionalProperties": false,
+  "title": "CvPii",
+  "description": "Personal data of a CV; stored encrypted and never scored (BR-03)"
+}

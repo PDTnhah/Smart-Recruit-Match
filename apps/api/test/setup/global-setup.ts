@@ -105,6 +105,7 @@ export default async function globalSetup(): Promise<void> {
   process.env.AI_DATABASE_URL = asRole(ownerUrl, 'ai_service', AI_DB_PASSWORD);
   process.env.REDIS_URL = `redis://${redis.getHost()}:${redis.getMappedPort(REDIS_PORT)}`;
   process.env.JWT_ACCESS_SECRET = 'integration-test-access-secret-0123456789';
+  process.env.PII_ENCRYPTION_KEY = 'integration-test-pii-encryption-key-012345';
   process.env.MINIO_ENDPOINT = `http://${minio.getHost()}:${minio.getMappedPort(MINIO_PORT)}`;
   process.env.MINIO_ACCESS_KEY = MINIO_ACCESS_KEY;
   process.env.MINIO_SECRET_KEY = MINIO_SECRET_KEY;

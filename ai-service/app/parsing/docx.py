@@ -1,6 +1,8 @@
 """Visible text of a DOCX, run by run (US-2.4 TASK-2.4.2, US-2.3 AC-2, AC-12).
 
-Paragraphs are read in document order, including those in tables and text boxes. A run is hidden
+Paragraphs are read in document order, including those in tables and text boxes, after those of
+the headers and before those of the footers (a CV often puts the name and contacts in a header,
+and a hidden instruction can sit there too). Footnotes and comments are not read. A run is hidden
 when it is marked hidden (`w:vanish`), set under 2 pt, or coloured like what lies under it: its own
 shading or highlight, else the paragraph's, else the table cell's, else the page colour (white by
 default). Formatting is resolved as Word does: the run, then its character style, then the
@@ -13,6 +15,8 @@ from collections.abc import Iterator
 
 from docx import Document
 from docx.document import Document as DocumentObject
+from docx.opc.constants import RELATIONSHIP_TYPE as RT
+from docx.opc.part import Part
 from docx.oxml.ns import qn
 from lxml.etree import _Element
 
@@ -65,6 +69,12 @@ def extract_docx(data: bytes) -> ExtractedText:
 class _Reader:
     def __init__(self, document: DocumentObject) -> None:
         self._body = document.element.body
+        self._headers = _related_parts(document.part, RT.HEADER)
+        self._footers = _related_parts(document.part, RT.FOOTER)
+        self._has_images = any(
+            _related_parts(part, RT.IMAGE)
+            for part in (document.part, *self._headers, *self._footers)
+        )
         styles = document.styles.element
         self._styles = {s.get(qn("w:styleId")): s for s in styles.iter(qn("w:style"))}
         self._default_paragraph_style = next(
@@ -85,17 +95,26 @@ class _Reader:
     def read(self) -> ExtractedText:
         paragraphs: list[str] = []
         removed: list[RemovedSpan] = []
-        index = 0
-        for paragraph in self._body.iter(qn("w:p")):
-            if any(a.tag == MC_FALLBACK for a in paragraph.iterancestors()):
-                continue
-            index += 1
-            text, hidden = self._paragraph(paragraph, f"paragraph {index}")
-            paragraphs.append(text)
-            removed.extend(hidden)
+        roots = [
+            *((part.element, "header") for part in self._headers),
+            (self._body, "paragraph"),
+            *((part.element, "footer") for part in self._footers),
+        ]
+        for root, kind in roots:
+            index = 0
+            for paragraph in root.iter(qn("w:p")):
+                if any(a.tag == MC_FALLBACK for a in paragraph.iterancestors()):
+                    continue
+                index += 1
+                text, hidden = self._paragraph(paragraph, f"{kind} {index}")
+                paragraphs.append(text)
+                removed.extend(hidden)
         text, smuggled = clean_text("\n".join(paragraphs), "document")
         return ExtractedText(
-            text=join_blocks([text]), removed=(*removed, *smuggled), has_text_layer=True
+            text=join_blocks([text]),
+            removed=(*removed, *smuggled),
+            has_text_layer=True,
+            has_images=self._has_images,
         )
 
     def _paragraph(self, paragraph: _Element, location: str) -> tuple[str, list[RemovedSpan]]:
@@ -150,6 +169,16 @@ class _Reader:
 
     def _properties(self, style: _Element | None, tag: str) -> list[_Element]:
         return [p for s in self._style_chain(style) if (p := s.find(qn(tag))) is not None]
+
+
+def _related_parts(part: Part, reltype: str) -> list[Part]:
+    """Parts `part` points to by `reltype`, external links excluded, in part-name order."""
+    found = {
+        rel.target_part.partname: rel.target_part
+        for rel in part.rels.values()
+        if rel.reltype == reltype and not rel.is_external
+    }
+    return [found[name] for name in sorted(found)]
 
 
 def _hidden_reason(chain: list[_Element], background: RGB) -> HiddenReason | None:

@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./cv_certificate.json",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "description": "Certificate or award"
+    },
+    "issuer": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Who issued it"
+    },
+    "year": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "When, as written"
+    }
+  },
+  "required": [
+    "name",
+    "issuer",
+    "year"
+  ],
+  "additionalProperties": false,
+  "title": "CvCertificate",
+  "description": "One certificate or award"
+}

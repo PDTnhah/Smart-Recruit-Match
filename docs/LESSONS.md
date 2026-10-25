@@ -297,3 +297,16 @@ See [US-2.2](sprints/stories/US-2.2-llm-client-versioned-prompts.md) › Impleme
 - Dựng PDF thử bằng PyMuPDF ngay trong test (`insert_text`, `draw_rect`, `insert_image`). Font `helv` có sẵn không có dấu tiếng Việt; ca tiếng Việt để cho DOCX.
 
 See [US-2.3](sprints/stories/US-2.3-jd-analyzer-hr-requirement-confirmation.md) › Implementation notes.
+
+## 21. `jest --selectProjects integration <đường dẫn>` chạy cả bộ test: `--selectProjects` nhận nhiều giá trị
+
+**What happened (0.10.0)**: Khi làm US-2.4, lệnh `pnpm exec jest --selectProjects integration test/integration/cv-parse-result …` được dùng để chạy riêng vài file integration. Jest lại chạy mọi file `*.int-spec.ts`, máy hết RAM ("Zone Allocation failed - process out of memory"), và nhiều suite không liên quan đỏ với "Jest worker ran out of memory".
+
+**Why**: `--selectProjects` là tùy chọn kiểu mảng. Mọi giá trị đứng sau nó (kể cả đường dẫn test) bị coi là tên project. Không project nào khớp các đường dẫn, nên Jest chỉ chọn `integration` và chạy cả project, không lọc file.
+
+**How to avoid**:
+- Lọc file bằng tùy chọn có tên, rồi mới chọn project: `pnpm exec jest --testPathPatterns 'test/integration/(cv-parse-result|ai-job-roundtrip)' --selectProjects integration --runInBand`.
+- Dòng đầu ra phải là "Running one project: integration", và danh sách suite chỉ gồm các file đã chọn.
+- Máy dev ít RAM thì thêm `--runInBand` và tắt compose trước (§15).
+
+See [US-2.4](sprints/stories/US-2.4-cv-parser-hidden-text-pii-split.md) › Implementation notes.
