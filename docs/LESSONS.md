@@ -2,6 +2,18 @@
 
 > Mỗi mục phải giúp người sau tiết kiệm thời gian. Đánh số tăng dần, không dùng lại số. Mục sai thời (thư viện đã nâng cấp, hành vi đã đổi) thì xóa đi và thêm mục mới.
 > Tìm số tiếp theo: `grep -n "^## [0-9]" docs/LESSONS.md | tail -1`. Trích dẫn trong commit: "Per LESSONS §N".
+> Đọc mục lục dưới đây, rồi chỉ đọc các mục khớp với việc đang làm: `grep -n "^## 15\." docs/LESSONS.md` cho số dòng, sau đó đọc từ dòng đó ([CONTEXT D38](CONTEXT.md)). Thêm mục mới thì thêm một dòng vào mục lục.
+
+**Mục lục** (chủ đề → mục)
+
+- Claude Code, skill, hook, koni-docs: §1 skill phải nằm ở `.claude/skills` · §2 `docs:sync` định dạng lại PRD, đổi ngày · §3 snippet hook của koni-harness không chặn commit
+- Docker, compose, image: §4 `minio/minio` không còn trên Docker Hub · §14 compose truyền biến chưa đặt thành `""` · §15 hết RAM khi chạy test (compose, số worker Jest, commit memory của Windows) · §18 testcontainers build image không cache, Jest treo
+- Jest, ESM: §9 gói chỉ có ESM (`@nestjs/schedule`, `file-type`, `promise-breaker`…) · §11 `testTimeout` trong `projects` bị bỏ qua · §21 `--selectProjects` nuốt đường dẫn test
+- Drizzle, migration: §6 migration có mốc thời gian cũ bị bỏ qua · §7 hàm dùng chung nhiều bảng: khai kiểu cụ thể · §12 `FOR UPDATE OF` sinh tên có schema
+- Ranh giới module: §5 `exclude: node_modules` làm dependency-cruiser bỏ sót
+- Thư viện API, web: §8 CLI shadcn 4.21 · §10 Zod 4 bỏ qua `refine` khi trường khác lỗi · §13 multer đọc tên file theo latin1
+- RabbitMQ, job AI: §16 `RabbitMQModule` giữ connection static · §17 mặc định sai của thư viện message
+- ai-service (Python): §19 chặn mạng trong pytest trên Windows · §20 PyMuPDF cắt chữ ngoài trang, màu nền theo thứ tự vẽ
 
 ---
 
@@ -210,8 +222,10 @@ See [CONTEXT.md D31](CONTEXT.md).
 - Dừng compose trước khi chạy cả bộ test: `docker compose -f deploy/docker-compose.yml stop`. Volume và dữ liệu vẫn giữ nguyên.
 - Suite đỏ ngẫu nhiên, mỗi lần một nhóm khác nhau, thì xem cuối output: `out of memory` hay `Exceeded timeout` là lỗi môi trường (xem thêm §11), không phải lỗi logic.
 - Kiểm đầu-cuối trên compose và chạy bộ test là hai bước riêng, không chạy cùng lúc.
+- (0.10.0) Lỗi lặp lại ở US-2.4 khi compose đã tắt: `FATAL ERROR: Zone Allocation failed - process out of memory` trên nhiều tiến trình Node mới chạy được 0,5–1,5 giây, heap mới 8–31 MB. Heap nhỏ như vậy nghĩa là Windows hết *commit memory* (RAM + pagefile: 20,5 GB trên máy 15,5 GB RAM, Chrome, VS Code và các phiên agent đã giữ khoảng 18 GB), không phải V8 hết heap; `--max-old-space-size` không giúp gì. Hai nguyên nhân: Jest mặc định mở số worker bằng số luồng CPU trừ một (13 worker, mỗi worker integration dựng app Nest) và lệnh `--selectProjects` chạy cả bộ thay vì vài file (§21). Đã sửa: `apps/api/jest.config.cjs` đặt `maxWorkers: 4` và `workerIdleMemoryLimit`, còn shared đặt `maxWorkers: '50%'`. Trên Windows nên giới hạn VM của WSL bằng `%USERPROFILE%\.wslconfig` (`memory=6GB`, `autoMemoryReclaim=dropCache`). Docker Desktop không trả lời `docker version` là dấu hiệu VM đang thiếu RAM.
+- Test treo hoặc máy chậm bất thường: tìm tiến trình `jest-worker` còn sót (§18) trước khi chạy lại. Một lần chạy treo có thể giữ khoảng 2 GB trong nhiều giờ.
 
-See [US-1.7](sprints/stories/US-1.7-notifications-sse-email-reminders.md) › Implementation notes.
+See [US-1.7](sprints/stories/US-1.7-notifications-sse-email-reminders.md) › Implementation notes, [US-2.4](sprints/stories/US-2.4-cv-parser-hidden-text-pii-split.md).
 
 ## 16. `RabbitMQModule` của golevelup giữ connection trong biến static: hai app Nest trong một process giẫm lên nhau
 

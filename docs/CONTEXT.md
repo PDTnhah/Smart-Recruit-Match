@@ -3,6 +3,48 @@
 > File chỉ ghi thêm (RULE-7): không sửa hay xóa mục cũ. Muốn đổi một quyết định, thêm mục mới `D<N>. <Tiêu đề> (revision of D<M>)`.
 > Tóm tắt các quyết định kiến trúc ở [ARCHITECTURE.md › Architecture decisions](ARCHITECTURE.md#architecture-decisions).
 > Tìm số tiếp theo: `grep -n "^### D[0-9]" docs/CONTEXT.md | tail -1`.
+> Không đọc cả file. Đọc mục lục dưới đây, rồi lấy số dòng bằng `grep -n "^### D37\." docs/CONTEXT.md` và chỉ đọc mục đó (D38). Thêm mục mới thì thêm một dòng vào mục lục; quyết định bị sửa thì ghi "→ sửa bởi D<N>" ở dòng của nó.
+
+**Mục lục**
+
+- D1 · Tách phần tất định khỏi phần xác suất
+- D2 · LLM không ra quyết định và không tính điểm tổng
+- D3 · Modular monolith NestJS + AI Service Python
+- D4 · PostgreSQL + pgvector là nguồn sự thật duy nhất
+- D5 · Tác vụ AI chạy bất đồng bộ qua RabbitMQ
+- D6 · Hợp đồng dữ liệu định nghĩa một lần bằng Zod
+- D7 · Phân bổ bằng Deferred Acceptance, không dùng LLM
+- D8 · Bảng chuyển trạng thái tự viết
+- D9 · Drizzle ORM thay Prisma
+- D10 · Một model Claude Opus 5.5 cho mọi agent → sửa bởi D34
+- D11 · Embedding `bge-m3` tự host
+- D12 · Message Batches, prompt caching, prompt có phiên bản
+- D13 · Server-Sent Events cho cập nhật thời gian thực
+- D14 · shadcn/ui + Tailwind CSS thay Ant Design
+- D15 · Áp dụng koni-docs
+- D16 · Tên file tiếng Anh, nội dung tài liệu tiếng Việt
+- D17 · AGENTS.md là nguồn chỉ dẫn chính; Active Context tách file
+- D18 · Skill ở `.agents/skills`, nối sang `.claude/skills`
+- D19 · Mốc VERSION 0.0.0
+- D20 · Lộ trình 13 tuần, làm song song bằng agent
+- D21 · Tạo sẵn file story cho cả 37 story
+- D22 · Công cụ và phiên bản của khung monorepo (US-1.1)
+- D23 · MinIO dùng image Chainguard; ứng dụng chỉ biết `MINIO_*`
+- D24 · Lược đồ `core`, cột `audit_logs`, cách áp migration (US-1.2)
+- D25 · Xác thực, phân quyền, refresh token (US-1.3)
+- D26 · Nền shadcn/ui, API client, thư viện web (US-1.3)
+- D27 · Đợt thực tập: đối tượng, phạm vi đọc, khóa tham số, gia hạn mốc, kiểm tra pha (US-1.4)
+- D28 · Doanh nghiệp, lời mời HR, JD, lưu file (US-1.5) → sửa bởi D29
+- D29 · Thu hồi link mời cũ, tải file qua nginx, bucket lúc khởi động
+- D30 · Đồng ý xử lý dữ liệu, phiên bản CV, nộp CV (US-1.6)
+- D31 · Thông báo, SSE, email outbox, nhắc hạn (US-1.7) → sửa bởi D32
+- D32 · Link mời HR ký lúc gửi, stream đóng theo hạn token, email quá hạn bị hủy
+- D33 · Đường ống job AI, hợp đồng message, role DB (US-2.1)
+- D34 · Nhà cung cấp LLM: Gemini mặc định, Claude thay thế qua `LLMClient` (US-2.2)
+- D35 · Phân tích JD, xác nhận yêu cầu chuẩn hóa, phiên bản yêu cầu (US-2.3)
+- D36 · Ma trận S_cv đọc hai chiều: JD gợi ý cho sinh viên, CV phù hợp theo JD cho Trung tâm
+- D37 · Phân tích CV: lỗi phân tích, `pii` mã hóa, che PII bằng code, PDF scan, `TERMS_V2` (US-2.4)
+- D38 · Giới hạn chi phí context của agent: ba phiên mỗi story, mục lục, AGENTS.md không giữ trạng thái
 
 ---
 
@@ -1160,6 +1202,29 @@ Ngoài ra còn phải giải quyết:
 - `apps/api`: module `student` (`CvAnalysisService`, `GET /api/cvs`, lệnh `cv:redispatch`), `notification` (`CvAnalysisListener`, template email `CV_ANALYSIS_FAILED`), biến `PII_ENCRYPTION_KEY`.
 - `apps/web`: trạng thái phân tích ở trang "Hồ sơ" (SSE), trang "CV cần xử lý".
 - ARCH › *Pipeline CV Parser*, *Các bảng chính*, *Phân vùng schema*, *Security architecture*, *API architecture*; DESIGN §6 (badge "Lỗi phân tích"); DEPLOY, SETUP (biến mới).
+
+**Date**: 2026-10-25
+**Version**: 0.10.0
+
+### D38. Giới hạn chi phí context của agent: ba phiên mỗi story, mục lục CONTEXT/LESSONS, AGENTS.md không giữ trạng thái
+
+**Context**: Đo 23 phiên Claude Code của dự án (2026-10-04 → 2026-10-25). Mỗi phiên làm một story có 450–754 lượt, context trung bình 295–442 nghìn token mỗi lượt (đỉnh 506–742 nghìn), đọc lại 143–272 triệu token từ cache; ba subagent Explore lúc lập kế hoạch tốn thêm 2–38 triệu. Chi phí xấp xỉ số lượt × cỡ context. Context cố định lúc mở phiên khoảng 50 nghìn token, trong đó `AGENTS.md` 21 KB với đoạn *Trạng thái* dài thêm sau mỗi story. `CONTEXT.md` (120 KB) bị đọc 31 lần, `LESSONS.md` 17 lần; file story nặng 30–40 KB.
+
+**Decision**:
+- Mỗi story chạy ba phiên, gõ `/clear` giữa các phiên: (1) Plan; (2) Execute + Self-verify; (3) Review + Doc/Version gate + Commit. File story và `.active-context.md` mang trạng thái sang phiên sau. Context vượt khoảng 200 nghìn token thì `/compact`.
+- Không chạy subagent Explore theo mặc định; dùng tối đa một subagent khi story chạm vùng code chưa có mẫu.
+- `AGENTS.md` không ghi trạng thái từng story (đã có ở `STATUS.md`, CHANGELOG, `.active-context.md`). Các mẫu dùng lại chuyển sang mục *Mẫu có sẵn*.
+- `CONTEXT.md` và `LESSONS.md` có mục lục ở đầu file; agent đọc mục lục rồi chỉ đọc mục liên quan.
+- File story giữ dưới khoảng 15 KB.
+- `.active-context.md`: *Recent Decisions*, *Recent Lessons* giữ 5 mục gần nhất, mỗi mục một cụm từ, như template Active Context của koni-docs.
+
+**Rationale**: Giảm cả hai thừa số mà không bỏ bước nào của vòng koni; nguồn sự thật vẫn nằm trong `docs/`. Ước tính context trung bình mỗi lượt giảm 2–3 lần.
+
+**Alternatives considered**:
+- Chuyển D1–D30 sang file lưu trữ — loại vì trái RULE-7 (không xóa mục cũ) và làm hỏng các liên kết "CONTEXT D-N" trong tài liệu.
+- Bỏ bớt bước Doc/Version gate — loại; giữ quy trình, chỉ giảm lượng đọc.
+
+**Impact**: `AGENTS.md` (*Trạng thái*, *Mẫu có sẵn*, *Đọc gì trước khi làm*, *Quy trình làm việc*), mục lục trong `CONTEXT.md` và `LESSONS.md`, `.active-context.example.md`. LESSONS §15 bổ sung cấu hình Jest và WSL.
 
 **Date**: 2026-10-25
 **Version**: 0.10.0

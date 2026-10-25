@@ -8,10 +8,24 @@ Hệ thống giúp Trung tâm quan hệ doanh nghiệp của trường ghép sin
 
 ## Trạng thái
 
-- Đã có khung monorepo (US-1.1, 0.1.0): `apps/api`, `apps/web`, `packages/shared`, `ai-service`, Docker Compose, CI, cổng koni-harness. Đã có lược đồ `core`, bảng chuyển trạng thái của đợt/JD/CV, `transitionTo` và nhật ký append-only (US-1.2, 0.1.1). Đã có đăng nhập, phân quyền, `DESIGN.md` và khung ba cổng (US-1.3, 0.2.0). Đã có module `campaign`: tạo, cấu hình, mở đợt, tác vụ định kỳ chuyển pha theo mốc, `CampaignService.assertPhase`, `Clock`/`FakeClock` (US-1.4, 0.3.0). Đã có module `company` (doanh nghiệp, JD: đăng, nộp, duyệt), lời mời HR trong `iam`, lớp lưu file `common/storage` (MinIO SSE-S3, URL tạm qua nginx, `FileAccessRegistry`) (US-1.5, 0.4.0). Đã có đồng ý điều khoản xử lý dữ liệu có phiên bản (`packages/shared/consent/`, bảng `consents`), nộp CV có phiên bản với partial unique index BR-01, sự kiện `cv.submitted`, màn "Hồ sơ" ở cổng sinh viên (US-1.6, 0.5.0). Đã có module `notification`: thông báo trong app (bảng `notifications`, vừa là outbox email), SSE `GET /api/events/stream` qua Redis pub/sub, email outbox nodemailer + Mailpit, thông báo mở đợt, email mời HR, nhắc hạn nộp CV, chuông ở ba cổng (US-1.7, 0.6.0). Đã có đường ống job AI: hợp đồng message Zod → JSON Schema → Pydantic (`pnpm contracts:gen`, CI báo lệch), module `aigateway` (`AiGatewayService.dispatch`, sự kiện `ai.result.<TYPE>`), worker FastStream idempotent theo `job_id` với thử lại và DLQ, schema `ai`, view `core.v_ai_*` che PII, role DB `api_service`/`ai_service`, service `ai-worker`, `ai-api` (US-2.1, 0.7.0). Đã có `LLMClient` hai nhà cung cấp (Gemini mặc định, Claude thay thế) với refusal, thử lại khi sai schema, bảng `ai.llm_calls` + bucket `llm-logs`, prompt có phiên bản kèm manifest băm, chế độ fixture (US-2.2, 0.8.0). Đã có JD Analyzer: trích văn bản PDF/DOCX và loại chữ ẩn (`ai-service/app/parsing/`), agent `jd_analyzer` gọi `LLMClient` (prompt `jd_analyzer/v1`), worker dựng `LLMClient` lúc khởi động; hợp đồng `JdRequirements` (`packages/shared/contracts/jd.ts`); cột `analysis_*`, `hidden_text_flag`, view `core.v_ai_jd_source`; HR xem, sửa, xác nhận yêu cầu chuẩn hóa cạnh JD gốc, sửa JD đã duyệt tạo phiên bản mới và phát `jd.requirements.versioned` (US-2.3, 0.9.0). Đã có CV Parser: agent `cv_parser` (prompt `cv_parser/v1`), PDF scan gửi nguyên file qua `LLMClient.generate(documents=…)`, che PII bằng code (`ai-service/app/parsing/pii.py`, bộ ca `packages/shared/contracts/fixtures/pii-mask-cases.json`); hợp đồng `CvProfile`, `CvPii` (`packages/shared/contracts/cv.ts`); trạng thái CV `ANALYSIS_FAILED`; cột `cvs.pii` mã hóa pgcrypto (`PII_ENCRYPTION_KEY`), `masked_text`, `analysis_*`; sự kiện `cv.analysis.settled`; trang "CV cần xử lý" của Trung tâm; lệnh `cv:redispatch`; `TERMS_V2` (US-2.4, 0.10.0). 37 story của 6 epic nằm trong `docs/sprints/stories/` ([CONTEXT D21](docs/CONTEXT.md)). Sprint đang mở: `sprint-2026-W44`.
-- Lộ trình: xong trong tháng 12/2026, hai làn chạy song song bằng agent ([sprints/README › Lộ trình](docs/sprints/README.md#lộ-trình), [CONTEXT D20](docs/CONTEXT.md)).
-- US-1.1, US-1.3, US-1.4, US-1.5, US-1.6, US-1.7 đang `review`: chờ CI xanh và kiểm tay trong trình duyệt. US-2.1 đang `review`: chờ CI xanh ([CONTEXT D33](docs/CONTEXT.md), migration `0005`, `0006`). US-2.2 đang `review`: chờ CI xanh và chạy `evals/smoke_llm.py` với key thật ([CONTEXT D34](docs/CONTEXT.md), migration `0007`). Story gọi AI thì gọi `AiGatewayService.dispatch` sau khi commit, nghe `ai.result.<TYPE>` theo quy ước trong `modules/aigateway/domain/events.ts`, thêm hợp đồng vào `packages/shared/contracts` rồi chạy `pnpm contracts:gen`, và thay handler giả trong `ai-service/app/handlers/`. Handler gọi LLM qua `LLMClient` (mục *Gọi LLM*); `worker.py` dựng `LLMClient` lúc khởi động và compose truyền biến LLM cho `ai-worker` (mặc định `LLM_PROVIDER=fixture`). US-1.7 ([CONTEXT D31](docs/CONTEXT.md)) sinh migration `0004`. Module cần báo tin thì gọi `NotificationService.notify` hoặc phát sự kiện; nguồn nhắc hạn mới đăng ký vào `DeadlineReminderRegistry`; sự kiện SSE mới đẩy bằng `RealtimePublisher` và nghe bằng `useServerEvent`. US-2.3 đang `review`: chờ CI xanh, kiểm tay giao diện và chạy JD giả qua Gemini với key thật ([CONTEXT D35](docs/CONTEXT.md), migration `0009`, `0010`). Agent mới theo mẫu `app/agents/jd_analyzer/` (đọc view nguồn, `parsing/`, `flag_hidden_text` khi lỗi) và đăng ký qua `build_handlers` trong `app/handlers/`. US-2.4 đang `review`: chờ người dùng duyệt `TERMS_V2`, CI xanh, kiểm tay giao diện và chạy `evals/perf_cv_parse.py`, `smoke_llm.py --cv` với key thật ([CONTEXT D37](docs/CONTEXT.md), migration `0011`, `0012`). Kết quả CV đã lưu ở `cvs.profile`/`profile_masked`/`masked_text`; US-2.5 cắm bước chuẩn hóa kỹ năng và embedding qua `CvParser(profile_steps=…)`, US-2.6 dựng lại `profile_masked` bằng bộ ca che PII. Bước tiếp theo của mốc M1: US-5.1, US-6.4; làn EPIC-2 tiếp với US-2.5, US-2.6 và US-3.1 (đọc `hard_conditions`). Khi bắt đầu một story, đọc lại file của nó và thêm khối *Story refresh* nếu spec đã đổi.
-- Việc đang làm của người dùng hiện tại nằm ở `.active-context.md`. Đọc file này khi bắt đầu phiên, nếu có.
+- Story nào xong, story nào đang `review` và còn chờ gì: [STATUS.md](docs/sprints/STATUS.md) (tự sinh) và file story. Đã phát hành gì: [CHANGELOG](docs/CHANGELOG.md). Việc đang làm của người dùng hiện tại: `.active-context.md`; đọc file này khi bắt đầu phiên, nếu có.
+- 37 story của 6 epic nằm trong `docs/sprints/stories/` ([CONTEXT D21](docs/CONTEXT.md)). Lộ trình: xong trong tháng 12/2026, hai làn chạy song song bằng agent ([sprints/README › Lộ trình](docs/sprints/README.md#lộ-trình), [CONTEXT D20](docs/CONTEXT.md)).
+- Khi bắt đầu một story, đọc lại file của nó và thêm khối *Story refresh* nếu spec đã đổi.
+- Không ghi trạng thái từng story vào file này ([CONTEXT D38](docs/CONTEXT.md)). Chỉ sửa khi có quy tắc mới hoặc mẫu mới cho mục *Mẫu có sẵn*.
+
+## Mẫu có sẵn
+
+Code đã có các mẫu sau. Dùng lại thay vì dò code hay viết mới:
+
+| Cần | Dùng |
+|---|---|
+| Gọi AI từ một module | `AiGatewayService.dispatch` sau khi commit; nghe `ai.result.<TYPE>` theo quy ước trong `modules/aigateway/domain/events.ts`. Hợp đồng mới thêm vào `packages/shared/contracts` rồi chạy `pnpm contracts:gen` ([CONTEXT D33](docs/CONTEXT.md)) |
+| Agent AI mới | Theo mẫu `ai-service/app/agents/jd_analyzer/`: đọc view nguồn `core.v_ai_*`, trích văn bản bằng `app/parsing/`, `flag_hidden_text` khi lỗi. Thay handler giả trong `app/handlers/` và đăng ký qua `build_handlers`. Gọi LLM theo mục *Gọi LLM*; compose truyền biến LLM cho `ai-worker`, mặc định `LLM_PROVIDER=fixture` |
+| Thêm bước xử lý hồ sơ CV (chuẩn hóa kỹ năng, embedding) | `CvParser(profile_steps=…)`. Kết quả nằm ở `cvs.profile` / `profile_masked` / `masked_text`; che PII bằng `ai-service/app/parsing/pii.py` với bộ ca `packages/shared/contracts/fixtures/pii-mask-cases.json` ([CONTEXT D37](docs/CONTEXT.md)) |
+| Báo tin cho người dùng | `NotificationService.notify` hoặc phát sự kiện. Nguồn nhắc hạn mới đăng ký vào `DeadlineReminderRegistry`; sự kiện SSE đẩy bằng `RealtimePublisher`, nghe ở web bằng `useServerEvent` ([CONTEXT D31](docs/CONTEXT.md)) |
+| Chặn thao tác ngoài pha của đợt; thời gian trong test | `CampaignService.assertPhase`; `Clock` / `FakeClock` ([CONTEXT D27](docs/CONTEXT.md)) |
+| Lưu, tải file | `common/storage`: MinIO SSE-S3, URL tạm qua nginx, `FileAccessRegistry` ([CONTEXT D28, D29](docs/CONTEXT.md)) |
+| Điều khoản xử lý dữ liệu | `packages/shared/consent/`, bảng `consents` ([CONTEXT D30](docs/CONTEXT.md)) |
 
 ## Tài liệu
 
@@ -20,8 +34,8 @@ Hệ thống giúp Trung tâm quan hệ doanh nghiệp của trường ghép sin
 | [docs/BRIEF.md](docs/BRIEF.md) | Tóm tắt sản phẩm |
 | [docs/PRD.md](docs/PRD.md) | Nghiệp vụ: quy trình GĐ0–GĐ10, công thức điểm, thuật toán phân bổ, vòng đời trạng thái, BR-01…BR-18, FR, NFR, epic |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Stack, thành phần, DB, queue, API, bảo mật, triển khai, AD-1…AD-14 |
-| [docs/CONTEXT.md](docs/CONTEXT.md) | Nhật ký quyết định D-N; chỉ ghi thêm |
-| [docs/LESSONS.md](docs/LESSONS.md) | Bẫy đã gặp; đọc trước khi bắt đầu việc |
+| [docs/CONTEXT.md](docs/CONTEXT.md) | Nhật ký quyết định D-N; chỉ ghi thêm; mục lục ở đầu file |
+| [docs/LESSONS.md](docs/LESSONS.md) | Bẫy đã gặp; mục lục theo chủ đề ở đầu file, đọc trước khi bắt đầu việc |
 | [docs/SETUP.md](docs/SETUP.md) | Cài môi trường |
 | [docs/sprints/](docs/sprints/README.md) | Epic, story, sprint; `STATUS.md` tự sinh |
 | [VERSION](VERSION) + [docs/CHANGELOG.md](docs/CHANGELOG.md) | Phiên bản, lịch sử phát hành |
@@ -30,11 +44,11 @@ PRD và ARCHITECTURE là spec gốc, code phải khớp với chúng. Khi spec m
 
 ## Đọc gì trước khi làm
 
-PRD (~930 dòng) và ARCHITECTURE (~750 dòng) quá dài để đọc hết mỗi lần. Chỉ đọc mục liên quan:
+PRD (~990 dòng), ARCHITECTURE (~820 dòng), CONTEXT (~1200 dòng) và LESSONS (~330 dòng) quá dài để đọc hết. Không đọc cả file: lấy số dòng bằng `grep -n` (tiêu đề mục, `^### D37\.`, `^## 15\.`) rồi chỉ đọc đoạn đó. CONTEXT và LESSONS có mục lục ở đầu file. Mỗi file chỉ đọc một lần trong một phiên. Chỉ đọc mục liên quan:
 
 | Việc | Đọc |
 |---|---|
-| Bất kỳ story nào | File story + `docs/LESSONS.md` + các FR (`prd_ref`) và AD (`arch_ref`) mà story tham chiếu |
+| Bất kỳ story nào | File story + mục lục `docs/LESSONS.md` và các mục khớp với story + các FR (`prd_ref`) và AD (`arch_ref`) mà story tham chiếu |
 | Module nghiệp vụ | PRD › *Quy trình nghiệp vụ theo giai đoạn* (GĐ tương ứng) + *Quy tắc nghiệp vụ* + ARCH › *Các module* |
 | Trạng thái, chuyển trạng thái | PRD › *Vòng đời trạng thái* + ARCH › *Quản lý trạng thái* |
 | Tính S_cv / S_test / S_final | PRD › *Cơ chế chấm điểm* |
@@ -65,7 +79,8 @@ Chạy tại gốc repo, sau `nvm use` (Node 22, `.nvmrc`) và `pnpm install`. �
 ```bash
 pnpm typecheck                         # build @srm/shared rồi tsc mọi package
 pnpm lint                              # ESLint (api, web, shared)
-pnpm test                              # Jest api: unit + integration (testcontainers, cần Docker)
+pnpm test                              # Jest api: unit + integration (testcontainers, cần Docker); dừng compose trước (LESSONS §15)
+pnpm --filter @srm/api exec jest --testPathPatterns 'test/integration/(cv-upload|consent)' --selectProjects integration   # vài file integration (LESSONS §21)
 pnpm --filter @srm/api test:unit       # unit test, không cần Docker
 pnpm build                             # build shared → api, web
 pnpm depcruise                         # ranh giới module (Nguyên tắc 13)
@@ -137,12 +152,25 @@ Hai nhà cung cấp sau `LLMClient`: Gemini (mặc định, `gemini-3.8-flash`) 
 
 Theo vòng lặp koni (skill koni-harness): Plan → Execute → Self-verify → Review → Doc/Version gate → Commit.
 
-1. **Plan.** Mỗi việc là một story trong `docs/sprints/stories/`. Chưa có thì tạo bằng template story của skill koni-docs; mã story phải có trong PRD › Epics & User Stories. Đặt `status: in-progress`. Đọc `docs/LESSONS.md` và ghi `Lessons applied:` vào story.
+1. **Plan.** Mỗi việc là một story trong `docs/sprints/stories/`. Chưa có thì tạo bằng template story của skill koni-docs; mã story phải có trong PRD › Epics & User Stories. Đặt `status: in-progress`. Đọc mục lục `docs/LESSONS.md` và các mục liên quan, ghi `Lessons applied:` vào story.
 2. **Execute.** Code theo spec; đánh `[x]` từng task ngay khi xong. Quyết định kiến trúc hoặc phạm vi mới thì thêm mục D vào `docs/CONTEXT.md` ngay lúc đó. Việc có giao diện: đọc `DESIGN.md` trước khi code và ghi `Design applied: …` vào story.
 3. **Self-verify.** Chạy typecheck, lint, test.
 4. **Review.** `/code-review`; độ phủ test theo skill koni-qc; giao diện so với `DESIGN.md` và quy tắc của skill shadcn.
-5. **Doc/Version gate.** Làm checklist ở [docs/README.md](docs/README.md): VERSION + CHANGELOG cùng commit với code; ghi kết luận bài học (mục mới trong LESSONS.md hoặc dòng `Lessons: none new — <lý do>`); chạy `koni-docs sync`, `status`, `validate`; cập nhật `.active-context.md`.
+5. **Doc/Version gate.** Làm checklist ở [docs/README.md](docs/README.md): VERSION + CHANGELOG cùng commit với code; ghi kết luận bài học (mục mới trong LESSONS.md hoặc dòng `Lessons: none new — <lý do>`); chạy `koni-docs sync`, `status`, `validate`; cập nhật `.active-context.md`. Mục mới trong CONTEXT hay LESSONS thì thêm cả một dòng vào mục lục của file đó.
 6. **Commit.** Message tiếng Anh, prefix `feat:`/`fix:`/`chore:`/`docs:`/`style:`/`refactor:`/`test:`, có mã story (US-x.y).
+
+### Phiên và context
+
+Mỗi lượt gửi lại toàn bộ context, nên chi phí một story xấp xỉ số lượt × cỡ context ([CONTEXT D38](docs/CONTEXT.md)).
+
+- **Ba phiên cho mỗi story**, gõ `/clear` giữa các phiên: (1) Plan; (2) Execute + Self-verify; (3) Review + Doc/Version gate + Commit. Cuối mỗi phiên ghi việc còn dở vào file story (task `[x]`, *Implementation notes*) và `.active-context.md`; phiên sau đọc hai file này rồi làm tiếp. Story lớn (≥ 8 điểm) thì chia phiên 2 theo nhóm task.
+- Context vượt khoảng 200 nghìn token thì `/compact` hoặc kết thúc phiên sớm, đừng chờ tự compact.
+- **Không chạy subagent Explore theo mặc định, kể cả trong plan mode.** Bảng *Đọc gì trước khi làm* và mục *Mẫu có sẵn* đã chỉ chỗ cần đọc. Chỉ dùng tối đa một subagent, với câu hỏi cụ thể, khi story chạm vùng code chưa có mẫu.
+- Gom các lệnh đọc độc lập vào cùng một lượt. Lệnh có output dài (test, build) thì chỉ lấy phần cuối hoặc lọc dòng lỗi.
+- Khi phát triển, chỉ chạy test của phần đang sửa (`--testPathPatterns`, LESSONS §21). Cả bộ test chạy một lần ở Self-verify, sau khi dừng compose (LESSONS §15).
+- Phần Doc/Version gate là việc cơ học: có thể chuyển sang model rẻ hơn bằng `/model` trước bước này. Review code giữ model mạnh.
+- **File story giữ dưới khoảng 15 KB.** *Implementation notes* chỉ ghi điều người sau cần mà code, CONTEXT và LESSONS chưa có. *Files modified* liệt kê theo thư mục hoặc nhóm, không liệt kê từng file (git đã có).
+- `.active-context.md`: *Recent Decisions* và *Recent Lessons* giữ 5 mục gần nhất, mỗi mục là mã kèm một cụm từ (`D37 = phân tích CV`).
 
 Skill koni có nhắc tới BMAD, gstack (`/design-review`, `/qa`), Superpowers và `frontend-design`, nhưng repo **chưa cài** các công cụ này. Không gọi chúng. Dùng thay bằng: plan mode cho Plan, `/code-review` cho Review, skill koni-qc cho test, skill shadcn cho giao diện.
 
