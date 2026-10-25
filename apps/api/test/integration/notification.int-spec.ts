@@ -6,7 +6,7 @@ import { companies } from '../../src/db/schema/index.js';
 import { NotificationService } from '../../src/modules/notification/index.js';
 import { api, type AuthTestApp, createAuthTestApp, type LoggedIn } from '../helpers/auth.js';
 import { uniqueValue } from '../helpers/factories.js';
-import { notificationsOf } from '../helpers/notifications.js';
+import { notificationsOf, notificationsOfType } from '../helpers/notifications.js';
 
 const opened = (userIds: number[], campaignName = 'Đợt HK1'): NotifyInput => ({
   type: 'CAMPAIGN_OPENED',
@@ -40,7 +40,7 @@ describe('FR-8: notification service and list (US-1.7)', () => {
           throw new Error('business step failed');
         }),
       ).rejects.toThrow('business step failed');
-      expect(await notificationsOf(t.db, user.id)).toEqual([]);
+      expect(await notificationsOfType(t.db, 'CAMPAIGN_OPENED', user.id)).toEqual([]);
       expect(await t.db.select().from(companies).where(eq(companies.name, companyName))).toEqual([]);
 
       const pending = await t.db.transaction(async (tx) => {
@@ -49,7 +49,7 @@ describe('FR-8: notification service and list (US-1.7)', () => {
       });
       await service.push(pending);
       expect(pending.count).toBe(1);
-      const [row] = await notificationsOf(t.db, user.id);
+      const [row] = await notificationsOfType(t.db, 'CAMPAIGN_OPENED', user.id);
       expect(row).toMatchObject({
         type: 'CAMPAIGN_OPENED',
         channels: ['IN_APP'],
@@ -70,13 +70,13 @@ describe('FR-8: notification service and list (US-1.7)', () => {
       for (const input of bad) {
         await expect(service.notify(input)).rejects.toThrow('invalid notification');
       }
-      expect(await notificationsOf(t.db, user.id)).toEqual([]);
+      expect(await notificationsOfType(t.db, 'CAMPAIGN_OPENED', user.id)).toEqual([]);
     });
 
     it('FR-8: an email notification enters the outbox as PENDING', async () => {
       const user = await t.createLoginUser('CENTER');
       await service.notify({ ...opened([user.id]), channels: ['IN_APP', 'EMAIL'] });
-      const [row] = await notificationsOf(t.db, user.id);
+      const [row] = await notificationsOfType(t.db, 'CAMPAIGN_OPENED', user.id);
       expect(row).toMatchObject({ emailStatus: 'PENDING', emailAttempts: 0, emailSentAt: null });
       expect(row?.emailNextAttemptAt).toBeInstanceOf(Date);
     });
@@ -86,8 +86,8 @@ describe('FR-8: notification service and list (US-1.7)', () => {
       const dedupeKey = uniqueValue('dedupe');
       expect((await service.notify({ ...opened([first.id]), dedupeKey })).count).toBe(1);
       expect((await service.notify({ ...opened([first.id, second.id]), dedupeKey })).count).toBe(1);
-      expect(await notificationsOf(t.db, first.id)).toHaveLength(1);
-      expect(await notificationsOf(t.db, second.id)).toHaveLength(1);
+      expect(await notificationsOfType(t.db, 'CAMPAIGN_OPENED', first.id)).toHaveLength(1);
+      expect(await notificationsOfType(t.db, 'CAMPAIGN_OPENED', second.id)).toHaveLength(1);
     });
   });
 

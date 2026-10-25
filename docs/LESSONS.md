@@ -9,6 +9,7 @@
 - Claude Code, skill, hook, koni-docs: §1 skill phải nằm ở `.claude/skills` · §2 `docs:sync` định dạng lại PRD, đổi ngày · §3 snippet hook của koni-harness không chặn commit
 - Docker, compose, image: §4 `minio/minio` không còn trên Docker Hub · §14 compose truyền biến chưa đặt thành `""` · §15 hết RAM khi chạy test (compose, số worker Jest, commit memory của Windows) · §18 testcontainers build image không cache, Jest treo
 - Jest, ESM: §9 gói chỉ có ESM (`@nestjs/schedule`, `file-type`, `promise-breaker`…) · §11 `testTimeout` trong `projects` bị bỏ qua · §21 `--selectProjects` nuốt đường dẫn test
+- Integration test: §22 các file dùng chung DB, thông báo gửi mọi tài khoản CENTER lọt vào test khác
 - Drizzle, migration: §6 migration có mốc thời gian cũ bị bỏ qua · §7 hàm dùng chung nhiều bảng: khai kiểu cụ thể · §12 `FOR UPDATE OF` sinh tên có schema
 - Ranh giới module: §5 `exclude: node_modules` làm dependency-cruiser bỏ sót
 - Thư viện API, web: §8 CLI shadcn 4.21 · §10 Zod 4 bỏ qua `refine` khi trường khác lỗi · §13 multer đọc tên file theo latin1
@@ -324,3 +325,17 @@ See [US-2.3](sprints/stories/US-2.3-jd-analyzer-hr-requirement-confirmation.md) 
 - Máy dev ít RAM thì thêm `--runInBand` và tắt compose trước (§15).
 
 See [US-2.4](sprints/stories/US-2.4-cv-parser-hidden-text-pii-split.md) › Implementation notes.
+
+## 22. Các file integration dùng chung một database: thông báo gửi cho mọi tài khoản CENTER lọt vào test của file khác
+
+**What happened (0.10.0)**: `pnpm test` thỉnh thoảng đỏ ở `email-outbox.int-spec.ts`, test "two workers never send the same email twice": `emailStatus` của 12 người nhận không phải toàn `SENT`. Assertion ngay trước đó (mỗi người nhận đúng một email) vẫn xanh. Chạy riêng file thì xanh.
+
+**Why**: Mọi file integration dùng chung một PostgreSQL, và Jest chạy tối đa 4 file một lúc. Từ US-2.3 và US-2.4, `JD_REQUIREMENTS_VERSIONED` và `CV_NEEDS_ATTENTION` được gửi qua kênh `IN_APP` cho mọi tài khoản CENTER đang hoạt động. Khi `jd-requirements.int-spec.ts` hoặc `cv-parse-result.int-spec.ts` chạy cùng lúc, user CENTER mà file khác vừa tạo nhận thêm dòng có `emailStatus = null`. Test đếm mọi dòng của user đó vì thế bị lệch.
+
+**How to avoid**:
+- Test đọc thông báo của user CENTER thì chỉ lấy loại mà test tự tạo: `notificationsOfType(db, type, ...userIds)` trong `apps/api/test/helpers/notifications.ts`.
+- Tổng quát: đừng giả định dữ liệu của user test chỉ do file mình tạo ra. Thao tác gửi cho "mọi tài khoản có vai trò X" chạm cả vào user của file khác. Assertion phải giới hạn theo ID, loại hoặc `dedupeKey` của chính test.
+- Khi thêm thông báo gửi cho cả một vai trò, grep các test tạo user vai trò đó (`createLoginUser('CENTER')`) và đọc bảng `notifications`.
+- Lỗi chỉ hiện khi các file chạy cùng lúc, nên chạy riêng một file mà xanh chưa chứng minh đã sửa xong.
+
+See [US-1.7](sprints/stories/US-1.7-notifications-sse-email-reminders.md) (các test bị ảnh hưởng), [US-2.3](sprints/stories/US-2.3-jd-analyzer-hr-requirement-confirmation.md), [US-2.4](sprints/stories/US-2.4-cv-parser-hidden-text-pii-split.md) (nơi thêm thông báo gửi cả vai trò).

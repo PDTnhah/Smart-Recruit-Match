@@ -4,6 +4,7 @@
 // Only this file runs the worker. Its clock is fake and set in 1999, and the worker takes only
 // emails due by its clock, so it never touches emails other test files create (real time, or 2001
 // in the reminder test). Do not run the worker elsewhere with the real clock: it would take these.
+// Other files notify every active CENTER account in-app meanwhile, so rows are read by type.
 import type { TestingModuleBuilder } from '@nestjs/testing';
 import { eq } from 'drizzle-orm';
 import { Clock } from '../../src/common/clock/index.js';
@@ -17,7 +18,7 @@ import { api, type AuthTestApp, createAuthTestApp } from '../helpers/auth.js';
 import { createCompany, uniqueValue } from '../helpers/factories.js';
 import { FakeClock } from '../helpers/fake-clock.js';
 import { FakeMailTransport } from '../helpers/mail.js';
-import { notificationsOf, waitFor } from '../helpers/notifications.js';
+import { notificationsOf, notificationsOfType, waitFor } from '../helpers/notifications.js';
 import { runConcurrently } from '../helpers/state.js';
 
 const START = '1999-06-01T00:00:00.000Z';
@@ -86,7 +87,7 @@ describe('FR-8: email outbox (US-1.7 AC-4)', () => {
     // HTML escapes what users typed; the subject and plain text do not need to.
     expect(message?.html).toContain('Đợt HK1 &amp; HK2');
 
-    const [row] = await notificationsOf(instance1.db, user.id);
+    const [row] = await notificationsOfType(instance1.db, 'DEADLINE_REMINDER', user.id);
     expect(row).toMatchObject({ emailStatus: 'SENT', emailAttempts: 1, emailNextAttemptAt: null, emailLastError: null });
     expect(row?.emailSentAt?.toISOString()).toBe(START);
 
@@ -115,30 +116,30 @@ describe('FR-8: email outbox (US-1.7 AC-4)', () => {
     mail1.failure = new Error('connect ECONNREFUSED 127.0.0.1:1025');
 
     await worker1.runOnce();
-    let [row] = await notificationsOf(instance1.db, user.id);
+    let [row] = await notificationsOfType(instance1.db, 'CAMPAIGN_OPENED', user.id);
     expect(row).toMatchObject({ emailStatus: 'PENDING', emailAttempts: 1, emailLastError: 'connect ECONNREFUSED 127.0.0.1:1025' });
     expect(row?.emailNextAttemptAt?.toISOString()).toBe('1999-06-01T00:01:00.000Z');
 
     // Not due yet: nothing happens before the retry time.
     await worker1.runOnce();
-    expect((await notificationsOf(instance1.db, user.id))[0]?.emailAttempts).toBe(1);
+    expect((await notificationsOfType(instance1.db, 'CAMPAIGN_OPENED', user.id))[0]?.emailAttempts).toBe(1);
 
     clock.advance({ minutes: 1 });
     await worker1.runOnce();
-    [row] = await notificationsOf(instance1.db, user.id);
+    [row] = await notificationsOfType(instance1.db, 'CAMPAIGN_OPENED', user.id);
     expect(row).toMatchObject({ emailStatus: 'PENDING', emailAttempts: 2 });
     expect(row?.emailNextAttemptAt?.toISOString()).toBe('1999-06-01T00:06:00.000Z');
 
     clock.advance({ minutes: 5 });
     await worker1.runOnce();
-    [row] = await notificationsOf(instance1.db, user.id);
+    [row] = await notificationsOfType(instance1.db, 'CAMPAIGN_OPENED', user.id);
     expect(row).toMatchObject({ emailStatus: 'FAILED', emailAttempts: 3, emailNextAttemptAt: null, emailSentAt: null });
 
     clock.advance({ hours: 1 });
     mail1.failure = null;
     await worker1.runOnce();
     expect(mail1.to(user.email)).toEqual([]);
-    expect((await notificationsOf(instance1.db, user.id))[0]?.emailStatus).toBe('FAILED');
+    expect((await notificationsOfType(instance1.db, 'CAMPAIGN_OPENED', user.id))[0]?.emailStatus).toBe('FAILED');
 
     // The business row and the in-app notification are untouched.
     expect(await instance1.db.select().from(companies).where(eq(companies.name, companyName))).toHaveLength(1);
@@ -152,7 +153,7 @@ describe('FR-8: email outbox (US-1.7 AC-4)', () => {
 
     await worker1.runOnce();
     expect(mail1.to(user.email)).toEqual([]);
-    expect((await notificationsOf(instance1.db, user.id))[0]).toMatchObject({ emailStatus: 'CANCELLED' });
+    expect((await notificationsOfType(instance1.db, 'DEADLINE_REMINDER', user.id))[0]).toMatchObject({ emailStatus: 'CANCELLED' });
   });
 
   it('FR-8: a retried reminder is cancelled once its deadline has passed', async () => {
@@ -160,14 +161,14 @@ describe('FR-8: email outbox (US-1.7 AC-4)', () => {
     await remind([user.id]);
     mail1.failure = new Error('SMTP down');
     await worker1.runOnce();
-    expect((await notificationsOf(instance1.db, user.id))[0]).toMatchObject({ emailStatus: 'PENDING', emailAttempts: 1 });
+    expect((await notificationsOfType(instance1.db, 'DEADLINE_REMINDER', user.id))[0]).toMatchObject({ emailStatus: 'PENDING', emailAttempts: 1 });
 
     // The reminder is for 1999-06-02 10:00; the retry comes after it.
     clock.set('1999-06-02T10:00:00.000Z');
     mail1.failure = null;
     await worker1.runOnce();
     expect(mail1.to(user.email)).toEqual([]);
-    expect((await notificationsOf(instance1.db, user.id))[0]).toMatchObject({
+    expect((await notificationsOfType(instance1.db, 'DEADLINE_REMINDER', user.id))[0]).toMatchObject({
       emailStatus: 'CANCELLED',
       emailLastError: 'out of date: the deadline has passed',
     });
@@ -220,7 +221,7 @@ describe('FR-8: email outbox (US-1.7 AC-4)', () => {
     for (const user of recipients) {
       expect(mail1.to(user.email).length + mail2.to(user.email).length).toBe(1);
     }
-    const rows = await notificationsOf(instance1.db, ...recipients.map((user) => user.id));
+    const rows = await notificationsOfType(instance1.db, 'DEADLINE_REMINDER', ...recipients.map((user) => user.id));
     expect(rows.map((row) => row.emailStatus)).toEqual(recipients.map(() => 'SENT'));
     // Both instances took part.
     expect(recipients.some((user) => mail1.to(user.email).length === 1)).toBe(true);
