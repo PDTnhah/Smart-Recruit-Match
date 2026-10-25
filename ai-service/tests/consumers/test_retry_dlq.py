@@ -4,6 +4,7 @@ import json
 from uuid import UUID, uuid4
 
 import pytest
+from cv_output import fake_cv_output
 
 from app.consumers.base import JobRunner, Settle
 from app.consumers.errors import PermanentError, RetryableError, flag_hidden_text
@@ -13,7 +14,7 @@ from app.contracts.cv_parse_output import CvParseOutput
 
 pytestmark = pytest.mark.anyio
 
-OUTPUT = CvParseOutput(prompt_version="fake/v0", model="fake")
+OUTPUT = fake_cv_output()
 
 
 def cv_job(**overrides: object) -> dict[str, object]:
@@ -104,7 +105,7 @@ async def test_nfr10_succeeds_on_retry_no_dlq(store, outbox, sleep) -> None:
     [result] = outbox.results
     assert_envelope(result, job)
     assert result["status"] == "SUCCEEDED"
-    assert result["result"] == {"prompt_version": "fake/v0", "model": "fake"}
+    assert result["result"] == OUTPUT.model_dump(mode="json")
     assert outbox.dead_letters == []
 
 

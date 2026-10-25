@@ -1,7 +1,7 @@
 // Minimal valid rows for the core tables. Test files share one database and run in parallel,
 // so every unique column gets a fresh value.
 import type { Database } from '../../src/db/types.js';
-import type { Role } from '@srm/shared';
+import type { CvProfile, CvStatus, Role } from '@srm/shared';
 import { campaigns, companies, cvs, jobDescriptions, students, users } from '../../src/db/schema/index.js';
 
 let sequence = 0;
@@ -55,6 +55,35 @@ export async function createJobDescription(
   return row!;
 }
 
+/** A small profile in the shape of CvProfile (US-2.4); no personal data. */
+export const SAMPLE_CV_PROFILE: CvProfile = {
+  summary: null,
+  education: [],
+  skills: [{ name: 'SQL' }],
+  projects: [],
+  experience: [],
+  languages: [],
+  certificates: [],
+};
+
+/**
+ * What the cvs CHECKs require of a CV in `status` (US-2.4): an analysed CV has its profile, pii
+ * (placeholder bytes here, not pgcrypto output), model and source; a failed one has its code.
+ */
+function analysisFor(status: CvStatus | undefined): Partial<typeof cvs.$inferInsert> {
+  if (status === 'PENDING_CONFIRMATION' || status === 'CONFIRMED') {
+    return {
+      profile: SAMPLE_CV_PROFILE,
+      profileMasked: SAMPLE_CV_PROFILE,
+      pii: Buffer.from('test-pii'),
+      analysisSource: 'TEXT_PDF',
+      analysisModel: 'fixture',
+      analysisPromptVersion: 'cv_parser/v1',
+    };
+  }
+  return status === 'ANALYSIS_FAILED' ? { analysisErrorCode: 'TEST_FAILURE' } : {};
+}
+
 export async function createCv(db: Database, values: Partial<typeof cvs.$inferInsert> = {}) {
   const [studentId, campaignId] = await Promise.all([
     values.studentId ?? createStudent(db).then((row) => row.id),
@@ -62,7 +91,14 @@ export async function createCv(db: Database, values: Partial<typeof cvs.$inferIn
   ]);
   const [row] = await db
     .insert(cvs)
-    .values({ fileKey: uniqueValue('cv-files/cv'), fileName: 'cv.pdf', ...values, studentId, campaignId })
+    .values({
+      fileKey: uniqueValue('cv-files/cv'),
+      fileName: 'cv.pdf',
+      ...analysisFor(values.status),
+      ...values,
+      studentId,
+      campaignId,
+    })
     .returning();
   return row!;
 }

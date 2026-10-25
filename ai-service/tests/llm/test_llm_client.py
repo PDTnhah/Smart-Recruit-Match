@@ -2,6 +2,7 @@
 
 import inspect
 import re
+from dataclasses import replace
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
@@ -19,11 +20,12 @@ from pydantic import BaseModel, model_validator
 from app.consumers.errors import NeedsHumanReview, PermanentError, RetryableError
 from app.llm.client import LLMClient
 from app.llm.effort import EFFORT_BY_AGENT
-from app.llm.providers.fixture_provider import FixtureMissingError, FixtureProvider
+from app.llm.providers.fixture_provider import FixtureMissingError, FixtureProvider, fixture_key
 from app.llm.recorder import CallRecorder
 from app.llm.render import dumps_sorted, wrap_untrusted
+from app.llm.schema import strict_json_schema
 from app.llm.structured import MAX_ATTEMPTS, StructuredLLMClient
-from app.llm.types import Outcome, StopReason, Usage
+from app.llm.types import Document, LLMRequest, Outcome, StopReason, Usage
 from app.llm.usage import DEFAULT_PRICES
 
 pytestmark = pytest.mark.anyio
@@ -355,3 +357,56 @@ async def test_max_output_tokens_must_be_positive(make_client, prompts):
     with pytest.raises(ValueError, match="max_output_tokens"):
         await generate(make_client(provider), prompts, "hi", max_output_tokens=0)
     assert provider.sent == []
+
+
+# --- US-2.4 AC-4: documents ---------------------------------------------------------------------
+
+SCAN = Document("application/pdf", b"%PDF-1.7 a scanned CV")
+
+
+async def test_gd2_documents_reach_the_provider_and_the_log_keeps_only_their_hash(
+    make_client, prompts, objects
+):
+    provider = ScriptedProvider(reply())
+    sent_documents: list[object] = []
+    send = provider.send
+
+    async def recording_send(params, documents=()):
+        sent_documents.append(tuple(documents))
+        return await send(params, documents)
+
+    provider.send = recording_send
+    provider.build_params = lambda request: {"user": request.user, "documents": request.documents}
+    await generate(make_client(provider), prompts, "hi", documents=[SCAN])
+
+    assert sent_documents == [(SCAN,)]
+    [log] = objects.files.values()
+    assert log["request"]["documents"] == (SCAN.ref,)
+    assert SCAN.data not in repr(log).encode()
+
+
+async def test_gd2_fixture_key_ignores_documents_when_there_are_none(prompts):
+    """Fixtures recorded before documents existed keep their key."""
+    provider = FixtureProvider(LLM_FIXTURES)
+    prompt = echo_prompt(prompts, "hi")
+    request = LLMRequest(
+        agent=prompt.agent,
+        prompt_version=prompt.prompt_version,
+        system=prompt.system,
+        user=prompt.user,
+        output_schema=strict_json_schema(EchoOutput),
+        effort="low",
+        max_output_tokens=4000,
+    )
+    plain = provider.build_params(request)
+    with_document = provider.build_params(replace(request, documents=(SCAN.ref,)))
+    assert "documents" not in plain
+    assert fixture_key(plain) != fixture_key(with_document)
+    assert with_document["documents"] == [SCAN.ref.as_json()]
+
+
+async def test_gd2_fixture_provider_refuses_documents_other_than_the_request_names(prompts):
+    provider = FixtureProvider(LLM_FIXTURES)
+    params = {"agent": "echo", "documents": [SCAN.ref.as_json()]}
+    with pytest.raises(ValueError, match="do not match"):
+        await provider.send(params, [])

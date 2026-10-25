@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./cv_extraction.json",
+  "type": "object",
+  "properties": {
+    "personal": {
+      "$ref": "./cv_pii.json"
+    },
+    "profile": {
+      "$ref": "./cv_profile.json"
+    }
+  },
+  "required": [
+    "personal",
+    "profile"
+  ],
+  "additionalProperties": false,
+  "title": "CvExtraction",
+  "description": "Structured output of the CV Parser"
+}

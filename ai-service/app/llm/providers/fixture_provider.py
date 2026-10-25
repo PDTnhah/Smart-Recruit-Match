@@ -1,23 +1,27 @@
 """Recorded replies instead of a real provider, for tests and development (AC-11).
 
 A fixture file `<fixtures_dir>/<agent>/<key>.json` answers one request. The key hashes the agent,
-prompt version, system, user, output schema and effort, so any change to the prompt or the data
-needs a new fixture. A file holds a list of replies, served in order to the attempts of one
-`generate` call, so a test can script "invalid twice, then valid"; the next call starts again from
-the first reply. A missing fixture raises FixtureMissingError: there is no fallback to a real API.
+prompt version, system, user, output schema and effort, and the hashes of attached documents when
+there are any (so fixtures recorded before documents existed keep their key). Any change to the
+prompt or the data needs a new fixture. A file holds a list of replies, served in order to the
+attempts of one `generate` call, so a test can script "invalid twice, then valid"; the next call
+starts again from the first reply. A missing fixture raises FixtureMissingError: there is no
+fallback to a real API.
 """
 
 import hashlib
 import json
 from collections import Counter
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
 from app.consumers.errors import PermanentError
 from app.llm.render import dumps_sorted
-from app.llm.types import LLMRequest, Provider, ProviderResponse
+from app.llm.types import Document, LLMRequest, Provider, ProviderResponse
 
-KEY_FIELDS = ("agent", "prompt_version", "system", "user", "output_schema", "effort")
+KEY_FIELDS = ("agent", "prompt_version", "system", "user", "output_schema", "effort", "documents")
+"""`documents` counts only when the request has some."""
 KEY_LENGTH = 16
 
 
@@ -33,7 +37,7 @@ class FixtureMissingError(PermanentError):
 
 
 def fixture_key(params: dict[str, Any]) -> str:
-    key_source = {field: params[field] for field in KEY_FIELDS}
+    key_source = {field: params[field] for field in KEY_FIELDS if field in params}
     return hashlib.sha256(dumps_sorted(key_source).encode()).hexdigest()[:KEY_LENGTH]
 
 
@@ -55,6 +59,8 @@ class FixtureProvider:
             "effort": request.effort,
             "max_output_tokens": request.max_output_tokens,
         }
+        if request.documents:
+            params["documents"] = [ref.as_json() for ref in request.documents]
         # LLMClient builds the parameters once per generate call: restart the reply sequence.
         self._served[str(self.path_for(params))] = 0
         return params
@@ -62,10 +68,17 @@ class FixtureProvider:
     def path_for(self, params: dict[str, Any]) -> Path:
         return self._dir / params["agent"] / f"{fixture_key(params)}.json"
 
-    async def send(self, params: dict[str, Any]) -> ProviderResponse:
+    async def send(
+        self, params: dict[str, Any], documents: Sequence[Document] = ()
+    ) -> ProviderResponse:
+        expected = sorted(ref["sha256"] for ref in params.get("documents", []))
+        given = sorted(document.ref.sha256 for document in documents)
+        if given != expected:
+            # A real provider would read other files than the request names, or none at all.
+            raise ValueError(f"documents {given} do not match the request's {expected}")
         path = self.path_for(params)
         if not path.is_file():
-            request = {field: params[field] for field in KEY_FIELDS}
+            request = {field: params[field] for field in KEY_FIELDS if field in params}
             raise FixtureMissingError(
                 f'no LLM fixture at {path}; record {{"request": ..., "responses": [...]}} '
                 f"for this request:\n{json.dumps(request, ensure_ascii=False, indent=2)}"

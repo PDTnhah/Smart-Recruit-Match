@@ -1,23 +1,18 @@
 // End-to-end helpers for AI jobs (US-2.1, CONTEXT D33): a RabbitMQ vhost per test file, the AI
-// Service worker in a container, and a reference listener of `ai.result.CV_PARSE` that later
-// stories (US-2.3, US-2.4) copy for their real listeners and test with `deliverTwice`.
+// Service worker in a container, and CV_PARSE result messages for the listener of US-2.4.
+import { randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import type { AmqpConnection } from '@golevelup/nestjs-rabbitmq';
-import { Inject, Injectable, Module } from '@nestjs/common';
-import { OnEvent } from '@nestjs/event-emitter';
-import { AI_RESULTS_QUEUE } from '@srm/shared';
-import { eq } from 'drizzle-orm';
+import { AI_RESULTS_QUEUE, type CvParseOutput, type CvPii, type CvProfile } from '@srm/shared';
 import { GenericContainer, type StartedTestContainer, Wait } from 'testcontainers';
-import { StateModule, StateTransitionService } from '../../src/common/state/index.js';
-import { cvLifecycle } from '../../src/db/lifecycles.js';
-import { cvs } from '../../src/db/schema/index.js';
-import { DRIZZLE } from '../../src/db/tokens.js';
-import type { Database } from '../../src/db/types.js';
-import { AI_RESULT_EVENTS, type AiResultEvent } from '../../src/modules/aigateway/index.js';
-import { SYSTEM_ACTOR } from '../../src/modules/audit/index.js';
+import { BUCKETS, StorageService } from '../../src/common/storage/index.js';
+import type { AiResultEvent } from '../../src/modules/aigateway/index.js';
 import { aiDatabaseUrl } from './db.js';
 
 const AI_SERVICE_DIR = path.resolve(__dirname, '../../../../ai-service');
+/** Sample CVs and recorded LLM replies of the AI Service tests (US-2.4). */
+const AI_FIXTURES_DIR = path.join(AI_SERVICE_DIR, 'tests/fixtures');
 
 function requiredEnv(name: string): string {
   const value = process.env[name];
@@ -67,7 +62,9 @@ export async function createVhost(name: string): Promise<RabbitVhost> {
 
 /**
  * Builds ai-service/Dockerfile and runs the FastStream worker on the test network, connected as
- * the ai_service role (the same image and command as compose's ai-worker).
+ * the ai_service role (the same image and command as compose's ai-worker). The recorded LLM replies
+ * of ai-service/tests/fixtures/llm are copied in, so the sample CVs parse without a real API, and
+ * `__fake__/` file keys fail on purpose for the retry and DLQ tests (CONTEXT D37).
  */
 export async function startAiWorker(vhost: RabbitVhost): Promise<StartedTestContainer> {
   // Kept after the run: the dependency layer is then reused, so only a changed app/ rebuilds.
@@ -84,13 +81,15 @@ export async function startAiWorker(vhost: RabbitVhost): Promise<StartedTestCont
       RABBITMQ_URL: vhost.networkUrl,
       LOG_LEVEL: 'info',
       // The worker builds its LLMClient at startup (US-2.3). Recorded replies only, never a real
-      // API; the directory is empty in the image, so a JD job here would fail with a missing fixture.
+      // API: a request without a recorded reply fails with LLM_FIXTURE_MISSING.
       LLM_PROVIDER: 'fixture',
       LLM_FIXTURES_DIR: '/tmp/llm-fixtures',
+      AI_FAKE_FILE_KEYS: 'true',
       MINIO_ENDPOINT: 'http://minio:9000',
       MINIO_ACCESS_KEY: requiredEnv('MINIO_ACCESS_KEY'),
       MINIO_SECRET_KEY: requiredEnv('MINIO_SECRET_KEY'),
     })
+    .withCopyDirectoriesToContainer([{ source: path.join(AI_FIXTURES_DIR, 'llm'), target: '/tmp/llm-fixtures' }])
     .withCommand(['faststream', 'run', 'app.worker:create_app', '--factory'])
     .withWaitStrategy(Wait.forLogMessage(/ai-worker ready/))
     .withStartupTimeout(120_000)
@@ -110,36 +109,111 @@ export async function queueDepth(amqp: AmqpConnection, queue: string): Promise<n
   return (await amqp.channel.checkQueue(queue)).messageCount;
 }
 
-/**
- * Reference listener, written to the convention in aigateway/domain/events.ts (CONTEXT D33). It
- * only moves the CV to PENDING_CONFIRMATION; US-2.4 also stores the profile. A result already
- * applied or for a replaced version returns quietly; a concurrent duplicate loses the row lock
- * race, throws, is requeued once and then returns quietly.
- */
-@Injectable()
-export class ReferenceCvResultListener {
-  constructor(
-    @Inject(DRIZZLE) private readonly db: Database,
-    private readonly transitions: StateTransitionService,
-  ) {}
-
-  @OnEvent(AI_RESULT_EVENTS.CV_PARSE, { suppressErrors: false })
-  async apply(result: AiResultEvent<'CV_PARSE'>): Promise<void> {
-    if (result.status === 'FAILED') return;
-    const [cv] = await this.db
-      .select({ status: cvs.status, version: cvs.version })
-      .from(cvs)
-      .where(eq(cvs.id, result.job.cv_id));
-    if (!cv || cv.version !== result.job.cv_version || cv.status !== 'PENDING_ANALYSIS') return;
-    await this.transitions.transitionTo({
-      lifecycle: cvLifecycle,
-      id: result.job.cv_id,
-      to: 'PENDING_CONFIRMATION',
-      actor: SYSTEM_ACTOR,
-      reason: `AI job ${result.job_id}`,
-    });
-  }
+/** Uploads a sample CV of the AI Service tests to `cv-files`, as `POST /api/cvs` would. */
+export async function uploadSampleCv(storage: StorageService, studentId: number, campaignId: number): Promise<string> {
+  const key = `cv/${studentId}/${campaignId}/${randomUUID()}.pdf`;
+  await storage.put(BUCKETS.CV_FILES, key, readFileSync(path.join(AI_FIXTURES_DIR, 'cv/cv.pdf')), 'application/pdf');
+  return key;
 }
 
-@Module({ imports: [StateModule], providers: [ReferenceCvResultListener] })
-export class ReferenceCvResultListenerModule {}
+/** A small profile in the shape of CvProfile, with no personal value. */
+export const PARSED_PROFILE: CvProfile = {
+  summary: 'Thực tập sinh Backend, quan tâm REST API.',
+  education: [
+    { institution: 'Trường Đại học Demo', degree: 'Kỹ sư', major: 'Công nghệ thông tin', start: '2022', end: null, gpa: '3.2/4' },
+  ],
+  skills: [{ name: 'Java' }, { name: 'Spring Boot' }],
+  projects: [
+    {
+      name: 'Library API',
+      role: 'Backend',
+      description: 'REST API bằng Spring Boot, liên hệ [EMAIL].',
+      technologies: ['Java'],
+      start: '2024',
+      end: '2024',
+    },
+  ],
+  experience: [],
+  languages: [{ language: 'Tiếng Anh', level: 'TOEIC 650' }],
+  certificates: [],
+};
+
+/** Personal data of a synthetic student; every value is checked to stay out of audit_logs. */
+export const PARSED_PII: CvPii = {
+  full_name: 'Trần Thị Kiểm Thử',
+  emails: ['kiem.thu.demo@example.com'],
+  phones: ['0912 000 111'],
+  links: ['https://github.com/kiemthudemo'],
+  address: 'Số 9 Đường Kiểm Thử, Hà Nội',
+  date_of_birth: '01/02/2004',
+  gender: 'FEMALE',
+  hometown: 'Nam Định',
+  religion: null,
+  marital_status: 'SINGLE',
+  has_photo: true,
+};
+
+/** The text values of PARSED_PII, to search for in stored rows. */
+export const PARSED_PII_VALUES = [
+  'Trần Thị Kiểm Thử',
+  'kiem.thu.demo@example.com',
+  '0912 000 111',
+  'kiemthudemo',
+  'Số 9 Đường Kiểm Thử',
+  '01/02/2004',
+];
+
+/** A valid CV_PARSE output for a CV version (US-2.4 AC-8). */
+export function cvParseOutput(cv: { id: number; version: number }, overrides: Partial<CvParseOutput> = {}): CvParseOutput {
+  return {
+    prompt_version: 'cv_parser/v1',
+    model: 'gemini-3.8-flash',
+    cv_id: cv.id,
+    cv_version: cv.version,
+    source: 'TEXT_PDF',
+    profile: PARSED_PROFILE,
+    pii: PARSED_PII,
+    profile_masked: PARSED_PROFILE,
+    masked_text: '[NAME]\nEmail: [EMAIL]\nJava, Spring Boot',
+    hidden_text_detected: false,
+    ...overrides,
+  };
+}
+
+interface CvRef {
+  id: number;
+  version: number;
+  fileKey: string;
+}
+
+/** A SUCCEEDED `ai.results` message for a CV version, as aigateway hands it to `ai.result.CV_PARSE`. */
+export function cvParseSucceeded(
+  cv: CvRef,
+  overrides: Partial<CvParseOutput> = {},
+  jobId: string = randomUUID(),
+): AiResultEvent<'CV_PARSE'> {
+  return {
+    job_id: jobId,
+    type: 'CV_PARSE',
+    status: 'SUCCEEDED',
+    job: { job_id: jobId, cv_id: cv.id, cv_version: cv.version, file_key: cv.fileKey },
+    result: cvParseOutput(cv, overrides),
+    error: null,
+  };
+}
+
+/** A FAILED `ai.results` message for a CV version. */
+export function cvParseFailed(
+  cv: CvRef,
+  error: { code: string; hidden_text_detected?: boolean | null } = { code: 'LLM_REFUSED' },
+  jobId: string = randomUUID(),
+): AiResultEvent<'CV_PARSE'> {
+  return {
+    job_id: jobId,
+    type: 'CV_PARSE',
+    status: 'FAILED',
+    job: { job_id: jobId, cv_id: cv.id, cv_version: cv.version, file_key: cv.fileKey },
+    result: null,
+    error: { message: `${error.code} (test)`, needs_human: true, ...error },
+  };
+}

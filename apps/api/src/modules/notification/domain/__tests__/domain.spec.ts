@@ -72,3 +72,22 @@ describe('FR-8: dedupe keys', () => {
     expect(DEDUPE_KEYS.deadline(7, 'intake_end', at('2026-11-02T17:00:00+07:00'))).toBe(first);
   });
 });
+
+describe('GĐ2: CV analysis notices (US-2.4, CONTEXT D37)', () => {
+  const payload = { cvId: 5, campaignId: 1, campaignName: 'Đợt' };
+
+  it('GĐ2: a failed analysis is still worth an email; the other CV notices are never emailed', () => {
+    const later = at('2030-01-01T00:00:00.000Z');
+    expect(emailStillRelevant({ type: 'CV_ANALYSIS_FAILED', payload }, later)).toBe(true);
+    expect(emailStillRelevant({ type: 'CV_PROFILE_READY', payload }, later)).toBe(false);
+    expect(emailStillRelevant({ type: 'CV_NEEDS_ATTENTION', payload: { ...payload, reason: 'HIDDEN_TEXT' } }, later)).toBe(
+      false,
+    );
+  });
+
+  it('GĐ2: one key per CV, outcome and job; a job never sent has a key too', () => {
+    expect(DEDUPE_KEYS.cvAnalysis('ready', 5, 'job-1')).toBe('cv_analysis_ready:5:job-1');
+    expect(DEDUPE_KEYS.cvAnalysis('failed', 5, null)).toBe('cv_analysis_failed:5:not-dispatched');
+    expect(DEDUPE_KEYS.cvAnalysis('failed', 5, 'job-2')).not.toBe(DEDUPE_KEYS.cvAnalysis('failed', 5, 'job-1'));
+  });
+});

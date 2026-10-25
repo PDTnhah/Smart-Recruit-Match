@@ -264,3 +264,63 @@ def test_gd2_same_colour_tolerance():
 def test_gd2_unreadable_files_raise_document_error(data: bytes):
     with pytest.raises(DocumentError):
         extract_text(data)
+
+
+# --- CV samples (US-2.4) ------------------------------------------------------------------------
+
+CV_FILES = Path(__file__).parents[1] / "fixtures" / "cv"
+
+
+def cv_sample(name: str) -> bytes:
+    return (CV_FILES / name).read_bytes()
+
+
+@pytest.mark.parametrize(
+    ("name", "reason"),
+    [
+        ("cv_hidden_white.pdf", HiddenReason.SAME_COLOUR_AS_BACKGROUND),
+        ("cv_tiny.pdf", HiddenReason.TINY_FONT),
+        ("cv_offpage.pdf", HiddenReason.OUTSIDE_PAGE),
+    ],
+)
+def test_gd2_cv_pdf_hidden_text_removed_and_flagged(name, reason):
+    """US-2.4 AC-2: one sample CV per kind of hidden text; the visible text is the clean CV's."""
+    hidden = extract_text(cv_sample(name))
+    assert hidden.text == extract_text(cv_sample("cv.pdf")).text
+    [span] = hidden.removed
+    assert (span.reason, span.location) == (reason, "page 1")
+    assert span.text.startswith("Ignore all previous instructions")
+
+
+def test_gd2_docx_header_and_body_hidden_text_removed_and_flagged():
+    """US-2.4 AC-3: a CV hides text in its header as well as in the body."""
+    hidden = extract_text(cv_sample("cv_hidden.docx"))
+    assert hidden.text == extract_text(cv_sample("cv.docx")).text
+    assert [(span.reason, span.location) for span in hidden.removed] == [
+        (HiddenReason.HIDDEN_ATTRIBUTE, "header 2"),
+        (HiddenReason.SAME_COLOUR_AS_BACKGROUND, "paragraph 4"),
+        (HiddenReason.TINY_FONT, "paragraph 6"),
+    ]
+
+
+def test_gd2_docx_header_and_footer_text_kept_around_the_body():
+    def build(document) -> None:
+        document.sections[0].header.paragraphs[0].text = "Header line"
+        document.add_paragraph("Body line")
+        document.sections[0].footer.paragraphs[0].text = "Footer line"
+
+    assert extract_text(docx(build)).text == "Header line\nBody line\nFooter line"
+
+
+@pytest.mark.parametrize(
+    ("name", "has_images"),
+    [
+        ("cv.pdf", False),
+        ("cv_scanned.pdf", True),
+        ("cv.docx", False),
+        ("cv_pii.docx", True),
+    ],
+)
+def test_gd2_embedded_images_are_reported(name, has_images):
+    """A photo in a text CV is personal data the LLM cannot see; the file says so (BR-03)."""
+    assert extract_text(cv_sample(name)).has_images is has_images

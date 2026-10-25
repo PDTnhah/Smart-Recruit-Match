@@ -4,7 +4,16 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, RootModel
+
+from . import cv_pii, cv_profile, cv_source
+
+
+class MaskedText(RootModel[str]):
+    root: Annotated[str, Field(min_length=1)]
+    """
+    Visible CV text with personal data replaced; null for a scanned PDF
+    """
 
 
 class CvParseOutput(BaseModel):
@@ -22,4 +31,24 @@ class CvParseOutput(BaseModel):
     model: Annotated[str, Field(min_length=1)]
     """
     Model id that produced the output
+    """
+    cv_id: Annotated[int, Field(gt=0, le=9007199254740991)]
+    """
+    core.cvs.id of the parsed CV version
+    """
+    cv_version: Annotated[int, Field(gt=0, le=9007199254740991)]
+    """
+    CV version that was parsed
+    """
+    source: cv_source.CvSource
+    profile: cv_profile.CvProfile
+    pii: cv_pii.CvPii
+    profile_masked: cv_profile.CvProfile
+    masked_text: MaskedText | None
+    """
+    Visible CV text with personal data replaced; null for a scanned PDF
+    """
+    hidden_text_detected: bool
+    """
+    The CV file contained hidden text, removed before the prompt
     """

@@ -1,5 +1,5 @@
 import { AcceptConsentRequestSchema } from '../consent.js';
-import { CvListQuerySchema, SubmitCvFieldsSchema } from '../cv.js';
+import { CenterCvListQuerySchema, CvListQuerySchema, SubmitCvFieldsSchema } from '../cv.js';
 
 describe('GĐ2: CV submission fields (FR-6)', () => {
   it('GĐ2: campaignId arrives as a multipart text field and becomes a number', () => {
@@ -37,4 +37,23 @@ describe('NFR-2: consent request', () => {
   ])('NFR-2: %p is rejected', (body) => {
     expect(AcceptConsentRequestSchema.safeParse(body).success).toBe(false);
   });
+});
+
+describe('GĐ2: center CV list query (US-2.4 AC-11)', () => {
+  it('GĐ2: filters by campaign and attention, pages with defaults', () => {
+    expect(CenterCvListQuerySchema.parse({})).toEqual({ limit: 100, offset: 0 });
+    expect(CenterCvListQuerySchema.parse({ campaignId: '3', attention: 'true', limit: '20', offset: '40' })).toEqual({
+      campaignId: 3,
+      attention: 'true',
+      limit: 20,
+      offset: 40,
+    });
+  });
+
+  it.each([{ attention: 'yes' }, { attention: '1' }, { limit: '0' }, { limit: '501' }, { offset: '-1' }])(
+    'GĐ2: %p is rejected',
+    (query) => {
+      expect(CenterCvListQuerySchema.safeParse(query).success).toBe(false);
+    },
+  );
 });

@@ -2,6 +2,8 @@
 
 /** @type {import('jest').Config} */
 module.exports = {
+  // Not one worker per CPU thread: `pnpm test` runs this next to the API suite (LESSONS §15).
+  maxWorkers: '50%',
   testEnvironment: 'node',
   transform: {
     '^.+\\.ts$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.json' }],

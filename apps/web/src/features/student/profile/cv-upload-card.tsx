@@ -45,7 +45,7 @@ export function CvUploadCard({ campaign, hasCv }: { campaign: Campaign; hasCv: b
       await submit.mutateAsync({ campaignId: campaign.id, file, onProgress: setProgress });
       setFile(null);
       setInputKey((key) => key + 1);
-      toast.success('Đã nộp CV. CV đang chờ phân tích.');
+      toast.success('Đã nộp CV. Đang phân tích CV…');
     } catch (caught) {
       setError(submitErrorMessage(caught));
     }

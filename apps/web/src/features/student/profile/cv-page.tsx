@@ -1,4 +1,5 @@
-import type { Campaign } from '@srm/shared';
+import { type Campaign, CvAnalysisEventSchema, SERVER_EVENTS } from '@srm/shared';
+import { useQueryClient } from '@tanstack/react-query';
 import { CalendarClock, CircleAlert, FileText } from 'lucide-react';
 import { useState } from 'react';
 import { useSearchParams } from 'react-router';
@@ -12,7 +13,9 @@ import { useCampaigns } from '@/features/center/campaigns/api';
 import { CAMPAIGN_STATUS_BADGE, CAMPAIGN_STATUS_LABELS } from '@/features/center/campaigns/labels';
 import { formatDateTime } from '@/lib/format';
 import { apiErrorMessage } from '@/shared/api/errors';
-import { useConsents, useMyCvs } from './api';
+import { useServerEvent } from '@/shared/notifications/server-events';
+import { profileKeys, useConsents, useMyCvs } from './api';
+import { CvAnalysisAlert } from './cv-analysis-alert';
 import { CvHistory } from './cv-history';
 import { CvUploadCard } from './cv-upload-card';
 import { hasCurrentConsent, takesCvs } from './intake';
@@ -57,12 +60,17 @@ function CampaignSummary({ campaign }: { campaign: Campaign }) {
 
 /**
  * "Hồ sơ" of the student portal (US-1.6 AC-9): consent to the terms, then CV upload and the
- * version history, per campaign the student takes part in. Mobile first (DESIGN.md §5).
+ * version history, per campaign the student takes part in. Since US-2.4 it also shows where the
+ * analysis of the CV that counts stands, refreshed over SSE. Mobile first (DESIGN.md §5).
  */
 export function CvPage() {
   const campaigns = useCampaigns();
   const consents = useConsents();
   const cvs = useMyCvs();
+  const queryClient = useQueryClient();
+  useServerEvent(SERVER_EVENTS.CV_ANALYSIS, (data) => {
+    if (CvAnalysisEventSchema.safeParse(data).success) void queryClient.invalidateQueries({ queryKey: profileKeys.cvs });
+  });
   // `?campaign=<id>` from the portal home opens that campaign; the Select changes it.
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedId = Number(searchParams.get('campaign')) || null;
@@ -126,6 +134,7 @@ export function CvPage() {
 
   const accepted = consents.data ? hasCurrentConsent(consents.data, selected.id) : false;
   const versions = (cvs.data ?? []).filter((cv) => cv.campaignId === selected.id);
+  const current = versions.find((cv) => cv.active);
   const open = takesCvs(selected, now);
 
   return (
@@ -146,6 +155,7 @@ export function CvPage() {
         </Select>
       )}
       <CampaignSummary campaign={selected} />
+      {current && <CvAnalysisAlert cv={current} canUpload={open && accepted} />}
       {!open ? (
         <Alert>
           <CalendarClock />

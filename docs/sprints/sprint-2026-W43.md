@@ -1,6 +1,6 @@
 ---
 id: sprint-2026-W43
-status: in-progress
+status: closed
 start: 2026-10-19T00:00:00.000Z
 end: 2026-10-25T00:00:00.000Z
 goal: 'Ship US-2.1: job AI đi trọn vòng backend → RabbitMQ → AI Service → ai.results → backend, hợp đồng message Zod → JSON Schema → Pydantic có kiểm tra lệch trong CI, role DB riêng cho AI Service (v0.7.0); LLMClient hai nhà cung cấp và prompt có phiên bản (v0.8.0); đóng các story EPIC-1 đang review'
@@ -51,7 +51,39 @@ Sáu story EPIC-1 chuyển từ W41, W42 ở trạng thái `review`, chờ xác 
 
 ## Retrospective
 
-*Điền khi đóng sprint.*
+Đóng ngày 2026-10-25. Sprint ship ba version: 0.7.0 (US-2.1), 0.8.0 (US-2.2), 0.9.0 (US-2.3), tổng 26 điểm so với 8 điểm kế hoạch ban đầu (US-2.1). US-2.2 kéo sớm từ W44, US-2.3 kéo sớm từ W45. Cả ba còn ở `review`, chờ CI xanh, kiểm tay và chạy thử với key LLM thật.
+
+### What went well
+
+- Làn B đi nhanh: đường ống job AI, `LLMClient` hai nhà cung cấp và agent thật đầu tiên (JD Analyzer) xong trong một tuần, nên US-2.4 bắt đầu được ngay cuối tuần.
+- Mỗi story một lượt sinh migration (`0005`–`0010`), không xung đột số thứ tự.
+- Test trọn vòng chạy worker Python thật trong container; chế độ fixture giữ CI không gọi API thật.
+
+### What didn't
+
+- Việc kiểm tay dồn thêm: chín story ở `review`.
+- `pip install` trong image test chạy lại mỗi lần làm `beforeAll` quá hạn ([LESSONS §18](../LESSONS.md)); chặn mạng trong pytest trên Windows cần cách khác ([LESSONS §19](../LESSONS.md)).
+- US-5.1 (làn B, kế hoạch W42) vẫn chưa bắt đầu; mốc M1 còn thiếu US-5.1 và US-6.4.
+
+### Followups
+
+- Kiểm tay và xác nhận CI cho chín story `review`, ưu tiên đóng EPIC-1.
+- Chạy `ai-service/evals/smoke_llm.py` với `GEMINI_API_KEY` cho US-2.2 và US-2.3.
+- W44: US-2.4 (đang làm), rồi US-5.1, US-6.4 để kịp M1.
+
+## Carry-overs to W44
+
+| US | Lý do | Từ sprint |
+|---|---|---|
+| US-1.1 | `review`: chờ xác nhận CI xanh (AC-4) | W41 |
+| US-1.3 | `review`: chờ kiểm tay AC-4 (web), AC-11, AC-12, AC-13 | W41 |
+| US-1.4 | `review`: chờ kiểm tay AC-9 | W42 |
+| US-1.5 | `review`: chờ kiểm tay AC-10 | W42 |
+| US-1.6 | `review`: chờ kiểm tay AC-9 | W42 |
+| US-1.7 | `review`: chờ kiểm tay AC-7 ở 360 px | W42 |
+| US-2.1 | `review`: chờ CI xanh | W43 |
+| US-2.2 | `review`: chờ CI xanh và `smoke_llm.py` với key thật | W43 |
+| US-2.3 | `review`: chờ CI xanh, kiểm tay giao diện, JD giả qua Gemini | W43 |
 
 ## Cross-references
 

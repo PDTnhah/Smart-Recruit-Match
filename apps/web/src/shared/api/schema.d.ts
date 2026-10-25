@@ -155,7 +155,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        get: operations["CvController_listForCenter"];
         put?: never;
         post: operations["CvController_submit"];
         delete?: never;
@@ -569,11 +569,29 @@ export interface components {
             campaignId: number;
             version: number;
             /** @enum {string} */
-            status: "PENDING_ANALYSIS" | "PENDING_CONFIRMATION" | "CONFIRMED";
+            status: "PENDING_ANALYSIS" | "PENDING_CONFIRMATION" | "CONFIRMED" | "ANALYSIS_FAILED";
             active: boolean;
             fileName: string;
             /** Format: date-time */
             createdAt: string;
+        };
+        CenterCvListDto_Output: {
+            items: {
+                id: number;
+                campaignId: number;
+                version: number;
+                /** @enum {string} */
+                status: "PENDING_ANALYSIS" | "PENDING_CONFIRMATION" | "CONFIRMED" | "ANALYSIS_FAILED";
+                active: boolean;
+                fileName: string;
+                /** Format: date-time */
+                createdAt: string;
+                studentId: number;
+                studentCode: string;
+                studentName: string;
+                hiddenTextDetected: boolean;
+                analysisErrorCode: string | null;
+            }[];
         };
         CvListDto_Output: {
             items: {
@@ -581,7 +599,7 @@ export interface components {
                 campaignId: number;
                 version: number;
                 /** @enum {string} */
-                status: "PENDING_ANALYSIS" | "PENDING_CONFIRMATION" | "CONFIRMED";
+                status: "PENDING_ANALYSIS" | "PENDING_CONFIRMATION" | "CONFIRMED" | "ANALYSIS_FAILED";
                 active: boolean;
                 fileName: string;
                 /** Format: date-time */
@@ -1133,6 +1151,47 @@ export interface components {
                     companyName: string;
                     version: number;
                 };
+            } | {
+                id: number;
+                /** Format: date-time */
+                readAt: string | null;
+                /** Format: date-time */
+                createdAt: string;
+                /** @enum {string} */
+                type: "CV_PROFILE_READY";
+                payload: {
+                    cvId: number;
+                    campaignId: number;
+                    campaignName: string;
+                };
+            } | {
+                id: number;
+                /** Format: date-time */
+                readAt: string | null;
+                /** Format: date-time */
+                createdAt: string;
+                /** @enum {string} */
+                type: "CV_ANALYSIS_FAILED";
+                payload: {
+                    cvId: number;
+                    campaignId: number;
+                    campaignName: string;
+                };
+            } | {
+                id: number;
+                /** Format: date-time */
+                readAt: string | null;
+                /** Format: date-time */
+                createdAt: string;
+                /** @enum {string} */
+                type: "CV_NEEDS_ATTENTION";
+                payload: {
+                    cvId: number;
+                    campaignId: number;
+                    campaignName: string;
+                    /** @enum {string} */
+                    reason: "ANALYSIS_FAILED" | "HIDDEN_TEXT";
+                };
             })[];
             unreadCount: number;
             nextBefore: number | null;
@@ -1473,6 +1532,30 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ConsentDto_Output"];
+                };
+            };
+        };
+    };
+    CvController_listForCenter: {
+        parameters: {
+            query?: {
+                campaignId?: number;
+                attention?: "true" | "false";
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CenterCvListDto_Output"];
                 };
             };
         };

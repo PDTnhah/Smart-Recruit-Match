@@ -3,6 +3,48 @@
 > File chỉ ghi thêm (RULE-7): không sửa hay xóa mục cũ. Muốn đổi một quyết định, thêm mục mới `D<N>. <Tiêu đề> (revision of D<M>)`.
 > Tóm tắt các quyết định kiến trúc ở [ARCHITECTURE.md › Architecture decisions](ARCHITECTURE.md#architecture-decisions).
 > Tìm số tiếp theo: `grep -n "^### D[0-9]" docs/CONTEXT.md | tail -1`.
+> Không đọc cả file. Đọc mục lục dưới đây, rồi lấy số dòng bằng `grep -n "^### D37\." docs/CONTEXT.md` và chỉ đọc mục đó (D38). Thêm mục mới thì thêm một dòng vào mục lục; quyết định bị sửa thì ghi "→ sửa bởi D<N>" ở dòng của nó.
+
+**Mục lục**
+
+- D1 · Tách phần tất định khỏi phần xác suất
+- D2 · LLM không ra quyết định và không tính điểm tổng
+- D3 · Modular monolith NestJS + AI Service Python
+- D4 · PostgreSQL + pgvector là nguồn sự thật duy nhất
+- D5 · Tác vụ AI chạy bất đồng bộ qua RabbitMQ
+- D6 · Hợp đồng dữ liệu định nghĩa một lần bằng Zod
+- D7 · Phân bổ bằng Deferred Acceptance, không dùng LLM
+- D8 · Bảng chuyển trạng thái tự viết
+- D9 · Drizzle ORM thay Prisma
+- D10 · Một model Claude Opus 5.5 cho mọi agent → sửa bởi D34
+- D11 · Embedding `bge-m3` tự host
+- D12 · Message Batches, prompt caching, prompt có phiên bản
+- D13 · Server-Sent Events cho cập nhật thời gian thực
+- D14 · shadcn/ui + Tailwind CSS thay Ant Design
+- D15 · Áp dụng koni-docs
+- D16 · Tên file tiếng Anh, nội dung tài liệu tiếng Việt
+- D17 · AGENTS.md là nguồn chỉ dẫn chính; Active Context tách file
+- D18 · Skill ở `.agents/skills`, nối sang `.claude/skills`
+- D19 · Mốc VERSION 0.0.0
+- D20 · Lộ trình 13 tuần, làm song song bằng agent
+- D21 · Tạo sẵn file story cho cả 37 story
+- D22 · Công cụ và phiên bản của khung monorepo (US-1.1)
+- D23 · MinIO dùng image Chainguard; ứng dụng chỉ biết `MINIO_*`
+- D24 · Lược đồ `core`, cột `audit_logs`, cách áp migration (US-1.2)
+- D25 · Xác thực, phân quyền, refresh token (US-1.3)
+- D26 · Nền shadcn/ui, API client, thư viện web (US-1.3)
+- D27 · Đợt thực tập: đối tượng, phạm vi đọc, khóa tham số, gia hạn mốc, kiểm tra pha (US-1.4)
+- D28 · Doanh nghiệp, lời mời HR, JD, lưu file (US-1.5) → sửa bởi D29
+- D29 · Thu hồi link mời cũ, tải file qua nginx, bucket lúc khởi động
+- D30 · Đồng ý xử lý dữ liệu, phiên bản CV, nộp CV (US-1.6)
+- D31 · Thông báo, SSE, email outbox, nhắc hạn (US-1.7) → sửa bởi D32
+- D32 · Link mời HR ký lúc gửi, stream đóng theo hạn token, email quá hạn bị hủy
+- D33 · Đường ống job AI, hợp đồng message, role DB (US-2.1)
+- D34 · Nhà cung cấp LLM: Gemini mặc định, Claude thay thế qua `LLMClient` (US-2.2)
+- D35 · Phân tích JD, xác nhận yêu cầu chuẩn hóa, phiên bản yêu cầu (US-2.3)
+- D36 · Ma trận S_cv đọc hai chiều: JD gợi ý cho sinh viên, CV phù hợp theo JD cho Trung tâm
+- D37 · Phân tích CV: lỗi phân tích, `pii` mã hóa, che PII bằng code, PDF scan, `TERMS_V2` (US-2.4)
+- D38 · Giới hạn chi phí context của agent: ba phiên mỗi story, mục lục, AGENTS.md không giữ trạng thái
 
 ---
 
@@ -1083,3 +1125,106 @@ Ngoài ra còn phải giải quyết:
 
 **Date**: 2026-10-25
 **Version**: 0.9.0
+
+### D37. Phân tích CV: trạng thái lỗi phân tích, cột `pii` mã hóa, che PII bằng code, PDF scan gửi nguyên file, `TERMS_V2` (US-2.4)
+
+**Context**: Khi bắt đầu US-2.4, spec và code còn để mở các điểm sau:
+
+1. **Điều khoản.** D34 yêu cầu `TERMS_V2` ghi tên Google trước khi gửi CV thật cho Gemini, nhưng chưa story nào nhận việc này.
+2. **AC-11.** "Trung tâm thấy CV trong danh sách cần xử lý", nhưng chưa có màn hay endpoint nào cho Trung tâm xem CV.
+3. **Văn bản CV cho US-3.2.** Story đề xuất đặt ở `profile_masked.source_text`, chốt cùng US-3.2.
+4. **Che email, SĐT bằng regex.** ARCH ghi "có thể"; story đề xuất cấu hình, mặc định bật, và ghi phải hỏi.
+5. **Trạng thái CV.** Bảng chuyển trạng thái chưa có trạng thái lỗi phân tích. Bảng `cvs` chưa có cột `pii`.
+6. **Gửi PDF scan.** `LLMRequest` chỉ chứa văn bản, chưa gửi được tài liệu cho Gemini hay Claude.
+7. **Vòng import.** `notification` và `iam` import `student`, nên `student` không gọi được `NotificationService` như `company` làm với JD.
+
+**Decision** (người dùng chốt bốn mục đầu ngày 2026-10-25):
+
+- **`TERMS_V2`** ghi tên Google (Gemini API, gói trả phí, lưu 55 ngày để chống lạm dụng, không dùng để cải thiện sản phẩm) và Anthropic (như v1). Nó cũng nói rõ bản scan được gửi nguyên file mà không che trước, và log gửi AI nằm trong thời hạn lưu 12 tháng. `CURRENT_TERMS = TERMS_V2`: sinh viên chỉ đồng ý v1 thì nộp CV nhận 403 `CONSENT_REQUIRED` và phải đồng ý lại. Người dùng duyệt nội dung trước khi commit.
+- **AC-11:** endpoint `GET /api/cvs` (CENTER, ADMIN; lọc theo `campaignId`, `attention`) và trang tối giản "CV cần xử lý" ở cổng Trung tâm. Trang liệt kê CV đang dùng bị lỗi phân tích hoặc có chữ ẩn, cùng thông báo trong app `CV_NEEDS_ATTENTION`. Không có nút "Phân tích lại".
+- **Văn bản CV đã che** lưu ở cột riêng `cvs.masked_text`, view `core.v_ai_cv_profile_masked` thêm cột này ở cuối. `profile_masked` giữ đúng hình dạng `CvProfile`. Bản scan có `masked_text = null`.
+- **Che email và SĐT bằng regex** trước khi gửi LLM: mặc định bật, tắt bằng `CV_MASK_CONTACTS=false` của `ai-worker`. LLM chỉ thấy `[EMAIL_1]`, `[PHONE_1]`; giá trị gốc vào thẳng `pii`.
+- **Trạng thái `ANALYSIS_FAILED`** (nhãn "Lỗi phân tích"):
+  - `PENDING_ANALYSIS → PENDING_CONFIRMATION | ANALYSIS_FAILED`;
+  - `ANALYSIS_FAILED → PENDING_ANALYSIS`, chỉ do lệnh chạy bù `--retry-failed`;
+  - `ANALYSIS_FAILED → PENDING_CONFIRMATION`, khi kết quả đến sau một lần gửi bị báo lỗi nhưng broker thực ra đã nhận (như JD ở D35).
+  - Kết quả chỉ áp dụng khi CV còn `active`, đúng `version` và ở `PENDING_ANALYSIS` (hoặc `ANALYSIS_FAILED` với kết quả thành công). Hàm thuần `decideCvParseResult` quyết định.
+  - `PARTIAL` và output không khớp CV đều coi là lỗi (`INVALID_RESULT`). Gửi job không được thì lỗi ngay (`DISPATCH_FAILED`).
+- **Cột mới của `cvs`** (migration `0011`, `0012`):
+  - `pii bytea`, ghi bằng `pgp_sym_encrypt(json, PII_ENCRYPTION_KEY)`; khóa truyền dạng tham số, không nằm trong SQL;
+  - `masked_text`;
+  - `analysis_source` (`TEXT_PDF`, `SCANNED_PDF`, `DOCX`), `analysis_model`, `analysis_prompt_version`, `analysis_error_code`.
+  - CHECK: model và prompt cùng null hoặc cùng có; CV ở `PENDING_CONFIRMATION`/`CONFIRMED` phải có `profile`, `profile_masked`, `pii`, model và nguồn; CV ở `ANALYSIS_FAILED` phải có mã lỗi.
+  - Mã lỗi không bị xóa khi một kết quả sau đó thành công: CHECK không cho thứ tự ghi nào khác. API chỉ trả mã lỗi khi CV đang `ANALYSIS_FAILED`.
+- **`PII_ENCRYPTION_KEY`** chỉ có ở API, bắt buộc, tối thiểu 32 ký tự, từ chối giá trị bắt đầu bằng `change-me`. AI Service không bao giờ thấy khóa.
+- **Thông báo** qua sự kiện nội bộ `cv.analysis.settled`, phát sau commit. Listener ở module `notification` (`CvAnalysisListener`) gửi:
+  - `CV_PROFILE_READY` cho sinh viên, chỉ trong app;
+  - `CV_ANALYSIS_FAILED` cho sinh viên, trong app và email (sinh viên có thể đã rời trang, mà vẫn phải tải lại trước hạn);
+  - `CV_NEEDS_ATTENTION` cho Trung tâm, chỉ trong app, khi phân tích lỗi hoặc file có chữ ẩn;
+  - sự kiện SSE `cv.analysis` `{ cvId, status }` cho sinh viên.
+  - Khác JD (D35): thông báo ghi sau commit, không cùng giao dịch. `dedupeKey` gồm CV và `job_id`.
+- **PDF scan:**
+  - Coi là scan khi PDF không có lớp chữ, hoặc có ảnh mà chữ thấy được ít hơn 100 ký tự (bắt được bản scan có watermark chữ của app quét).
+  - Nguyên file PDF được gửi cho model: Gemini nhận `inline_data` (không qua Files API, vốn giữ file 48 giờ), Claude nhận `document` block base64 đặt trước khối text. Không chạy OCR riêng.
+  - PDF giống scan mà có chữ ẩn thì lỗi `CV_SCAN_WITH_HIDDEN_TEXT`, vì model sẽ đọc cả chữ ẩn.
+  - DOCX không gửi nguyên file được: DOCX không có chữ thì lỗi `CV_NO_TEXT`.
+- **Tài liệu đính kèm trong `LLMClient`:** `generate(..., documents=[Document(media_type, data)])`. `LLMRequest` chỉ giữ tham chiếu (`sha256`, `size`), `build_params` đặt chỗ giữ tham chiếu, `send(params, documents)` mới gắn bytes. Log `llm-logs` không chép file, vì file gốc đã nằm ở `cv-files`. Khóa fixture chỉ thêm `documents` khi có tài liệu, nên fixture cũ giữ nguyên khóa.
+- **Che PII bằng code** (`ai-service/app/parsing/pii.py`, hàm thuần):
+  - So khớp không phân biệt hoa thường và dấu. Tên thử cả hai thứ tự và dạng viết liền (`nguyenvanan`). SĐT so theo dãy số. Ngày sinh thử nhiều định dạng.
+  - Email, SĐT, link bất kỳ cũng bị che bằng regex.
+  - Dòng có nhãn cá nhân ("Giới tính: …", "Quê quán: …") mất giá trị.
+  - Giới tính và tình trạng hôn nhân là enum trong `pii`, không bao giờ thay theo chuỗi: thay "Nam" sẽ hỏng "Việt Nam".
+  - Kiểm lần cuối: còn sót giá trị nào thì job lỗi `PII_MASK_FAILED`; thông điệp chỉ nêu loại, không nêu giá trị.
+  - Bộ ca dùng chung `packages/shared/contracts/fixtures/pii-mask-cases.json`, để US-2.6 dựng lại `profile_masked` sau khi sinh viên sửa hồ sơ.
+  - `has_photo` của CV có chữ lấy theo ảnh nhúng trong file. Logo cũng tính là ảnh, nhưng cờ này chỉ nằm trong `pii` và không được chấm.
+- **Chỗ cắm cho US-2.5:** `CvParser(profile_steps=[...])`, chạy trên hồ sơ chưa che, trước bước che.
+- **Handler giả của CV bị bỏ.** Marker `__fake__/retryable`, `__fake__/permanent` chỉ còn khi `AI_FAKE_FILE_KEYS=true` (test trọn vòng đặt, compose không đặt). Test trọn vòng chạy parser thật trên CV mẫu với fixture LLM chép vào container.
+- **Lệnh chạy bù** `pnpm --filter @srm/api cv:redispatch [--campaign N] [--retry-failed]` gửi job cho CV đang chờ (kể cả CV nộp trước 0.10.0) và, với `--retry-failed`, CV lỗi.
+
+**Rationale**:
+
+- Có trạng thái lỗi riêng thì sinh viên biết phải tải lại, còn Trung tâm lọc được CV cần xử lý. Đọc `analysis_error_code` khi CV vẫn `PENDING_ANALYSIS` thì giao diện không phân biệt được đang chạy với đã lỗi.
+- Che PII bằng code tất định và kiểm thử được. BR-03 là quy tắc công bằng, không giao cho LLM.
+- Gửi tham chiếu thay cho bytes giữ log nhỏ và tránh nhân bản CV sang một nơi lưu nữa.
+- Phát sự kiện thay vì gọi `NotificationService` tránh vòng import `student ↔ notification`, theo mẫu `CampaignOpenedListener`.
+
+**Alternatives considered**:
+- **`source_text` trong `profile_masked`:** loại vì `profile_masked` không còn đúng hình dạng `CvProfile`, và US-2.6 phải tách ra khi sinh viên sửa hồ sơ.
+- **Giữ CV ở `PENDING_ANALYSIS` kèm cột lỗi:** loại vì lý do trên.
+- **OCR riêng cho bản scan để che trước:** loại vì ngoài danh sách thư viện của ARCH; ARCH cho phép ngoại lệ ở bước phân tích CV.
+- **Che giới tính theo chuỗi:** loại vì làm hỏng tên địa danh.
+- **Nút "Phân tích lại" trên trang Trung tâm:** để sau; lệnh chạy bù đủ cho đồ án.
+
+**Impact**:
+- Migration `0011` (cột, CHECK `cvs_*`, CHECK `notifications_type_check` thêm ba loại) và `0012` (viết tay: view `v_ai_cv_profile_masked` thêm `masked_text`).
+- `packages/shared`: `contracts/cv.ts` (`CvProfile`, `CvPii`, `CvExtraction`, `CvSource`), `CvParseOutput` đầy đủ, `states/cv.ts`, `schemas/cv.ts` (danh sách của Trung tâm), ba loại thông báo, sự kiện SSE `cv.analysis`, `consent/terms-v2.ts`, `contracts/fixtures/pii-mask-cases.json`.
+- `ai-service`: `app/agents/cv_parser/`, `app/parsing/pii.py`, DOCX đọc header và footer, `ExtractedText.has_images`, tài liệu đính kèm ở cả ba provider, prompt `cv_parser/v1`, `CV_MASK_CONTACTS`, `AI_FAKE_FILE_KEYS`, `evals/perf_cv_parse.py`, `smoke_llm.py --cv`.
+- `apps/api`: module `student` (`CvAnalysisService`, `GET /api/cvs`, lệnh `cv:redispatch`), `notification` (`CvAnalysisListener`, template email `CV_ANALYSIS_FAILED`), biến `PII_ENCRYPTION_KEY`.
+- `apps/web`: trạng thái phân tích ở trang "Hồ sơ" (SSE), trang "CV cần xử lý".
+- ARCH › *Pipeline CV Parser*, *Các bảng chính*, *Phân vùng schema*, *Security architecture*, *API architecture*; DESIGN §6 (badge "Lỗi phân tích"); DEPLOY, SETUP (biến mới).
+
+**Date**: 2026-10-25
+**Version**: 0.10.0
+
+### D38. Giới hạn chi phí context của agent: ba phiên mỗi story, mục lục CONTEXT/LESSONS, AGENTS.md không giữ trạng thái
+
+**Context**: Đo 23 phiên Claude Code của dự án (2026-10-04 → 2026-10-25). Mỗi phiên làm một story có 450–754 lượt, context trung bình 295–442 nghìn token mỗi lượt (đỉnh 506–742 nghìn), đọc lại 143–272 triệu token từ cache; ba subagent Explore lúc lập kế hoạch tốn thêm 2–38 triệu. Chi phí xấp xỉ số lượt × cỡ context. Context cố định lúc mở phiên khoảng 50 nghìn token, trong đó `AGENTS.md` 21 KB với đoạn *Trạng thái* dài thêm sau mỗi story. `CONTEXT.md` (120 KB) bị đọc 31 lần, `LESSONS.md` 17 lần; file story nặng 30–40 KB.
+
+**Decision**:
+- Mỗi story chạy ba phiên, gõ `/clear` giữa các phiên: (1) Plan; (2) Execute + Self-verify; (3) Review + Doc/Version gate + Commit. File story và `.active-context.md` mang trạng thái sang phiên sau. Context vượt khoảng 200 nghìn token thì `/compact`.
+- Không chạy subagent Explore theo mặc định; dùng tối đa một subagent khi story chạm vùng code chưa có mẫu.
+- `AGENTS.md` không ghi trạng thái từng story (đã có ở `STATUS.md`, CHANGELOG, `.active-context.md`). Các mẫu dùng lại chuyển sang mục *Mẫu có sẵn*.
+- `CONTEXT.md` và `LESSONS.md` có mục lục ở đầu file; agent đọc mục lục rồi chỉ đọc mục liên quan.
+- File story giữ dưới khoảng 15 KB.
+- `.active-context.md`: *Recent Decisions*, *Recent Lessons* giữ 5 mục gần nhất, mỗi mục một cụm từ, như template Active Context của koni-docs.
+
+**Rationale**: Giảm cả hai thừa số mà không bỏ bước nào của vòng koni; nguồn sự thật vẫn nằm trong `docs/`. Ước tính context trung bình mỗi lượt giảm 2–3 lần.
+
+**Alternatives considered**:
+- Chuyển D1–D30 sang file lưu trữ — loại vì trái RULE-7 (không xóa mục cũ) và làm hỏng các liên kết "CONTEXT D-N" trong tài liệu.
+- Bỏ bớt bước Doc/Version gate — loại; giữ quy trình, chỉ giảm lượng đọc.
+
+**Impact**: `AGENTS.md` (*Trạng thái*, *Mẫu có sẵn*, *Đọc gì trước khi làm*, *Quy trình làm việc*), mục lục trong `CONTEXT.md` và `LESSONS.md`, `.active-context.example.md`. LESSONS §15 bổ sung cấu hình Jest và WSL.
+
+**Date**: 2026-10-25
+**Version**: 0.10.0

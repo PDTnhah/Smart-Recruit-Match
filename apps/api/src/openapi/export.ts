@@ -18,6 +18,7 @@ const PLACEHOLDER_ENV: Record<string, string> = {
   REDIS_URL: 'redis://localhost:6379',
   RABBITMQ_URL: 'amqp://openapi:openapi@localhost:5672',
   JWT_ACCESS_SECRET: 'openapi-export-placeholder-secret-0000000',
+  PII_ENCRYPTION_KEY: 'openapi-export-placeholder-pii-key-000000',
   MINIO_ENDPOINT: 'http://localhost:9000',
   MINIO_ACCESS_KEY: 'openapi',
   MINIO_SECRET_KEY: 'openapi-placeholder',

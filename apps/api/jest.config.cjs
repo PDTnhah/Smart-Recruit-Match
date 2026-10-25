@@ -28,6 +28,13 @@ const common = {
 
 /** @type {import('jest').Config} */
 module.exports = {
+  // Jest's default is one worker per CPU thread minus one (13 on a 14-thread laptop). Each
+  // integration worker boots Nest apps next to the testcontainers stack, and that many exhausted
+  // the Windows commit limit (LESSONS §15). `--maxWorkers` on the command line still overrides it.
+  // Global options: Jest ignores them inside a `projects` entry (LESSONS §11).
+  maxWorkers: 4,
+  // Restart a worker whose memory stays above this after a test file (leftover Nest apps, sockets).
+  workerIdleMemoryLimit: '512MB',
   projects: [
     {
       ...common,

@@ -5,7 +5,7 @@ epic: EPIC-6
 status: backlog
 priority: P1
 points: 5
-sprint:
+sprint: sprint-2026-W44
 version_shipped:
 prd_ref: [FR-36]
 depends_on: [US-5.1]

@@ -96,9 +96,9 @@ class RecordingFixtureProvider(FixtureProvider):
         super().__init__(LLM_FIXTURES, model="fixture")
         self.sent: list[dict[str, Any]] = []
 
-    async def send(self, params: dict[str, Any]):
+    async def send(self, params: dict[str, Any], documents=()):
         self.sent.append(params)
-        return await super().send(params)
+        return await super().send(params, documents)
 
 
 class Harness:

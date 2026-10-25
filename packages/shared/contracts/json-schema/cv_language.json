@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./cv_language.json",
+  "type": "object",
+  "properties": {
+    "language": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100,
+      "description": "Language, e.g. \"Tiếng Anh\""
+    },
+    "level": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Level or certificate as written, e.g. \"TOEIC 650\", \"N3\""
+    }
+  },
+  "required": [
+    "language",
+    "level"
+  ],
+  "additionalProperties": false,
+  "title": "CvLanguage",
+  "description": "One foreign language"
+}

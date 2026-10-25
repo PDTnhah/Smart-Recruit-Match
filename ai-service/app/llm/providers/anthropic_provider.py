@@ -3,13 +3,19 @@
 Parameters follow the claude-api skill, checked against anthropic 1.11.0: effort and JSON schema
 in `output_config`, no `temperature` (Opus 5.5 rejects sampling parameters), no `tool_choice`, and
 server-side `fallbacks="default"` so a declined request is retried on Anthropic's fallback model.
+A document is a base64 `document` block placed before the text block of the user turn; citations
+stay off, as they cannot be combined with `output_config.format` (US-2.4, CONTEXT D37).
 """
 
+import base64
+from collections.abc import Sequence
 from typing import Any
 
 import anthropic
 
+from app.llm.providers import document_placeholder, fill_documents
 from app.llm.types import (
+    Document,
     LLMRequest,
     Provider,
     ProviderCallError,
@@ -45,12 +51,15 @@ class AnthropicProvider:
                 "format": {"type": "json_schema", "schema": request.output_schema},
             },
             "system": request.system,
-            "messages": [{"role": "user", "content": request.user}],
+            "messages": [{"role": "user", "content": _content(request)}],
         }
 
-    async def send(self, params: dict[str, Any]) -> ProviderResponse:
+    async def send(
+        self, params: dict[str, Any], documents: Sequence[Document] = ()
+    ) -> ProviderResponse:
+        call = fill_documents(params, documents, _base64)
         try:
-            message = await self._client.beta.messages.create(**params)
+            message = await self._client.beta.messages.create(**call)
         except anthropic.APIStatusError as error:
             status = error.status_code
             retryable = status in RETRYABLE_STATUS or status >= 500
@@ -58,6 +67,30 @@ class AnthropicProvider:
         except anthropic.APIConnectionError as error:
             raise ProviderCallError(f"network: {error!r}", retryable=True) from error
         return to_provider_response(message)
+
+
+def _content(request: LLMRequest) -> str | list[dict[str, Any]]:
+    """The prompt alone, or a `document` block per document followed by the prompt text."""
+    if not request.documents:
+        return request.user
+    blocks: list[dict[str, Any]] = [
+        {
+            "type": "document",
+            "source": {
+                "type": "base64",
+                "media_type": ref.media_type,
+                "data": document_placeholder(ref),
+            },
+        }
+        for ref in request.documents
+    ]
+    blocks.append({"type": "text", "text": request.user})
+    return blocks
+
+
+def _base64(data: bytes) -> str:
+    """Standard base64 without line breaks, as the API requires."""
+    return base64.standard_b64encode(data).decode("ascii")
 
 
 def to_provider_response(message: Any) -> ProviderResponse:

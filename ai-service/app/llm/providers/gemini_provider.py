@@ -2,16 +2,20 @@
 
 `generate_content` keeps no state at Google, unlike the Interactions API whose default is
 `store=true`. Field names were checked against google-genai 2.28.0 (story Implementation notes).
+A document goes inline (`inline_data`, raw bytes) in the user turn before the prompt text, not
+through the Files API, which would keep the file at Google for 48 hours (US-2.4, CONTEXT D37).
 """
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 import httpx
 from google import genai
 from google.genai import errors, types
 
+from app.llm.providers import document_placeholder, fill_documents
 from app.llm.types import (
+    Document,
     Effort,
     LLMRequest,
     Provider,
@@ -70,7 +74,7 @@ class GeminiProvider:
     def build_params(self, request: LLMRequest) -> dict[str, Any]:
         return {
             "model": self.model,
-            "contents": request.user,
+            "contents": _contents(request),
             "config": {
                 "system_instruction": request.system,
                 "response_mime_type": "application/json",
@@ -80,9 +84,12 @@ class GeminiProvider:
             },
         }
 
-    async def send(self, params: dict[str, Any]) -> ProviderResponse:
+    async def send(
+        self, params: dict[str, Any], documents: Sequence[Document] = ()
+    ) -> ProviderResponse:
+        call = fill_documents(params, documents, lambda data: data)
         try:
-            response = await self._client.aio.models.generate_content(**params)
+            response = await self._client.aio.models.generate_content(**call)
         except errors.APIError as error:
             status = error.code or 0
             retryable = status in RETRYABLE_STATUS or status >= 500
@@ -90,6 +97,18 @@ class GeminiProvider:
         except httpx.TransportError as error:
             raise ProviderCallError(f"network: {error!r}", retryable=True) from error
         return to_provider_response(response, self.model)
+
+
+def _contents(request: LLMRequest) -> str | list[dict[str, Any]]:
+    """The prompt alone, or one user turn with each document before the prompt text."""
+    if not request.documents:
+        return request.user
+    parts: list[dict[str, Any]] = [
+        {"inline_data": {"mime_type": ref.media_type, "data": document_placeholder(ref)}}
+        for ref in request.documents
+    ]
+    parts.append({"text": request.user})
+    return [{"role": "user", "parts": parts}]
 
 
 def to_provider_response(response: types.GenerateContentResponse, model: str) -> ProviderResponse:

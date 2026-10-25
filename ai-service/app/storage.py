@@ -14,6 +14,7 @@ from minio.error import S3Error
 from app.consumers.errors import PermanentError
 
 JD_FILES_BUCKET = "jd-files"
+CV_FILES_BUCKET = "cv-files"
 MAX_UPLOAD_BYTES = 5 * 1024 * 1024
 """The API refuses larger uploads (413, US-1.5); anything bigger here is not one of its files."""
 

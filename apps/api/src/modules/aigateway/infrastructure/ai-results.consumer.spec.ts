@@ -5,12 +5,44 @@ import { AI_JOB_SETTLED, AI_RESULT_EVENTS } from '../domain/events.js';
 import { AiResultsConsumer } from './ai-results.consumer.js';
 
 const JOB_ID = '7f6c1e2a-4b8d-4c1e-9a2b-3c4d5e6f7a8b';
+const PROFILE = {
+  summary: null,
+  education: [],
+  skills: [{ name: 'Java' }],
+  projects: [],
+  experience: [],
+  languages: [],
+  certificates: [],
+};
 const RESULT = {
   job_id: JOB_ID,
   type: 'CV_PARSE',
   status: 'SUCCEEDED',
   job: { job_id: JOB_ID, cv_id: 457, cv_version: 2, file_key: 'cv-files/457-2.pdf' },
-  result: { prompt_version: 'fake/v0', model: 'fake' },
+  result: {
+    prompt_version: 'cv_parser/v1',
+    model: 'fixture',
+    cv_id: 457,
+    cv_version: 2,
+    source: 'DOCX',
+    profile: PROFILE,
+    pii: {
+      full_name: null,
+      emails: [],
+      phones: [],
+      links: [],
+      address: null,
+      date_of_birth: null,
+      gender: null,
+      hometown: null,
+      religion: null,
+      marital_status: null,
+      has_photo: false,
+    },
+    profile_masked: PROFILE,
+    masked_text: 'Java',
+    hidden_text_detected: false,
+  },
   error: null,
 };
 

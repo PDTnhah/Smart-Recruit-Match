@@ -1,5 +1,7 @@
 import {
   AcceptConsentRequestSchema,
+  CenterCvListQuerySchema,
+  CenterCvListSchema,
   ConsentListSchema,
   ConsentSchema,
   CvListQuerySchema,
@@ -19,3 +21,5 @@ export class SubmitCvFieldsDto extends createZodDto(SubmitCvFieldsSchema) {}
 export class CvListQueryDto extends createZodDto(CvListQuerySchema) {}
 export class CvDto extends createZodDto(CvSchema) {}
 export class CvListDto extends createZodDto(CvListSchema) {}
+export class CenterCvListQueryDto extends createZodDto(CenterCvListQuerySchema) {}
+export class CenterCvListDto extends createZodDto(CenterCvListSchema) {}

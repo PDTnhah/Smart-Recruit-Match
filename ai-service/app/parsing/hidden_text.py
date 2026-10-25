@@ -50,6 +50,8 @@ class ExtractedText:
     removed: tuple[RemovedSpan, ...]
     has_text_layer: bool
     """False for a PDF without text (a scan); its text is then empty."""
+    has_images: bool = False
+    """The file embeds at least one image: a photo, a logo, or the page of a scan (US-2.4)."""
 
     @property
     def hidden_text_detected(self) -> bool:

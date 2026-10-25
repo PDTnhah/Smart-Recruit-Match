@@ -87,7 +87,7 @@ Giao diện dựng bằng shadcn/ui (nền Radix, preset `radix-nova`, CONTEXT D
 |---|---|
 | **Sinh viên** | Hồ sơ: tải CV, xem/sửa hồ sơ năng lực do AI trích xuất (hiển thị song song với file CV, tô sáng đoạn bằng chứng) · Shortlist: thẻ JD với S_cv, kỹ năng thiếu, gợi ý cải thiện, mức cạnh tranh · Chọn nguyện vọng: kéo-thả sắp thứ tự · Phòng thi · Kết quả, phúc khảo · Đề cử, lịch phỏng vấn · Lời mời thực tập |
 | **HR** | Quản lý JD: nhập/tải file, màn xác nhận yêu cầu chuẩn hóa (bảng kỹ năng sửa trực tiếp) · Duyệt đề mẫu · Danh sách đề cử: bảng sắp theo S_final, ngăn chi tiết gồm biểu đồ radar năng lực, danh sách bằng chứng, xem CV · Lịch và kết quả phỏng vấn |
-| **Trung tâm** | Dashboard đợt: phễu tuyển, tỷ lệ lấp đầy, heatmap NV/chỉ tiêu · Cấu hình đợt · Duyệt doanh nghiệp, JD · Phân bổ: chạy, xem dự thảo, điều chỉnh có lý do, công bố · Phúc khảo, chấm tay · Báo cáo · Nhật ký |
+| **Trung tâm** | Dashboard đợt: phễu tuyển, tỷ lệ lấp đầy, heatmap NV/chỉ tiêu · Cấu hình đợt · Duyệt doanh nghiệp, JD · CV cần xử lý (lỗi phân tích, có chữ ẩn; `/admin/cvs`) · Phân bổ: chạy, xem dự thảo, điều chỉnh có lý do, công bố · Phúc khảo, chấm tay · Báo cáo · Nhật ký |
 
 #### Phòng thi
 
@@ -103,7 +103,7 @@ Dùng **Server-Sent Events** (`GET /api/events/stream`) cho: thông báo, tiến
 Từ US-1.7 ([CONTEXT D31](CONTEXT.md)):
 
 - Client mở stream bằng `fetch` kèm `Authorization: Bearer` (không dùng `EventSource`, vì nó không gửi được header), tự tách khung SSE, tự kết nối lại. `AccessGuard` trả `401` trước khi có sự kiện nào.
-- Sự kiện: `ready` (đã đăng ký kênh; client tải lại danh sách), `ping` mỗi 25 giây, `notification`. Tên sự kiện khai ở `SERVER_EVENTS` (`packages/shared/schemas/notification.ts`).
+- Sự kiện: `ready` (đã đăng ký kênh; client tải lại danh sách), `ping` mỗi 25 giây, `notification`; theo nghiệp vụ: `jd.analysis` (US-2.3), `cv.analysis` `{ cvId, status }` cho sinh viên khi phân tích CV xong (US-2.4, [CONTEXT D37](CONTEXT.md)). Tên sự kiện khai ở `SERVER_EVENTS` (`packages/shared/schemas/notification.ts`).
 - Stream tự đóng khi access token đã mở nó hết hạn (tối đa 15 phút); client kết nối lại bằng token mới ([CONTEXT D32](CONTEXT.md)).
 - Nhiều instance: Redis pub/sub kênh `notify:user:{userId}`. Module khác đẩy sự kiện bằng `RealtimePublisher.publishToUser` sau khi commit; web nghe bằng `useServerEvent` (`apps/web/src/shared/notifications/`).
 
@@ -127,7 +127,7 @@ Module gọi nhau qua service đã export hoặc phát sự kiện qua `@nestjs/
 | `iam` | Đăng nhập, JWT, vai trò, tài khoản HR, SSO trường (tùy chọn). Export `InvitationService`: mời HR (token JWT `aud = hr-invite` mang nonce của lần mời mới nhất, hạn 7 ngày), nhận lời mời, danh sách HR của công ty; phát `hr.invited` sau khi commit ([CONTEXT D28, D29](CONTEXT.md)). Export `UserDirectory` (tài khoản đang hoạt động của sinh viên, địa chỉ liên hệ) và `InvitationService.currentInvitationLink` (link ký mới cho email mời) cho `notification` ([CONTEXT D31, D32](CONTEXT.md)) | PRD › Personas |
 | `campaign` | Đợt thực tập, tham số cấu hình, trạng thái đợt, mốc thời gian. Export `CampaignService.assertPhase` (kiểm tra pha, tính cả mốc), `getSettings`, `listSettingsInPhase` và hàm thuần `isInTarget` (sinh viên thuộc đối tượng của đợt); phát `campaign.opened`, `campaign.phase_changed` sau khi commit ([CONTEXT D27](CONTEXT.md)) | GĐ0 |
 | `company` | Doanh nghiệp, JD, yêu cầu chuẩn hóa, phiên bản JD. Mời HR qua `InvitationService` của `iam`; kiểm pha bằng `CampaignService.assertPhase`; đăng ký resolver `jd` vào `FileAccessRegistry`; phát `jd.submitted`, `jd.approved` sau khi commit ([CONTEXT D28](CONTEXT.md)). Gửi `JD_ANALYZE` sau khi nộp, nghe `ai.result.JD_ANALYZE` (lưu đề xuất, không chuyển trạng thái), HR xác nhận yêu cầu; sửa JD đã duyệt tạo phiên bản mới và phát `jd.requirements.versioned` ([CONTEXT D35](CONTEXT.md)) | GĐ1 |
-| `student` | Sinh viên, CV, hồ sơ năng lực, đồng ý xử lý dữ liệu. Ghi đồng ý theo đợt và phiên bản điều khoản (`packages/shared/consent/`, kèm SHA-256 của văn bản); mỗi lần nộp CV là một dòng `cvs` mới, dòng cũ mất `active`. Export `ConsentService.hasConsent`, `CvService` (kể cả `studentIdsWithActiveCv`), `StudentService.listIdsInTarget`; đăng ký resolver `cv` vào `FileAccessRegistry`; phát `cv.submitted` (`cvId`, `cvVersion`, `campaignId`, `studentId`) sau khi commit ([CONTEXT D30](CONTEXT.md)) | GĐ2 |
+| `student` | Sinh viên, CV, hồ sơ năng lực, đồng ý xử lý dữ liệu. Ghi đồng ý theo đợt và phiên bản điều khoản (`packages/shared/consent/`, kèm SHA-256 của văn bản); mỗi lần nộp CV là một dòng `cvs` mới, dòng cũ mất `active`. Export `ConsentService.hasConsent`, `CvService` (kể cả `studentIdsWithActiveCv`), `StudentService.listIdsInTarget`; đăng ký resolver `cv` vào `FileAccessRegistry`; phát `cv.submitted` (`cvId`, `cvVersion`, `campaignId`, `studentId`) sau khi commit ([CONTEXT D30](CONTEXT.md)). `CvAnalysisService` gửi `CV_PARSE` sau khi nộp, nghe `ai.result.CV_PARSE` (mã hóa `pii`, lưu hồ sơ, chuyển `PENDING_CONFIRMATION` hoặc `ANALYSIS_FAILED`), phát `cv.analysis.settled` sau khi commit để `notification` báo tin; lệnh chạy bù `cv:redispatch` ([CONTEXT D37](CONTEXT.md)) | GĐ2 |
 | `matching` | Lọc điều kiện cứng, gửi job chấm, lưu kết quả, **tính S_cv theo trọng số**, shortlist, mức cạnh tranh, nguyện vọng | GĐ3, GĐ4 |
 | `assessment` | Ngân hàng câu hỏi, ma trận đề, phiên thi, rút đề, chấm trắc nghiệm, nhận kết quả chấm tự luận, phúc khảo, **tính S_test, S_final** | GĐ5, GĐ6 |
 | `allocation` | Thuật toán Deferred Acceptance, vòng phân bổ, snapshot, dự thảo/công bố, điều chỉnh thủ công | GĐ7, GĐ10 |
@@ -258,10 +258,10 @@ Mỗi agent là một **vai trò** có prompt riêng, schema đầu ra riêng, c
 1. Đọc file từ MinIO.
 2. Trích văn bản kèm thông tin định dạng (PyMuPDF cho PDF, python-docx cho DOCX).
 3. **Phát hiện chữ ẩn** (màu trùng nền, cỡ chữ < 2pt, nằm ngoài vùng trang, thuộc tính ẩn trong DOCX) → loại khỏi văn bản, gắn cờ `hidden_text_detected` (chống prompt injection, PRD › *Kiểm soát rủi ro AI (guardrails)*).
-4. Nếu PDF không có lớp văn bản (bản scan) → gửi nguyên PDF cho LLM (Claude nhận `document` block, Gemini nhận PDF trực tiếp; cả hai đọc được PDF dạng ảnh), không cần OCR riêng. Chi tiết chốt ở US-2.4.
-5. Gọi LLM qua `LLMClient` với structured output theo schema `CvProfile`.
+4. Nếu PDF không có lớp văn bản, hoặc có ảnh mà chữ thấy được dưới 100 ký tự (bản scan) → gửi nguyên PDF cho LLM làm tài liệu đính kèm (`LLMClient.generate(documents=…)`: Gemini nhận part `inline_data`, Claude nhận `document` block; log chỉ ghi `sha256` của file), không cần OCR riêng. Bản scan có chữ ẩn bị từ chối (`CV_SCAN_WITH_HIDDEN_TEXT`). Với CV có chữ, email và SĐT được che bằng regex trước khi gửi (`CV_MASK_CONTACTS`, mặc định bật) ([CONTEXT D37](CONTEXT.md)).
+5. Gọi LLM qua `LLMClient` với structured output theo schema `CvExtraction` (mục cá nhân `personal` + hồ sơ `profile`).
 6. Chuẩn hóa kỹ năng: so embedding với danh mục kỹ năng (cosine ≥ 0,85 → gán; thấp hơn → đánh dấu "kỹ năng mới" cho quản trị duyệt).
-7. Tách PII (tên, liên hệ, ảnh, ngày sinh, giới tính, quê quán) sang trường riêng, tạo `profile_masked` để dùng cho matching.
+7. Tách PII (tên, liên hệ, link, địa chỉ, ảnh, ngày sinh, giới tính, quê quán, tôn giáo, tình trạng hôn nhân) sang `pii`. Code (không phải LLM) tạo `profile_masked` và `masked_text` (văn bản CV đã che, để kiểm trích dẫn) bằng `ai-service/app/parsing/pii.py`: so khớp không phân biệt hoa thường và dấu, thay bằng token có kiểu; còn sót giá trị thì job lỗi `PII_MASK_FAILED`. Bước 6 và 8 cắm vào qua `CvParser(profile_steps=…)` (US-2.5).
 8. Tính embedding hồ sơ, lưu `ai.embeddings`.
 9. Trả kết quả qua `ai.results`.
 
@@ -443,7 +443,7 @@ Nên đặt giới hạn chi tiêu trên trang quản lý của nhà cung cấp 
   - chủ DB (`POSTGRES_USER`): chỉ bước `migrate` dùng; tạo bảng, view, role;
   - `api_service` (Core Backend): đọc ghi mọi bảng `core`, riêng `audit_logs` chỉ `SELECT` và `INSERT`; chỉ đọc `ai.*`;
   - `ai_service` (AI Service): `SELECT` trên hai view `core.v_ai_*`, không có quyền gì khác ở `core`; đọc ghi `ai.*`, không `CREATE`.
-- View `core.v_ai_cv_profile_masked (cv_id, version, campaign_id, profile_masked)` chỉ trả CV `active` đã được sinh viên xác nhận (BR-01); `core.v_ai_jd_requirements (jd_id, version, campaign_id, position_group, requirements)` chỉ trả JD từ `APPROVED` trở đi (BR-02). Cả hai `security_barrier`. Migration tạo role ở dạng `NOLOGIN`; `migrate` bật đăng nhập bằng `API_DB_PASSWORD`, `AI_DB_PASSWORD`. `core.v_ai_jd_source (jd_id, version, title, raw_text, file_key)` chỉ trả JD đang chờ phân tích (`PENDING_HR_CONFIRMATION`, `analysis_status = PENDING`, chưa có `requirements`) cho JD Analyzer ([CONTEXT D35](CONTEXT.md)); AI Service đọc file gốc trong `jd-files` bằng tài khoản MinIO của nó.
+- View `core.v_ai_cv_profile_masked (cv_id, version, campaign_id, profile_masked, masked_text)` chỉ trả CV `active` đã được sinh viên xác nhận (BR-01; `masked_text` thêm ở US-2.4, `null` với bản scan); `core.v_ai_jd_requirements (jd_id, version, campaign_id, position_group, requirements)` chỉ trả JD từ `APPROVED` trở đi (BR-02). Cả hai `security_barrier`. Migration tạo role ở dạng `NOLOGIN`; `migrate` bật đăng nhập bằng `API_DB_PASSWORD`, `AI_DB_PASSWORD`. `core.v_ai_jd_source (jd_id, version, title, raw_text, file_key)` chỉ trả JD đang chờ phân tích (`PENDING_HR_CONFIRMATION`, `analysis_status = PENDING`, chưa có `requirements`) cho JD Analyzer ([CONTEXT D35](CONTEXT.md)); AI Service đọc file gốc trong `jd-files` bằng tài khoản MinIO của nó.
 
 ### Các bảng chính
 
@@ -455,7 +455,7 @@ Nên đặt giới hạn chi tiêu trên trang quản lý của nhà cung cấp 
 | `students` | SINH_VIEN | id, student_code, full_name, major, cohort, gpa | unique(student_code) |
 | `skills` | Danh mục kỹ năng | id, canonical_name, aliases TEXT[], group | unique(canonical_name) |
 | `job_descriptions` | JD | id, campaign_id, company_id, title, position_group, location, work_mode, internship_period, allowance, raw_text, file_key, file_name, requirements JSONB, analysis_status, analysis_model, analysis_prompt_version, hidden_text_flag, quota, exam_blueprint JSONB, version, status, row_version | index(campaign_id, status); CHECK(work_mode ∈ ONSITE/HYBRID/REMOTE); `file_key` và `file_name` cùng có hoặc cùng rỗng (CONTEXT D28); CHECK `position_group` theo `POSITION_GROUPS`, `analysis_status` ∈ PENDING/SUCCEEDED/FAILED, `analysis_model` và `analysis_prompt_version` cùng có hoặc cùng rỗng (CONTEXT D35). `requirements` theo hợp đồng `JdRequirements` (`packages/shared/contracts/jd.ts`) |
-| `cvs` | CV | id, student_id, campaign_id, file_key, file_name, profile JSONB, pii JSONB (mã hóa), profile_masked JSONB, version, status, active, hidden_text_flag, row_version. Mỗi phiên bản một dòng ([CONTEXT D30](CONTEXT.md)) | unique một CV hiệu lực: partial unique(student_id, campaign_id) WHERE active; unique(student_id, campaign_id, version); CHECK(status), CHECK(version > 0) |
+| `cvs` | CV | id, student_id, campaign_id, file_key, file_name, profile JSONB (`CvProfile`), pii BYTEA (`pgp_sym_encrypt` của JSON `CvPii`), profile_masked JSONB, masked_text, analysis_source, analysis_model, analysis_prompt_version, analysis_error_code, version, status, active, hidden_text_flag, row_version. Mỗi phiên bản một dòng ([CONTEXT D30, D37](CONTEXT.md)) | unique một CV hiệu lực: partial unique(student_id, campaign_id) WHERE active; unique(student_id, campaign_id, version); CHECK(status), CHECK(version > 0); CHECK `analysis_source` ∈ TEXT_PDF/SCANNED_PDF/DOCX; `analysis_model` và `analysis_prompt_version` cùng có hoặc cùng rỗng; CV ở `PENDING_CONFIRMATION`/`CONFIRMED` có `profile`, `profile_masked`, `pii`, model và nguồn; CV ở `ANALYSIS_FAILED` có mã lỗi |
 | `consents` | – | id, student_id, campaign_id, terms_version, terms_sha256, accepted_at | unique(student_id, campaign_id, terms_version); CHECK(terms_version > 0), CHECK(terms_sha256 là hex 64 ký tự) |
 | `match_results` | KET_QUA_PHU_HOP | cv_id, jd_id, cv_version, jd_version, eligible, ineligible_reasons JSONB, criteria JSONB, s_cv, prompt_version, model | unique(cv_id, jd_id, cv_version, jd_version, prompt_version); index(jd_id, s_cv DESC) |
 | `preferences` | NGUYEN_VONG | id, campaign_id, student_id, jd_id, rank, status | unique(student_id, jd_id); unique(campaign_id, student_id, rank) |
@@ -572,13 +572,13 @@ sequenceDiagram
     BE-->>FE: 202 Accepted, trạng thái Đang phân tích
     MQ->>AI: Nhận job
     AI->>S3: Đọc file
-    AI->>AI: Trích văn bản, phát hiện chữ ẩn
+    AI->>AI: Trích văn bản, phát hiện chữ ẩn, che email/SĐT
     AI->>LLM: Trích xuất hồ sơ (structured output)
     LLM-->>AI: JSON hồ sơ năng lực
     AI->>AI: Chuẩn hóa kỹ năng, tách PII, tính embedding
     AI->>MQ: ai.results
     MQ->>BE: Kết quả
-    BE->>BE: Lưu hồ sơ, trạng thái Chờ SV xác nhận
+    BE->>BE: Mã hóa pii, lưu hồ sơ, trạng thái Chờ SV xác nhận (lỗi: Lỗi phân tích)
     BE-->>FE: SSE thông báo hồ sơ sẵn sàng
     SV->>FE: Sửa và xác nhận
     FE->>BE: PUT /api/cvs/me/profile/confirm
@@ -652,7 +652,7 @@ REST, mô tả bằng OpenAPI.
 |---|---|
 | Sinh viên | `GET /api/me/consents` · `POST /api/me/consents` (đồng ý điều khoản cho một đợt) · `POST /api/cvs` (multipart, `202`) · `GET /api/cvs/me` (mọi phiên bản CV) · `GET /api/cvs/me/profile` · `PUT /api/cvs/me/profile/confirm` · `GET /api/me/shortlist` · `PUT /api/me/preferences` · `POST /api/preferences/{id}/exam/start` · `PUT /api/exam-sessions/{id}/answers` · `POST /api/exam-sessions/{id}/submit` · `POST /api/exam-answers/{id}/appeal` · `POST /api/offers/{id}/accept` |
 | HR | `POST /api/jds` · `PATCH /api/jds/{id}` · `PUT /api/jds/{id}/file` (multipart) · `POST /api/jds/{id}/submit` · `PUT /api/jds/{id}/requirements` (lưu; JD đã duyệt thì tạo phiên bản mới) · `PUT /api/jds/{id}/requirements/confirm` · `GET /api/jds/{id}/question-bank/sample` · `GET /api/jds/{id}/nominations` · `POST /api/nominations/{id}/decision` · `POST /api/interviews` · `PUT /api/interviews/{id}/result` |
-| Trung tâm | `POST /api/campaigns` · `PATCH /api/campaigns/{id}` · `POST /api/campaigns/{id}/open` · `POST /api/companies` · `PATCH /api/companies/{id}` · `POST /api/companies/{id}/hr-invitations` · `GET /api/companies/{id}/hr-accounts` · `POST /api/jds/{id}/approve` · `PUT /api/jds/{id}/requirements` (chỉ JD đã duyệt: phiên bản mới, BR-18) · `POST /api/campaigns/{id}/matching-runs` · `POST /api/campaigns/{id}/allocation-rounds` · `GET /api/allocation-rounds/{id}` · `PATCH /api/allocation-rounds/{id}/nominations` · `POST /api/allocation-rounds/{id}/publish` · `GET /api/campaigns/{id}/reports` |
+| Trung tâm | `POST /api/campaigns` · `PATCH /api/campaigns/{id}` · `POST /api/campaigns/{id}/open` · `POST /api/companies` · `PATCH /api/companies/{id}` · `POST /api/companies/{id}/hr-invitations` · `GET /api/companies/{id}/hr-accounts` · `POST /api/jds/{id}/approve` · `PUT /api/jds/{id}/requirements` (chỉ JD đã duyệt: phiên bản mới, BR-18) · `GET /api/cvs` (`?campaignId=&attention=true`: CV đang dùng bị lỗi phân tích hoặc có chữ ẩn, kèm mã và tên SV) · `POST /api/campaigns/{id}/matching-runs` · `POST /api/campaigns/{id}/allocation-rounds` · `GET /api/allocation-rounds/{id}` · `PATCH /api/allocation-rounds/{id}/nominations` · `POST /api/allocation-rounds/{id}/publish` · `GET /api/campaigns/{id}/reports` |
 | Chung | `POST /api/auth/accept-invitation` (HR được mời đặt mật khẩu) · `GET /api/jds` · `GET /api/jds/{id}` (HR: JD của công ty mình; Trung tâm: mọi JD) · `GET /api/jds/{id}/requirements` (kèm việc người gọi được làm) · `GET /api/campaigns` · `GET /api/campaigns/{id}` (đợt người gọi tham gia) · `GET /api/events/stream` (SSE, header `Authorization`) · `GET /api/notifications` (`?before=&limit=`, kèm `unreadCount`) · `POST /api/notifications/{id}/read` · `POST /api/notifications/read-all` · `GET /api/files/{id}/url` (URL tạm có hạn) |
 
 ---
@@ -663,8 +663,8 @@ REST, mô tả bằng OpenAPI.
 |---|---|
 | Xác thực | JWT HS256 (access token 15 phút); refresh token ngẫu nhiên trong cookie `HttpOnly`, `Secure`, `SameSite=Strict`, `Path=/api/auth`, xoay vòng mỗi lần dùng, Redis chỉ lưu hash; mật khẩu băm bằng `scrypt` ([CONTEXT D25](CONTEXT.md)); SSO của trường qua OIDC ngoài phạm vi (CONTEXT D20); tài khoản HR do Trung tâm mời |
 | Phân quyền | RBAC (`CENTER`, `STUDENT`, `HR`, `ADMIN`) + kiểm tra cấp bản ghi: HR chỉ xem đề cử thuộc JD của công ty mình (BR-11), SV chỉ xem dữ liệu của mình |
-| Dữ liệu cá nhân | TLS; mã hóa file trên MinIO; cột PII mã hóa (pgcrypto); che PII trước khi chấm; tài khoản DB của AI Service chỉ đọc view đã che; xóa dữ liệu theo thời hạn (mục *Lưu trữ file và thời hạn dữ liệu*) |
-| Gửi dữ liệu cho LLM | Chỉ bước phân tích CV cần gửi CV đầy đủ (có thể che trước SĐT, email bằng regex); các bước chấm chỉ gửi dữ liệu đã che. Đọc kỹ điều khoản xử lý dữ liệu của nhà cung cấp LLM (thời gian lưu, có dùng để huấn luyện không) và ghi vào phần đồng ý của SV |
+| Dữ liệu cá nhân | TLS; mã hóa file trên MinIO; cột `cvs.pii` mã hóa bằng pgcrypto (`pgp_sym_encrypt`, khóa `PII_ENCRYPTION_KEY` chỉ có ở Core Backend, truyền dạng tham số; AI Service không thấy khóa); audit chỉ ghi metadata của phân tích CV; che PII trước khi chấm; tài khoản DB của AI Service chỉ đọc view đã che; xóa dữ liệu theo thời hạn (mục *Lưu trữ file và thời hạn dữ liệu*) |
+| Gửi dữ liệu cho LLM | Chỉ bước phân tích CV cần gửi CV đầy đủ: SĐT, email che trước bằng regex (mặc định bật, `CV_MASK_CONTACTS`); bản scan gửi nguyên file nên không che trước được. Các bước chấm chỉ gửi dữ liệu đã che. Điều khoản xử lý dữ liệu của nhà cung cấp LLM (thời gian lưu, có dùng để huấn luyện không) ghi vào phần đồng ý của SV: `TERMS_V2` ghi Google (Gemini API, gói trả phí) và Anthropic ([CONTEXT D37](CONTEXT.md)) |
 | LLM | API key chỉ nằm ở AI Service (biến môi trường/secret), không bao giờ ở frontend; chống prompt injection (chữ ẩn, tách chỉ dẫn/dữ liệu, schema đầu ra); công cụ của agent không có quyền ghi dữ liệu nghiệp vụ |
 | Thi | Đáp án không rời server; đồng hồ phía server; giới hạn tần suất gọi API |
 | Tải file | Kiểm tra MIME thật (không tin phần mở rộng), giới hạn 5 MB, quét virus bằng ClamAV (tùy chọn) |

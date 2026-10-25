@@ -201,7 +201,7 @@ MAIL_FROM=Smart Recruit Match <no-reply@srm.local>
 LOG_LEVEL=info
 ```
 
-API chạy ngoài Docker (`pnpm --filter @srm/api dev`) đọc `PORT` (mặc định 3000), `LOG_LEVEL`, `REFRESH_TOKEN_TTL_DAYS`, `SCHEDULER_ENABLED` (mặc định `true`), `SMTP_HOST`/`SMTP_PORT` (mặc định `localhost:1025`, tức Mailpit của compose) và các biến bắt buộc `DATABASE_URL`, `REDIS_URL`, `RABBITMQ_URL`, `JWT_ACCESS_SECRET`, `MINIO_*`, `WEB_ORIGIN` từ môi trường của shell. Dựng `postgres`, `redis`, `rabbitmq`, `minio` và `mailpit` bằng compose, áp migration và seed trước lần chạy đầu. API khởi động được khi RabbitMQ chưa chạy, nhưng chỉ gửi job và nhận `ai.results` khi đã kết nối:
+API chạy ngoài Docker (`pnpm --filter @srm/api dev`) đọc `PORT` (mặc định 3000), `LOG_LEVEL`, `REFRESH_TOKEN_TTL_DAYS`, `SCHEDULER_ENABLED` (mặc định `true`), `SMTP_HOST`/`SMTP_PORT` (mặc định `localhost:1025`, tức Mailpit của compose) và các biến bắt buộc `DATABASE_URL`, `REDIS_URL`, `RABBITMQ_URL`, `JWT_ACCESS_SECRET`, `PII_ENCRYPTION_KEY`, `MINIO_*`, `WEB_ORIGIN` từ môi trường của shell. Dựng `postgres`, `redis`, `rabbitmq`, `minio` và `mailpit` bằng compose, áp migration và seed trước lần chạy đầu. API khởi động được khi RabbitMQ chưa chạy, nhưng chỉ gửi job và nhận `ai.results` khi đã kết nối:
 
 ```bash
 docker compose -f deploy/docker-compose.yml up -d --wait postgres redis rabbitmq minio mailpit
@@ -209,6 +209,7 @@ export DATABASE_URL=postgres://srm:change-me-postgres@localhost:5432/srm   # c�
 export REDIS_URL=redis://localhost:6379                                     # cổng theo REDIS_HOST_PORT
 export RABBITMQ_URL=amqp://srm:change-me-rabbitmq@localhost:5672            # cổng theo RABBITMQ_HOST_PORT
 export JWT_ACCESS_SECRET=dev-only-jwt-access-secret-0123456789
+export PII_ENCRYPTION_KEY=dev-only-pii-encryption-key-0123456789           # khóa pgcrypto của cvs.pii (CONTEXT D37)
 export MINIO_ENDPOINT=http://localhost:9000 MINIO_ACCESS_KEY=srm-minio MINIO_SECRET_KEY=change-me-minio
 export WEB_ORIGIN=http://localhost:5173                                     # link trong email trỏ về web dev
 API_DB_PASSWORD=change-me-api-service AI_DB_PASSWORD=change-me-ai-service pnpm --filter @srm/api db:migrate

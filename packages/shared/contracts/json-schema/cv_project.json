@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./cv_project.json",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "description": "Project name"
+    },
+    "role": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "The student's role in the project"
+    },
+    "description": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 5000
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "What the project does and what the student did, as written"
+    },
+    "technologies": {
+      "maxItems": 30,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 100
+      },
+      "description": "Languages, frameworks and tools the project used"
+    },
+    "start": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Start as written"
+    },
+    "end": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "End as written"
+    }
+  },
+  "required": [
+    "name",
+    "role",
+    "description",
+    "technologies",
+    "start",
+    "end"
+  ],
+  "additionalProperties": false,
+  "title": "CvProject",
+  "description": "One project, academic or personal"
+}

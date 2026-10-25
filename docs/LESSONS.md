@@ -2,6 +2,19 @@
 
 > Mỗi mục phải giúp người sau tiết kiệm thời gian. Đánh số tăng dần, không dùng lại số. Mục sai thời (thư viện đã nâng cấp, hành vi đã đổi) thì xóa đi và thêm mục mới.
 > Tìm số tiếp theo: `grep -n "^## [0-9]" docs/LESSONS.md | tail -1`. Trích dẫn trong commit: "Per LESSONS §N".
+> Đọc mục lục dưới đây, rồi chỉ đọc các mục khớp với việc đang làm: `grep -n "^## 15\." docs/LESSONS.md` cho số dòng, sau đó đọc từ dòng đó ([CONTEXT D38](CONTEXT.md)). Thêm mục mới thì thêm một dòng vào mục lục.
+
+**Mục lục** (chủ đề → mục)
+
+- Claude Code, skill, hook, koni-docs: §1 skill phải nằm ở `.claude/skills` · §2 `docs:sync` định dạng lại PRD, đổi ngày · §3 snippet hook của koni-harness không chặn commit
+- Docker, compose, image: §4 `minio/minio` không còn trên Docker Hub · §14 compose truyền biến chưa đặt thành `""` · §15 hết RAM khi chạy test (compose, số worker Jest, commit memory của Windows) · §18 testcontainers build image không cache, Jest treo
+- Jest, ESM: §9 gói chỉ có ESM (`@nestjs/schedule`, `file-type`, `promise-breaker`…) · §11 `testTimeout` trong `projects` bị bỏ qua · §21 `--selectProjects` nuốt đường dẫn test
+- Integration test: §22 các file dùng chung DB, thông báo gửi mọi tài khoản CENTER lọt vào test khác
+- Drizzle, migration: §6 migration có mốc thời gian cũ bị bỏ qua · §7 hàm dùng chung nhiều bảng: khai kiểu cụ thể · §12 `FOR UPDATE OF` sinh tên có schema
+- Ranh giới module: §5 `exclude: node_modules` làm dependency-cruiser bỏ sót
+- Thư viện API, web: §8 CLI shadcn 4.21 · §10 Zod 4 bỏ qua `refine` khi trường khác lỗi · §13 multer đọc tên file theo latin1
+- RabbitMQ, job AI: §16 `RabbitMQModule` giữ connection static · §17 mặc định sai của thư viện message
+- ai-service (Python): §19 chặn mạng trong pytest trên Windows · §20 PyMuPDF cắt chữ ngoài trang, màu nền theo thứ tự vẽ
 
 ---
 
@@ -210,8 +223,10 @@ See [CONTEXT.md D31](CONTEXT.md).
 - Dừng compose trước khi chạy cả bộ test: `docker compose -f deploy/docker-compose.yml stop`. Volume và dữ liệu vẫn giữ nguyên.
 - Suite đỏ ngẫu nhiên, mỗi lần một nhóm khác nhau, thì xem cuối output: `out of memory` hay `Exceeded timeout` là lỗi môi trường (xem thêm §11), không phải lỗi logic.
 - Kiểm đầu-cuối trên compose và chạy bộ test là hai bước riêng, không chạy cùng lúc.
+- (0.10.0) Lỗi lặp lại ở US-2.4 khi compose đã tắt: `FATAL ERROR: Zone Allocation failed - process out of memory` trên nhiều tiến trình Node mới chạy được 0,5–1,5 giây, heap mới 8–31 MB. Heap nhỏ như vậy nghĩa là Windows hết *commit memory* (RAM + pagefile: 20,5 GB trên máy 15,5 GB RAM, Chrome, VS Code và các phiên agent đã giữ khoảng 18 GB), không phải V8 hết heap; `--max-old-space-size` không giúp gì. Hai nguyên nhân: Jest mặc định mở số worker bằng số luồng CPU trừ một (13 worker, mỗi worker integration dựng app Nest) và lệnh `--selectProjects` chạy cả bộ thay vì vài file (§21). Đã sửa: `apps/api/jest.config.cjs` đặt `maxWorkers: 4` và `workerIdleMemoryLimit`, còn shared đặt `maxWorkers: '50%'`. Trên Windows nên giới hạn VM của WSL bằng `%USERPROFILE%\.wslconfig` (`memory=6GB`, `autoMemoryReclaim=dropCache`). Docker Desktop không trả lời `docker version` là dấu hiệu VM đang thiếu RAM.
+- Test treo hoặc máy chậm bất thường: tìm tiến trình `jest-worker` còn sót (§18) trước khi chạy lại. Một lần chạy treo có thể giữ khoảng 2 GB trong nhiều giờ.
 
-See [US-1.7](sprints/stories/US-1.7-notifications-sse-email-reminders.md) › Implementation notes.
+See [US-1.7](sprints/stories/US-1.7-notifications-sse-email-reminders.md) › Implementation notes, [US-2.4](sprints/stories/US-2.4-cv-parser-hidden-text-pii-split.md).
 
 ## 16. `RabbitMQModule` của golevelup giữ connection trong biến static: hai app Nest trong một process giẫm lên nhau
 
@@ -297,3 +312,30 @@ See [US-2.2](sprints/stories/US-2.2-llm-client-versioned-prompts.md) › Impleme
 - Dựng PDF thử bằng PyMuPDF ngay trong test (`insert_text`, `draw_rect`, `insert_image`). Font `helv` có sẵn không có dấu tiếng Việt; ca tiếng Việt để cho DOCX.
 
 See [US-2.3](sprints/stories/US-2.3-jd-analyzer-hr-requirement-confirmation.md) › Implementation notes.
+
+## 21. `jest --selectProjects integration <đường dẫn>` chạy cả bộ test: `--selectProjects` nhận nhiều giá trị
+
+**What happened (0.10.0)**: Khi làm US-2.4, lệnh `pnpm exec jest --selectProjects integration test/integration/cv-parse-result …` được dùng để chạy riêng vài file integration. Jest lại chạy mọi file `*.int-spec.ts`, máy hết RAM ("Zone Allocation failed - process out of memory"), và nhiều suite không liên quan đỏ với "Jest worker ran out of memory".
+
+**Why**: `--selectProjects` là tùy chọn kiểu mảng. Mọi giá trị đứng sau nó (kể cả đường dẫn test) bị coi là tên project. Không project nào khớp các đường dẫn, nên Jest chỉ chọn `integration` và chạy cả project, không lọc file.
+
+**How to avoid**:
+- Lọc file bằng tùy chọn có tên, rồi mới chọn project: `pnpm exec jest --testPathPatterns 'test/integration/(cv-parse-result|ai-job-roundtrip)' --selectProjects integration --runInBand`.
+- Dòng đầu ra phải là "Running one project: integration", và danh sách suite chỉ gồm các file đã chọn.
+- Máy dev ít RAM thì thêm `--runInBand` và tắt compose trước (§15).
+
+See [US-2.4](sprints/stories/US-2.4-cv-parser-hidden-text-pii-split.md) › Implementation notes.
+
+## 22. Các file integration dùng chung một database: thông báo gửi cho mọi tài khoản CENTER lọt vào test của file khác
+
+**What happened (0.10.0)**: `pnpm test` thỉnh thoảng đỏ ở `email-outbox.int-spec.ts`, test "two workers never send the same email twice": `emailStatus` của 12 người nhận không phải toàn `SENT`. Assertion ngay trước đó (mỗi người nhận đúng một email) vẫn xanh. Chạy riêng file thì xanh.
+
+**Why**: Mọi file integration dùng chung một PostgreSQL, và Jest chạy tối đa 4 file một lúc. Từ US-2.3 và US-2.4, `JD_REQUIREMENTS_VERSIONED` và `CV_NEEDS_ATTENTION` được gửi qua kênh `IN_APP` cho mọi tài khoản CENTER đang hoạt động. Khi `jd-requirements.int-spec.ts` hoặc `cv-parse-result.int-spec.ts` chạy cùng lúc, user CENTER mà file khác vừa tạo nhận thêm dòng có `emailStatus = null`. Test đếm mọi dòng của user đó vì thế bị lệch.
+
+**How to avoid**:
+- Test đọc thông báo của user CENTER thì chỉ lấy loại mà test tự tạo: `notificationsOfType(db, type, ...userIds)` trong `apps/api/test/helpers/notifications.ts`.
+- Tổng quát: đừng giả định dữ liệu của user test chỉ do file mình tạo ra. Thao tác gửi cho "mọi tài khoản có vai trò X" chạm cả vào user của file khác. Assertion phải giới hạn theo ID, loại hoặc `dedupeKey` của chính test.
+- Khi thêm thông báo gửi cho cả một vai trò, grep các test tạo user vai trò đó (`createLoginUser('CENTER')`) và đọc bảng `notifications`.
+- Lỗi chỉ hiện khi các file chạy cùng lúc, nên chạy riêng một file mà xanh chưa chứng minh đã sửa xong.
+
+See [US-1.7](sprints/stories/US-1.7-notifications-sse-email-reminders.md) (các test bị ảnh hưởng), [US-2.3](sprints/stories/US-2.3-jd-analyzer-hr-requirement-confirmation.md), [US-2.4](sprints/stories/US-2.4-cv-parser-hidden-text-pii-split.md) (nơi thêm thông báo gửi cả vai trò).

@@ -48,7 +48,7 @@ class ScriptedProvider:
     def build_params(self, request) -> dict[str, Any]:
         return {"system": request.system, "user": request.user, "effort": request.effort}
 
-    async def send(self, params: dict[str, Any]) -> ProviderResponse:
+    async def send(self, params: dict[str, Any], documents=()) -> ProviderResponse:
         self.sent.append(params)
         reply = self._replies.pop(0)
         if isinstance(reply, Exception):

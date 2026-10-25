@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./cv_education.json",
+  "type": "object",
+  "properties": {
+    "institution": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "description": "School or university"
+    },
+    "degree": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Degree or programme level, e.g. \"Kỹ sư\", \"Cử nhân\""
+    },
+    "major": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Major or field of study"
+    },
+    "start": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Start as written"
+    },
+    "end": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "End as written; \"hiện tại\" when ongoing"
+    },
+    "gpa": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "GPA as written, with its scale, e.g. \"3.2/4\""
+    }
+  },
+  "required": [
+    "institution",
+    "degree",
+    "major",
+    "start",
+    "end",
+    "gpa"
+  ],
+  "additionalProperties": false,
+  "title": "CvEducation",
+  "description": "One school or degree"
+}

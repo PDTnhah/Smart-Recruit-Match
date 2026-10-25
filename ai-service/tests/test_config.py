@@ -33,3 +33,15 @@ def test_maps_the_api_log_levels_shared_in_compose() -> None:
 def test_refuses_a_missing_or_wrong_url(override: dict[str, str]) -> None:
     with pytest.raises(RuntimeError, match="Invalid environment variables"):
         load_settings({**ENV, **override})
+
+
+def test_us24_contacts_masked_and_fake_keys_off_by_default() -> None:
+    settings = load_settings({**ENV, "CV_MASK_CONTACTS": "", "AI_FAKE_FILE_KEYS": ""})
+    assert (settings.cv_mask_contacts, settings.fake_file_keys) == (True, False)
+    settings = load_settings({**ENV, "CV_MASK_CONTACTS": "false", "AI_FAKE_FILE_KEYS": "true"})
+    assert (settings.cv_mask_contacts, settings.fake_file_keys) == (False, True)
+
+
+def test_us24_refuses_a_flag_that_is_not_a_boolean() -> None:
+    with pytest.raises(RuntimeError, match="Invalid environment variables"):
+        load_settings({**ENV, "CV_MASK_CONTACTS": "maybe"})

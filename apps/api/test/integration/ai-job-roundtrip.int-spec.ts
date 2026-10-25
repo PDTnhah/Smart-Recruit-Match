@@ -1,6 +1,8 @@
 // US-2.1 AC-4 … AC-7, AC-10 (AD-5, AD-6, NFR-10, CONTEXT D33): jobs through the real pipeline,
-// backend → RabbitMQ → AI Service worker (container built from ai-service/, fake handlers) →
-// ai.results → backend. The worker connects as ai_service, the API as api_service.
+// backend → RabbitMQ → AI Service worker (container built from ai-service/) → ai.results →
+// backend. The worker connects as ai_service, the API as api_service. Since US-2.4 it runs the
+// real CV Parser on a sample CV with recorded LLM replies, and the student module stores the
+// result; `__fake__/` file keys still fail on purpose (AI_FAKE_FILE_KEYS, CONTEXT D37).
 import { AmqpConnection } from '@golevelup/nestjs-rabbitmq';
 import type { CvStatus } from '@srm/shared';
 import { eq } from 'drizzle-orm';
@@ -15,13 +17,15 @@ import {
   type AiJobDispatchedEvent,
   type AiJobSettledEvent,
 } from '../../src/modules/aigateway/index.js';
+import { StorageService } from '../../src/common/storage/index.js';
 import {
-  type RabbitVhost,
-  ReferenceCvResultListenerModule,
   createVhost,
+  cvParseOutput,
   deliverTwice,
   queueDepth,
+  type RabbitVhost,
   startAiWorker,
+  uploadSampleCv,
 } from '../helpers/ai-results.js';
 import { type AuthTestApp, createAuthTestApp } from '../helpers/auth.js';
 import { ownerDatabaseUrl } from '../helpers/db.js';
@@ -32,7 +36,6 @@ import { auditEntries } from '../helpers/state.js';
 
 const JOBS_DLQ = 'ai.cv.parse.dlq';
 const RESULTS_DLQ = 'ai.results.dlq';
-const FAKE_OUTPUT = { prompt_version: 'fake/v0', model: 'fake' };
 
 interface JobRow {
   status: string;
@@ -56,7 +59,7 @@ describe('AD-5: AI jobs round trip through RabbitMQ and the AI Service', () => {
     // Read when the app is built; only this file's app consumes this vhost's ai.results.
     process.env.RABBITMQ_URL = vhost.url;
     // One after the other, so afterAll can close whatever started if the other step fails.
-    t = await createAuthTestApp({ imports: [ReferenceCvResultListenerModule] });
+    t = await createAuthTestApp();
     gateway = t.app.get(AiGatewayService);
     amqp = t.app.get(AmqpConnection);
     dispatched = captureEvents(t.app, AI_JOB_DISPATCHED);
@@ -96,8 +99,16 @@ describe('AD-5: AI jobs round trip through RabbitMQ and the AI Service', () => {
   const dispatchCv = (cv: { id: number; version: number; fileKey: string }) =>
     gateway.dispatch('CV_PARSE', { cv_id: cv.id, cv_version: cv.version, file_key: cv.fileKey });
 
+  /** A CV row whose file is the sample CV of the AI Service tests, stored in cv-files. */
+  const parsableCv = async () => {
+    const draft = await createCv(t.db);
+    const fileKey = await uploadSampleCv(t.app.get(StorageService), draft.studentId, draft.campaignId);
+    const [cv] = await t.db.update(cvs).set({ fileKey }).where(eq(cvs.id, draft.id)).returning();
+    return cv!;
+  };
+
   it('AD-5 job đi trọn vòng backend → RabbitMQ → AI Service → ai.results → backend', async () => {
-    const cv = await createCv(t.db);
+    const cv = await parsableCv();
     const job = await dispatchCv(cv);
     expect(dispatched.filter((event) => event.jobId === job.job_id)).toEqual([
       { jobId: job.job_id, type: 'CV_PARSE', job },
@@ -107,8 +118,11 @@ describe('AD-5: AI jobs round trip through RabbitMQ and the AI Service', () => {
 
     expect(event).toEqual({ jobId: job.job_id, type: 'CV_PARSE', status: 'SUCCEEDED', job, error: null });
     expect(await finishedJob(job.job_id)).toMatchObject({ status: 'SUCCEEDED', attempts: 1, last_error: null });
-    // The owning module received the result: the reference listener moved the CV on.
+    // The student module stored the CV Parser's result and moved the CV on (US-2.4 AC-9).
     expect(await cvStatus(cv.id)).toBe('PENDING_CONFIRMATION');
+    const [row] = await t.db.select().from(cvs).where(eq(cvs.id, cv.id));
+    expect(row).toMatchObject({ analysisSource: 'TEXT_PDF', analysisPromptVersion: 'cv_parser/v1' });
+    expect(row!.maskedText).toContain('Email: [EMAIL] | Phone: [PHONE] | [LINK]');
   });
 
   it('AD-5 nhận trùng ai.results không ghi trùng', async () => {
@@ -116,16 +130,21 @@ describe('AD-5: AI jobs round trip through RabbitMQ and the AI Service', () => {
     const jobId = randomUUID();
     const job = { job_id: jobId, cv_id: cv.id, cv_version: cv.version, file_key: cv.fileKey };
 
-    await deliverTwice(amqp, { job_id: jobId, type: 'CV_PARSE', status: 'SUCCEEDED', job, result: FAKE_OUTPUT, error: null });
+    const result = cvParseOutput(cv);
+    await deliverTwice(amqp, { job_id: jobId, type: 'CV_PARSE', status: 'SUCCEEDED', job, result, error: null });
     await waitSettled(jobId, 2);
 
     expect(await cvStatus(cv.id)).toBe('PENDING_CONFIRMATION');
-    expect(await auditEntries(t.db, 'cv', cv.id)).toHaveLength(1);
+    // CV_ANALYSED and the TRANSITION, once.
+    expect((await auditEntries(t.db, 'cv', cv.id)).map((entry) => entry.action).sort()).toEqual([
+      'CV_ANALYSED',
+      'TRANSITION',
+    ]);
     expect(await queueDepth(amqp, RESULTS_DLQ)).toBe(0);
   });
 
   it('AD-5 job trùng job_id không chạy lại', async () => {
-    const cv = await createCv(t.db);
+    const cv = await parsableCv();
     const job = await dispatchCv(cv);
     await waitSettled(job.job_id);
     await finishedJob(job.job_id);
@@ -136,7 +155,7 @@ describe('AD-5: AI jobs round trip through RabbitMQ and the AI Service', () => {
       persistent: true,
       contentType: 'application/json',
     });
-    const later = await dispatchCv(await createCv(t.db));
+    const later = await dispatchCv(await parsableCv());
     await waitSettled(later.job_id);
 
     expect(settledFor(job.job_id)).toHaveLength(1);
@@ -160,8 +179,8 @@ describe('AD-5: AI jobs round trip through RabbitMQ and the AI Service', () => {
     if (!dead) throw new Error(`${JOBS_DLQ} is empty`);
     expect(JSON.parse(dead.content.toString())).toEqual(job);
     expect(dead.properties.headers).toMatchObject({ 'x-srm-attempts': 3, 'x-srm-source-queue': 'ai.cv.parse' });
-    // A FAILED result leaves the CV waiting; the owning module decides what to show (US-2.4).
-    expect(await cvStatus(cv.id)).toBe('PENDING_ANALYSIS');
+    // A FAILED result asks the student to upload again (US-2.4 AC-11).
+    expect(await cvStatus(cv.id)).toBe('ANALYSIS_FAILED');
   });
 
   it('AD-5 lỗi không hồi phục thất bại ngay, không thử lại, cần người xử lý (AC-7)', async () => {
@@ -190,7 +209,9 @@ describe('AD-5: AI jobs round trip through RabbitMQ and the AI Service', () => {
     await amqp.managedChannel.publish(
       '',
       'ai.results',
-      Buffer.from(JSON.stringify({ job_id: jobId, type: 'CV_PARSE', status: 'SUCCEEDED', job, result: FAKE_OUTPUT, error: null })),
+      Buffer.from(
+        JSON.stringify({ job_id: jobId, type: 'CV_PARSE', status: 'SUCCEEDED', job, result: cvParseOutput(cv), error: null }),
+      ),
       options,
     );
     await waitSettled(jobId);

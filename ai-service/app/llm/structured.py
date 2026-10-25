@@ -17,7 +17,7 @@ is best-effort: a logging outage must not hide the refusal or error being raised
 
 import logging
 import time
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
@@ -31,6 +31,7 @@ from app.llm.recorder import CallRecord, CallRecorder
 from app.llm.schema import strict_json_schema
 from app.llm.types import (
     EFFORTS,
+    Document,
     Effort,
     LLMRequest,
     LLMResult,
@@ -93,6 +94,7 @@ class StructuredLLMClient:
         effort: Effort,
         job_id: UUID | None,
         max_output_tokens: int | None = None,
+        documents: Sequence[Document] = (),
     ) -> LLMResult[T]:
         if effort not in EFFORTS:
             raise ValueError(f"effort must be one of {EFFORTS}, got {effort!r}")
@@ -106,6 +108,7 @@ class StructuredLLMClient:
             output_schema=strict_json_schema(output_model),
             effort=effort,
             max_output_tokens=max_output_tokens or self._max_output_tokens,
+            documents=tuple(document.ref for document in documents),
         )
         params = self._provider.build_params(request)
         problems: list[str] = []
@@ -120,7 +123,7 @@ class StructuredLLMClient:
                 started=self._timer(),
             )
             try:
-                response = await self._provider.send(params)
+                response = await self._provider.send(params, documents)
             except ProviderCallError as error:
                 await self._record_failure(attempt, Outcome.API_ERROR, None, str(error))
                 if error.retryable:

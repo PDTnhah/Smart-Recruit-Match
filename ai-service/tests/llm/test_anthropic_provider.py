@@ -1,5 +1,8 @@
 """US-2.2 AC-1, AC-3, AC-5 for Claude: request shape and reply mapping, with a fake SDK client."""
 
+import base64
+import json
+from dataclasses import replace
 from types import SimpleNamespace
 from typing import Any
 
@@ -15,7 +18,7 @@ from app.llm.providers.anthropic_provider import (
     to_provider_response,
 )
 from app.llm.schema import strict_json_schema
-from app.llm.types import LLMRequest, ProviderCallError, StopReason, Usage
+from app.llm.types import Document, LLMRequest, ProviderCallError, StopReason, Usage
 
 pytestmark = pytest.mark.anyio
 
@@ -139,3 +142,32 @@ async def test_api_errors_are_classified(error, retryable, status):
     with pytest.raises(ProviderCallError) as caught:
         await provider.send(provider.build_params(request()))
     assert (caught.value.retryable, caught.value.status) == (retryable, status)
+
+
+PDF = Document("application/pdf", b"%PDF-1.7 scanned page")
+
+
+async def test_gd2_document_block_before_the_text_and_logged_by_hash():
+    """US-2.4 AC-4: a scanned CV is a base64 `document` block placed before the text block."""
+    fake = FakeAnthropic(claude_reply())
+    provider = AnthropicProvider(fake, MODEL)
+    params = provider.build_params(replace(request(), documents=(PDF.ref,)))
+
+    [message] = params["messages"]
+    [document, prompt] = message["content"]
+    assert document == {
+        "type": "document",
+        "source": {
+            "type": "base64",
+            "media_type": "application/pdf",
+            "data": {"$document": PDF.ref.as_json()},
+        },
+    }
+    assert prompt == {"type": "text", "text": "<answer>...</answer>"}
+    assert "citations" not in document, "citations cannot be combined with output_config.format"
+    json.dumps(params)
+
+    await provider.send(params, [PDF])
+    sent = fake.calls[0]["messages"][0]["content"][0]["source"]["data"]
+    assert sent == base64.standard_b64encode(PDF.data).decode("ascii")
+    assert "\n" not in sent
