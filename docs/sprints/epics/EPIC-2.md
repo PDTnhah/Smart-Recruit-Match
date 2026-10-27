@@ -65,11 +65,11 @@ Ranh giới kiến trúc mà epic này giữ (AD-1, AD-4): AI Service không chu
 
 | FR | Story | Status |
 |----|-------|--------|
-| FR-9 | US-2.3 | 👀 review |
-| FR-10 | US-2.3 | 👀 review |
-| FR-11 | US-2.4 | 👀 review |
-| FR-12 | US-2.6 | 👀 review |
-| FR-13 | US-2.5 | 👀 review |
+| FR-9 | US-2.3 | ✅ done |
+| FR-10 | US-2.3 | ✅ done |
+| FR-11 | US-2.4 | ✅ done |
+| FR-12 | US-2.6 | ✅ done |
+| FR-13 | US-2.5 | ✅ done |
 
 > NFR-3 (không gửi PII không cần thiết cho LLM), NFR-6 (< 30 giây/CV), NFR-10 (job có retry) và NFR-12 (thay được mô hình) được thực thi trong epic này.
 
@@ -89,12 +89,12 @@ Ranh giới kiến trúc mà epic này giữ (AD-1, AD-4): AI Service không chu
 
 | ID | Title | Goal | Status | Version |
 |---|---|---|---|---|
-| US-2.1 | Hạ tầng job AI và hợp đồng message | Job AI đi từ backend sang AI Service và quay về, idempotent, có DLQ | 👀 review | 0.7.0 |
-| US-2.2 | LLMClient và prompt có phiên bản | Mọi lượt gọi LLM (Gemini hoặc Claude) đi qua một lớp có retry, refusal, ghi chi phí, fixture | 👀 review | 0.8.0 |
-| US-2.3 | JD Analyzer và HR xác nhận yêu cầu | HR nhận yêu cầu chuẩn hóa do AI đề xuất, sửa và xác nhận | 👀 review | 0.9.0 |
-| US-2.4 | CV Parser: chữ ẩn, tách PII | CV thành hồ sơ năng lực có `profile_masked`, chặn chữ ẩn | 👀 review | 0.10.0 |
-| US-2.5 | Embedding và danh mục kỹ năng | Tên kỹ năng được chuẩn hóa; quản trị duyệt kỹ năng mới | 👀 review | 0.11.0 |
-| US-2.6 | SV xác nhận hồ sơ năng lực | SV xem CV bên cạnh hồ sơ, sửa và xác nhận | 👀 review | — |
+| US-2.1 | Hạ tầng job AI và hợp đồng message | Job AI đi từ backend sang AI Service và quay về, idempotent, có DLQ | ✅ done | 0.7.0 |
+| US-2.2 | LLMClient và prompt có phiên bản | Mọi lượt gọi LLM (Gemini hoặc Claude) đi qua một lớp có retry, refusal, ghi chi phí, fixture | ✅ done | 0.8.0 |
+| US-2.3 | JD Analyzer và HR xác nhận yêu cầu | HR nhận yêu cầu chuẩn hóa do AI đề xuất, sửa và xác nhận | ✅ done | 0.9.0 |
+| US-2.4 | CV Parser: chữ ẩn, tách PII | CV thành hồ sơ năng lực có `profile_masked`, chặn chữ ẩn | ✅ done | 0.10.0 |
+| US-2.5 | Embedding và danh mục kỹ năng | Tên kỹ năng được chuẩn hóa; quản trị duyệt kỹ năng mới | ✅ done | 0.11.0 |
+| US-2.6 | SV xác nhận hồ sơ năng lực | SV xem CV bên cạnh hồ sơ, sửa và xác nhận | ✅ done | 0.12.0 |
 
 ## Object map & user-story interactions
 

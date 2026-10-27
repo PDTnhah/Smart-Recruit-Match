@@ -2,7 +2,7 @@
 id: US-1.7
 title: "Thông báo trong app, SSE, email, nhắc hạn"
 epic: EPIC-1
-status: review
+status: done
 priority: P1
 points: 5
 sprint: sprint-2026-W44
@@ -13,7 +13,7 @@ depends_on: [US-1.2, US-1.3]
 assignee: PDTnhah
 commit: 665439d25c21ada5b394f2b3a79aff724c015de6
 created: 2026-10-07
-updated: 2026-10-19
+updated: 2026-10-28
 ---
 
 ## Story refresh — 2026-10-19
@@ -70,7 +70,7 @@ Story được đưa lên T4 (CONTEXT D20) vì US-3.4 và US-5.2 cần nó.
 - [x] **AC-4** — **Given** một thông báo có kênh email, **When** tác vụ nền gửi outbox chạy, **Then** email được gửi qua nodemailer bằng template Handlebars tiếng Việt (môi trường dev: thấy trong Mailpit) và thời điểm gửi được ghi lại **And** SMTP lỗi thì tăng số lần thử và thử lại về sau, quá số lần tối đa thì đánh dấu thất bại và ghi log **And** SMTP lỗi không làm hỏng giao dịch nghiệp vụ đã tạo thông báo **And** hai instance chạy cùng lúc không gửi trùng một email.
 - [x] **AC-5** — **Given** các sự kiện của EPIC-1, **When** sự kiện được phát qua `@nestjs/event-emitter`, **Then** `campaign.opened` (US-1.4) tạo thông báo "Mở đợt" trong app và qua email cho sinh viên thuộc đối tượng của đợt **And** `hr.invited` (US-1.5) gửi email chứa đường dẫn mời cho HR được mời.
 - [x] **AC-6** — **Given** đợt ở `INTAKE` và còn trong khoảng nhắc trước `intake_end`, **When** tác vụ nhắc hạn chạy, **Then** sinh viên thuộc đối tượng của đợt mà chưa có CV hiệu lực nhận thông báo "Sắp hết hạn nộp CV" (trong app và email) **And** chạy lại tác vụ, hoặc chạy trên hai instance, không nhắc trùng cùng một người cho cùng một hạn **And** sinh viên đã nộp CV không nhận nhắc **And** tác vụ không gọi LLM. Cơ chế nhắc cho phép story sau đăng ký thêm hạn (chọn NV ở US-3.3, làm test ở US-4.3, SLA của HR ở US-5.3).
-- [ ] **AC-7** — Khung của cả ba cổng có biểu tượng chuông kèm số chưa đọc, cập nhật theo SSE; mở ra danh sách thông báo (dạng sheet trên điện thoại) có nút đánh dấu đã đọc; bấm vào thông báo thì đi tới trang liên quan. Chuỗi tiếng Việt, ngày giờ theo date-fns locale `vi`, đủ bốn trạng thái theo `DESIGN.md`.
+- [x] **AC-7** — Khung của cả ba cổng có biểu tượng chuông kèm số chưa đọc, cập nhật theo SSE; mở ra danh sách thông báo (dạng sheet trên điện thoại) có nút đánh dấu đã đọc; bấm vào thông báo thì đi tới trang liên quan. Chuỗi tiếng Việt, ngày giờ theo date-fns locale `vi`, đủ bốn trạng thái theo `DESIGN.md`.
 
 ## Tasks
 

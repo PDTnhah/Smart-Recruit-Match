@@ -2,7 +2,7 @@
 id: US-1.3
 title: "Đăng nhập, phân quyền, DESIGN.md, khung giao diện"
 epic: EPIC-1
-status: review
+status: done
 priority: P0
 points: 8
 sprint: sprint-2026-W44
@@ -13,7 +13,7 @@ depends_on: [US-1.1, US-1.2]
 assignee: PDTnhah
 commit: 340e62e690eb36e84bf2ae97b81c0c13e12c32b7
 created: 2026-10-07
-updated: 2026-10-08
+updated: 2026-10-28
 ---
 
 ## Story refresh — 2026-10-08
@@ -52,16 +52,16 @@ SSO của trường qua OIDC là tùy chọn ở ARCH, và CONTEXT D20 đưa nó
 - [x] **AC-1** — **Given** một tài khoản đang hoạt động, **When** gửi email và mật khẩu đúng tới `POST /api/auth/login`, **Then** API trả access token JWT (hết hạn sau 15 phút, chứa `sub`, `role`, `company_id` hoặc `student_id` nếu có) **And** đặt refresh token trong cookie `httpOnly`, `Secure`, `SameSite=Strict`, chỉ gửi cho đường dẫn `/api/auth`. Mật khẩu chỉ lưu dạng băm, không bao giờ xuất hiện trong log hay response.
 - [x] **AC-2** — **Given** email không tồn tại hoặc mật khẩu sai, **When** gọi đăng nhập, **Then** API trả `401` với cùng một thông báo cho cả hai trường hợp (không lộ email nào đã có tài khoản).
 - [x] **AC-3** — **Given** refresh token hợp lệ, **When** gọi `POST /api/auth/refresh`, **Then** API trả access token mới và thay refresh token mới (refresh token cũ hết hiệu lực) **And** refresh token đã thu hồi, hết hạn hoặc dùng lại lần hai thì trả `401` và xóa cookie. `POST /api/auth/logout` thu hồi refresh token hiện tại.
-- [ ] **AC-4** — **Given** access token đã hết hạn hoặc sai chữ ký, **When** gọi một API cần đăng nhập, **Then** API trả `401`. Web client tự gọi refresh một lần rồi gửi lại yêu cầu; refresh lỗi thì chuyển về `/login`.
+- [x] **AC-4** — **Given** access token đã hết hạn hoặc sai chữ ký, **When** gọi một API cần đăng nhập, **Then** API trả `401`. Web client tự gọi refresh một lần rồi gửi lại yêu cầu; refresh lỗi thì chuyển về `/login`.
 - [x] **AC-5** — **Given** API đã dựng xong, **When** chạy test duyệt mọi route qua discovery của NestJS, **Then** route nào không có `@Roles(...)` hoặc `@Public()` thì test đỏ (mặc định từ chối) **And** gọi route bằng vai trò không nằm trong `@Roles` thì nhận `403`.
 - [x] **AC-6** — **Given** HR của công ty A và một bản ghi thuộc công ty B (resource kiểm thử đăng ký riêng trong test), **When** HR của A đọc hoặc sửa bản ghi đó bằng ID, **Then** API trả `404` như khi bản ghi không tồn tại **And** sinh viên X đọc bản ghi của sinh viên Y cũng nhận `404`. Kiểm tra nằm trong service qua helper chung, không nằm ở controller.
 - [x] **AC-7** — **Given** người gọi có vai trò `ADMIN`, **When** tạo tài khoản `CENTER`, `ADMIN` hoặc `STUDENT` (kèm `student_code`, `full_name`, `major`, `cohort`, `gpa`), **Then** tài khoản được tạo **And** tạo tài khoản `HR` qua đường này bị từ chối `422` (HR chỉ vào qua lời mời ở US-1.5) **And** email trùng trả `409` **And** người gọi không phải `ADMIN` nhận `403`.
 - [x] **AC-8** — Script seed chỉ dùng cho môi trường dev/test tạo một tài khoản cho mỗi vai trò, cùng hai công ty, mỗi công ty một HR, và hai sinh viên. Chạy lại không tạo trùng. `apps/api/test/helpers/auth.ts` có `loginAs(role, options)` trả về agent Supertest đã gắn token, đủ để story sau viết test IDOR trong một dòng.
 - [x] **AC-9** — `DESIGN.md` ở gốc repo có trước màn hình đầu tiên và ghi: token màu ngữ nghĩa, chữ, khoảng cách, bo góc; danh sách primitive shadcn được dùng; bốn trạng thái bắt buộc của mọi màn (rỗng, đang tải, lỗi, có dữ liệu); quy tắc viết chuỗi tiếng Việt; định dạng ngày giờ bằng date-fns locale `vi`; breakpoint và quy tắc cho điện thoại ở cổng sinh viên; mức tương phản tối thiểu.
 - [x] **AC-10** — `apps/web/components.json` có sau khi chạy `shadcn init`. Lựa chọn nền Radix hay Base UI được hỏi người dùng trước khi chạy và ghi thành một mục D mới trong `docs/CONTEXT.md`. Token Tailwind khớp với `DESIGN.md`. Component sinh vào `apps/web/src/components/ui/`.
-- [ ] **AC-11** — **Given** người dùng đã đăng nhập, **When** vào `/`, **Then** web chuyển tới cổng theo vai trò: `STUDENT` → `/sv`, `HR` → `/hr`, `CENTER` và `ADMIN` → `/admin` (menu khác nhau theo vai trò) **And** mở đường dẫn của cổng khác thì bị chuyển về cổng của mình **And** chưa đăng nhập thì về `/login`. Hàm ánh xạ vai trò → cổng là hàm thuần trong `packages/shared`, có unit test.
-- [ ] **AC-12** — Form đăng nhập dùng React Hook Form + một Zod schema trong `packages/shared/schemas/`, chính schema này cũng validate request ở API (nestjs-zod). Form có đủ trạng thái: đang gửi, lỗi trường, lỗi đăng nhập. Mọi chuỗi bằng tiếng Việt.
-- [ ] **AC-13** — Khung cổng sinh viên dùng được ở chiều rộng 360 px: không cuộn ngang, menu chuyển thành dạng sheet hoặc thanh dưới, vùng chạm theo kích thước ghi trong `DESIGN.md`.
+- [x] **AC-11** — **Given** người dùng đã đăng nhập, **When** vào `/`, **Then** web chuyển tới cổng theo vai trò: `STUDENT` → `/sv`, `HR` → `/hr`, `CENTER` và `ADMIN` → `/admin` (menu khác nhau theo vai trò) **And** mở đường dẫn của cổng khác thì bị chuyển về cổng của mình **And** chưa đăng nhập thì về `/login`. Hàm ánh xạ vai trò → cổng là hàm thuần trong `packages/shared`, có unit test.
+- [x] **AC-12** — Form đăng nhập dùng React Hook Form + một Zod schema trong `packages/shared/schemas/`, chính schema này cũng validate request ở API (nestjs-zod). Form có đủ trạng thái: đang gửi, lỗi trường, lỗi đăng nhập. Mọi chuỗi bằng tiếng Việt.
+- [x] **AC-13** — Khung cổng sinh viên dùng được ở chiều rộng 360 px: không cuộn ngang, menu chuyển thành dạng sheet hoặc thanh dưới, vùng chạm theo kích thước ghi trong `DESIGN.md`.
 
 ## Tasks
 
@@ -206,6 +206,7 @@ Lessons: §8 mới — CLI shadcn 4.21 không nhận preset `radix-nova` và t�
 - **Kiểm đã chạy.** `pnpm typecheck`, `pnpm lint`, `pnpm test` (shared 18, api 80), `pnpm build`, `pnpm depcruise`, `pnpm depcruise:fixture` đều qua. Compose: `up -d --build --wait` healthy cả 8 service; seed vào DB compose; qua nginx `:8080`: đăng nhập trả cookie đúng cờ, `/api/me` 200, sinh viên gọi `/api/admin/users` 403, email sai và mật khẩu sai cùng body 401, refresh bằng cookie 200, các route SPA 200, `/api/docs` 404 ở production; log API che `cookie`/`set-cookie` thành `[Redacted]`, không có token hay mật khẩu.
 - **Review (`/code-review`).** Đã sửa: khóa JWT mẫu qua được kiểm tra env; `verifyPassword` chưa chặn `r`/`p`/`N` lạ (có thể ném lỗi hoặc chạy rất lâu); lỗi không phải lỗi miền trả body khác `ApiError`; điều hướng sau đăng nhập có thể mất trang định mở; `from` có query string bị bỏ; kiểm tra trùng với schema trong `AdminUsersService`. Ghi vào *What we explicitly did NOT do*: thu hồi cả chuỗi refresh token khi thấy token cũ bị dùng lại; cookie `Secure` trên HTTP qua IP LAN. Để sau: clone mọi request để gửi lại (ghi chú trong `client.ts`), gom các lần `loadEnv()` thành một provider.
 - **Chưa xong.** AC-4 (phía web), AC-11, AC-12, AC-13 cần kiểm tay trong trình duyệt theo *Verification commands*; phiên làm việc này không có trình duyệt. Story ở `review` tới khi kiểm tay xong và CI xanh.
+- **Đã xong (2026-10-28).** Người dùng xác nhận đã kiểm hết các mục còn lại ở trên; story chuyển `done`.
 
 ## Files modified
 

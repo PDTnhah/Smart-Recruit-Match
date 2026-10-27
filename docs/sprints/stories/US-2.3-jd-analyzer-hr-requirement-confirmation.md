@@ -2,7 +2,7 @@
 id: US-2.3
 title: "JD Analyzer và HR xác nhận yêu cầu"
 epic: EPIC-2
-status: review
+status: done
 priority: P0
 points: 13
 sprint: sprint-2026-W44
@@ -13,7 +13,7 @@ depends_on: [US-1.5, US-2.2]
 assignee: PDTnhah
 commit: d16eec17fd57442e7e9102d16adb492b92896311
 created: 2026-10-07
-updated: 2026-10-21
+updated: 2026-10-28
 external_deps: [gemini_api]
 ---
 
@@ -59,7 +59,7 @@ Hai quy tắc nghiệp vụ chi phối story: BR-02 (JD chỉ được chấm v�
 - [x] **AC-4** — **Given** backend nhận kết quả `SUCCEEDED` cho đúng `jd_version` hiện tại của JD đang chờ phân tích, **When** `company` xử lý, **Then** lưu `requirements`, `position_group`, `hidden_text_flag`, `analysis_model`, `analysis_prompt_version`, đặt `analysis_status = SUCCEEDED`, **không** chuyển trạng thái (JD vẫn *Chờ HR xác nhận yêu cầu*, [CONTEXT D28](../../CONTEXT.md)), ghi `audit_logs` (actor hệ thống) trong cùng giao dịch **And** gửi thông báo "Yêu cầu chuẩn hóa JD sẵn sàng để xác nhận" cho HR của công ty (US-1.7).
 - [x] **AC-5** — **Given** kết quả của một `jd_version` cũ, kết quả trùng, hoặc kết quả đến sau khi HR đã tự nhập yêu cầu, **When** backend nhận, **Then** không ghi đè dữ liệu, không chuyển trạng thái, không ghi audit.
 - [x] **AC-6** — **Given** kết quả `FAILED` (LLM từ chối, sai schema sau 2 lần thử, JD không có chữ, hoặc job vào DLQ), **When** backend xử lý, **Then** JD giữ *Chờ HR xác nhận yêu cầu* với `analysis_status = FAILED`, HR nhận thông báo lỗi **And** màn xác nhận cho HR nhập yêu cầu bằng tay rồi xác nhận như bình thường.
-- [ ] **AC-7** — **Given** HR của công ty sở hữu JD ở trạng thái *Chờ HR xác nhận yêu cầu*, **When** mở màn xác nhận, **Then** thấy nội dung JD gốc cạnh bảng yêu cầu; sửa trực tiếp được kỹ năng, mức độ (hiển thị Cơ bản / Khá / Thành thạo), trọng số, nhóm bắt buộc/bổ trợ, điều kiện cứng, nhóm vị trí; dữ liệu được kiểm bằng cùng Zod schema ở form và ở API.
+- [x] **AC-7** — **Given** HR của công ty sở hữu JD ở trạng thái *Chờ HR xác nhận yêu cầu*, **When** mở màn xác nhận, **Then** thấy nội dung JD gốc cạnh bảng yêu cầu; sửa trực tiếp được kỹ năng, mức độ (hiển thị Cơ bản / Khá / Thành thạo), trọng số, nhóm bắt buộc/bổ trợ, điều kiện cứng, nhóm vị trí; dữ liệu được kiểm bằng cùng Zod schema ở form và ở API.
 - [x] **AC-8** — **Given** HR bấm xác nhận, **When** gọi `PUT /api/jds/{id}/requirements/confirm`, **Then** yêu cầu được lưu, JD chuyển sang *Chờ Trung tâm duyệt* bằng `transitionTo`, audit ghi `before`/`after` của `requirements` trong cùng giao dịch. **Given** `row_version` gửi lên đã cũ (VD Trung tâm vừa thao tác), **Then** trả `409 Conflict` và không ghi gì.
 - [x] **AC-9** — **Given** HR công ty B, sinh viên hoặc người chưa đăng nhập, **When** đọc, sửa hoặc xác nhận yêu cầu JD của công ty A, **Then** trả `404` (HR khác công ty) / `403` (sai vai trò) / `401`, không lộ dữ liệu (BR-11, NFR-1). Cán bộ Trung tâm đọc được, không xác nhận thay HR được.
 - [x] **AC-10** — **Given** JD chưa được HR xác nhận hoặc chưa được Trung tâm duyệt, **When** truy vấn `core.v_ai_jd_requirements`, **Then** JD đó không có trong kết quả. Sau khi Trung tâm duyệt (US-1.5) thì JD xuất hiện (BR-02).
@@ -232,6 +232,7 @@ Giữ nguyên hai điểm:
 - Màn Trung tâm thấy cờ chữ ẩn.
 - Các bước trên phủ phần giao diện của AC-1, AC-6, AC-7, AC-8, AC-11, AC-12.
 - Chạy `ai-service/evals/smoke_llm.py` và một JD giả thật qua Gemini với `GEMINI_API_KEY`.
+- **Đã xong (2026-10-28).** Người dùng xác nhận đã kiểm hết các mục còn lại ở trên; story chuyển `done`.
 
 Design applied:
 - §1: dùng primitive có sẵn (Table, Select, Input, Field, Alert, AlertDialog, Card, Empty, Skeleton, Spinner), không thêm primitive.

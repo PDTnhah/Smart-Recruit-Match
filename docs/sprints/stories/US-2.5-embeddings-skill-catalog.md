@@ -2,7 +2,7 @@
 id: US-2.5
 title: "Embedding và danh mục kỹ năng"
 epic: EPIC-2
-status: review
+status: done
 priority: P1
 points: 8
 sprint: sprint-2026-W44
@@ -13,7 +13,7 @@ depends_on: [US-2.1, US-2.4]
 assignee: PDTnhah
 commit: 9db09995ce273507d9e457485178a2590265168e
 created: 2026-10-07
-updated: 2026-10-27
+updated: 2026-10-28
 ---
 
 ## Story refresh — 2026-10-26 (bắt đầu story)
@@ -123,6 +123,7 @@ Xem [CHANGELOG 0.11.0](../../CHANGELOG.md).
   - Bỏ hằng trùng (ngưỡng, `MAX_SIMILAR_SKILLS`, bảng key của danh mục). ARCH, AGENTS cập nhật ở doc gate.
 - koni-qc: mọi AC có ca dương và ca âm, AC-3, AC-4, AC-5 có ca biên (ngưỡng đúng 0,85, C/C++/C#, lô 51 kỹ năng). Bảo mật: endpoint quản trị chỉ ADMIN (403, 401 có test), LIKE được escape, tên kỹ năng vào prompt qua `untrusted(...)` và guardrail, `new_skills` lấy từ bản đã che PII, React hiển thị tên dạng text. Không có phát hiện mới.
 - **Còn lại, cần người kiểm**: xem `/admin/skills` ở 1024 px và 768 px; chạy compose với `EMBEDDING_PROVIDER=bge-m3` (ổ C: máy dev không đủ chỗ) và `evals/perf_cv_parse.py` cho NFR-6; `smoke_llm.py --cv` với key thật.
+- **Đã xong (2026-10-28).** Người dùng xác nhận đã kiểm hết các mục còn lại ở trên; story chuyển `done`.
 
 Lessons: §23 mới (`HF_HUB_OFFLINE` đọc lúc import, bge-m3 tải 4,5 GB), §24 mới (HNSW lọc sau khi quét).
 

@@ -2,7 +2,7 @@
 id: US-1.4
 title: "Tạo và cấu hình đợt thực tập"
 epic: EPIC-1
-status: review
+status: done
 priority: P0
 points: 5
 sprint: sprint-2026-W44
@@ -13,7 +13,7 @@ depends_on: [US-1.2, US-1.3]
 assignee: PDTnhah
 commit: 928c04c367039477ed9287f80c28f476d90d084d
 created: 2026-10-07
-updated: 2026-10-12
+updated: 2026-10-28
 ---
 
 ## Story refresh — 2026-10-12
@@ -55,7 +55,7 @@ Bảng chuyển và `transitionTo` có từ US-1.2 (AD-8). Story này thêm ph�
 - [x] **AC-6** — **Given** đợt đang ở một giai đoạn có chuyển tự động và đồng hồ đã qua mốc kết thúc của giai đoạn đó, **When** tác vụ định kỳ chạy, **Then** đợt chuyển sang giai đoạn kế tiếp qua `transitionTo` với actor `system` và lý do ghi tên mốc **And** sau khi giao dịch commit, phát sự kiện `campaign.phase_changed` (`campaign_id`, `from`, `to`); sự kiện này cũng được phát cho mọi lần chuyển thủ công **And** chạy lại tác vụ lần nữa không tạo thêm thay đổi, audit hay sự kiện. Các cạnh tự động và thủ công liệt kê ở *Dev notes*.
 - [x] **AC-7** — **Given** hai instance API cùng chạy tác vụ định kỳ ở cùng thời điểm, **When** cả hai thấy đợt đã qua mốc, **Then** chỉ một instance chuyển trạng thái (nhờ `pg_try_advisory_lock` và `row_version`) **And** chỉ có một dòng audit.
 - [x] **AC-8** — Module `campaign` export `CampaignService.assertPhase(campaignId, allowed)`. **Given** một endpoint chỉ cho phép ở `INTAKE`, **When** gọi lúc đợt đang ở `PREFERENCE_SELECTION`, **Then** API trả `409` mã `CAMPAIGN_PHASE_MISMATCH` kèm trạng thái hiện tại của đợt. US-1.5 (nộp JD) và US-1.6 (nộp CV) dùng hàm này.
-- [ ] **AC-9** — Cổng Trung tâm có màn "Đợt thực tập": danh sách đợt kèm trạng thái và mốc kế tiếp; form tạo/sửa chia ba phần (đối tượng, mốc thời gian, tham số) dùng React Hook Form + Zod schema dùng chung; chọn ngày giờ theo locale `vi` của date-fns; nút "Mở đợt" có hộp thoại xác nhận; đủ bốn trạng thái rỗng, đang tải, lỗi, có dữ liệu theo `DESIGN.md`. Tham số bị khóa thì hiện ở dạng chỉ đọc.
+- [x] **AC-9** — Cổng Trung tâm có màn "Đợt thực tập": danh sách đợt kèm trạng thái và mốc kế tiếp; form tạo/sửa chia ba phần (đối tượng, mốc thời gian, tham số) dùng React Hook Form + Zod schema dùng chung; chọn ngày giờ theo locale `vi` của date-fns; nút "Mở đợt" có hộp thoại xác nhận; đủ bốn trạng thái rỗng, đang tải, lỗi, có dữ liệu theo `DESIGN.md`. Tham số bị khóa thì hiện ở dạng chỉ đọc.
 
 ## Tasks
 
@@ -175,6 +175,7 @@ Lessons: §9 mới — `@nestjs/schedule` 12 và `@nestjs/event-emitter` 12 ch�
 - **Kiểm đã chạy.** `pnpm typecheck`, `pnpm lint`, `pnpm test` (shared 37, api 142), `pnpm build`, `pnpm depcruise`, `pnpm depcruise:fixture`; `db:generate` không sinh migration; không có `Date.now()`/`new Date()` trong `apps/api/src/modules/campaign`; `.set({ status:` chỉ ở `transition-to.ts`. Compose `up -d --build --wait` healthy; seed; smoke qua nginx `:8080`: tạo đợt (mặc định đúng PRD), lỗi `config.beta` 400, sửa nháp, mở đợt, sửa tham số 409 `CAMPAIGN_CONFIG_LOCKED`, lùi mốc có lý do 200, sinh viên K66/Công nghệ thông tin thấy đợt đã mở và không thấy nháp, HR thấy đợt đã mở, HR tạo đợt 403, các route SPA 200; log API không có lỗi và đã che `authorization`.
 - **Review (`/code-review`).** Đã sửa: danh sách sập vì một dòng `config` hỏng; form gia hạn so mốc theo chuỗi thay vì thời điểm; chọn được giờ sớm hơn trong cùng ngày (nay báo lỗi ngay ở client); không có cảnh báo khi thiếu lookup sinh viên; `get()` đọc tuần tự. Giữ nguyên, có lý do: thao tác của pha sau phải chờ lần chuyển thật (tối đa một phút) vì phụ thuộc việc xảy ra lúc chuyển, như chấm phù hợp ở US-3.2 (ghi chú trong `phase-check.ts`); form remount theo `rowVersion` để không ghi đè thay đổi của người khác (`refetchOnWindowFocus` đang tắt); `AUTO_EDGES` và `PHASE_END_DEADLINE` khai ở hai nơi nhưng có unit test bắt lệch; danh sách lọc theo đối tượng trong bộ nhớ vì mỗi năm chỉ có vài đợt.
 - **Chưa xong.** AC-9 cần kiểm tay trong trình duyệt theo *Verification commands*; phiên làm việc này không có trình duyệt. Story ở `review` tới khi kiểm tay xong.
+- **Đã xong (2026-10-28).** Người dùng xác nhận đã kiểm hết các mục còn lại ở trên; story chuyển `done`.
 
 ## Files modified
 

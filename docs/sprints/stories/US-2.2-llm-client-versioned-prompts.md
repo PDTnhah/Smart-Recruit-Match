@@ -2,7 +2,7 @@
 id: US-2.2
 title: "LLMClient và prompt có phiên bản"
 epic: EPIC-2
-status: review
+status: done
 priority: P0
 points: 5
 sprint: sprint-2026-W44
@@ -13,7 +13,7 @@ depends_on: [US-2.1]
 assignee: PDTnhah
 commit: 2cca379c9a1f128774776e8b7610e3fbe9604ffb
 created: 2026-10-07
-updated: 2026-10-20
+updated: 2026-10-28
 external_deps: [gemini_api, anthropic_api]
 ---
 
@@ -175,6 +175,7 @@ Xem [CHANGELOG › 0.8.0](../../CHANGELOG.md). Tóm tắt:
 - Prompt mẫu `echo/v1` nằm ở `tests/fixtures/prompts/`, không phải prompt sản phẩm; `app/prompts/manifest.json` và `active.json` bắt đầu rỗng. Prompt smoke riêng ở `evals/prompts/smoke/v1.md`.
 - Thử lại sai schema gửi lại request y hệt (không chèn thông báo lỗi) để giữ phần đầu prompt cache được.
 - Chưa chạy được `evals/smoke_llm.py` với API thật vì máy phát triển không có key. Đã chạy khô qua `FixtureProvider` (2 lần thử, 2 file log, 2 dòng). Người dùng cần chạy với `GEMINI_API_KEY` trước khi US-2.3 dùng.
+- **Đã xong (2026-10-28).** Người dùng xác nhận đã kiểm hết các mục còn lại ở trên; story chuyển `done`.
 
 **Review (`/code-review`, 2026-10-20)**: 10 điểm, sửa 9:
 - Ghi log hỏng không còn che refusal hay lỗi gốc: log của lần thử thất bại ghi best-effort, log của kết quả được dùng vẫn bắt buộc.

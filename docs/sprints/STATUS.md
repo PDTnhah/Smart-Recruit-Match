@@ -1,7 +1,7 @@
 # Sprint Status
 
 > **AUTO-GENERATED** by `koni-docs status`. Do not hand-edit (RULE-5).
-> Last generated: 2026-10-27 16:17:50 UTC
+> Last generated: 2026-10-27 17:04:40 UTC
 > Total stories: 37
 
 ## ⏰ Deadlines (0)
@@ -45,11 +45,16 @@ _No stories_
 
 _No stories_
 
-## 👀 Review (12)
+## 👀 Review (0)
+
+_No stories_
+
+## ✅ Done (13)
 
 | ID | Title | Epic | Pri | Points | Sprint | Assignee |
 |---|---|---|---|---|---|---|
 | US-1.1 | Scaffold monorepo, Docker Compose, CI | EPIC-1 | P0 | 5 | sprint-2026-W44 | PDTnhah |
+| US-1.2 | Lược đồ DB lõi, `transitionTo`, nhật ký thao tác | EPIC-1 | P0 | 5 | sprint-2026-W41 | PDTnhah |
 | US-1.3 | Đăng nhập, phân quyền, DESIGN.md, khung giao diện | EPIC-1 | P0 | 8 | sprint-2026-W44 | PDTnhah |
 | US-1.4 | Tạo và cấu hình đợt thực tập | EPIC-1 | P0 | 5 | sprint-2026-W44 | PDTnhah |
 | US-1.5 | Doanh nghiệp, tài khoản HR, đăng và duyệt JD | EPIC-1 | P0 | 8 | sprint-2026-W44 | PDTnhah |
@@ -61,12 +66,6 @@ _No stories_
 | US-2.4 | CV Parser: chữ ẩn, tách PII | EPIC-2 | P0 | 8 | sprint-2026-W44 | PDTnhah |
 | US-2.5 | Embedding và danh mục kỹ năng | EPIC-2 | P1 | 8 | sprint-2026-W44 | PDTnhah |
 | US-2.6 | SV xác nhận hồ sơ năng lực | EPIC-2 | P0 | 5 | sprint-2026-W44 | PDTnhah |
-
-## ✅ Done (1)
-
-| ID | Title | Epic | Pri | Points | Sprint | Assignee |
-|---|---|---|---|---|---|---|
-| US-1.2 | Lược đồ DB lõi, `transitionTo`, nhật ký thao tác | EPIC-1 | P0 | 5 | sprint-2026-W41 | PDTnhah |
 
 ## 🚫 Blocked (0)
 
@@ -83,8 +82,8 @@ _No stories_
 - 📋 **Backlog**: 24
 - 🟢 **Ready**: 0
 - 🟡 **In Progress**: 0
-- 👀 **Review**: 12
-- ✅ **Done**: 1
+- 👀 **Review**: 0
+- ✅ **Done**: 13
 - 🚫 **Blocked**: 0
 - 🗑️ **Deprecated**: 0
 

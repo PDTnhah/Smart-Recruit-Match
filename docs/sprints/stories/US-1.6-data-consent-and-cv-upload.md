@@ -2,7 +2,7 @@
 id: US-1.6
 title: "Đồng ý xử lý dữ liệu và nộp CV"
 epic: EPIC-1
-status: review
+status: done
 priority: P0
 points: 5
 sprint: sprint-2026-W44
@@ -13,7 +13,7 @@ depends_on: [US-1.4]
 assignee: PDTnhah
 commit: e76ed9fb1510455ee8d8899ac7393f2d3cd4aeb7
 created: 2026-10-07
-updated: 2026-10-14
+updated: 2026-10-28
 external_deps: [llm_provider_data_terms]
 ---
 
@@ -84,7 +84,7 @@ ARCH › *Các bảng chính*: `cvs(id, student_id, campaign_id, file_key, profi
 - [x] **AC-6** — **Given** partial unique index `(student_id, campaign_id) WHERE active` trên `core.cvs`, **When** chèn thẳng bằng SQL một dòng `active = true` thứ hai cho cùng sinh viên và đợt, **Then** PostgreSQL từ chối **And** hai lần nộp đồng thời của cùng một sinh viên cho ra đúng một CV hiệu lực, lần còn lại nhận `409`.
 - [x] **AC-7** — **Given** đợt không ở `INTAKE` (đã qua hạn nộp CV hoặc chưa mở), **When** sinh viên nộp hoặc cập nhật CV, **Then** API trả `409` mã `CAMPAIGN_PHASE_MISMATCH` **And** sinh viên ngoài đối tượng của đợt nhận `404`.
 - [x] **AC-8** — **Given** CV của sinh viên X, **When** X gọi `GET /api/cvs/me` hoặc lấy URL tạm của file bằng `GET /api/files/{id}/url`, **Then** X thấy các phiên bản của mình và nhận URL hết hạn sau 5 phút **And** sinh viên Y nhận `404` với CV của X **And** `HR` nhận `404` (HR chỉ được xem CV sau khi sinh viên được đề cử vào JD của công ty mình, thuộc US-5.3) **And** `CENTER` xem được.
-- [ ] **AC-9** — Cổng sinh viên có màn "Hồ sơ" theo `DESIGN.md`: bước đồng ý điều khoản, tải CV (chọn file trên điện thoại được), tiến độ tải, nhãn trạng thái "Chờ phân tích", lịch sử phiên bản; báo lỗi tiếng Việt cho sai loại, quá cỡ, quá hạn; đủ bốn trạng thái rỗng, đang tải, lỗi, có dữ liệu; dùng được ở chiều rộng 360 px.
+- [x] **AC-9** — Cổng sinh viên có màn "Hồ sơ" theo `DESIGN.md`: bước đồng ý điều khoản, tải CV (chọn file trên điện thoại được), tiến độ tải, nhãn trạng thái "Chờ phân tích", lịch sử phiên bản; báo lỗi tiếng Việt cho sai loại, quá cỡ, quá hạn; đủ bốn trạng thái rỗng, đang tải, lỗi, có dữ liệu; dùng được ở chiều rộng 360 px.
 
 ## Tasks
 
@@ -309,6 +309,8 @@ Lessons: none new — các bẫy công cụ gặp ở story này (tên file lati
 **Chưa xong**
 
 AC-9 cần kiểm tay trong trình duyệt ở 360 px theo *Verification commands*; phiên làm việc này không có trình duyệt. Story ở `review` tới khi kiểm tay xong.
+
+**Đã xong (2026-10-28).** Người dùng xác nhận đã kiểm hết các mục còn lại ở trên; story chuyển `done`.
 
 ## Files modified
 

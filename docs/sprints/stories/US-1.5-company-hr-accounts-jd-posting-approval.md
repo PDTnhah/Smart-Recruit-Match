@@ -2,7 +2,7 @@
 id: US-1.5
 title: "Doanh nghiệp, tài khoản HR, đăng và duyệt JD"
 epic: EPIC-1
-status: review
+status: done
 priority: P0
 points: 8
 sprint: sprint-2026-W44
@@ -13,7 +13,7 @@ depends_on: [US-1.2, US-1.3, US-1.4]
 assignee: PDTnhah
 commit: c0ceee41f7478279e6d72c137e8d40b0f9aeeaa3
 created: 2026-10-07
-updated: 2026-10-13
+updated: 2026-10-28
 ---
 
 ## Story refresh — 2026-10-13
@@ -90,7 +90,7 @@ ARCH › *Các module*: module `company` lo doanh nghiệp, JD, yêu cầu chu�
 - [x] **AC-7** — **Given** JD ở `PENDING_APPROVAL` (trong test, JD được tạo sẵn ở trạng thái này bằng helper của US-1.2, vì bước HR xác nhận yêu cầu thuộc US-2.3), **When** `CENTER` gọi `POST /api/jds/{id}/approve` kèm `row_version`, **Then** JD chuyển `PENDING_APPROVAL → APPROVED` qua `transitionTo` (có audit) **And** phát sự kiện `jd.approved` **And** duyệt JD ở trạng thái khác trả `422` mã `INVALID_TRANSITION` **And** `HR` hoặc `STUDENT` gọi thì nhận `403` **And** hai lần duyệt đồng thời chỉ một lần thành công, lần kia nhận `409`.
 - [x] **AC-8** — **Given** HR của công ty A và một JD của công ty B, **When** HR của A đọc, sửa, nộp JD đó hoặc lấy URL file của nó, **Then** API trả `404` **And** `GET /api/jds` của HR chỉ trả JD của công ty mình **And** `STUDENT` gọi các endpoint JD của HR và Trung tâm thì nhận `403`.
 - [x] **AC-9** — **Given** JD có file, **When** HR của công ty đó hoặc `CENTER` gọi `GET /api/files/{id}/url`, **Then** API trả URL ký sẵn của MinIO, hết hạn sau 5 phút **And** dùng URL sau 5 phút thì MinIO từ chối.
-- [ ] **AC-10** — Giao diện tiếng Việt theo `DESIGN.md`, đủ bốn trạng thái rỗng, đang tải, lỗi, có dữ liệu:
+- [x] **AC-10** — Giao diện tiếng Việt theo `DESIGN.md`, đủ bốn trạng thái rỗng, đang tải, lỗi, có dữ liệu:
   - Cổng Trung tâm có màn "Doanh nghiệp" (danh sách, tạo/sửa, mời HR, sao chép đường dẫn mời) và màn "Duyệt JD" (danh sách JD chờ duyệt theo đợt, chi tiết JD, xem file gốc, nút duyệt có xác nhận).
   - Cổng HR có màn "JD của tôi" (danh sách kèm trạng thái, form nhập tay hoặc tải file, nút nộp). JD đã nộp mà chưa có yêu cầu chuẩn hóa thì hiện nhãn "Chờ phân tích".
   - Có trang nhận lời mời để đặt mật khẩu.
@@ -318,6 +318,8 @@ Lessons:
 **Chưa xong**
 
 AC-10 cần kiểm tay trong trình duyệt theo *Verification commands*; phiên làm việc này không có trình duyệt. Story ở `review` tới khi kiểm tay xong.
+
+**Đã xong (2026-10-28).** Người dùng xác nhận đã kiểm hết các mục còn lại ở trên; story chuyển `done`.
 
 ## Files modified
 

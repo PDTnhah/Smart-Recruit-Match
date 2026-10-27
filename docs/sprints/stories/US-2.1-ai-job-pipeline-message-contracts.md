@@ -2,7 +2,7 @@
 id: US-2.1
 title: "Hạ tầng job AI và hợp đồng message"
 epic: EPIC-2
-status: review
+status: done
 priority: P0
 points: 8
 sprint: sprint-2026-W44
@@ -13,7 +13,7 @@ depends_on: [US-1.2]
 assignee: PDTnhah
 commit: 7fbb833ff4c21f76d224507210ef39b56a05fe11
 created: 2026-10-07
-updated: 2026-10-20
+updated: 2026-10-28
 ---
 
 ## Story refresh — 2026-10-20
@@ -209,6 +209,8 @@ Chạy tại gốc repo (AGENTS › Lệnh). Integration test cần Docker; tắ
 **Kiểm trên compose (2026-10-20):** `up -d --build --wait` lên đủ service; `GET http://localhost:8000/health` trả `{"status":"ok","postgres":"ok","rabbitmq":"ok"}`; log `migrate` báo bật đăng nhập cho `api_service`, `ai_service`; `psql` bằng `ai_service` đọc `core.cvs` bị `permission denied`, đọc `core.v_ai_cv_profile_masked` được; API kết nối bằng `api_service` và đăng nhập tài khoản seed được; một job gửi tay vào `ai.cv.parse` thành `SUCCEEDED attempts=1`, `ai.results` được API nhận, DLQ trống; `--scale ai-worker=2` cho 2 consumer trên mỗi queue job.
 
 **Còn chờ:** CI xanh trên GitHub (bước kiểm hợp đồng và integration test có build image AI Service chạy lần đầu trên runner).
+
+**Đã xong (2026-10-28).** Người dùng xác nhận đã kiểm hết các mục còn lại ở trên; story chuyển `done`.
 
 **Lessons:** §9 (bổ sung), §16, §17, §18.
 

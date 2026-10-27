@@ -790,19 +790,19 @@ Mọi thông báo đều hiện trong ứng dụng (chuông ở ba cổng, cập
 
 | ID | Requirement | Priority | Status | Epic |
 |----|-------------|----------|--------|------|
-| FR-1 | Đăng nhập; phân quyền theo vai trò (Cán bộ Trung tâm, Sinh viên, HR, Quản trị) và kiểm tra quyền cấp bản ghi (BR-11) | P0 | 👀 review | EPIC-1 |
-| FR-2 | Tạo và cấu hình đợt thực tập: đối tượng, mốc thời gian từng giai đoạn, tham số đợt; trạng thái đợt chuyển theo mốc và chỉ cho phép thao tác tương ứng (UC-01, GĐ0) | P0 | 👀 review | EPIC-1 |
-| FR-3 | Quản lý doanh nghiệp tham gia đợt, mời và cấp tài khoản HR (UC-02) | P0 | 📋 backlog | EPIC-1 |
-| FR-4 | HR đăng JD theo form hoặc file PDF/DOCX, kèm vị trí, chỉ tiêu, địa điểm, hình thức, thời gian, phụ cấp (UC-20, GĐ1) | P0 | 📋 backlog | EPIC-1 |
-| FR-5 | Cán bộ Trung tâm duyệt JD (UC-03, BR-02) | P0 | 📋 backlog | EPIC-1 |
-| FR-6 | Sinh viên đồng ý điều khoản xử lý dữ liệu cá nhân; nộp và cập nhật CV (PDF/DOCX), mỗi lần cập nhật tạo phiên bản mới, tối đa 1 CV hiệu lực mỗi đợt (UC-10, BR-01, GĐ2) | P0 | 📋 backlog | EPIC-1 |
+| FR-1 | Đăng nhập; phân quyền theo vai trò (Cán bộ Trung tâm, Sinh viên, HR, Quản trị) và kiểm tra quyền cấp bản ghi (BR-11) | P0 | ✅ done | EPIC-1 |
+| FR-2 | Tạo và cấu hình đợt thực tập: đối tượng, mốc thời gian từng giai đoạn, tham số đợt; trạng thái đợt chuyển theo mốc và chỉ cho phép thao tác tương ứng (UC-01, GĐ0) | P0 | ✅ done | EPIC-1 |
+| FR-3 | Quản lý doanh nghiệp tham gia đợt, mời và cấp tài khoản HR (UC-02) | P0 | ✅ done | EPIC-1 |
+| FR-4 | HR đăng JD theo form hoặc file PDF/DOCX, kèm vị trí, chỉ tiêu, địa điểm, hình thức, thời gian, phụ cấp (UC-20, GĐ1) | P0 | ✅ done | EPIC-1 |
+| FR-5 | Cán bộ Trung tâm duyệt JD (UC-03, BR-02) | P0 | ✅ done | EPIC-1 |
+| FR-6 | Sinh viên đồng ý điều khoản xử lý dữ liệu cá nhân; nộp và cập nhật CV (PDF/DOCX), mỗi lần cập nhật tạo phiên bản mới, tối đa 1 CV hiệu lực mỗi đợt (UC-10, BR-01, GĐ2) | P0 | ✅ done | EPIC-1 |
 | FR-7 | Nhật ký thao tác chỉ ghi thêm cho mọi thay đổi trạng thái và điều chỉnh thủ công (BR-10) | P0 | ✅ done | EPIC-1 |
-| FR-8 | Thông báo trong ứng dụng và email theo sự kiện nghiệp vụ, nhắc hạn tự động (UC-35, mục *Thông báo*) | P1 | 📋 backlog | EPIC-1 |
-| FR-9 | AI phân tích JD thành yêu cầu chuẩn hóa: kỹ năng bắt buộc/bổ trợ có mức độ và trọng số, điều kiện cứng, nhóm vị trí (UC-30, GĐ1) | P0 | 👀 review | EPIC-2 |
-| FR-10 | HR xem, sửa và xác nhận yêu cầu chuẩn hóa; sửa sau khi đã mở test phải tạo phiên bản mới và chấm lại (UC-21, BR-02, BR-18) | P0 | 👀 review | EPIC-2 |
-| FR-11 | AI phân tích CV thành hồ sơ năng lực: chuẩn hóa tên kỹ năng theo danh mục, tách thông tin nhạy cảm, phát hiện chữ ẩn (UC-30, BR-03, GĐ2) | P0 | 👀 review | EPIC-2 |
-| FR-12 | Sinh viên xem, sửa và xác nhận hồ sơ năng lực; chỉ hồ sơ đã xác nhận mới được chấm (UC-11, BR-01) | P0 | 👀 review | EPIC-2 |
-| FR-13 | Quản trị quản lý danh mục kỹ năng và duyệt kỹ năng mới do AI phát hiện | P1 | 👀 review | EPIC-2 |
+| FR-8 | Thông báo trong ứng dụng và email theo sự kiện nghiệp vụ, nhắc hạn tự động (UC-35, mục *Thông báo*) | P1 | ✅ done | EPIC-1 |
+| FR-9 | AI phân tích JD thành yêu cầu chuẩn hóa: kỹ năng bắt buộc/bổ trợ có mức độ và trọng số, điều kiện cứng, nhóm vị trí (UC-30, GĐ1) | P0 | ✅ done | EPIC-2 |
+| FR-10 | HR xem, sửa và xác nhận yêu cầu chuẩn hóa; sửa sau khi đã mở test phải tạo phiên bản mới và chấm lại (UC-21, BR-02, BR-18) | P0 | ✅ done | EPIC-2 |
+| FR-11 | AI phân tích CV thành hồ sơ năng lực: chuẩn hóa tên kỹ năng theo danh mục, tách thông tin nhạy cảm, phát hiện chữ ẩn (UC-30, BR-03, GĐ2) | P0 | ✅ done | EPIC-2 |
+| FR-12 | Sinh viên xem, sửa và xác nhận hồ sơ năng lực; chỉ hồ sơ đã xác nhận mới được chấm (UC-11, BR-01) | P0 | ✅ done | EPIC-2 |
+| FR-13 | Quản trị quản lý danh mục kỹ năng và duyệt kỹ năng mới do AI phát hiện | P1 | ✅ done | EPIC-2 |
 | FR-14 | Lọc điều kiện cứng và chấm độ phù hợp mọi cặp SV × JD: điểm từng tiêu chí, bằng chứng, kỹ năng thiếu; tính S_cv và lập shortlist (UC-31, GĐ3) | P0 | 📋 backlog | EPIC-3 |
 | FR-15 | Sinh viên xem shortlist kèm S_cv, kỹ năng còn thiếu và gợi ý cải thiện (UC-12) | P0 | 📋 backlog | EPIC-3 |
 | FR-16 | Sinh viên chọn và sắp thứ tự tối đa N_NV nguyện vọng từ shortlist; danh sách khóa khi hết hạn (UC-13, BR-04, GĐ4) | P0 | 📋 backlog | EPIC-3 |
@@ -891,13 +891,13 @@ Mỗi epic tương ứng một giai đoạn trong [ARCHITECTURE.md › Implement
 
 | Story | Title | Status | Version |
 |-------|-------|--------|---------|
-| US-1.1 | Scaffold monorepo, Docker Compose, CI | 👀 review | — |
+| US-1.1 | Scaffold monorepo, Docker Compose, CI | ✅ done | 0.1.0 |
 | US-1.2 | Lược đồ DB lõi, `transitionTo`, nhật ký thao tác | ✅ done | 0.1.1 |
-| US-1.3 | Đăng nhập, phân quyền, DESIGN.md, khung giao diện | 👀 review | 0.2.0 |
-| US-1.4 | Tạo và cấu hình đợt thực tập | 👀 review | 0.3.0 |
-| US-1.5 | Doanh nghiệp, tài khoản HR, đăng và duyệt JD | 👀 review | 0.4.0 |
-| US-1.6 | Đồng ý xử lý dữ liệu và nộp CV | 👀 review | 0.5.0 |
-| US-1.7 | Thông báo trong app, SSE, email, nhắc hạn | 👀 review | 0.6.0 |
+| US-1.3 | Đăng nhập, phân quyền, DESIGN.md, khung giao diện | ✅ done | 0.2.0 |
+| US-1.4 | Tạo và cấu hình đợt thực tập | ✅ done | 0.3.0 |
+| US-1.5 | Doanh nghiệp, tài khoản HR, đăng và duyệt JD | ✅ done | 0.4.0 |
+| US-1.6 | Đồng ý xử lý dữ liệu và nộp CV | ✅ done | 0.5.0 |
+| US-1.7 | Thông báo trong app, SSE, email, nhắc hạn | ✅ done | 0.6.0 |
 
 ### EPIC-2: Phân tích CV và JD bằng AI
 
@@ -909,12 +909,12 @@ Mỗi epic tương ứng một giai đoạn trong [ARCHITECTURE.md › Implement
 
 | Story | Title | Status | Version |
 |-------|-------|--------|---------|
-| US-2.1 | Hạ tầng job AI và hợp đồng message | 👀 review | 0.7.0 |
-| US-2.2 | LLMClient và prompt có phiên bản | 👀 review | 0.8.0 |
-| US-2.3 | JD Analyzer và HR xác nhận yêu cầu | 👀 review | 0.9.0 |
-| US-2.4 | CV Parser: chữ ẩn, tách PII | 👀 review | 0.10.0 |
-| US-2.5 | Embedding và danh mục kỹ năng | 👀 review | 0.11.0 |
-| US-2.6 | SV xác nhận hồ sơ năng lực | 📋 backlog | — |
+| US-2.1 | Hạ tầng job AI và hợp đồng message | ✅ done | 0.7.0 |
+| US-2.2 | LLMClient và prompt có phiên bản | ✅ done | 0.8.0 |
+| US-2.3 | JD Analyzer và HR xác nhận yêu cầu | ✅ done | 0.9.0 |
+| US-2.4 | CV Parser: chữ ẩn, tách PII | ✅ done | 0.10.0 |
+| US-2.5 | Embedding và danh mục kỹ năng | ✅ done | 0.11.0 |
+| US-2.6 | SV xác nhận hồ sơ năng lực | ✅ done | 0.12.0 |
 
 ### EPIC-3: Chấm phù hợp và chọn nguyện vọng
 

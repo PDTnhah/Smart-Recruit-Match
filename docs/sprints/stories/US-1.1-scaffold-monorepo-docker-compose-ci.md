@@ -2,16 +2,16 @@
 id: US-1.1
 title: "Scaffold monorepo, Docker Compose, CI"
 epic: EPIC-1
-status: review
+status: done
 priority: P0
 points: 5
 sprint: sprint-2026-W44
-version_shipped:
+version_shipped: 0.1.0
 arch_ref: [AD-3]
 assignee: PDTnhah
 commit: ae8c3737cb48afb8cd559e4792d28663ed2582ea
 created: 2026-10-07
-updated: 2026-10-08
+updated: 2026-10-28
 ---
 
 ## Story refresh — 2026-10-08
@@ -48,7 +48,7 @@ Theo D19, đây là lần ship code đầu tiên nên `VERSION` lên `0.1.0`. AG
 - [x] **AC-1** — Gốc repo có `pnpm-workspace.yaml` (khai báo `apps/*`, `packages/*`) và `package.json` có trường `packageManager` ghim phiên bản pnpm, cùng các script chạy trên toàn workspace: `typecheck`, `lint`, `test`, `build`, `depcruise`. `apps/api` (NestJS, TypeScript `strict`), `apps/web` (React 19 + TypeScript + Vite) và `packages/shared` (Zod; có thư mục `schemas/`, `states/`, `contracts/`) đều build được. Cả `apps/api` và `apps/web` import được một export mẫu từ `packages/shared`.
 - [x] **AC-2** — **Given** máy có Docker và đã sao `deploy/.env.example` thành `deploy/.env`, **When** chạy `docker compose -f deploy/docker-compose.yml up -d --build`, **Then** các service `nginx`, `api`, `postgres` (image `pgvector/pgvector`, PostgreSQL 16), `redis` (7), `rabbitmq` (bản management), `minio`, `mailpit` đều đạt trạng thái `healthy` **And** `GET /api/health` qua nginx trả `200` **And** nginx trả bản build của web ở `/`, các đường dẫn SPA như `/sv/abc` cũng trả `index.html`.
 - [x] **AC-3** — **Given** `postgres` hoặc `redis` chưa sẵn sàng, **When** compose khởi động `api`, **Then** `api` chờ nhờ `depends_on` với `condition: service_healthy`, không rơi vào vòng crash-restart **And** dữ liệu PostgreSQL, MinIO, RabbitMQ nằm trong named volume, `docker compose down` (không có `-v`) rồi `up` lại không mất dữ liệu.
-- [ ] **AC-4** — **Given** một push hoặc pull request, **When** workflow `.github/workflows/ci.yml` chạy, **Then** nó chạy `pnpm install --frozen-lockfile` một lần cho cả monorepo, rồi chạy `typecheck`, `lint`, `test` (kể cả integration test dùng testcontainers), build web, `depcruise`, lint và test `ai-service` (pytest, không gọi API thật) **And** chỉ cần một bước lỗi là job đỏ.
+- [x] **AC-4** — **Given** một push hoặc pull request, **When** workflow `.github/workflows/ci.yml` chạy, **Then** nó chạy `pnpm install --frozen-lockfile` một lần cho cả monorepo, rồi chạy `typecheck`, `lint`, `test` (kể cả integration test dùng testcontainers), build web, `depcruise`, lint và test `ai-service` (pytest, không gọi API thật) **And** chỉ cần một bước lỗi là job đỏ.
 - [x] **AC-5** — **Given** một file trong `apps/api/src/modules/<m>/domain/` import `@nestjs/*` hoặc `drizzle-orm`, hoặc một file trong `modules/<a>/` import thẳng vào bên trong `modules/<b>/` thay vì qua file export công khai của module đó, **When** chạy dependency-cruiser với config của repo, **Then** lệnh thoát với mã khác 0 và chỉ rõ vi phạm. Thư mục fixture vi phạm cố ý chứng minh hai luật này có hiệu lực; cây mã thật thì `pnpm depcruise` qua.
 - [x] **AC-6** — `apps/api/test/` có global setup testcontainers khởi động PostgreSQL (cùng image pgvector với compose) và một integration test mẫu chạy được truy vấn `SELECT 1`. Container bị dọn sau khi chạy xong. Test không phụ thuộc vào stack compose đang chạy.
 - [x] **AC-7** — **Given** đã chạy `install-gate.sh` (có `.koni-harness/`, hook `pre-commit` và `pre-push` có khối marker, hook `PreToolUse` trong `.claude/settings.json`), **When** một commit tăng `VERSION` mà CHANGELOG không có mục `[x.y.z]` tương ứng, hoặc commit thêm một khóa bí mật, **Then** hook chặn commit **And** dòng `tests` trong `.koni-harness/gates.conf` gọi `pnpm test` thay cho `npm test` **And** `sh .koni-harness/swarm.sh plan --cap 3` chạy được trên sprint đang mở, in ra kế hoạch đợt hoặc lý do chưa có story sẵn sàng.

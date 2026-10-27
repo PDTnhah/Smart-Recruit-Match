@@ -69,14 +69,14 @@ Lộ trình chung ở [sprints/README › Lộ trình](../README.md#lộ-trình)
 
 | FR | Story | Status |
 |----|-------|--------|
-| FR-1 | US-1.3 | 👀 review |
-| FR-2 | US-1.4 | 👀 review |
-| FR-3 | US-1.5 | 👀 review |
-| FR-4 | US-1.5 | 👀 review |
-| FR-5 | US-1.5 | 👀 review |
-| FR-6 | US-1.6 | 👀 review |
+| FR-1 | US-1.3 | ✅ done |
+| FR-2 | US-1.4 | ✅ done |
+| FR-3 | US-1.5 | ✅ done |
+| FR-4 | US-1.5 | ✅ done |
+| FR-5 | US-1.5 | ✅ done |
+| FR-6 | US-1.6 | ✅ done |
 | FR-7 | US-1.2 | ✅ done |
-| FR-8 | US-1.7 | 👀 review |
+| FR-8 | US-1.7 | ✅ done |
 
 ## AD Coverage
 
@@ -95,13 +95,13 @@ Lộ trình chung ở [sprints/README › Lộ trình](../README.md#lộ-trình)
 
 | ID | Title | Goal | Status | Version |
 |---|---|---|---|---|
-| US-1.1 | Scaffold monorepo, Docker Compose, CI | Chạy toàn bộ hạ tầng bằng một lệnh; CI và cổng commit hoạt động | 👀 review | — |
+| US-1.1 | Scaffold monorepo, Docker Compose, CI | Chạy toàn bộ hạ tầng bằng một lệnh; CI và cổng commit hoạt động | ✅ done | 0.1.0 |
 | US-1.2 | Lược đồ DB lõi, `transitionTo`, nhật ký thao tác | Mọi thay đổi trạng thái đi qua một hàm, có audit trong cùng giao dịch | ✅ done | 0.1.1 |
-| US-1.3 | Đăng nhập, phân quyền, DESIGN.md, khung giao diện | Bốn vai trò đăng nhập và thấy đúng cổng của mình | 👀 review | 0.2.0 |
-| US-1.4 | Tạo và cấu hình đợt thực tập | Trung tâm tạo đợt với tham số và mốc; đợt tự chuyển trạng thái theo mốc | 👀 review | 0.3.0 |
-| US-1.5 | Doanh nghiệp, tài khoản HR, đăng và duyệt JD | HR đăng JD; Trung tâm duyệt JD | 👀 review | 0.4.0 |
-| US-1.6 | Đồng ý xử lý dữ liệu và nộp CV | Sinh viên đồng ý điều khoản và nộp CV có phiên bản | 👀 review | 0.5.0 |
-| US-1.7 | Thông báo trong app, SSE, email, nhắc hạn | Người dùng nhận thông báo theo sự kiện nghiệp vụ | 👀 review | 0.6.0 |
+| US-1.3 | Đăng nhập, phân quyền, DESIGN.md, khung giao diện | Bốn vai trò đăng nhập và thấy đúng cổng của mình | ✅ done | 0.2.0 |
+| US-1.4 | Tạo và cấu hình đợt thực tập | Trung tâm tạo đợt với tham số và mốc; đợt tự chuyển trạng thái theo mốc | ✅ done | 0.3.0 |
+| US-1.5 | Doanh nghiệp, tài khoản HR, đăng và duyệt JD | HR đăng JD; Trung tâm duyệt JD | ✅ done | 0.4.0 |
+| US-1.6 | Đồng ý xử lý dữ liệu và nộp CV | Sinh viên đồng ý điều khoản và nộp CV có phiên bản | ✅ done | 0.5.0 |
+| US-1.7 | Thông báo trong app, SSE, email, nhắc hạn | Người dùng nhận thông báo theo sự kiện nghiệp vụ | ✅ done | 0.6.0 |
 
 ## Object map & user-story interactions
 

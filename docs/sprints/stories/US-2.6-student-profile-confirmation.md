@@ -2,7 +2,7 @@
 id: US-2.6
 title: "SV xác nhận hồ sơ năng lực"
 epic: EPIC-2
-status: review
+status: done
 priority: P0
 points: 5
 sprint: sprint-2026-W44
@@ -12,7 +12,7 @@ depends_on: [US-2.4, US-2.5]
 assignee: PDTnhah
 commit: 5809cacb5574f998c22074c6955c5cc963ad31cf
 created: 2026-10-07
-updated: 2026-10-27
+updated: 2026-10-28
 ---
 
 ## Story refresh — 2026-10-27 (bắt đầu story)
@@ -35,7 +35,7 @@ GĐ2 bước 4 (PRD), FR-12, UC-11: SV xem lại, sửa chỗ trích xuất sai 
 
 ## Acceptance criteria
 
-- [ ] **AC-1** — **Given** SV có CV ở *Chờ SV xác nhận*, **When** mở màn Hồ sơ, **Then** trên màn rộng thấy file CV (xem bằng URL tạm có hạn 5 phút) cạnh form hồ sơ; trên điện thoại hai phần chuyển thành hai tab "CV" / "Hồ sơ năng lực", không cuộn ngang.
+- [x] **AC-1** — **Given** SV có CV ở *Chờ SV xác nhận*, **When** mở màn Hồ sơ, **Then** trên màn rộng thấy file CV (xem bằng URL tạm có hạn 5 phút) cạnh form hồ sơ; trên điện thoại hai phần chuyển thành hai tab "CV" / "Hồ sơ năng lực", không cuộn ngang.
 - [x] **AC-2** — **Given** form hồ sơ, **When** SV sửa học vấn, kỹ năng, dự án, kinh nghiệm, ngoại ngữ, chứng chỉ (thêm, sửa, xóa từng mục), **Then** dữ liệu được kiểm bằng Zod `CvProfile` ở cả form và API; lỗi hiển thị tiếng Việt cạnh trường sai.
 - [x] **AC-3** — **Given** ô nhập kỹ năng, **When** SV gõ, **Then** ô gợi ý tên từ danh mục kỹ năng đã duyệt (US-2.5); SV vẫn nhập được tên ngoài danh mục, tên đó được đánh dấu là kỹ năng mới.
 - [x] **AC-4** — **Given** SV bấm "Lưu nháp", **When** gọi API lưu, **Then** thay đổi được lưu, CV vẫn ở *Chờ SV xác nhận*, không được chấm.
@@ -44,8 +44,8 @@ GĐ2 bước 4 (PRD), FR-12, UC-11: SV xem lại, sửa chỗ trích xuất sai 
 - [x] **AC-7** — **Given** CV chưa được xác nhận (đang phân tích, *Chờ SV xác nhận*, lỗi phân tích) hoặc không còn hiệu lực, **When** truy vấn `core.v_ai_cv_profile_masked`, **Then** CV đó không có trong kết quả. Sau khi SV xác nhận, CV xuất hiện với `profile_masked` mới (BR-01).
 - [x] **AC-8** — **Given** đợt đã qua hạn nộp CV (US-1.4), **When** SV lưu hoặc xác nhận, **Then** API từ chối với mã lỗi nghiệp vụ và giao diện ẩn nút tương ứng.
 - [x] **AC-9** — **Given** người dùng vai trò HR, Trung tâm hoặc chưa đăng nhập, **When** gọi `GET /api/cvs/me/profile`, các API lưu/xác nhận, **Then** trả `403`/`401`. **Given** SV A, **When** xin URL tạm của file CV thuộc SV B, **Then** trả `404`, không lộ file (NFR-1).
-- [ ] **AC-10** — **Given** CV đang phân tích hoặc phân tích lỗi, **When** SV mở màn Hồ sơ, **Then** thấy trạng thái "Đang phân tích CV…" (cập nhật qua SSE, tự chuyển sang form khi có kết quả) hoặc thông báo lỗi kèm nút tải lại CV.
-- [ ] **AC-11** — **Given** màn Hồ sơ, **When** hiển thị, **Then** có dòng giải thích rằng thông tin cá nhân (tên, liên lạc, ảnh, ngày sinh, giới tính, quê quán, tôn giáo, tình trạng hôn nhân) đã được tách riêng và không dùng để chấm điểm (BR-03).
+- [x] **AC-10** — **Given** CV đang phân tích hoặc phân tích lỗi, **When** SV mở màn Hồ sơ, **Then** thấy trạng thái "Đang phân tích CV…" (cập nhật qua SSE, tự chuyển sang form khi có kết quả) hoặc thông báo lỗi kèm nút tải lại CV.
+- [x] **AC-11** — **Given** màn Hồ sơ, **When** hiển thị, **Then** có dòng giải thích rằng thông tin cá nhân (tên, liên lạc, ảnh, ngày sinh, giới tính, quê quán, tôn giáo, tình trạng hôn nhân) đã được tách riêng và không dùng để chấm điểm (BR-03).
 - [x] **AC-12** — **Given** SV đã xác nhận và đợt còn trong hạn nộp CV, **When** SV bấm "Sửa lại", **Then** hệ thống tạo phiên bản CV mới (giữ file và hồ sơ cũ, không gọi lại AI) ở *Chờ SV xác nhận*; phiên bản này chỉ được chấm sau khi SV xác nhận lại.
 
 ## Tasks
@@ -66,10 +66,10 @@ GĐ2 bước 4 (PRD), FR-12, UC-11: SV xem lại, sửa chỗ trích xuất sai 
   - [x] Subtask 2.6.4.1 — Xem PDF bằng react-pdf; DOCX hiện nút mở file.
   - [x] Subtask 2.6.4.2 — Form React Hook Form + Zod `CvProfile`, thêm/xóa từng mục; ô kỹ năng gợi ý từ `GET /api/skills?query=` (US-2.5).
   - [x] Subtask 2.6.4.3 — Trạng thái: đang phân tích (SSE), lỗi phân tích, chờ xác nhận, đã xác nhận (chỉ đọc + "Sửa lại"), 409, hết hạn.
-- [ ] **TASK-2.6.5** — Test (AC: 1–12)
+- [x] **TASK-2.6.5** — Test (AC: 1–12)
   - [x] Subtask 2.6.5.1 — Unit `mask-profile.spec.ts` (bộ ca dùng chung), `profile-editing.spec.ts`.
   - [x] Subtask 2.6.5.2 — Integration `cv-profile.int-spec.ts` (testcontainers).
-  - [ ] Subtask 2.6.5.3 — Jest cho schema ở `packages/shared` (xong); kiểm tay giao diện ở 360/768/1024 px (còn).
+  - [x] Subtask 2.6.5.3 — Jest cho schema ở `packages/shared` (xong); kiểm tay giao diện ở 360/768/1024 px (xong).
 
 ## Dev notes
 
@@ -144,6 +144,7 @@ GĐ2 bước 4 (PRD), FR-12, UC-11: SV xem lại, sửa chỗ trích xuất sai 
   - Giữ nguyên: PII còn sót sau khi che vẫn là 500 (che và kiểm dùng cùng hàm tìm, nên là bất biến; Python cũng coi là lỗi); `features/student` import từ `features/center` (mẫu đã có ở 7 file); `blankToNull` và `mapStrings` khác mục đích.
 - koni-qc: AC-2…AC-9, AC-12 có ca dương và âm; ca biên: 3000 ký tự, 10 ngoại ngữ, ô vượt giới hạn sau khi che, quá `intake_end` cho cả ba thao tác. Bảo mật: 401/403 mọi endpoint, IDOR (404 cho CV và URL file của SV khác), audit không chứa PII, `cvId` + `rowVersion` chặn ghi đè bản mới. Không có phát hiện mới.
 - **Còn lại, cần người kiểm** (AC-1, AC-10, AC-11, phần giao diện của AC-6, AC-8): checklist 360 px, 768 và 1024 px; PDF qua nginx của compose, DOCX; gợi ý kỹ năng; 409 khi mở hai tab; đợt hết hạn; "Đang phân tích CV…" chuyển sang form qua SSE.
+- **Đã xong (2026-10-28).** Người dùng xác nhận đã kiểm hết các mục còn lại ở trên; story chuyển `done`.
 
 Lessons: §25 mới (form gửi `row_version` của query mới nhất).
 
