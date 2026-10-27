@@ -10,7 +10,7 @@ version_shipped: 0.12.0
 prd_ref: [FR-12]
 depends_on: [US-2.4, US-2.5]
 assignee: PDTnhah
-commit:
+commit: 5809cacb5574f998c22074c6955c5cc963ad31cf
 created: 2026-10-07
 updated: 2026-10-27
 ---
@@ -128,7 +128,7 @@ GĐ2 bước 4 (PRD), FR-12, UC-11: SV xem lại, sửa chỗ trích xuất sai 
 - API `GET /api/cvs/me/profile`, lưu nháp và `PUT /api/cvs/me/profile/confirm`; khi xác nhận, `profile_masked` được tạo lại từ hồ sơ đã sửa.
 - Chỉ hồ sơ đã xác nhận mới có trong view dữ liệu cho bước chấm (BR-01).
 
-**Commit**:
+**Commit**: 5809cac
 
 ## Implementation notes
 

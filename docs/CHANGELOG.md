@@ -38,7 +38,7 @@ US-2.6. Sinh viên xem file CV cạnh hồ sơ năng lực do AI trích xuất, 
 - Không có migration. Build lại image `api` và `web`.
 - Sau "Sửa lại", hai phiên bản CV dùng chung một file trong MinIO. Việc xóa file khi hết hạn lưu (NFR-2) phải đếm tham chiếu trước khi xóa ([CONTEXT D40](CONTEXT.md)).
 
-**Commit**:
+**Commit**: 5809cac
 
 ---
 
