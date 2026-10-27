@@ -12,8 +12,12 @@ import { SkillRepository } from '../infrastructure/skill.repository.js';
 
 const ENTITY = skillMachine.name;
 
+/** Where a new skill name came from, in the audit entry of its PENDING row. */
+type ProposalSource = 'CV_PARSE' | 'JD_ANALYZE' | 'CV_PROFILE';
+
 /**
- * Skills the AI found outside the catalogue (FR-13, US-2.5 AC-5, AC-6, CONTEXT D39). The skills
+ * Skills found outside the catalogue (FR-13, US-2.5 AC-5, AC-6, CONTEXT D39): by the AI in a CV or
+ * JD, or typed by a student into the profile they confirmed (US-2.6, CONTEXT D40). The skills
  * module listens to the CV and JD results itself, so a database failure is retried by the consumer
  * (listener convention of aigateway/domain/events.ts). Each new name becomes one PENDING row, and
  * after commit the skill normalizer is asked for suggestions; ADMIN decides (AD-2).
@@ -33,13 +37,22 @@ export class NewSkillsService {
   async fromCv(result: AiResultEvent<'CV_PARSE'>): Promise<void> {
     if (result.status !== 'SUCCEEDED' || result.result === null) return;
     // From profile_masked, without names holding a mask token (BR-03).
-    await this.queue(result.result.new_skills, result);
+    await this.queue(result.result.new_skills, result.type, result.job_id);
   }
 
   @OnEvent(AI_RESULT_EVENTS.JD_ANALYZE, { suppressErrors: false })
   async fromJd(result: AiResultEvent<'JD_ANALYZE'>): Promise<void> {
     if (result.status !== 'SUCCEEDED' || result.result === null) return;
-    await this.queue(result.result.new_skills, result);
+    await this.queue(result.result.new_skills, result.type, result.job_id);
+  }
+
+  /**
+   * Skills a student typed outside the catalogue into the profile they just confirmed (US-2.6,
+   * CONTEXT D40). The caller passes the NEW names of profile_masked without a mask token (BR-03),
+   * after its transaction commits.
+   */
+  async proposeFromStudentProfile(names: readonly string[]): Promise<void> {
+    await this.queue(names, 'CV_PROFILE', null);
   }
 
   /**
@@ -78,7 +91,7 @@ export class NewSkillsService {
     });
   }
 
-  private async queue(names: readonly string[], result: AiResultEvent<'CV_PARSE' | 'JD_ANALYZE'>): Promise<void> {
+  private async queue(names: readonly string[], source: ProposalSource, jobId: string | null): Promise<void> {
     const distinct = distinctNewSkills(names);
     if (distinct.length === 0) return;
     const created = await this.db.transaction(async (tx) => {
@@ -97,8 +110,8 @@ export class NewSkillsService {
           action: SKILLS_AUDIT_ACTIONS.SKILL_PROPOSED,
           entity: ENTITY,
           entityId: row.id,
-          after: { canonicalName: row.canonicalName, status: 'PENDING', source: result.type, jobId: result.job_id },
-          reason: `New skill found by ${result.type}`,
+          after: { canonicalName: row.canonicalName, status: 'PENDING', source, jobId },
+          reason: source === 'CV_PROFILE' ? 'New skill entered by a student in their profile' : `New skill found by ${source}`,
         });
       }
       return rows;

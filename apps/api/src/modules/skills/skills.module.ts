@@ -19,6 +19,6 @@ import { SkillRepository } from './infrastructure/skill.repository.js';
   imports: [StateModule, AuditModule, AiGatewayModule],
   controllers: [SkillsController, AdminSkillsController],
   providers: [SkillCatalogService, SkillReviewService, NewSkillsService, SkillRepository],
-  exports: [SkillCatalogService],
+  exports: [SkillCatalogService, NewSkillsService],
 })
 export class SkillsModule {}

@@ -268,6 +268,20 @@ export class CvSubmissionConflictError extends DomainError {
   }
 }
 
+/**
+ * The CV version named is not one whose profile the student may change now: it is still being
+ * analysed, already confirmed (or awaiting confirmation, for "Sửa lại"), or a newer version
+ * replaced it (US-2.6, CONTEXT D40).
+ */
+export class CvProfileNotEditableError extends DomainError {
+  readonly code = 'CV_PROFILE_NOT_EDITABLE';
+  readonly httpStatus = 409;
+
+  constructor(id: number, status: string, active: boolean) {
+    super(`cv ${id} (${status}${active ? '' : ', superseded'}): the profile cannot be changed now`, { id, status, active });
+  }
+}
+
 // Skill catalogue review (US-2.5, CONTEXT D39).
 
 /**

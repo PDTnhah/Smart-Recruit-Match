@@ -43,6 +43,7 @@ const MESSAGES: Record<ApiErrorCode, string> = {
   CV_SUBMISSION_CONFLICT: 'Một CV khác vừa được nộp cùng lúc. Tải lại trang để xem phiên bản mới nhất.',
   JD_REQUIREMENTS_NOT_EDITABLE: 'Yêu cầu chuẩn hóa của JD này hiện không sửa được.',
   SKILL_NAME_TAKEN: 'Tên này trùng với một kỹ năng đã có trong danh mục. Hãy gộp vào kỹ năng đó.',
+  CV_PROFILE_NOT_EDITABLE: 'Hồ sơ của phiên bản CV này hiện không sửa được. Tải lại trang để xem phiên bản mới nhất.',
   INTERNAL_ERROR: 'Hệ thống đang gặp sự cố. Thử lại sau ít phút.',
 };
 

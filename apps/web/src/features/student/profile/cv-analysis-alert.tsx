@@ -1,11 +1,12 @@
 import type { Cv } from '@srm/shared';
-import { CircleAlert, CircleCheck } from 'lucide-react';
+import { CircleAlert } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Spinner } from '@/components/ui/spinner';
 
 /**
- * Where the analysis of the CV that counts stands (US-2.4 AC-1, AC-9, AC-11). The page refreshes
- * over SSE (`cv.analysis`), so "Đang phân tích" turns into the outcome without a reload.
+ * Where the analysis of the CV that counts stands (US-2.4 AC-1, AC-9, AC-11; US-2.6 AC-10). The
+ * page refreshes over SSE (`cv.analysis`), so "Đang phân tích" turns into the profile review or
+ * the failure without a reload.
  */
 export function CvAnalysisAlert({ cv, canUpload }: { cv: Cv; canUpload: boolean }) {
   switch (cv.status) {
@@ -32,17 +33,8 @@ export function CvAnalysisAlert({ cv, canUpload }: { cv: Cv; canUpload: boolean 
           </AlertDescription>
         </Alert>
       );
+    // Analysed: the profile review below takes over (US-2.6).
     case 'PENDING_CONFIRMATION':
-      return (
-        <Alert aria-live="polite">
-          <CircleCheck />
-          <AlertTitle>Hồ sơ năng lực sẵn sàng để xác nhận</AlertTitle>
-          <AlertDescription>
-            Hệ thống đã trích hồ sơ năng lực từ CV phiên bản {cv.version}. Bước xem lại và xác nhận hồ sơ sẽ mở tại
-            trang này.
-          </AlertDescription>
-        </Alert>
-      );
     case 'CONFIRMED':
       return null;
   }

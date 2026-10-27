@@ -6,6 +6,42 @@ Lịch sử phát hành của Smart Recruit Match. Mỗi commit ship code tăng 
 
 ---
 
+## [0.12.0] — 2026-10-27 — SV xác nhận hồ sơ năng lực — v0.12.0
+
+US-2.6. Sinh viên xem file CV cạnh hồ sơ năng lực do AI trích xuất, sửa chỗ sai và xác nhận. Chỉ hồ sơ đã xác nhận mới vào view dữ liệu cho bước chấm, nên đầu vào của Matching (US-3.2) là dữ liệu SV đã kiểm (FR-12, BR-01). Mỗi lần lưu, Core Backend chuẩn hóa lại kỹ năng và che PII lại bằng bản port TS của `pii.py`, chạy cùng bộ ca với phía Python (BR-03, [CONTEXT D40](CONTEXT.md)).
+
+### Added
+- **Màn Hồ sơ của SV** (`features/student/profile/`):
+  - từ 1024 px, file CV và hồ sơ nằm thành hai cột, rộng tới `80rem`; dưới đó là hai tab "CV" / "Hồ sơ năng lực". Hai cách hiển thị dùng chung một cây component, nên đổi tab hay xoay máy không mất phần đang sửa;
+  - PDF hiện bằng react-pdf, tải riêng khi mở màn này; DOCX hoặc PDF không tải được thì có nút mở file;
+  - form sửa từng phần (học vấn, kỹ năng, dự án, kinh nghiệm, ngoại ngữ, chứng chỉ), thêm và xóa từng mục, lỗi tiếng Việt cạnh ô sai;
+  - ô kỹ năng gợi ý tên trong danh mục đã duyệt, tên ngoài danh mục có nhãn "Kỹ năng mới";
+  - "Lưu nháp", "Xác nhận hồ sơ" (hỏi lại trước khi xác nhận; trên điện thoại hộp thoại mở từ dưới lên); đã xác nhận thì chỉ đọc, kèm nút "Sửa lại hồ sơ";
+  - hồ sơ vừa đổi ở tab khác, đã xác nhận ở nơi khác hoặc đợt hết hạn nộp CV thì màn báo và cho tải bản mới nhất;
+  - dòng giải thích thông tin cá nhân đã được tách và không dùng để chấm (BR-03).
+- **API** (chỉ `STUDENT`, nhận `cvId` + `rowVersion`):
+  - `GET /api/cvs/me/profile?campaignId=`: phiên bản CV đang dùng, kèm `editable`, `canReopen`;
+  - `PUT /api/cvs/me/profile` (lưu nháp, CV vẫn ở *Chờ SV xác nhận*) và `PUT /api/cvs/me/profile/confirm` (chuyển *Đã xác nhận* bằng `transitionTo`);
+  - `POST /api/cvs/me/profile/reopen` ("Sửa lại"): phiên bản mới chép file, hồ sơ và PII đã mã hóa, ở *Chờ SV xác nhận*, không gọi AI; cần SV đã đồng ý điều khoản hiện hành;
+  - `row_version` cũ trả `409 ROW_VERSION_CONFLICT`; CV không sửa được trả `409 CV_PROFILE_NOT_EDITABLE`; quá hạn nộp CV trả `409 CAMPAIGN_PHASE_MISMATCH`; CV của SV khác trả 404;
+  - ô vượt giới hạn độ dài sau khi PII được thay bằng nhãn trả 400 đúng ô đó.
+- **Che PII bằng TypeScript** (`modules/student/domain/mask-profile.ts`): port 1:1 `mask_text`, `mask_profile`, `find_pii`, qua cả 13 ca của `pii-mask-cases.json`. PII được giải mã bằng `pgp_sym_decrypt` trong giao dịch; che, lưu, chuyển trạng thái và audit trong cùng giao dịch. Audit chỉ ghi số mục của từng phần, không ghi nội dung hồ sơ.
+- **Kỹ năng trong hồ sơ SV sửa:** backend không tin `canonical_name`/`match` của client, khớp lại với danh mục (`SkillCatalogService.matchKeys`). Tên ngoài danh mục vào hàng chờ duyệt sau khi SV xác nhận (`NewSkillsService.proposeFromStudentProfile`, audit `source: 'CV_PROFILE'`), trừ tên có token che PII.
+- **Test:** Jest cho schema form/API ở `packages/shared` (lỗi tiếng Việt, chuỗi rỗng thành null); unit cho che PII (bộ ca dùng chung) và quy tắc sửa hồ sơ; 12 ca integration (lưu nháp, xác nhận, view BR-01, 409, hết hạn, 401/403/404, sửa lại, kỹ năng mới vào hàng chờ).
+
+### Changed
+- **Hợp đồng `CvProfile`:** thông báo lỗi tiếng Việt; JSON Schema và Pydantic không đổi.
+- **Web:** primitive `tabs` (shadcn, thêm `pointer-coarse:` 44 px); thêm `react-pdf` 11.0.0 và `pdfjs-dist` 6.3.289 (đúng bản react-pdf dùng, để Vite nạp worker). `CvAnalysisAlert` không còn hiện thông báo cho hồ sơ chờ xác nhận và đã xác nhận, vì màn Hồ sơ đã hiện trạng thái đó.
+- **Tài liệu:** CONTEXT D40; LESSONS §25 (form gửi `row_version` của query mới nhất); ARCHITECTURE (API, luồng CV, che PII ở Core Backend, `pdfjs-dist`); DESIGN §4, §6 (`tabs`, `ConfirmActionDialog`), §12; AGENTS (*Mẫu có sẵn*).
+
+### Upgrade notes
+- Không có migration. Build lại image `api` và `web`.
+- Sau "Sửa lại", hai phiên bản CV dùng chung một file trong MinIO. Việc xóa file khi hết hạn lưu (NFR-2) phải đếm tham chiếu trước khi xóa ([CONTEXT D40](CONTEXT.md)).
+
+**Commit**: 5809cac
+
+---
+
 ## [0.11.0] — 2026-10-27 — Embedding và danh mục kỹ năng — v0.11.0
 
 US-2.5. Tên kỹ năng trong hồ sơ năng lực và yêu cầu JD được quy về một danh mục chung: "ReactJS", "React.js", "react js" đều thành `React`. Kỹ năng chưa có trong danh mục được giữ tên, đánh dấu là kỹ năng mới và chờ quản trị duyệt; AI chỉ gợi ý, không tự thêm vào danh mục (FR-13, AD-2). AI Service có dịch vụ embedding `BAAI/bge-m3` tự host và bảng `ai.embeddings` (pgvector) để US-3.2, US-4.1, US-4.7 dùng lại. Compose mặc định chạy embedding giả, tất định (`hashing`); bge-m3 bật bằng `EMBEDDING_PROVIDER` ([CONTEXT D39](CONTEXT.md)).

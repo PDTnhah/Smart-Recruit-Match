@@ -36,3 +36,23 @@ export function applyServerFieldErrors<T extends FieldValues>(
   }
   return applied;
 }
+
+/**
+ * Like `applyServerFieldErrors`, for a form that edits one object of the request body, lists
+ * included: `profile.skills.3.name` lands on `skills.3.name` when `prefix` is `profile`. The first
+ * field gets focus. Returns false when no issue was under `prefix`.
+ */
+export function applyNestedServerErrors<T extends FieldValues>(
+  error: unknown,
+  setError: UseFormSetError<T>,
+  prefix: string,
+): boolean {
+  let applied = false;
+  for (const issue of issuesOf(error)) {
+    if (!issue.path.startsWith(`${prefix}.`)) continue;
+    const path = issue.path.slice(prefix.length + 1) as Path<T>;
+    setError(path, { type: 'server', message: issue.message }, { shouldFocus: !applied });
+    applied = true;
+  }
+  return applied;
+}

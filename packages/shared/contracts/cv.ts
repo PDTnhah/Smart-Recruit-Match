@@ -8,7 +8,8 @@ import { SkillMatchSchema } from './skills.js';
 // personal value left in its free text replaced by a token such as [NAME]; code builds it, not the
 // LLM, so the masking is deterministic and tested (pii-mask-cases.json). The LLM returns skill
 // names only (`CvExtractedProfile`); the stored `CvProfile` maps each one to the skill catalogue
-// (US-2.5, CONTEXT D39).
+// (US-2.5, CONTEXT D39). Error messages are Vietnamese because the student's form displays them
+// (US-2.6 AC-2); they do not reach the JSON Schema.
 
 /** Where the profile was read from: the text of a PDF, the whole scanned PDF, or a DOCX. */
 export const CV_SOURCES = ['TEXT_PDF', 'SCANNED_PDF', 'DOCX'] as const;
@@ -24,36 +25,45 @@ export const CvSourceSchema = z
   .enum(CV_SOURCES)
   .meta({ title: 'CvSource', description: 'TEXT_PDF = PDF with a text layer, SCANNED_PDF = PDF without one, DOCX' });
 
-const text = (max: number) => z.string().trim().min(1).max(max);
+const text = (label: string, max: number) => {
+  const empty = `${label} không được để trống`;
+  return z
+    .string({ error: empty })
+    .trim()
+    .min(1, { error: empty })
+    .max(max, { error: `${label} tối đa ${max} ký tự` });
+};
 
 /** A date or period as the CV writes it ("09/2022", "2024", "hiện tại"); not parsed. */
-const period = () => text(40).nullable();
+const period = (label: string) => text(label, 40).nullable();
 
-const list = <T extends z.ZodType>(item: T, max: number) => z.array(item).max(max);
+/** `noun` names the items in the error: "Tối đa 10 ngoại ngữ". */
+const list = <T extends z.ZodType>(item: T, max: number, noun: string) =>
+  z.array(item).max(max, { error: `Tối đa ${max} ${noun}` });
 
 export const CvEducationSchema = z
   .strictObject({
-    institution: text(200).describe('School or university'),
-    degree: text(100).nullable().describe('Degree or programme level, e.g. "Kỹ sư", "Cử nhân"'),
-    major: text(200).nullable().describe('Major or field of study'),
-    start: period().describe('Start as written'),
-    end: period().describe('End as written; "hiện tại" when ongoing'),
-    gpa: text(40).nullable().describe('GPA as written, with its scale, e.g. "3.2/4"'),
+    institution: text('Tên trường', 200).describe('School or university'),
+    degree: text('Bậc học', 100).nullable().describe('Degree or programme level, e.g. "Kỹ sư", "Cử nhân"'),
+    major: text('Ngành học', 200).nullable().describe('Major or field of study'),
+    start: period('Thời gian bắt đầu').describe('Start as written'),
+    end: period('Thời gian kết thúc').describe('End as written; "hiện tại" when ongoing'),
+    gpa: text('GPA', 40).nullable().describe('GPA as written, with its scale, e.g. "3.2/4"'),
   })
   .meta({ title: 'CvEducation', description: 'One school or degree' });
 
 /** Asked of the LLM: the name only. The fields and texts keep the keys of recorded fixtures. */
 export const CvExtractedSkillSchema = z
   .strictObject({
-    name: text(100).describe('Skill name as the CV writes it; US-2.5 maps it to the skill catalogue'),
+    name: text('Tên kỹ năng', 100).describe('Skill name as the CV writes it; US-2.5 maps it to the skill catalogue'),
   })
   .meta({ title: 'CvExtractedSkill', description: 'One concrete skill the CV claims' });
 
 /** A skill of the stored profile: the name as written and the catalogue skill it maps to. */
 export const CvSkillSchema = z
   .strictObject({
-    name: text(100).describe('Skill name as the CV writes it'),
-    canonical_name: text(100)
+    name: text('Tên kỹ năng', 100).describe('Skill name as the CV writes it'),
+    canonical_name: text('Tên chuẩn của kỹ năng', 100)
       .nullable()
       .describe('Name of the catalogue skill it maps to; null when match is NEW'),
     match: SkillMatchSchema,
@@ -68,50 +78,50 @@ export type CvSkill = z.output<typeof CvSkillSchema>;
 
 export const CvProjectSchema = z
   .strictObject({
-    name: text(200).describe('Project name'),
-    role: text(200).nullable().describe("The student's role in the project"),
-    description: text(5000).nullable().describe('What the project does and what the student did, as written'),
-    technologies: list(text(100), 30).describe('Languages, frameworks and tools the project used'),
-    start: period().describe('Start as written'),
-    end: period().describe('End as written'),
+    name: text('Tên dự án', 200).describe('Project name'),
+    role: text('Vai trò', 200).nullable().describe("The student's role in the project"),
+    description: text('Mô tả', 5000).nullable().describe('What the project does and what the student did, as written'),
+    technologies: list(text('Công nghệ', 100), 30, 'công nghệ').describe('Languages, frameworks and tools the project used'),
+    start: period('Thời gian bắt đầu').describe('Start as written'),
+    end: period('Thời gian kết thúc').describe('End as written'),
   })
   .meta({ title: 'CvProject', description: 'One project, academic or personal' });
 
 export const CvExperienceSchema = z
   .strictObject({
-    organization: text(200).describe('Company or organisation'),
-    position: text(200).nullable().describe('Job title'),
-    description: text(5000).nullable().describe('Work done, as written'),
-    start: period().describe('Start as written'),
-    end: period().describe('End as written; "hiện tại" when ongoing'),
+    organization: text('Tên công ty, tổ chức', 200).describe('Company or organisation'),
+    position: text('Vị trí', 200).nullable().describe('Job title'),
+    description: text('Mô tả', 5000).nullable().describe('Work done, as written'),
+    start: period('Thời gian bắt đầu').describe('Start as written'),
+    end: period('Thời gian kết thúc').describe('End as written; "hiện tại" when ongoing'),
   })
   .meta({ title: 'CvExperience', description: 'One job, internship or role in an organisation' });
 
 export const CvLanguageSchema = z
   .strictObject({
-    language: text(100).describe('Language, e.g. "Tiếng Anh"'),
-    level: text(100).nullable().describe('Level or certificate as written, e.g. "TOEIC 650", "N3"'),
+    language: text('Ngoại ngữ', 100).describe('Language, e.g. "Tiếng Anh"'),
+    level: text('Trình độ', 100).nullable().describe('Level or certificate as written, e.g. "TOEIC 650", "N3"'),
   })
   .meta({ title: 'CvLanguage', description: 'One foreign language' });
 
 export const CvCertificateSchema = z
   .strictObject({
-    name: text(200).describe('Certificate or award'),
-    issuer: text(200).nullable().describe('Who issued it'),
-    year: text(40).nullable().describe('When, as written'),
+    name: text('Tên chứng chỉ', 200).describe('Certificate or award'),
+    issuer: text('Đơn vị cấp', 200).nullable().describe('Who issued it'),
+    year: text('Năm', 40).nullable().describe('When, as written'),
   })
   .meta({ title: 'CvCertificate', description: 'One certificate or award' });
 
 /** Same fields for the LLM output and the stored profile; only the skill entries differ. */
 const profileOf = <S extends z.ZodType>(skill: S) =>
   z.strictObject({
-    summary: text(3000).nullable().describe('Career objective or summary as written; no personal details'),
-    education: list(CvEducationSchema, 10).describe('Education, most recent first'),
-    skills: list(skill, 100).describe('Skills, one entry each'),
-    projects: list(CvProjectSchema, 30).describe('Projects'),
-    experience: list(CvExperienceSchema, 30).describe('Work experience'),
-    languages: list(CvLanguageSchema, 10).describe('Foreign languages'),
-    certificates: list(CvCertificateSchema, 30).describe('Certificates and awards'),
+    summary: text('Giới thiệu', 3000).nullable().describe('Career objective or summary as written; no personal details'),
+    education: list(CvEducationSchema, 10, 'mục học vấn').describe('Education, most recent first'),
+    skills: list(skill, 100, 'kỹ năng').describe('Skills, one entry each'),
+    projects: list(CvProjectSchema, 30, 'dự án').describe('Projects'),
+    experience: list(CvExperienceSchema, 30, 'mục kinh nghiệm').describe('Work experience'),
+    languages: list(CvLanguageSchema, 10, 'ngoại ngữ').describe('Foreign languages'),
+    certificates: list(CvCertificateSchema, 30, 'chứng chỉ').describe('Certificates and awards'),
   });
 
 export const CvExtractedProfileSchema = profileOf(CvExtractedSkillSchema).meta({
@@ -138,15 +148,15 @@ export type CvProfileMasked = CvProfile;
 
 export const CvPiiSchema = z
   .strictObject({
-    full_name: text(200).nullable().describe("The student's full name"),
-    emails: list(text(320), 10).describe('Email addresses'),
-    phones: list(text(40), 10).describe('Phone numbers as written'),
-    links: list(text(500), 20).describe('Personal links: GitHub, LinkedIn, portfolio, social profiles'),
-    address: text(500).nullable().describe('Postal address'),
-    date_of_birth: text(40).nullable().describe('Date of birth as written'),
+    full_name: text('Họ tên', 200).nullable().describe("The student's full name"),
+    emails: list(text('Email', 320), 10, 'email').describe('Email addresses'),
+    phones: list(text('Số điện thoại', 40), 10, 'số điện thoại').describe('Phone numbers as written'),
+    links: list(text('Liên kết', 500), 20, 'liên kết').describe('Personal links: GitHub, LinkedIn, portfolio, social profiles'),
+    address: text('Địa chỉ', 500).nullable().describe('Postal address'),
+    date_of_birth: text('Ngày sinh', 40).nullable().describe('Date of birth as written'),
     gender: z.enum(GENDERS).nullable().describe('Gender when the CV states it'),
-    hometown: text(200).nullable().describe('Hometown or place of origin ("quê quán")'),
-    religion: text(100).nullable().describe('Religion when the CV states it'),
+    hometown: text('Quê quán', 200).nullable().describe('Hometown or place of origin ("quê quán")'),
+    religion: text('Tôn giáo', 100).nullable().describe('Religion when the CV states it'),
     marital_status: z.enum(MARITAL_STATUSES).nullable().describe('Marital status when the CV states it'),
     has_photo: z.boolean().describe('The CV carries a photo of the student'),
   })

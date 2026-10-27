@@ -18,6 +18,7 @@ import { profileKeys, useConsents, useMyCvs } from './api';
 import { CvAnalysisAlert } from './cv-analysis-alert';
 import { CvHistory } from './cv-history';
 import { CvUploadCard } from './cv-upload-card';
+import { ProfileReview } from './profile-review';
 import { hasCurrentConsent, takesCvs } from './intake';
 import { TermsCard } from './terms-card';
 
@@ -61,13 +62,15 @@ function CampaignSummary({ campaign }: { campaign: Campaign }) {
 /**
  * "Hồ sơ" of the student portal (US-1.6 AC-9): consent to the terms, then CV upload and the
  * version history, per campaign the student takes part in. Since US-2.4 it also shows where the
- * analysis of the CV that counts stands, refreshed over SSE. Mobile first (DESIGN.md §5).
+ * analysis of the CV that counts stands, refreshed over SSE; once analysed, the student reviews
+ * and confirms the profile here (US-2.6). Mobile first (DESIGN.md §5).
  */
 export function CvPage() {
   const campaigns = useCampaigns();
   const consents = useConsents();
   const cvs = useMyCvs();
   const queryClient = useQueryClient();
+  // Refreshes the versions and, under the same key, the profile of the analysed CV (AC-10).
   useServerEvent(SERVER_EVENTS.CV_ANALYSIS, (data) => {
     if (CvAnalysisEventSchema.safeParse(data).success) void queryClient.invalidateQueries({ queryKey: profileKeys.cvs });
   });
@@ -136,6 +139,7 @@ export function CvPage() {
   const versions = (cvs.data ?? []).filter((cv) => cv.campaignId === selected.id);
   const current = versions.find((cv) => cv.active);
   const open = takesCvs(selected, now);
+  const analysed = current?.status === 'PENDING_CONFIRMATION' || current?.status === 'CONFIRMED';
 
   return (
     <>
@@ -156,6 +160,7 @@ export function CvPage() {
       )}
       <CampaignSummary campaign={selected} />
       {current && <CvAnalysisAlert cv={current} canUpload={open && accepted} />}
+      {analysed && <ProfileReview key={selected.id} campaignId={selected.id} />}
       {!open ? (
         <Alert>
           <CalendarClock />
