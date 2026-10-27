@@ -8,7 +8,7 @@
 
 ## System overview
 
-Smart Recruit Match gồm một *modular monolith* NestJS (Core Backend) và một AI Service Python, giao tiếp qua RabbitMQ và dùng chung PostgreSQL + pgvector làm nguồn sự thật. Frontend là một SPA React dựng bằng shadcn/ui, phục vụ ba cổng: Sinh viên, HR, Trung tâm. Phần tất định (trạng thái, điểm, phân bổ, phân quyền) nằm ở Core Backend; LLM (Claude) chỉ nằm ở AI Service và chỉ trả dữ liệu có cấu trúc. Động lực kiến trúc: công bằng và giải thích được, kiểm soát chi phí LLM, chạy toàn bộ hệ thống bằng một lệnh Docker Compose để demo.
+Smart Recruit Match gồm một *modular monolith* NestJS (Core Backend) và một AI Service Python, giao tiếp qua RabbitMQ và dùng chung PostgreSQL + pgvector làm nguồn sự thật. Frontend là một SPA React dựng bằng shadcn/ui, phục vụ ba cổng: Sinh viên, HR, Trung tâm. Phần tất định (trạng thái, điểm, phân bổ, phân quyền) nằm ở Core Backend; LLM (Gemini mặc định, Claude thay thế, [CONTEXT D34](CONTEXT.md)) chỉ nằm ở AI Service và chỉ trả dữ liệu có cấu trúc. Động lực kiến trúc: công bằng và giải thích được, kiểm soát chi phí LLM, chạy toàn bộ hệ thống bằng một lệnh Docker Compose để demo.
 
 ### Nguyên tắc thiết kế
 
@@ -34,7 +34,7 @@ flowchart TB
     MQ -- job --> AIW[AI Service<br/>Python workers]
     AIW -- kết quả --> MQ
     MQ -- kết quả --> BE
-    AIW --> LLM[Claude API]
+    AIW --> LLM["LLM API (Gemini / Claude)"]
     AIW --> EMB[Mô hình embedding<br/>bge-m3 tự host]
     AIW <--> PG
     AIW --> S3
@@ -47,11 +47,11 @@ flowchart TB
 
 | Lớp | Công nghệ | Lý do chọn |
 |---|---|---|
-| Frontend | React 19 + TypeScript + Vite; Tailwind CSS + shadcn/ui; TanStack Query; TanStack Table; React Router; React Hook Form + Zod; shadcn Chart (Recharts); react-pdf; dnd-kit | shadcn/ui đưa component vào repo dưới dạng mã nguồn nên tùy biến được, dùng token màu ngữ nghĩa thống nhất với DESIGN.md và là chuẩn review UI của quy trình koni (CONTEXT D14); TanStack Table cho các bảng dữ liệu ở màn quản trị; TanStack Query quản lý dữ liệu từ server gọn |
+| Frontend | React 19 + TypeScript + Vite; Tailwind CSS + shadcn/ui (Radix); TanStack Query; TanStack Table; React Router; React Hook Form + Zod; date-fns; react-day-picker (Calendar của shadcn, [CONTEXT D27](CONTEXT.md)); openapi-typescript + openapi-fetch; shadcn Chart (Recharts); react-pdf + pdfjs-dist (ghim đúng bản react-pdf dùng để Vite nạp worker qua `?url`; nâng react-pdf thì nâng cả hai, US-2.6); dnd-kit | shadcn/ui đưa component vào repo dưới dạng mã nguồn nên tùy biến được, dùng token màu ngữ nghĩa thống nhất với DESIGN.md và là chuẩn review UI của quy trình koni (CONTEXT D14); TanStack Table cho các bảng dữ liệu ở màn quản trị; TanStack Query quản lý dữ liệu từ server gọn |
 | Core Backend | Node.js LTS + TypeScript (strict) + NestJS; Drizzle ORM + drizzle-kit (migration); Zod (nestjs-zod); @nestjs/swagger; @golevelup/nestjs-rabbitmq; ioredis; chi tiết ở mục *Thư viện chính* (Component architecture › Core Backend) | NestJS có module, dependency injection, guard, interceptor — đủ cấu trúc cho nghiệp vụ nhiều trạng thái và phân quyền; cùng ngôn ngữ với frontend nên dùng chung được kiểu dữ liệu và schema kiểm tra |
 | Monorepo | pnpm workspaces; gói `packages/shared` | Frontend và backend dùng chung Zod schema, enum trạng thái, kiểu DTO |
-| AI Service | Python 3.12+; FastAPI; FastStream (RabbitMQ); Anthropic Python SDK; Pydantic v2; PyMuPDF, python-docx; sentence-transformers; RapidFuzz; Jinja2 | Hệ sinh thái AI tốt nhất ở Python: đọc PDF, embedding, viết script đánh giá |
-| LLM | Claude Opus 5.5 (`claude-opus-5-5`) qua Claude API | Chi tiết ở mục *LLM usage and cost* |
+| AI Service | Python 3.12+; FastAPI + uvicorn; FastStream (RabbitMQ); psycopg 3 + psycopg_pool (PostgreSQL, [CONTEXT D33](CONTEXT.md)); google-genai và Anthropic Python SDK (chỉ trong `app/llm`, [CONTEXT D34](CONTEXT.md)); minio; Pydantic v2 (model hợp đồng sinh bằng datamodel-code-generator); PyMuPDF, python-docx; sentence-transformers + torch bản CPU (extra `embedding`, chỉ cài vào image `bge-m3`), pgvector (adapter psycopg) ([CONTEXT D39](CONTEXT.md)); RapidFuzz; Jinja2 | Hệ sinh thái AI tốt nhất ở Python: đọc PDF, embedding, viết script đánh giá |
+| LLM | Gemini 3.8 Flash (`gemini-3.8-flash`) mặc định, Claude Opus 5.5 (`claude-opus-5-5`) thay thế; chọn bằng `LLM_PROVIDER` ([CONTEXT D34](CONTEXT.md)) | Chi tiết ở mục *LLM usage and cost* |
 | Embedding | `BAAI/bge-m3` tự host (đa ngôn ngữ, hỗ trợ tiếng Việt, vector 1024 chiều) | Claude không có API embedding; tự host miễn phí và dữ liệu không rời máy chủ |
 | CSDL | PostgreSQL 16+ với extension pgvector | Quan hệ + giao dịch + JSONB cho kết quả LLM + tìm kiếm vector trong cùng một hệ |
 | Cache, phiên thi | Redis 7 | Lưu tạm bài làm, bộ đếm mức cạnh tranh, khóa phân tán, pub/sub cho SSE |
@@ -77,9 +77,9 @@ Kiến trúc logic (các module, agent, CSDL, hàng đợi) bên dưới giữ n
 
 #### Cấu trúc
 
-Một ứng dụng SPA duy nhất, điều hướng theo vai trò (`/sv/*`, `/hr/*`, `/admin/*`), dùng chung thư viện component và API client. Zod schema trong `packages/shared` được dùng cho cả kiểm tra form ở frontend lẫn kiểm tra request ở backend; API client sinh từ OpenAPI của backend (orval hoặc openapi-typescript) để không lệch kiểu dữ liệu. Phòng thi là một route riêng với layout tối giản.
+Một ứng dụng SPA duy nhất, điều hướng theo vai trò (`/sv/*`, `/hr/*`, `/admin/*`), dùng chung thư viện component và API client. Zod schema trong `packages/shared` được dùng cho cả kiểm tra form ở frontend lẫn kiểm tra request ở backend; API client: openapi-typescript sinh kiểu từ OpenAPI của backend, openapi-fetch gọi API và tự refresh access token một lần khi gặp `401` ([CONTEXT D26](CONTEXT.md)), để không lệch kiểu dữ liệu. Phòng thi là một route riêng với layout tối giản.
 
-Giao diện dựng bằng shadcn/ui + Tailwind CSS: component sinh bằng CLI vào `apps/web/src/components/ui/` và sửa trực tiếp được; màu, chữ, khoảng cách lấy từ token ngữ nghĩa theo `DESIGN.md` (tạo trong EPIC-1, trước màn hình đầu tiên). Chuỗi giao diện tiếng Việt; component ngày giờ dùng locale `vi` của date-fns.
+Giao diện dựng bằng shadcn/ui (nền Radix, preset `radix-nova`, CONTEXT D26) + Tailwind CSS: component sinh bằng CLI vào `apps/web/src/components/ui/` và sửa trực tiếp được; màu, chữ, khoảng cách lấy từ token ngữ nghĩa theo `DESIGN.md` (tạo trong EPIC-1, trước màn hình đầu tiên). Chuỗi giao diện tiếng Việt; component ngày giờ dùng locale `vi` của date-fns.
 
 #### Màn hình theo cổng
 
@@ -87,7 +87,7 @@ Giao diện dựng bằng shadcn/ui + Tailwind CSS: component sinh bằng CLI v�
 |---|---|
 | **Sinh viên** | Hồ sơ: tải CV, xem/sửa hồ sơ năng lực do AI trích xuất (hiển thị song song với file CV, tô sáng đoạn bằng chứng) · Shortlist: thẻ JD với S_cv, kỹ năng thiếu, gợi ý cải thiện, mức cạnh tranh · Chọn nguyện vọng: kéo-thả sắp thứ tự · Phòng thi · Kết quả, phúc khảo · Đề cử, lịch phỏng vấn · Lời mời thực tập |
 | **HR** | Quản lý JD: nhập/tải file, màn xác nhận yêu cầu chuẩn hóa (bảng kỹ năng sửa trực tiếp) · Duyệt đề mẫu · Danh sách đề cử: bảng sắp theo S_final, ngăn chi tiết gồm biểu đồ radar năng lực, danh sách bằng chứng, xem CV · Lịch và kết quả phỏng vấn |
-| **Trung tâm** | Dashboard đợt: phễu tuyển, tỷ lệ lấp đầy, heatmap NV/chỉ tiêu · Cấu hình đợt · Duyệt doanh nghiệp, JD · Phân bổ: chạy, xem dự thảo, điều chỉnh có lý do, công bố · Phúc khảo, chấm tay · Báo cáo · Nhật ký |
+| **Trung tâm** | Dashboard đợt: phễu tuyển, tỷ lệ lấp đầy, heatmap NV/chỉ tiêu · Cấu hình đợt · Duyệt doanh nghiệp, JD · CV cần xử lý (lỗi phân tích, có chữ ẩn; `/admin/cvs`) · Phân bổ: chạy, xem dự thảo, điều chỉnh có lý do, công bố · Phúc khảo, chấm tay · Báo cáo · Nhật ký |
 
 #### Phòng thi
 
@@ -100,6 +100,13 @@ Giao diện dựng bằng shadcn/ui + Tailwind CSS: component sinh bằng CLI v�
 
 Dùng **Server-Sent Events** (`GET /api/events/stream`) cho: thông báo, tiến độ job AI ("Đang phân tích CV…"), mức cạnh tranh của JD khi chọn nguyện vọng. SSE đơn giản hơn WebSocket vì luồng dữ liệu chỉ đi một chiều từ server.
 
+Từ US-1.7 ([CONTEXT D31](CONTEXT.md)):
+
+- Client mở stream bằng `fetch` kèm `Authorization: Bearer` (không dùng `EventSource`, vì nó không gửi được header), tự tách khung SSE, tự kết nối lại. `AccessGuard` trả `401` trước khi có sự kiện nào.
+- Sự kiện: `ready` (đã đăng ký kênh; client tải lại danh sách), `ping` mỗi 25 giây, `notification`; theo nghiệp vụ: `jd.analysis` (US-2.3), `cv.analysis` `{ cvId, status }` cho sinh viên khi phân tích CV xong (US-2.4, [CONTEXT D37](CONTEXT.md)). Tên sự kiện khai ở `SERVER_EVENTS` (`packages/shared/schemas/notification.ts`).
+- Stream tự đóng khi access token đã mở nó hết hạn (tối đa 15 phút); client kết nối lại bằng token mới ([CONTEXT D32](CONTEXT.md)).
+- Nhiều instance: Redis pub/sub kênh `notify:user:{userId}`. Module khác đẩy sự kiện bằng `RealtimePublisher.publishToUser` sau khi commit; web nghe bằng `useServerEvent` (`apps/web/src/shared/notifications/`).
+
 ### Core Backend
 
 #### Kiểu kiến trúc
@@ -111,31 +118,34 @@ Dùng **Server-Sent Events** (`GET /api/events/stream`) cho: thông báo, tiến
 - `domain/` — kiểu dữ liệu, enum trạng thái, bảng chuyển trạng thái, quy tắc tính toán. Viết bằng TypeScript thuần, không phụ thuộc NestJS hay CSDL, nên test nhanh và dễ;
 - `infrastructure/` — truy vấn Drizzle, adapter RabbitMQ/MinIO.
 
-Module gọi nhau qua service đã export hoặc phát sự kiện qua `@nestjs/event-emitter`; không module nào truy vấn thẳng bảng của module khác. Dùng dependency-cruiser trong CI để chặn import vượt ranh giới.
+Module gọi nhau qua service đã export hoặc phát sự kiện qua `@nestjs/event-emitter`; không module nào truy vấn thẳng bảng của module khác. File công khai của mỗi module là `modules/<m>/index.ts`: module khác chỉ import qua file này, không import thẳng vào `api/`, `application/`, `domain/`, `infrastructure/` của nó (CONTEXT D22). Dùng dependency-cruiser trong CI để chặn import vượt ranh giới.
 
 #### Các module
 
 | Module | Trách nhiệm | Ánh xạ nghiệp vụ |
 |---|---|---|
-| `iam` | Đăng nhập, JWT, vai trò, tài khoản HR, SSO trường (tùy chọn) | PRD › Personas |
-| `campaign` | Đợt thực tập, tham số cấu hình, trạng thái đợt, mốc thời gian | GĐ0 |
-| `company` | Doanh nghiệp, JD, yêu cầu chuẩn hóa, phiên bản JD | GĐ1 |
-| `student` | Sinh viên, CV, hồ sơ năng lực, đồng ý xử lý dữ liệu | GĐ2 |
+| `iam` | Đăng nhập, JWT, vai trò, tài khoản HR, SSO trường (tùy chọn). Export `InvitationService`: mời HR (token JWT `aud = hr-invite` mang nonce của lần mời mới nhất, hạn 7 ngày), nhận lời mời, danh sách HR của công ty; phát `hr.invited` sau khi commit ([CONTEXT D28, D29](CONTEXT.md)). Export `UserDirectory` (tài khoản đang hoạt động của sinh viên, địa chỉ liên hệ) và `InvitationService.currentInvitationLink` (link ký mới cho email mời) cho `notification` ([CONTEXT D31, D32](CONTEXT.md)) | PRD › Personas |
+| `campaign` | Đợt thực tập, tham số cấu hình, trạng thái đợt, mốc thời gian. Export `CampaignService.assertPhase` (kiểm tra pha, tính cả mốc), `getSettings`, `listSettingsInPhase` và hàm thuần `isInTarget` (sinh viên thuộc đối tượng của đợt); phát `campaign.opened`, `campaign.phase_changed` sau khi commit ([CONTEXT D27](CONTEXT.md)) | GĐ0 |
+| `company` | Doanh nghiệp, JD, yêu cầu chuẩn hóa, phiên bản JD. Mời HR qua `InvitationService` của `iam`; kiểm pha bằng `CampaignService.assertPhase`; đăng ký resolver `jd` vào `FileAccessRegistry`; phát `jd.submitted`, `jd.approved` sau khi commit ([CONTEXT D28](CONTEXT.md)). Gửi `JD_ANALYZE` sau khi nộp, nghe `ai.result.JD_ANALYZE` (lưu đề xuất, không chuyển trạng thái), HR xác nhận yêu cầu; sửa JD đã duyệt tạo phiên bản mới và phát `jd.requirements.versioned` ([CONTEXT D35](CONTEXT.md)) | GĐ1 |
+| `student` | Sinh viên, CV, hồ sơ năng lực, đồng ý xử lý dữ liệu. Ghi đồng ý theo đợt và phiên bản điều khoản (`packages/shared/consent/`, kèm SHA-256 của văn bản); mỗi lần nộp CV là một dòng `cvs` mới, dòng cũ mất `active`. Export `ConsentService.hasConsent`, `CvService` (kể cả `studentIdsWithActiveCv`), `StudentService.listIdsInTarget`; đăng ký resolver `cv` vào `FileAccessRegistry`; phát `cv.submitted` (`cvId`, `cvVersion`, `campaignId`, `studentId`) sau khi commit ([CONTEXT D30](CONTEXT.md)). `CvAnalysisService` gửi `CV_PARSE` sau khi nộp, nghe `ai.result.CV_PARSE` (mã hóa `pii`, lưu hồ sơ, chuyển `PENDING_CONFIRMATION` hoặc `ANALYSIS_FAILED`), phát `cv.analysis.settled` sau khi commit để `notification` báo tin; lệnh chạy bù `cv:redispatch` ([CONTEXT D37](CONTEXT.md)) | GĐ2 |
+| `skills` | Danh mục kỹ năng (bảng `skills`). Export `SkillCatalogService.search` (kỹ năng đã duyệt, so theo khóa của tên và alias) cho `student` (US-2.6), form JD và `matching`. Nghe `ai.result.CV_PARSE` / `ai.result.JD_ANALYZE`: tên kỹ năng mới thành dòng chờ duyệt, gửi `SKILL_NORMALIZE` sau commit (mỗi job tối đa 50 kỹ năng); nghe `ai.result.SKILL_NORMALIZE`: lưu gợi ý kèm model và prompt. ADMIN duyệt, gộp, từ chối bằng `transitionTo` + audit, dưới khóa advisory `SKILL_CATALOGUE` ([CONTEXT D39](CONTEXT.md)) | GĐ2 bước 3, FR-13 |
 | `matching` | Lọc điều kiện cứng, gửi job chấm, lưu kết quả, **tính S_cv theo trọng số**, shortlist, mức cạnh tranh, nguyện vọng | GĐ3, GĐ4 |
 | `assessment` | Ngân hàng câu hỏi, ma trận đề, phiên thi, rút đề, chấm trắc nghiệm, nhận kết quả chấm tự luận, phúc khảo, **tính S_test, S_final** | GĐ5, GĐ6 |
 | `allocation` | Thuật toán Deferred Acceptance, vòng phân bổ, snapshot, dự thảo/công bố, điều chỉnh thủ công | GĐ7, GĐ10 |
 | `review` | Đề cử, HR duyệt, yêu cầu bổ sung, SLA | GĐ8 |
 | `interview` | Lịch phỏng vấn, kết quả, Dự bị, lời mời, xác nhận | GĐ9 |
-| `notification` | Email (nodemailer + template), thông báo trong app, SSE (`@Sse()` của NestJS, Redis pub/sub khi chạy nhiều instance) | PRD › Thông báo |
+| `notification` | Email (nodemailer + template), thông báo trong app, SSE (`@Sse()` của NestJS, Redis pub/sub khi chạy nhiều instance), nhắc hạn. Export `NotificationService.notify({ type, payload, userIds, channels, dedupeKey? }, { tx? })` (ghi trong giao dịch của caller; caller gọi `push` sau commit), `RealtimePublisher`, `DeadlineReminderRegistry` (story sau đăng ký nguồn nhắc hạn). Nghe `campaign.opened`, `hr.invited`. Người nhận lấy qua `CampaignService`, `StudentService`, `CvService`, `UserDirectory` ([CONTEXT D31](CONTEXT.md)) | PRD › Thông báo |
 | `reporting` | Dashboard, xuất Excel/PDF | GĐ10, PRD › Success Criteria |
-| `audit` | Nhật ký thao tác (NestJS interceptor + bảng append-only) | BR-10, BR-17 |
-| `aigateway` | Phát job sang RabbitMQ, nhận kết quả, chống xử lý trùng, theo dõi trạng thái job | – |
+| `audit` | Nhật ký thao tác: `AuditService.record(tx, …)` ghi trong cùng giao dịch với thay đổi nghiệp vụ, không dùng interceptor vì interceptor chạy ngoài giao dịch; bảng append-only (CONTEXT D24) | BR-10, BR-17 |
+| `aigateway` | Cầu nối với AI Service qua RabbitMQ, không sở hữu bảng nào ([CONTEXT D33](CONTEXT.md)). Export `AiGatewayService.dispatch(type, input)`: sinh `job_id`, kiểm payload bằng hợp đồng Zod strict, publish có confirm, phát `ai.job.dispatched`; chỉ gọi sau khi giao dịch nghiệp vụ đã commit. Consumer `ai.results` kiểm message bằng Zod, phát `ai.result.<TYPE>` (module sở hữu kiểu job nghe, ghi upsert, chuyển trạng thái qua `transitionTo`) rồi `ai.job.settled`; message sai schema vào `ai.results.dlq`, listener lỗi được requeue một lần rồi vào DLQ. Mỗi app Nest tự tạo `AmqpConnection` của golevelup | – |
 
 #### Quản lý trạng thái
 
 Mỗi đối tượng có vòng đời (đợt, JD, hồ sơ ứng tuyển, đề cử…) dùng kiểu trạng thái (union literal hoặc `enum`) kèm **bảng chuyển trạng thái hợp lệ** trong `domain/`. Các kiểu này đặt trong `packages/shared` để frontend hiển thị và ẩn/hiện nút đúng theo cùng một định nghĩa. Mọi thay đổi đi qua một hàm duy nhất kiểu `transitionTo(newState, actor, reason)`: kiểm tra chuyển hợp lệ, kiểm tra điều kiện nghiệp vụ, ghi nhật ký — trong cùng một giao dịch.
 
 Chống ghi đè đồng thời (VD: HR duyệt trong lúc Trung tâm điều chỉnh) bằng optimistic locking: cột `row_version`, câu lệnh `UPDATE … SET …, row_version = row_version + 1 WHERE id = $1 AND row_version = $2`; không có dòng nào bị cập nhật → trả `409 Conflict`. Thao tác chạy phân bổ khóa dòng của đợt bằng `SELECT … FOR UPDATE`. Không cần thư viện state machine (XState…) — bảng chuyển trạng thái tự viết là đủ.
+
+Hiện thực (US-1.2): bảng chuyển nằm ở `packages/shared/states/`; hàm `transitionTo` ở `apps/api/src/common/state/` (module gọi qua `StateTransitionService`). Thứ tự trong giao dịch: `SELECT … FOR UPDATE` → so `row_version` (lệch → `409 ROW_VERSION_CONFLICT`) → kiểm bảng chuyển (`422 INVALID_TRANSITION`) → guard nghiệp vụ (`422 TRANSITION_CONDITION_FAILED`) → `UPDATE … WHERE row_version = n` → ghi `audit_logs`. So `row_version` trước bảng chuyển để yêu cầu thua trong một cuộc đua nhận `409`, không nhận nhầm `422`.
 
 #### Allocation Engine
 
@@ -186,22 +196,37 @@ export function deferredAcceptance({ preferences, capacity, compareAt }: Allocat
 
 `@nestjs/schedule` (cron) + advisory lock của PostgreSQL (`pg_try_advisory_lock`) để nhiều instance không chạy trùng: chuyển trạng thái đợt theo mốc thời gian, hủy NV quá hạn làm test, nhắc HR trước hạn SLA, hết hạn T_offer, hết hạn Dự bị. Email được ghi vào bảng `notifications` trước (outbox) rồi gửi bằng tác vụ nền, gửi lỗi thì thử lại.
 
+Từ US-1.4 ([CONTEXT D27](CONTEXT.md)):
+
+- Mỗi tác vụ chạy trong `withAdvisoryLock(pool, key, fn)` (`apps/api/src/common/scheduling/advisory-lock.ts`). Hàm này giữ khóa trên một kết nối riêng và trả `{ acquired: false }` ngay khi instance khác đang giữ. Mỗi tác vụ có một khóa trong `ADVISORY_LOCK_KEYS`.
+- Mọi phép tính theo giờ đọc `Clock` inject được (`apps/api/src/common/clock/`), không gọi `new Date()` hay `Date.now()` trực tiếp. Test dùng `FakeClock` (`apps/api/test/helpers/fake-clock.ts`).
+- Biến `SCHEDULER_ENABLED` (mặc định `true`) bật/tắt cron. Integration test đặt `false` và gọi `runOnce()` của tác vụ.
+- Chuyển pha đợt: chạy mỗi phút; mỗi lần chuyển đi qua `transitionTo` với actor `SYSTEM` và `row_version` đã đọc lúc quét. Đợt trễ nhiều mốc được chuyển lần lượt từng pha.
+
+Từ US-1.7 ([CONTEXT D31](CONTEXT.md)):
+
+- Gửi email outbox: chạy mỗi 10 giây, không cần advisory lock. Mỗi email một giao dịch, khóa dòng `notifications` bằng `FOR UPDATE SKIP LOCKED`, nên nhiều instance cùng gửi mà không trùng. Thử tối đa 3 lần (lùi 1 phút, 5 phút), rồi `FAILED` và ghi log. Gửi ít nhất một lần.
+- Nhắc hạn: chạy mỗi 5 phút trong `withAdvisoryLock` (khóa `DEADLINE_REMINDER` = 1701). Mỗi nguồn trong `DeadlineReminderRegistry` trả danh sách người cần nhắc; `dedupe_key` theo hạn chặn nhắc trùng ở DB. Nguồn đầu tiên: hạn nộp CV (`intake_end`, trước `reminder_hours_before` giờ, mặc định 24).
+- Email mời HR: dòng thông báo không chứa link. Lúc gửi, worker lấy link ký mới từ nonce hiện tại qua `InvitationService.currentInvitationLink`; lời mời đã nhận thì hủy email. Listener khóa `pg_advisory_xact_lock(1702, hashtext(userId))` và hủy email cũ còn chờ ([CONTEXT D32](CONTEXT.md)).
+- Email nhắc hạn hoặc báo mở đợt mà hạn đã qua lúc gửi (do thử lại) thì bị hủy, không gửi.
+
 #### Thư viện chính
 
 | Nhu cầu | Thư viện | Ghi chú |
 |---|---|---|
 | Framework | NestJS (adapter Express) | Module, DI, guard, interceptor, pipe |
-| ORM, migration | Drizzle ORM + drizzle-kit | Gần SQL, kiểu dữ liệu suy ra từ schema; hỗ trợ partial index (BR-08), JSONB, `FOR UPDATE`, giao dịch. File migration SQL được commit vào repo |
+| ORM, migration | Drizzle ORM + drizzle-kit; driver `pg` (node-postgres) | Gần SQL, kiểu dữ liệu suy ra từ schema; hỗ trợ partial index (BR-08), JSONB, `FOR UPDATE`, giao dịch. File migration SQL được commit vào repo |
 | Kiểm tra dữ liệu, OpenAPI | Zod + nestjs-zod, @nestjs/swagger | Một Zod schema dùng cho cả validate request và sinh tài liệu OpenAPI |
-| Xác thực, phân quyền | @nestjs/jwt + passport-jwt; guard `@Roles()` tự viết | Kiểm tra cấp bản ghi (HR chỉ xem JD của công ty mình) đặt trong service |
-| RabbitMQ | @golevelup/nestjs-rabbitmq | Gửi/nhận JSON thuần qua exchange/queue tự khai báo, trao đổi dễ với Python (transport RMQ mặc định của NestJS bọc message theo định dạng riêng) |
+| Xác thực, phân quyền | @nestjs/jwt; một guard global `AccessGuard` tự viết (`@Public()`, `@Roles()`), không dùng passport ([CONTEXT D25](CONTEXT.md)) | Kiểm tra cấp bản ghi (HR chỉ xem JD của công ty mình) đặt trong service, qua `common/auth/record-access.ts` |
+| RabbitMQ | @golevelup/nestjs-rabbitmq 9.1.0 | Gửi/nhận JSON thuần qua exchange/queue tự khai báo, trao đổi dễ với Python (transport RMQ mặc định của NestJS bọc message theo định dạng riêng). Dùng `AmqpConnection` theo từng app thay cho `RabbitMQModule` (giữ connection trong biến static). `promise-breaker` 7 bên dưới chỉ có ESM; Jest biên dịch riêng gói này ([CONTEXT D33](CONTEXT.md), [LESSONS §9](LESSONS.md)) |
 | Redis | ioredis | – |
-| Lưu file | @aws-sdk/client-s3 + @aws-sdk/s3-request-presigner (trỏ tới MinIO); multer; file-type | file-type đọc "magic bytes" để kiểm tra MIME thật |
-| Lập lịch, sự kiện | @nestjs/schedule, @nestjs/event-emitter | – |
-| Email | nodemailer + template Handlebars | – |
+| Lưu file | @aws-sdk/client-s3 + @aws-sdk/s3-request-presigner 3.1142.0 (trỏ tới MinIO); multer (qua `FileInterceptor` của `@nestjs/platform-express`); file-type 16.5.4 | file-type đọc "magic bytes" để kiểm tra MIME thật; ghim bản 16 vì từ bản 17 chỉ có ESM ([LESSONS §9](LESSONS.md)). `common/storage` gom `StorageService`, `SingleFileUpload()` (5 MB, tên file UTF-8), `detectDocument()`, `FileAccessRegistry` và `GET /api/files/{id}/url` |
+| Lập lịch, sự kiện | @nestjs/schedule, @nestjs/event-emitter | Dòng cho NestJS 11 (6.x, 3.x). Bản 12.x chỉ có ESM, Jest của API không nạp được ([LESSONS §9](LESSONS.md)) |
+| Email | nodemailer 10.0.15 + Handlebars 4.7.10 | nodemailer 10 khai `"type": "module"` nhưng có bản CommonJS (`dist/cjs`, điều kiện `require`), nên Jest nạp được ([LESSONS §9](LESSONS.md)). Template viết trong `modules/notification/templates/templates.ts`, không dùng file `.hbs` vì `tsc` không chép sang `dist` ([CONTEXT D31](CONTEXT.md)). SMTP qua `SMTP_*`; dev bắt email bằng Mailpit |
 | Xuất báo cáo | exceljs; pdfmake | – |
 | Log, giám sát | nestjs-pino; @nestjs/terminus (health check); prom-client | – |
-| Kiểm thử | Jest + Supertest; fast-check; testcontainers | – |
+| Kiểm thử | Jest + ts-jest + Supertest; fast-check; testcontainers | Jest chia hai project: `unit` (`src/**/*.spec.ts`) và `integration` (`test/integration/**/*.int-spec.ts`, có testcontainers) |
+| Lint | ESLint + typescript-eslint (`recommendedTypeChecked`) | Chung cho api, web, shared; AI Service dùng ruff (CONTEXT D22) |
 | Ranh giới module | dependency-cruiser | Chạy trong CI |
 
 Phương án ORM khác: **Prisma** phổ biến và dễ học hơn, nhưng một số tính năng PostgreSQL mà thiết kế này dựa vào (partial unique index, `SELECT … FOR UPDATE`) thường phải viết SQL tay. Nếu nhóm đã quen Prisma vẫn dùng được, chỉ cần viết các phần đó bằng SQL trong migration và `$queryRaw`.
@@ -234,11 +259,11 @@ Mỗi agent là một **vai trò** có prompt riêng, schema đầu ra riêng, c
 1. Đọc file từ MinIO.
 2. Trích văn bản kèm thông tin định dạng (PyMuPDF cho PDF, python-docx cho DOCX).
 3. **Phát hiện chữ ẩn** (màu trùng nền, cỡ chữ < 2pt, nằm ngoài vùng trang, thuộc tính ẩn trong DOCX) → loại khỏi văn bản, gắn cờ `hidden_text_detected` (chống prompt injection, PRD › *Kiểm soát rủi ro AI (guardrails)*).
-4. Nếu PDF không có lớp văn bản (bản scan) → gửi nguyên PDF cho Claude dưới dạng `document` block (Claude đọc được PDF dạng ảnh), không cần OCR riêng.
-5. Gọi Claude với structured output theo schema `CvProfile`.
-6. Chuẩn hóa kỹ năng: so embedding với danh mục kỹ năng (cosine ≥ 0,85 → gán; thấp hơn → đánh dấu "kỹ năng mới" cho quản trị duyệt).
-7. Tách PII (tên, liên hệ, ảnh, ngày sinh, giới tính, quê quán) sang trường riêng, tạo `profile_masked` để dùng cho matching.
-8. Tính embedding hồ sơ, lưu `ai.embeddings`.
+4. Nếu PDF không có lớp văn bản, hoặc có ảnh mà chữ thấy được dưới 100 ký tự (bản scan) → gửi nguyên PDF cho LLM làm tài liệu đính kèm (`LLMClient.generate(documents=…)`: Gemini nhận part `inline_data`, Claude nhận `document` block; log chỉ ghi `sha256` của file), không cần OCR riêng. Bản scan có chữ ẩn bị từ chối (`CV_SCAN_WITH_HIDDEN_TEXT`). Với CV có chữ, email và SĐT được che bằng regex trước khi gửi (`CV_MASK_CONTACTS`, mặc định bật) ([CONTEXT D37](CONTEXT.md)).
+5. Gọi LLM qua `LLMClient` với structured output theo schema `CvExtraction` (mục cá nhân `personal` + hồ sơ `profile`).
+6. Chuẩn hóa kỹ năng (`SkillNormalizer`, `app/embedding/`): tên có khóa `skill_match_key` trùng tên chuẩn hoặc alias của danh mục thì gán (`ALIAS`); không thì so embedding với danh mục (cosine ≥ `SKILL_MATCH_THRESHOLD`, mặc định 0,85 → gán, `EMBEDDING`); còn lại giữ tên, đánh dấu `NEW` và đưa vào `new_skills` để quản trị duyệt. Không dùng LLM ([CONTEXT D39](CONTEXT.md)).
+7. Tách PII (tên, liên hệ, link, địa chỉ, ảnh, ngày sinh, giới tính, quê quán, tôn giáo, tình trạng hôn nhân) sang `pii`. Code (không phải LLM) tạo `profile_masked` và `masked_text` (văn bản CV đã che, để kiểm trích dẫn) bằng `ai-service/app/parsing/pii.py`: so khớp không phân biệt hoa thường và dấu, thay bằng token có kiểu; còn sót giá trị thì job lỗi `PII_MASK_FAILED`. Khi SV sửa hồ sơ, Core Backend che lại bằng bản port TS `modules/student/domain/mask-profile.ts`, chạy cùng bộ ca `packages/shared/contracts/fixtures/pii-mask-cases.json` ([CONTEXT D40](CONTEXT.md)). Bước 6 và 8 là hai phụ thuộc bắt buộc của `CvParser` (`skills`, `embeddings`).
+8. Tính embedding hồ sơ từ `profile_masked` (không từ PII), upsert `ai.embeddings` với (`cv`, `cv_id`, `cv_version`, model).
 9. Trả kết quả qua `ai.results`.
 
 **Matching**
@@ -275,6 +300,8 @@ Mỗi agent là một **vai trò** có prompt riêng, schema đầu ra riêng, c
 - Hướng dẫn có thể viết tiếng Anh hoặc tiếng Việt; giá trị liệt kê dùng mã tiếng Anh (`MET`, `PARTIAL`…); phần nhận xét hiển thị cho người dùng yêu cầu viết tiếng Việt.
 
 #### Code mẫu – lượt gọi của Matching Agent
+
+Mẫu dưới đây là lượt gọi thô tới Claude, để minh họa các tham số. Trong code, agent không gọi SDK: mọi lượt gọi đi qua `LLMClient` (`ai-service/app/llm/`). `AnthropicProvider` dựng đúng các tham số này; `GeminiProvider` dựng tham số tương ứng của Gemini ([CONTEXT D34](CONTEXT.md)).
 
 ```python
 import json
@@ -325,19 +352,19 @@ Khi chạy hàng loạt, cùng tham số này (bỏ `betas` và `fallbacks` vì 
 
 | GĐ | Tác vụ | Dùng gì | Effort | Cách gọi | Kiểm soát |
 |---|---|---|---|---|---|
-| 1 | Phân tích JD → yêu cầu chuẩn hóa | Claude, structured output | low | Job ưu tiên cao (HR chờ kết quả) | HR xác nhận |
-| 1 | Sinh ngân hàng câu hỏi | Claude, agent + công cụ | high | Job nền | Validator + HR duyệt mẫu |
-| 1 | Kiểm định câu hỏi | Claude (Validator) | high | Job nền | Loại hoặc sinh lại |
-| 2 | Trích xuất hồ sơ năng lực từ CV | Claude, structured output (đọc thẳng PDF khi là bản scan) | low | Job ưu tiên cao | SV xác nhận |
-| 2 | Chuẩn hóa tên kỹ năng | Embedding; Claude chỉ cho kỹ năng chưa có trong danh mục | low | Job nền | Quản trị duyệt kỹ năng mới |
+| 1 | Phân tích JD → yêu cầu chuẩn hóa | LLM, structured output | low | Job ưu tiên cao (HR chờ kết quả) | HR xác nhận |
+| 1 | Sinh ngân hàng câu hỏi | LLM, agent + công cụ | high | Job nền | Validator + HR duyệt mẫu |
+| 1 | Kiểm định câu hỏi | LLM (Validator) | high | Job nền | Loại hoặc sinh lại |
+| 2 | Trích xuất hồ sơ năng lực từ CV | LLM, structured output (đọc thẳng PDF khi là bản scan) | low | Job ưu tiên cao | SV xác nhận |
+| 2 | Chuẩn hóa tên kỹ năng | Embedding; LLM chỉ cho kỹ năng chưa có trong danh mục | low | Job nền | Quản trị duyệt kỹ năng mới |
 | 3 | Lọc sơ bộ JD cho mỗi CV | Embedding (không dùng LLM) | – | Job nền | – |
-| 3 | Chấm tiêu chí CV–JD, bằng chứng, gợi ý cải thiện | Claude, structured output, prompt caching | medium | Message Batches | Kiểm tra trích dẫn bằng code |
-| 5 | Câu hỏi xác minh CV (tùy chọn) | Claude | medium | Job nền | Không tính vào điểm |
-| 6 | Chấm tự luận | Claude, 2 lần độc lập | high | Message Batches sau khi đóng thi | Lệch nhiều / độ tự tin thấp → người chấm |
+| 3 | Chấm tiêu chí CV–JD, bằng chứng, gợi ý cải thiện | LLM, structured output, prompt caching | medium | Message Batches | Kiểm tra trích dẫn bằng code |
+| 5 | Câu hỏi xác minh CV (tùy chọn) | LLM | medium | Job nền | Không tính vào điểm |
+| 6 | Chấm tự luận | LLM, 2 lần độc lập | high | Message Batches sau khi đóng thi | Lệch nhiều / độ tự tin thấp → người chấm |
 | 6 | Phát hiện bài tự luận giống nhau | Embedding (không dùng LLM) | – | Job nền | Chỉ cảnh báo |
-| 8 | Tóm tắt hồ sơ cho HR | Claude | low | Job nền sau khi có S_final | HR đọc tham khảo |
-| 10 | Tổng hợp lý do từ chối cho báo cáo | Claude | low | Theo yêu cầu | – |
-| Mở rộng | Trợ lý tư vấn sinh viên | Claude, agent + công cụ chỉ đọc, streaming | low–medium | Đồng bộ | Chỉ truy cập dữ liệu của chính SV |
+| 8 | Tóm tắt hồ sơ cho HR | LLM | low | Job nền sau khi có S_final | HR đọc tham khảo |
+| 10 | Tổng hợp lý do từ chối cho báo cáo | LLM | low | Theo yêu cầu | – |
+| Mở rộng | Trợ lý tư vấn sinh viên | LLM, agent + công cụ chỉ đọc, streaming | low–medium | Đồng bộ | Chỉ truy cập dữ liệu của chính SV |
 
 ### Những chỗ cố ý KHÔNG dùng LLM
 
@@ -347,13 +374,22 @@ Lọc điều kiện cứng · tính S_cv, S_test, S_final · chấm trắc nghi
 
 ### Chọn model
 
-- **Dùng Claude Opus 5.5 (`claude-opus-5-5`) cho tất cả agent**, điều chỉnh độ sâu suy luận bằng tham số `effort` theo từng tác vụ (bảng *Bản đồ sử dụng LLM theo giai đoạn*) thay vì trộn nhiều model. Một model nghĩa là một bộ prompt, một bộ đánh giá, và cache dùng chung được.
-- Đặc điểm API của Opus 5.5 cần lưu ý khi cài đặt:
+- **Hai nhà cung cấp sau lớp `LLMClient`, chọn bằng `LLM_PROVIDER`** ([CONTEXT D34](CONTEXT.md)): mặc định Gemini 3.8 Flash (`gemini-3.8-flash`), thay thế bằng Claude Opus 5.5 (`claude-opus-5-5`). Agent chỉ phụ thuộc `LLMClient`; SDK của nhà cung cấp chỉ được import trong `ai-service/app/llm/` (NFR-12).
+- **Một model cho tất cả agent** (theo từng nhà cung cấp), điều chỉnh độ sâu suy luận theo bảng *Bản đồ sử dụng LLM theo giai đoạn* thay vì trộn nhiều model. Một model nghĩa là một bộ prompt, một bộ đánh giá, và cache dùng chung được. `LLM_MODEL` ghi đè model.
+- **Lõi chung `StructuredLLMClient`** làm mọi việc giống nhau giữa hai bên: kiểm refusal trước khi đọc nội dung, thử lại tối đa 2 lần khi sai schema hoặc bị cắt ở `max_tokens`, ghi `ai.llm_calls` và log `llm-logs` cho từng lần thử. Adapter của mỗi nhà cung cấp chỉ dựng tham số và chuẩn hóa phản hồi. Không gửi `temperature`, không dùng `tool_choice` để ép JSON.
+- Đặc điểm API của Gemini (`google-genai`, `client.aio.models.generate_content`):
+  - Độ sâu suy luận: `thinking_config.thinking_level` = `LOW` / `MEDIUM` / `HIGH`, ánh xạ thẳng từ effort.
+  - JSON: `response_mime_type="application/json"` + `response_json_schema`.
+  - Refusal: `prompt_feedback.block_reason`, hoặc `finish_reason` thuộc `SAFETY`, `RECITATION`, `BLOCKLIST`, `PROHIBITED_CONTENT`, `SPII`, nhóm `IMAGE_*`.
+  - SDK mặc định không thử lại; `LLMClient` bật `HttpRetryOptions(attempts=3)`. Không có model dự phòng phía server.
+  - Free tier có thể dùng dữ liệu gửi lên để cải thiện sản phẩm của Google: chỉ dùng với dữ liệu giả. Dữ liệu thật của sinh viên đi qua paid tier.
+- Đặc điểm API của Claude Opus 5.5 (`anthropic`, `client.beta.messages.create`):
   - Luôn có suy luận (thinking), không tắt được; điều chỉnh bằng `output_config.effort` (mặc định là `medium` — nên ghi rõ cho từng tác vụ).
   - Không hỗ trợ ép gọi công cụ (`tool_choice` loại `any`/`tool`); muốn có JSON thì dùng structured outputs (`output_config.format`).
   - Luôn kiểm tra `stop_reason == "refusal"` trước khi đọc nội dung. Bật `fallbacks: "default"` cho lượt gọi đồng bộ; trong Batches không có tham số này nên xử lý lại riêng (mục *Code mẫu – lượt gọi của Matching Agent*).
-- **Nếu cần giảm chi phí:** có thể thử Claude Sonnet 5.5 (`claude-sonnet-5-5`, 2/10 USD mỗi triệu token vào/ra) hoặc Claude Haiku 4.5 (`claude-haiku-4-5`, 1/5 USD) cho các tác vụ trích xuất đơn giản (phân tích CV/JD). Chỉ đổi sau khi đo chất lượng trên bộ đánh giá ở mục *Testing strategy* và thấy không giảm.
-- **Lớp trừu tượng `LLMClient`** trong AI Service để có thể đổi nhà cung cấp hoặc chuyển sang mô hình mở tự host nếu Trung tâm không cho phép gửi dữ liệu ra ngoài (PRD Q8).
+- **Message Batches và prompt caching** (AD-12) khác nhau giữa hai nhà cung cấp; cách bọc chung chốt ở US-3.2.
+- **Nếu cần giảm chi phí:** có thể thử model nhỏ hơn của cùng nhà cung cấp cho các tác vụ trích xuất đơn giản (phân tích CV/JD). Chỉ đổi sau khi đo chất lượng trên bộ đánh giá ở mục *Testing strategy* và thấy không giảm.
+- **Mô hình mở tự host** (PRD Q8, phần còn mở): thêm một adapter sau `LLMClient` nếu Trung tâm không cho phép gửi dữ liệu ra ngoài.
 
 ### Tối ưu chi phí
 
@@ -371,6 +407,8 @@ Lọc điều kiện cứng · tính S_cv, S_test, S_final · chấm trắc nghi
 
 Giá Claude Opus 5.5: 4 USD / 1 triệu token vào, 20 USD / 1 triệu token ra (gồm cả token suy luận), cache đọc 0,20 USD / 1 triệu token, Batches giảm 50%. Số token mỗi lượt là **giả định**; chi phí thật có thể chênh 2–3 lần, cần đo lại bằng `usage` sau khi chạy thử khoảng 20 CV.
 
+Với Gemini 3.8 Flash (nhà cung cấp mặc định, [CONTEXT D34](CONTEXT.md)): 0,75 USD vào, 3,75 USD ra, 0,075 USD cache đọc mỗi triệu token (paid tier, đọc ngày 2026-10-20; tăng gấp đôi từ 2027-01-01). Giá token vào và ra bằng khoảng 19% giá Claude Opus 5.5, nên cùng giả định ở bảng dưới cho ra **khoảng 85 USD một đợt thật, 12 USD một đợt demo**, chưa tính giảm giá batch. Giai đoạn phát triển có thể chạy free tier với dữ liệu giả. Tokenizer của hai bên khác nhau, nên vẫn phải đo lại bằng `ai.llm_calls`.
+
 | Tác vụ | Số lượt (500 SV, 50 JD) | Giả định mỗi lượt | Ước tính |
 |---|---|---|---|
 | Phân tích CV | 500 | vào 4K, ra 2K | ~28 USD |
@@ -382,7 +420,7 @@ Giá Claude Opus 5.5: 4 USD / 1 triệu token vào, 20 USD / 1 triệu token ra 
 | **Tổng một đợt thật** | | | **~440 USD (~0,9 USD/SV)** |
 | **Tổng một đợt demo** (50 SV, 10 JD) | | cùng giả định | **~60 USD** |
 
-Nên đặt giới hạn chi tiêu trên trang quản lý Claude API và theo dõi chi phí trong dashboard (mục *Deployment architecture*).
+Nên đặt giới hạn chi tiêu trên trang quản lý của nhà cung cấp đang dùng (Google AI Studio hoặc Claude Console) và theo dõi chi phí trong dashboard (mục *Deployment architecture*).
 
 ---
 
@@ -402,18 +440,24 @@ Nên đặt giới hạn chi tiêu trên trang quản lý Claude API và theo d�
 - `core` — do Core Backend sở hữu, là nơi duy nhất ghi dữ liệu nghiệp vụ.
 - `ai` — do AI Service sở hữu: embedding, log gọi LLM, trạng thái job.
 - AI Service đọc dữ liệu `core` qua **các view chỉ đọc đã che PII** (VD: `core.v_ai_cv_profile_masked`, `core.v_ai_jd_requirements`) bằng một tài khoản DB riêng. Như vậy việc "không gửi thông tin nhạy cảm cho LLM khi chấm điểm" (BR-03) được đảm bảo ngay ở tầng CSDL.
+- Ba tài khoản (từ US-2.1, [CONTEXT D33](CONTEXT.md)):
+  - chủ DB (`POSTGRES_USER`): chỉ bước `migrate` dùng; tạo bảng, view, role;
+  - `api_service` (Core Backend): đọc ghi mọi bảng `core`, riêng `audit_logs` chỉ `SELECT` và `INSERT`; chỉ đọc `ai.*`;
+  - `ai_service` (AI Service): `SELECT` trên hai view `core.v_ai_*`, không có quyền gì khác ở `core`; đọc ghi `ai.*`, không `CREATE`.
+- View `core.v_ai_cv_profile_masked (cv_id, version, campaign_id, profile_masked, masked_text)` chỉ trả CV `active` đã được sinh viên xác nhận (BR-01; `masked_text` thêm ở US-2.4, `null` với bản scan); `core.v_ai_jd_requirements (jd_id, version, campaign_id, position_group, requirements)` chỉ trả JD từ `APPROVED` trở đi (BR-02). Cả hai `security_barrier`. Migration tạo role ở dạng `NOLOGIN`; `migrate` bật đăng nhập bằng `API_DB_PASSWORD`, `AI_DB_PASSWORD`. `core.v_ai_jd_source (jd_id, version, title, raw_text, file_key)` chỉ trả JD đang chờ phân tích (`PENDING_HR_CONFIRMATION`, `analysis_status = PENDING`, chưa có `requirements`) cho JD Analyzer ([CONTEXT D35](CONTEXT.md)); AI Service đọc file gốc trong `jd-files` bằng tài khoản MinIO của nó.
 
 ### Các bảng chính
 
 | Bảng | Thực thể PRD | Cột chính | Ràng buộc / chỉ mục |
 |---|---|---|---|
-| `campaigns` | DOT_THUC_TAP | id, name, status, phase_deadlines JSONB, config JSONB | – |
+| `campaigns` | DOT_THUC_TAP | id, name, status, phase_deadlines JSONB (`intake_end`, `preference_end`, `testing_end`), config JSONB (tham số GĐ0 và `target`: `cohorts`, `majors`), row_version | CHECK(status) |
 | `companies` | DOANH_NGHIEP | id, name, field, address, contact | – |
-| `users` | TAI_KHOAN_HR + tài khoản khác | id, email, password_hash / sso_subject, role, company_id, student_id | unique(email) |
+| `users` | TAI_KHOAN_HR + tài khoản khác | id, email, password_hash, invitation_nonce, full_name, role, company_id, student_id, is_active (sso_subject thêm khi làm SSO). HR được mời có `password_hash` rỗng tới khi nhận lời mời; `invitation_nonce` là nonce của lần mời mới nhất (CONTEXT D29) | unique(email); unique(student_id); CHECK(role); chỉ HR có company_id, chỉ STUDENT có student_id (CHECK) |
 | `students` | SINH_VIEN | id, student_code, full_name, major, cohort, gpa | unique(student_code) |
-| `skills` | Danh mục kỹ năng | id, canonical_name, aliases TEXT[], group | unique(canonical_name) |
-| `job_descriptions` | JD | id, campaign_id, company_id, title, position_group, raw_text, file_key, requirements JSONB, quota, exam_blueprint JSONB, version, status, row_version | index(campaign_id, status) |
-| `cvs` | CV | id, student_id, campaign_id, file_key, profile JSONB, pii JSONB (mã hóa), profile_masked JSONB, version, status, hidden_text_flag | unique một CV hiệu lực: partial unique(student_id, campaign_id) WHERE active |
+| `skills` | Danh mục kỹ năng | id, canonical_name, name_key (`skillMatchKey` của tên), aliases TEXT[], alias_keys TEXT[], group, status (`PENDING` → `APPROVED`/`MERGED`/`REJECTED`), merged_into_id, suggestion JSONB, suggestion_model, suggestion_prompt_version, row_version | unique(canonical_name), unique(name_key); CHECK `group` theo `SKILL_GROUPS`, CHECK(status); `APPROVED` có `group`; `MERGED` có `merged_into_id`; gợi ý, model, prompt cùng có hoặc cùng rỗng; `alias_keys` cùng số phần tử với `aliases`, index GIN; trigger `skills_keys_distinct` (chạy lúc commit) giữ mỗi key cho một kỹ năng. AI Service đọc qua view `core.v_ai_skills` (đã duyệt) và `core.v_ai_skill_candidates` (chờ duyệt). Seed 174 kỹ năng IT ([CONTEXT D39](CONTEXT.md)) |
+| `job_descriptions` | JD | id, campaign_id, company_id, title, position_group, location, work_mode, internship_period, allowance, raw_text, file_key, file_name, requirements JSONB, analysis_status, analysis_model, analysis_prompt_version, hidden_text_flag, quota, exam_blueprint JSONB, version, status, row_version | index(campaign_id, status); CHECK(work_mode ∈ ONSITE/HYBRID/REMOTE); `file_key` và `file_name` cùng có hoặc cùng rỗng (CONTEXT D28); CHECK `position_group` theo `POSITION_GROUPS`, `analysis_status` ∈ PENDING/SUCCEEDED/FAILED, `analysis_model` và `analysis_prompt_version` cùng có hoặc cùng rỗng (CONTEXT D35). `requirements` theo hợp đồng `JdRequirements` (`packages/shared/contracts/jd.ts`) |
+| `cvs` | CV | id, student_id, campaign_id, file_key, file_name, profile JSONB (`CvProfile`), pii BYTEA (`pgp_sym_encrypt` của JSON `CvPii`), profile_masked JSONB, masked_text, analysis_source, analysis_model, analysis_prompt_version, analysis_error_code, version, status, active, hidden_text_flag, row_version. Mỗi phiên bản một dòng ([CONTEXT D30, D37](CONTEXT.md)) | unique một CV hiệu lực: partial unique(student_id, campaign_id) WHERE active; unique(student_id, campaign_id, version); CHECK(status), CHECK(version > 0); CHECK `analysis_source` ∈ TEXT_PDF/SCANNED_PDF/DOCX; `analysis_model` và `analysis_prompt_version` cùng có hoặc cùng rỗng; CV ở `PENDING_CONFIRMATION`/`CONFIRMED` có `profile`, `profile_masked`, `pii`, model và nguồn; CV ở `ANALYSIS_FAILED` có mã lỗi |
+| `consents` | – | id, student_id, campaign_id, terms_version, terms_sha256, accepted_at | unique(student_id, campaign_id, terms_version); CHECK(terms_version > 0), CHECK(terms_sha256 là hex 64 ký tự) |
 | `match_results` | KET_QUA_PHU_HOP | cv_id, jd_id, cv_version, jd_version, eligible, ineligible_reasons JSONB, criteria JSONB, s_cv, prompt_version, model | unique(cv_id, jd_id, cv_version, jd_version, prompt_version); index(jd_id, s_cv DESC) |
 | `preferences` | NGUYEN_VONG | id, campaign_id, student_id, jd_id, rank, status | unique(student_id, jd_id); unique(campaign_id, student_id, rank) |
 | `question_banks` | – | id, jd_id / position_group, blueprint JSONB, version, locked_at | – |
@@ -426,11 +470,13 @@ Nên đặt giới hạn chi tiêu trên trang quản lý Claude API và theo d�
 | `hr_reviews` | DANH_GIA_HR | nomination_id, reviewer_id, decision, reason_code, note, decided_at | unique(nomination_id) |
 | `interviews` | PHONG_VAN | nomination_id, scheduled_at, mode, location, result, note | – |
 | `offers` | – | nomination_id, sent_at, expires_at, response, responded_at | – |
-| `notifications` | – | id, user_id, type, payload JSONB, read_at | index(user_id, read_at) |
-| `audit_logs` | NHAT_KY | id, actor_id, action, entity, entity_id, before JSONB, after JSONB, at | chỉ thêm, không sửa/xóa |
-| `ai.embeddings` | – | owner_type (cv/jd/question/skill/essay), owner_id, version, model, embedding vector(1024) | index HNSW (vector_cosine_ops) |
-| `ai.llm_calls` | – | id, job_id, agent, prompt_version, model, effort, input_tokens, cache_read_tokens, cache_write_tokens, output_tokens, cost_usd, latency_ms, stop_reason, log_key, created_at | index(agent, created_at) |
-| `ai.jobs` | – | job_id, type, status, attempts, last_error, created_at, finished_at | PK(job_id) — chống xử lý trùng |
+| `notifications` | – | id, user_id, type, payload JSONB, channels text[], read_at, dedupe_key, email_status, email_attempts, email_next_attempt_at, email_sent_at, email_last_error, created_at | index(user_id, read_at); unique(user_id, dedupe_key); partial index(email_next_attempt_at) WHERE email_status = 'PENDING'; CHECK `type`, `channels` ⊆ {IN_APP, EMAIL}, có `email_status` khi và chỉ khi có kênh EMAIL. Một dòng mỗi người nhận, vừa là thông báo trong app vừa là outbox email ([CONTEXT D31](CONTEXT.md)) |
+| `audit_logs` | NHAT_KY | id, actor_kind (`USER`/`SYSTEM`), actor_id, action, entity, entity_id, before JSONB, after JSONB, reason, at | chỉ thêm: trigger `ENABLE ALWAYS` chặn UPDATE/DELETE/TRUNCATE; CHECK actor_id có khi và chỉ khi `USER`; index(entity, entity_id, at); không FK tới users (CONTEXT D24) |
+| `ai.embeddings` | – | owner_type (cv/jd/question/skill/essay), owner_id, version, model, embedding vector(1024), created_at, updated_at | unique(owner_type, owner_id, version, model), ghi bằng upsert; mỗi `owner_type` một index HNSW (`vector_cosine_ops`) một phần, truy vấn ghi `owner_type` dạng hằng để planner chọn đúng index; vector kỹ năng của phiên bản cũ hoặc model khác bị xóa khi tính lại. Kỹ năng khóa theo `row_version` ([CONTEXT D39](CONTEXT.md)) |
+| `ai.llm_calls` | – | id, job_id, agent, prompt_version, provider, model, effort, attempt, outcome, stop_reason, raw_stop_reason, input_tokens, cache_read_tokens, cache_write_tokens, output_tokens, cost_usd, latency_ms, log_key, created_at | Một dòng cho mỗi lần thử. index(agent, created_at), index(job_id), unique `log_key`; CHECK `provider`, `effort`, `outcome`, `stop_reason`, `prompt_version` dạng `<agent>/v<N>`; `stop_reason` NULL khi và chỉ khi `outcome = API_ERROR`. Chỉ ghi thêm: `ai_service` có `SELECT`, `INSERT`. Migration `0007`, `0008`, [CONTEXT D34](CONTEXT.md) |
+| `ai.jobs` | – | job_id, type, status (`PROCESSING` rồi `SUCCEEDED`/`PARTIAL`/`FAILED`), attempts, last_error, created_at, finished_at | PK(job_id) — chống xử lý trùng; CHECK `type`, `status`, `attempts ≥ 0`, có `finished_at` khi và chỉ khi đã rời `PROCESSING`. Chỉ `ai_service` ghi (migration `0005`, [CONTEXT D33](CONTEXT.md)) |
+
+Quy ước chung của schema `core` (US-1.2, CONTEXT D24): khóa chính `bigint generated always as identity`; cột `status` là `text` kèm CHECK, danh sách giá trị sinh từ `packages/shared/states`; bảng có vòng đời có `row_version integer not null default 0`. Cột `pii` của `cvs` thêm ở US-2.4; cột `active`, `file_name`, partial unique index và bảng `consents` có từ US-1.6 (migration `0003`).
 
 Prompt và phản hồi đầy đủ của từng lần gọi LLM lưu thành file JSON trên MinIO (`log_key`), không lưu trong DB để DB gọn.
 
@@ -443,11 +489,15 @@ Prompt và phản hồi đầy đủ của từng lần gọi LLM lưu thành fi
 | `competition:{jdId}` | Số NV hiện có | hết giai đoạn chọn NV |
 | `lock:allocation:{campaignId}` | Khóa khi đang chạy phân bổ | vài phút |
 | `ratelimit:{userId}:{route}` | Giới hạn tần suất gọi API | 1 phút |
+| `auth:refresh:{sha256}` | ID người dùng của một refresh token; khóa là SHA-256 của token, xóa bằng `GETDEL` khi xoay vòng ([CONTEXT D25](CONTEXT.md)) | `REFRESH_TOKEN_TTL_DAYS` (7 ngày) |
+| `notify:user:{userId}` (kênh pub/sub, không phải khóa) | Sự kiện SSE của một người dùng, JSON `{ event, data }`; instance nào đang giữ stream của người đó thì đăng ký ([CONTEXT D31](CONTEXT.md)) | – |
 
 ### Lưu trữ file và thời hạn dữ liệu
 
-- Bucket MinIO: `cv-files`, `jd-files` (bật mã hóa phía server), `llm-logs`, `reports`. Tải file qua URL tạm có hạn 5 phút.
-- Sau khi đóng đợt X tháng (Trung tâm cấu hình): xóa file CV gốc và PII; giữ dữ liệu đã ẩn danh để thống kê và đánh giá mô hình.
+- Bucket MinIO: `cv-files`, `jd-files`, `llm-logs` (bật mã hóa phía server), `reports`. Tải file qua URL tạm có hạn 5 phút.
+- Mã hóa SSE-S3: API đặt mã hóa mặc định cho `jd-files`, `cv-files` khi khởi động (không chặn app, thử lại ở lần ghi) và gửi `ServerSideEncryption: AES256` với mọi object; service `minio` cần `MINIO_KMS_SECRET_KEY` ([CONTEXT D28, D29](CONTEXT.md)). AI Service tạo `llm-logs` ở lần ghi đầu và đặt mã hóa mặc định SSE-S3, vì log của `cv_parser` chứa CV đầy đủ; khóa file `<agent>/<yyyy>/<mm>/<call_id>.json` ([CONTEXT D34](CONTEXT.md)).
+- URL tạm được ký với `MINIO_PUBLIC_ENDPOINT` (mặc định là địa chỉ web); nginx chuyển `/jd-files/`, `/cv-files/` tới MinIO nên cổng MinIO không cần mở ra ngoài. `{id}` của `GET /api/files/{id}/url` có dạng `jd:12`, `cv:457`; module sở hữu bản ghi kiểm quyền qua `FileAccessRegistry`.
+- Sau khi đóng đợt 12 tháng (ghi trong điều khoản v1 mà sinh viên đồng ý, [CONTEXT D30](CONTEXT.md); đổi con số thì ra điều khoản v2): xóa file CV gốc và PII; giữ dữ liệu đã ẩn danh để thống kê và đánh giá mô hình. Chưa có story nào làm việc xóa này.
 - Sao lưu: `pg_dump` hằng ngày; bật versioning cho MinIO.
 
 ---
@@ -461,7 +511,7 @@ Prompt và phản hồi đầy đủ của từng lần gọi LLM lưu thành fi
 | Frontend → Backend | REST JSON qua HTTPS, JWT | OpenAPI |
 | Backend → Frontend | SSE | Thông báo, tiến độ job |
 | Backend ↔ AI Service | RabbitMQ | Bất đồng bộ, có thử lại và dead-letter queue |
-| AI Service → Claude API | HTTPS (Anthropic SDK) | Message Batches cho việc hàng loạt |
+| AI Service → LLM API | HTTPS (google-genai hoặc Anthropic SDK, [CONTEXT D34](CONTEXT.md)) | Việc hàng loạt chạy batch của nhà cung cấp (chốt ở US-3.2) |
 | AI Service → PostgreSQL | View chỉ đọc (`core`), đọc ghi (`ai`) | – |
 
 ### Hàng đợi
@@ -470,30 +520,38 @@ Prompt và phản hồi đầy đủ của từng lần gọi LLM lưu thành fi
 |---|---|---|
 | `ai.cv.parse` | Backend → AI | job_id, cv_id, cv_version, file_key |
 | `ai.jd.analyze` | Backend → AI | job_id, jd_id, jd_version |
+| `ai.skills.normalize` | Backend → AI | job_id, skill_ids (1–50 kỹ năng chờ duyệt) |
 | `ai.questions.generate` | Backend → AI | job_id, bank_id |
 | `ai.match.run` | Backend → AI | job_id, campaign_id, danh sách cặp (cv_id, jd_id) đã qua điều kiện cứng |
 | `ai.essay.grade` | Backend → AI | job_id, danh sách exam_session_id |
-| `ai.results` | AI → Backend | job_id, type, status (SUCCEEDED / PARTIAL / FAILED), result |
-| `*.dlq` | – | Message lỗi sau 3 lần thử; hiện trên màn quản trị để xử lý |
+| `ai.results` | AI → Backend | job_id, type, status (SUCCEEDED / PARTIAL / FAILED), job (bản sao payload job), result (khi không FAILED), error `{ code, message, needs_human, hidden_text_detected? }` (khi FAILED; cờ chữ ẩn giữ được cả khi lỗi, CONTEXT D35) |
+| `*.dlq` | – | Message lỗi sau 3 lần thử, hoặc sai schema; kèm header `x-srm-dlq-reason`, `x-srm-attempts`, `x-srm-source-queue`. MVP xử lý bằng giao diện RabbitMQ management |
 
 Payload chỉ chứa ID; dữ liệu lớn được đọc từ DB/MinIO. Mỗi job có `job_id` duy nhất: AI Service kiểm tra `ai.jobs` trước khi xử lý, Backend ghi kết quả theo kiểu upsert — nhận trùng message cũng không sai dữ liệu.
 
-**Hợp đồng message giữa TypeScript và Python:** schema của mỗi loại message được định nghĩa một lần bằng Zod trong `packages/shared/contracts`, xuất ra JSON Schema (`z.toJSONSchema` của Zod 4), rồi sinh model Pydantic cho AI Service bằng `datamodel-code-generator`. Đổi schema mà quên cập nhật một phía thì CI báo lỗi ngay.
+Cơ chế (từ US-2.1, [CONTEXT D33](CONTEXT.md)):
+
+- Mọi queue khai báo `durable`, `x-queue-type: classic`, giống hệt nhau ở hai phía; gửi qua exchange mặc định. Không dùng tham số dead-letter của RabbitMQ: code tự publish sang `<queue>.dlq`.
+- Worker nhận job bằng một câu SQL trên `ai.jobs` (job đã xong thì bỏ qua), thử lại ngay trong worker sau 2 s rồi 10 s; lần thứ 3 lỗi thì gửi `ai.results` `FAILED` và chuyển message sang DLQ. `PermanentError` (LLM từ chối…) thất bại ngay với `needs_human`.
+- Thứ tự: publish kết quả (có confirm) → ghi `ai.jobs` → ack. Giao ít nhất một lần; backend hấp thụ kết quả trùng.
+- Backend kiểm `ai.results` bằng Zod (kể cả kiểm chéo `status`/`result`/`error`), phát `ai.result.<TYPE>` cho module sở hữu kiểu job.
+
+**Hợp đồng message giữa TypeScript và Python:** schema của mỗi loại message được định nghĩa một lần bằng Zod trong `packages/shared/contracts`, xuất ra JSON Schema (`z.toJSONSchema` của Zod 4) vào `packages/shared/contracts/json-schema/`, rồi sinh model Pydantic vào `ai-service/app/contracts/` bằng `datamodel-code-generator` (`pnpm contracts:gen`). Tên queue, số lần thử và header DLQ sang Python qua `queues.json`. Đổi schema mà quên cập nhật một phía thì CI báo lỗi ngay.
 
 ```json
 {
   "job_id": "7f6c1e2a-...",
   "type": "CV_PARSE",
   "status": "SUCCEEDED",
+  "job": { "job_id": "7f6c1e2a-...", "cv_id": 457, "cv_version": 2, "file_key": "cv-files/..." },
   "result": {
-    "cv_id": 457,
-    "cv_version": 2,
     "profile": { "...": "..." },
     "profile_masked": { "...": "..." },
     "hidden_text_detected": false,
     "prompt_version": "cv_parser/v3",
-    "model": "claude-opus-5-5"
-  }
+    "model": "gemini-3.8-flash"
+  },
+  "error": null
 }
 ```
 
@@ -508,7 +566,7 @@ sequenceDiagram
     participant S3 as MinIO
     participant MQ as RabbitMQ
     participant AI as AI Service
-    participant LLM as Claude API
+    participant LLM as LLM API
     SV->>FE: Tải CV (PDF/DOCX)
     FE->>BE: POST /api/cvs
     BE->>S3: Lưu file (mã hóa)
@@ -516,17 +574,20 @@ sequenceDiagram
     BE-->>FE: 202 Accepted, trạng thái Đang phân tích
     MQ->>AI: Nhận job
     AI->>S3: Đọc file
-    AI->>AI: Trích văn bản, phát hiện chữ ẩn
+    AI->>AI: Trích văn bản, phát hiện chữ ẩn, che email/SĐT
     AI->>LLM: Trích xuất hồ sơ (structured output)
     LLM-->>AI: JSON hồ sơ năng lực
     AI->>AI: Chuẩn hóa kỹ năng, tách PII, tính embedding
     AI->>MQ: ai.results
     MQ->>BE: Kết quả
-    BE->>BE: Lưu hồ sơ, trạng thái Chờ SV xác nhận
+    BE->>BE: Mã hóa pii, lưu hồ sơ, trạng thái Chờ SV xác nhận (lỗi: Lỗi phân tích)
     BE-->>FE: SSE thông báo hồ sơ sẵn sàng
     SV->>FE: Sửa và xác nhận
     FE->>BE: PUT /api/cvs/me/profile/confirm
+    BE->>BE: Chuẩn hóa lại kỹ năng, che PII lại, trạng thái Đã xác nhận
 ```
+
+Lưu nháp (`PUT /api/cvs/me/profile`) cũng chuẩn hóa kỹ năng và tạo lại `profile_masked`, CV vẫn ở *Chờ SV xác nhận*. Kỹ năng ngoài danh mục vào hàng chờ duyệt sau khi SV xác nhận. "Sửa lại" sau khi xác nhận (`POST /api/cvs/me/profile/reopen`, còn trong hạn nộp CV) tạo phiên bản mới chép file, hồ sơ và `pii`, ở *Chờ SV xác nhận*, không gửi job AI ([CONTEXT D40](CONTEXT.md)).
 
 ### Luồng chấm phù hợp hàng loạt
 
@@ -537,7 +598,7 @@ sequenceDiagram
     participant MQ as RabbitMQ
     participant AI as AI Service
     participant PG as PostgreSQL
-    participant LLM as Claude API
+    participant LLM as LLM API
     Note over BE: Hết hạn nộp CV hoặc Trung tâm bấm Chấm phù hợp
     BE->>BE: Lọc điều kiện cứng, lập danh sách cặp hợp lệ
     BE->>MQ: ai.match.run
@@ -594,10 +655,11 @@ REST, mô tả bằng OpenAPI.
 
 | Nhóm | Endpoint tiêu biểu |
 |---|---|
-| Sinh viên | `POST /api/cvs` (multipart) · `GET /api/cvs/me/profile` · `PUT /api/cvs/me/profile/confirm` · `GET /api/me/shortlist` · `PUT /api/me/preferences` · `POST /api/preferences/{id}/exam/start` · `PUT /api/exam-sessions/{id}/answers` · `POST /api/exam-sessions/{id}/submit` · `POST /api/exam-answers/{id}/appeal` · `POST /api/offers/{id}/accept` |
-| HR | `POST /api/jds` · `PUT /api/jds/{id}/requirements/confirm` · `GET /api/jds/{id}/question-bank/sample` · `GET /api/jds/{id}/nominations` · `POST /api/nominations/{id}/decision` · `POST /api/interviews` · `PUT /api/interviews/{id}/result` |
-| Trung tâm | `POST /api/campaigns` · `POST /api/campaigns/{id}/matching-runs` · `POST /api/campaigns/{id}/allocation-rounds` · `GET /api/allocation-rounds/{id}` · `PATCH /api/allocation-rounds/{id}/nominations` · `POST /api/allocation-rounds/{id}/publish` · `GET /api/campaigns/{id}/reports` |
-| Chung | `GET /api/events/stream` (SSE) · `GET /api/files/{id}/url` (URL tạm có hạn) |
+| Sinh viên | `GET /api/me/consents` · `POST /api/me/consents` (đồng ý điều khoản cho một đợt) · `POST /api/cvs` (multipart, `202`) · `GET /api/cvs/me` (mọi phiên bản CV) · `GET /api/cvs/me/profile?campaignId=` (phiên bản đang dùng, kèm việc SV được làm) · `PUT /api/cvs/me/profile` (lưu nháp) · `PUT /api/cvs/me/profile/confirm` · `POST /api/cvs/me/profile/reopen` ("Sửa lại": phiên bản mới, không gọi AI; US-2.6) · `GET /api/me/shortlist` · `PUT /api/me/preferences` · `POST /api/preferences/{id}/exam/start` · `PUT /api/exam-sessions/{id}/answers` · `POST /api/exam-sessions/{id}/submit` · `POST /api/exam-answers/{id}/appeal` · `POST /api/offers/{id}/accept` |
+| HR | `POST /api/jds` · `PATCH /api/jds/{id}` · `PUT /api/jds/{id}/file` (multipart) · `POST /api/jds/{id}/submit` · `PUT /api/jds/{id}/requirements` (lưu; JD đã duyệt thì tạo phiên bản mới) · `PUT /api/jds/{id}/requirements/confirm` · `GET /api/jds/{id}/question-bank/sample` · `GET /api/jds/{id}/nominations` · `POST /api/nominations/{id}/decision` · `POST /api/interviews` · `PUT /api/interviews/{id}/result` |
+| Trung tâm | `POST /api/campaigns` · `PATCH /api/campaigns/{id}` · `POST /api/campaigns/{id}/open` · `POST /api/companies` · `PATCH /api/companies/{id}` · `POST /api/companies/{id}/hr-invitations` · `GET /api/companies/{id}/hr-accounts` · `POST /api/jds/{id}/approve` · `PUT /api/jds/{id}/requirements` (chỉ JD đã duyệt: phiên bản mới, BR-18) · `GET /api/cvs` (`?campaignId=&attention=true`: CV đang dùng bị lỗi phân tích hoặc có chữ ẩn, kèm mã và tên SV) · `POST /api/campaigns/{id}/matching-runs` · `POST /api/campaigns/{id}/allocation-rounds` · `GET /api/allocation-rounds/{id}` · `PATCH /api/allocation-rounds/{id}/nominations` · `POST /api/allocation-rounds/{id}/publish` · `GET /api/campaigns/{id}/reports` |
+| Quản trị | `GET /api/admin/skills?status=` · `POST /api/admin/skills/{id}/approve` (sửa tên chuẩn, nhóm) · `POST /api/admin/skills/{id}/merge` · `POST /api/admin/skills/{id}/reject` (US-2.5) |
+| Chung | `POST /api/auth/accept-invitation` (HR được mời đặt mật khẩu) · `GET /api/jds` · `GET /api/jds/{id}` (HR: JD của công ty mình; Trung tâm: mọi JD) · `GET /api/jds/{id}/requirements` (kèm việc người gọi được làm) · `GET /api/campaigns` · `GET /api/campaigns/{id}` (đợt người gọi tham gia) · `GET /api/events/stream` (SSE, header `Authorization`) · `GET /api/skills?query=&limit=` (kỹ năng đã duyệt) · `GET /api/notifications` (`?before=&limit=`, kèm `unreadCount`) · `POST /api/notifications/{id}/read` · `POST /api/notifications/read-all` · `GET /api/files/{id}/url` (URL tạm có hạn) |
 
 ---
 
@@ -605,10 +667,10 @@ REST, mô tả bằng OpenAPI.
 
 | Nhóm | Biện pháp |
 |---|---|
-| Xác thực | JWT (access token 15 phút, refresh token trong cookie httpOnly); SSO của trường qua OIDC (tùy chọn); tài khoản HR do Trung tâm mời |
+| Xác thực | JWT HS256 (access token 15 phút); refresh token ngẫu nhiên trong cookie `HttpOnly`, `Secure`, `SameSite=Strict`, `Path=/api/auth`, xoay vòng mỗi lần dùng, Redis chỉ lưu hash; mật khẩu băm bằng `scrypt` ([CONTEXT D25](CONTEXT.md)); SSO của trường qua OIDC ngoài phạm vi (CONTEXT D20); tài khoản HR do Trung tâm mời |
 | Phân quyền | RBAC (`CENTER`, `STUDENT`, `HR`, `ADMIN`) + kiểm tra cấp bản ghi: HR chỉ xem đề cử thuộc JD của công ty mình (BR-11), SV chỉ xem dữ liệu của mình |
-| Dữ liệu cá nhân | TLS; mã hóa file trên MinIO; cột PII mã hóa (pgcrypto); che PII trước khi chấm; tài khoản DB của AI Service chỉ đọc view đã che; xóa dữ liệu theo thời hạn (mục *Lưu trữ file và thời hạn dữ liệu*) |
-| Gửi dữ liệu cho LLM | Chỉ bước phân tích CV cần gửi CV đầy đủ (có thể che trước SĐT, email bằng regex); các bước chấm chỉ gửi dữ liệu đã che. Đọc kỹ điều khoản xử lý dữ liệu của nhà cung cấp LLM (thời gian lưu, có dùng để huấn luyện không) và ghi vào phần đồng ý của SV |
+| Dữ liệu cá nhân | TLS; mã hóa file trên MinIO; cột `cvs.pii` mã hóa bằng pgcrypto (`pgp_sym_encrypt`, khóa `PII_ENCRYPTION_KEY` chỉ có ở Core Backend, truyền dạng tham số; AI Service không thấy khóa); audit chỉ ghi metadata của phân tích CV; che PII trước khi chấm; tài khoản DB của AI Service chỉ đọc view đã che; xóa dữ liệu theo thời hạn (mục *Lưu trữ file và thời hạn dữ liệu*) |
+| Gửi dữ liệu cho LLM | Chỉ bước phân tích CV cần gửi CV đầy đủ: SĐT, email che trước bằng regex (mặc định bật, `CV_MASK_CONTACTS`); bản scan gửi nguyên file nên không che trước được. Các bước chấm chỉ gửi dữ liệu đã che. Điều khoản xử lý dữ liệu của nhà cung cấp LLM (thời gian lưu, có dùng để huấn luyện không) ghi vào phần đồng ý của SV: `TERMS_V2` ghi Google (Gemini API, gói trả phí) và Anthropic ([CONTEXT D37](CONTEXT.md)) |
 | LLM | API key chỉ nằm ở AI Service (biến môi trường/secret), không bao giờ ở frontend; chống prompt injection (chữ ẩn, tách chỉ dẫn/dữ liệu, schema đầu ra); công cụ của agent không có quyền ghi dữ liệu nghiệp vụ |
 | Thi | Đáp án không rời server; đồng hồ phía server; giới hạn tần suất gọi API |
 | Tải file | Kiểm tra MIME thật (không tin phần mở rộng), giới hạn 5 MB, quét virus bằng ClamAV (tùy chọn) |
@@ -622,17 +684,18 @@ REST, mô tả bằng OpenAPI.
 
 | Service | Image / build | Ghi chú |
 |---|---|---|
-| `nginx` | nginx | Phục vụ file build của frontend, reverse proxy `/api` |
+| `nginx` | nginx | Phục vụ file build của frontend, reverse proxy `/api`; chuyển `/jd-files/`, `/cv-files/` (URL tạm ký sẵn) tới `minio` |
+| `migrate` | build từ `apps/api/` (cùng image `api`) | Chạy một lần: áp migration SQL (`node dist/db/migrate.js`) rồi thoát; `api` chờ bằng `service_completed_successfully` (CONTEXT D24) |
 | `api` | build từ `apps/api/` | NestJS (Node.js LTS) |
-| `ai-worker` | build từ `ai-service/` | FastStream worker; chạy được nhiều bản sao |
-| `ai-api` | build từ `ai-service/` | FastAPI (health, quản trị, chatbot) |
+| `ai-worker` | build từ `ai-service/` | FastStream worker; chạy được nhiều bản sao (`--scale ai-worker=N`); đăng nhập DB bằng `ai_service`. `EMBEDDING_PROVIDER` vừa là build arg vừa là env (`hashing` mặc định; `bge-m3` thêm torch bản CPU); volume `hf-models` gắn ở `/models` (`HF_HOME`) |
+| `ai-api` | build từ `ai-service/` (cùng image) | FastAPI (health, quản trị, chatbot); `GET /health` trả 200 khi kết nối được PostgreSQL và RabbitMQ; cổng `127.0.0.1:${AI_API_HOST_PORT:-8000}` |
 | `postgres` | pgvector/pgvector | Có sẵn extension pgvector |
 | `redis` | redis | – |
 | `rabbitmq` | rabbitmq:management | Có giao diện quản lý |
-| `minio` | minio/minio | – |
+| `minio` | cgr.dev/chainguard/minio (ghim digest) | `minio/minio` đã bị xóa khỏi Docker Hub (CONTEXT D23); ứng dụng chỉ đọc biến `MINIO_*` |
 | `mailpit` | axllent/mailpit | Bắt email khi phát triển |
 
-Mô hình `bge-m3` chạy trên CPU được với quy mô đồ án (cần khoảng 2–4 GB RAM); có GPU thì nhanh hơn nhưng không bắt buộc.
+Mô hình `bge-m3` chạy trên CPU được với quy mô đồ án: mỗi bản sao `ai-worker` cần 2,5–3 GB RAM, lần đầu tải khoảng 4,5 GB vào volume `hf-models`; có GPU thì nhanh hơn nhưng không bắt buộc. Compose mặc định `EMBEDDING_PROVIDER=hashing` (embedding giả, tất định), như `LLM_PROVIDER=fixture`, để máy dev không cần mô hình ([CONTEXT D39](CONTEXT.md)).
 
 ### Giám sát
 
@@ -642,7 +705,7 @@ Mô hình `bge-m3` chạy trên CPU được với quy mô đồ án (cần kho�
 
 ### CI
 
-GitHub Actions: `pnpm install` một lần cho cả monorepo; typecheck, lint, test backend (có testcontainers) và build frontend; kiểm tra ranh giới module (dependency-cruiser); kiểm tra hợp đồng message TS ↔ Python; lint + test AI Service (dùng fixture, không gọi API thật). Bộ đánh giá AI với API thật chạy thủ công khi đổi prompt.
+GitHub Actions (`.github/workflows/ci.yml`): `pnpm install` một lần cho cả monorepo; typecheck, lint (ESLint), test backend (có testcontainers) và build frontend; kiểm tra ranh giới module (dependency-cruiser, kèm fixture vi phạm chứng minh luật có hiệu lực); kiểm tra hợp đồng message TS ↔ Python (`pnpm contracts:gen` rồi `git status --porcelain` trên `packages/shared/contracts/json-schema` và `ai-service/app/contracts`, US-2.1); lint (ruff) + test (pytest) AI Service (dùng fixture, không gọi API thật). Bộ đánh giá AI với API thật chạy thủ công khi đổi prompt.
 
 ---
 
@@ -692,17 +755,21 @@ Smart-Recruit-Match/
 ├── ai-service/                  # Python
 │   ├── app/
 │   │   ├── consumers/           # FastStream subscribers
-│   │   ├── agents/              # cv_parser/ jd_analyzer/ matching/ test_generator/ validator/ grader/
+│   │   ├── agents/              # cv_parser/ jd_analyzer/ skill_normalizer/ matching/ test_generator/ validator/ grader/
 │   │   ├── prompts/             # <agent>/v1.md, v2.md… (có phiên bản)
 │   │   ├── schemas/             # Pydantic model = schema đầu ra của LLM
 │   │   ├── llm/                 # LLMClient: retry, xử lý refusal, ghi usage và chi phí
-│   │   ├── embedding/           # bge-m3, truy vấn pgvector
+│   │   ├── embedding/           # bge-m3, ai.embeddings, chuẩn hóa kỹ năng
 │   │   └── parsing/             # PDF/DOCX, phát hiện chữ ẩn, che PII
 │   ├── evals/                   # dữ liệu gán nhãn + script đánh giá
 │   └── tests/
 ├── simulation/                  # sinh dữ liệu giả lập, so sánh thuật toán phân bổ
-├── deploy/                      # docker-compose.yml, nginx.conf, .env.example
+├── deploy/                      # docker-compose.yml, nginx.conf, nginx.Dockerfile, .env.example
 ├── docs/
+├── scripts/                     # script kiểm tra dùng trong CI và hook (depcruise fixture, commit gate)
+├── .koni-harness/               # cổng commit koni-harness (vendored)
+├── .github/workflows/ci.yml
+├── DEPLOY.md                    # biến môi trường, chạy Docker Compose
 ├── package.json
 └── pnpm-workspace.yaml          # khai báo apps/*, packages/*
 ```
@@ -741,7 +808,7 @@ Mỗi quyết định có một mã AD-N; lý do đầy đủ ở mục D tươn
 | AD-7 | Phân bổ tất định | Deferred Acceptance phía sinh viên đề xuất, hàm TS thuần, không dùng LLM, kiểm tra ổn định sau mỗi lần chạy | pre-0.1.0 | [D7](CONTEXT.md) |
 | AD-8 | Quản lý trạng thái | Bảng chuyển trạng thái tự viết + `transitionTo` + optimistic locking (`row_version`), không dùng thư viện state machine | pre-0.1.0 | [D8](CONTEXT.md) |
 | AD-9 | ORM | Drizzle ORM + drizzle-kit thay cho Prisma | pre-0.1.0 | [D9](CONTEXT.md) |
-| AD-10 | Một model LLM | Claude Opus 5.5 cho mọi agent, chỉnh độ sâu bằng `effort`; mọi lượt gọi qua `LLMClient` | pre-0.1.0 | [D10](CONTEXT.md) |
+| AD-10 | Một model LLM cho mỗi nhà cung cấp | Gemini 3.8 Flash mặc định, Claude Opus 5.5 thay thế, chọn bằng cấu hình; một model cho mọi agent, chỉnh độ sâu bằng effort (`effort` / `thinking_level`); mọi lượt gọi qua `LLMClient` | pre-0.1.0, sửa ở 0.8.0 | [D10](CONTEXT.md), [D34](CONTEXT.md) |
 | AD-11 | Embedding tự host | `BAAI/bge-m3` chạy trong AI Service | pre-0.1.0 | [D11](CONTEXT.md) |
 | AD-12 | Tối ưu chi phí LLM | Message Batches + prompt caching cho tác vụ hàng loạt; prompt là file có phiên bản | pre-0.1.0 | [D12](CONTEXT.md) |
 | AD-13 | Cập nhật thời gian thực | Server-Sent Events thay cho WebSocket | pre-0.1.0 | [D13](CONTEXT.md) |
@@ -751,7 +818,7 @@ Mỗi quyết định có một mã AD-N; lý do đầy đủ ở mục D tươn
 
 ## Open architecture questions
 
-- [ ] Q8 (PRD): dùng Claude API hay mô hình mở tự host — quyết định có giữ AD-10 hay không.
-- [ ] shadcn/ui dùng nền Radix hay Base UI — chốt khi chạy `shadcn init`.
+- [ ] Q8 (PRD): đã chốt một phần ở [CONTEXT D34](CONTEXT.md) (API thương mại: Gemini mặc định, Claude thay thế). Còn mở: mô hình tự host nếu Trung tâm không cho gửi dữ liệu ra ngoài.
+- [x] shadcn/ui dùng nền Radix hay Base UI — chốt Radix ([CONTEXT D26](CONTEXT.md), US-1.3).
 - [ ] Heatmap NV/chỉ tiêu (FR-33): bảng tô màu bằng token hay thêm thư viện biểu đồ có heatmap.
 - [ ] Có tích hợp SSO của trường qua OIDC hay chỉ dùng tài khoản nội bộ.

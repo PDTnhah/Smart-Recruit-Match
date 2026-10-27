@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./ai_job_error.json",
+  "type": "object",
+  "properties": {
+    "code": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Machine-readable reason, e.g. RETRIES_EXHAUSTED or LLM_REFUSAL"
+    },
+    "message": {
+      "type": "string",
+      "description": "Detail for logs and staff; not shown to students as is"
+    },
+    "needs_human": {
+      "type": "boolean",
+      "description": "True when retrying cannot help and staff must handle the item"
+    },
+    "hidden_text_detected": {
+      "description": "The input file had hidden text, removed before the prompt; null when not known (US-2.3 AC-12)",
+      "type": [
+        "boolean",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "code",
+    "message",
+    "needs_human"
+  ],
+  "additionalProperties": false,
+  "title": "AiJobError",
+  "description": "Why a job failed"
+}

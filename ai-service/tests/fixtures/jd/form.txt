@@ -1,0 +1,11 @@
+Công ty Demo Alpha tuyển thực tập sinh Backend.
+
+Yêu cầu:
+- Sinh viên năm 3 trở lên ngành Công nghệ thông tin hoặc Khoa học máy tính.
+- Nắm vững Java, có kinh nghiệm với Spring Boot.
+- Biết SQL cơ bản.
+- Tiếng Anh đọc hiểu tài liệu (TOEIC 500 trở lên).
+
+Ưu tiên:
+- Biết Docker.
+- Đã dùng Git trong dự án nhóm.

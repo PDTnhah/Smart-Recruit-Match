@@ -1,0 +1,11 @@
+packages:
+  - apps/*
+  - packages/*
+
+# pnpm 10 blocks dependency lifecycle scripts by default; allow only the ones we need.
+onlyBuiltDependencies:
+  - esbuild
+
+# sharp is pulled in by @koniverse/koni-docs (docs preview only); its native build is not needed.
+ignoredBuiltDependencies:
+  - sharp

@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "dist",
+    "isolatedModules": true,
+    "types": ["jest", "node"]
+  },
+  "include": ["index.ts", "schemas", "states", "contracts", "consent"],
+  "exclude": ["dist", "node_modules"]
+}

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./position_group.json",
+  "type": "string",
+  "enum": [
+    "BACKEND",
+    "FRONTEND",
+    "MOBILE",
+    "DATA_AI",
+    "TESTER_QA",
+    "BA",
+    "DEVOPS",
+    "OTHER"
+  ],
+  "title": "PositionGroup",
+  "description": "Position group of a JD (PRD GĐ1)"
+}

@@ -1,0 +1,5 @@
+{
+  "cv_parser": "cv_parser/v1",
+  "jd_analyzer": "jd_analyzer/v1",
+  "skill_normalizer": "skill_normalizer/v1"
+}

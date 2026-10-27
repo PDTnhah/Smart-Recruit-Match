@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./jd_analyze_result.json",
+  "type": "object",
+  "properties": {
+    "job_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "type": {
+      "type": "string",
+      "const": "JD_ANALYZE"
+    },
+    "status": {
+      "$ref": "./ai_result_status.json"
+    },
+    "job": {
+      "$ref": "./jd_analyze_job.json"
+    },
+    "result": {
+      "anyOf": [
+        {
+          "$ref": "./jd_analyze_output.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "error": {
+      "anyOf": [
+        {
+          "$ref": "./ai_job_error.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "job_id",
+    "type",
+    "status",
+    "job",
+    "result",
+    "error"
+  ],
+  "additionalProperties": false,
+  "title": "JdAnalyzeResult",
+  "description": "Message on ai.results for a JD_ANALYZE job"
+}

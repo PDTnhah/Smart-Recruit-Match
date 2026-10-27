@@ -1,0 +1,22 @@
+{
+  "jobs": {
+    "CV_PARSE": "ai.cv.parse",
+    "JD_ANALYZE": "ai.jd.analyze",
+    "SKILL_NORMALIZE": "ai.skills.normalize"
+  },
+  "results": "ai.results",
+  "dlq_suffix": ".dlq",
+  "max_attempts": 3,
+  "retry_delays_seconds": [
+    2,
+    10
+  ],
+  "queue_arguments": {
+    "x-queue-type": "classic"
+  },
+  "dlq_headers": {
+    "reason": "x-srm-dlq-reason",
+    "attempts": "x-srm-attempts",
+    "source_queue": "x-srm-source-queue"
+  }
+}

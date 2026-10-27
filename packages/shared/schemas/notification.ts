@@ -1,0 +1,224 @@
+import { z } from 'zod';
+import { CAMPAIGN_DEADLINE_KEYS } from './campaign.js';
+
+// Notifications (FR-8, US-1.7, CONTEXT D31). The API validates `type` + `payload` with these
+// schemas before writing a row, and the web renders each type from the same shapes, so both sides
+// agree on what a notification carries (AGENTS › Invariant 14). Later stories add a type here, a
+// renderer in the web and, for email, a template in the notification module.
+
+/** Where a notification is delivered: the in-app list (with SSE) and/or email through the outbox. */
+export const NOTIFICATION_CHANNELS = ['IN_APP', 'EMAIL'] as const;
+
+export type NotificationChannel = (typeof NOTIFICATION_CHANNELS)[number];
+
+export const NOTIFICATION_TYPES = [
+  'CAMPAIGN_OPENED',
+  'HR_INVITED',
+  'DEADLINE_REMINDER',
+  // JD analysis and requirement versions (US-2.3, CONTEXT D35).
+  'JD_REQUIREMENTS_READY',
+  'JD_ANALYSIS_FAILED',
+  'JD_REQUIREMENTS_VERSIONED',
+  // CV analysis (US-2.4, CONTEXT D37).
+  'CV_PROFILE_READY',
+  'CV_ANALYSIS_FAILED',
+  'CV_NEEDS_ATTENTION',
+] as const;
+
+export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
+
+/**
+ * Types shown in the app only (PRD › Thông báo, CONTEXT D35, D37): the recipient is usually on the
+ * page already, and an email seconds later would repeat it. `notify` refuses the EMAIL channel for
+ * them. CV_ANALYSIS_FAILED is emailed too: the student may have left, and must upload again before
+ * the deadline.
+ */
+export const IN_APP_ONLY_NOTIFICATION_TYPES = [
+  'JD_REQUIREMENTS_READY',
+  'JD_ANALYSIS_FAILED',
+  'JD_REQUIREMENTS_VERSIONED',
+  'CV_PROFILE_READY',
+  'CV_NEEDS_ATTENTION',
+] as const satisfies readonly NotificationType[];
+
+/** Types that may be sent by email, each with a template in the notification module. */
+export type EmailNotificationType = Exclude<NotificationType, (typeof IN_APP_ONLY_NOTIFICATION_TYPES)[number]>;
+
+export function isEmailNotificationType(type: NotificationType): type is EmailNotificationType {
+  return !(IN_APP_ONLY_NOTIFICATION_TYPES as readonly NotificationType[]).includes(type);
+}
+
+const id = z.number().int().positive();
+const instant = z.iso.datetime({ offset: true });
+
+/** A campaign left DRAFT; its target students may now submit CVs (PRD › Thông báo). */
+export const CampaignOpenedPayloadSchema = z.object({
+  campaignId: id,
+  campaignName: z.string().min(1),
+  intakeEnd: instant,
+});
+
+/**
+ * An HR account was invited (US-1.5). Email only. The invitation token is never stored here: the
+ * email worker asks iam for a link to the account's current invitation when it sends, so only the
+ * newest invitation is ever emailed and no live token rests in the database (CONTEXT D31).
+ */
+export const HrInvitedPayloadSchema = z.object({
+  companyId: id,
+});
+
+/** A campaign deadline is near and the recipient still has something to do before it. */
+export const DeadlineReminderPayloadSchema = z.object({
+  campaignId: id,
+  campaignName: z.string().min(1),
+  deadlineKey: z.enum(CAMPAIGN_DEADLINE_KEYS),
+  deadline: instant,
+});
+
+/** The AI proposed normalised requirements for a JD; HR of its company reviews and confirms them. */
+export const JdRequirementsReadyPayloadSchema = z.object({
+  jdId: id,
+  jdTitle: z.string().min(1),
+});
+
+/** The AI could not analyse a JD; HR of its company enters the requirements by hand. */
+export const JdAnalysisFailedPayloadSchema = z.object({
+  jdId: id,
+  jdTitle: z.string().min(1),
+});
+
+/** An approved JD got a new requirements version (BR-18); sent to center staff. */
+export const JdRequirementsVersionedPayloadSchema = z.object({
+  jdId: id,
+  jdTitle: z.string().min(1),
+  companyName: z.string().min(1),
+  version: id,
+});
+
+/** The CV Parser read a student's CV; the student reviews and confirms the profile (US-2.6). */
+export const CvProfileReadyPayloadSchema = z.object({
+  cvId: id,
+  campaignId: id,
+  campaignName: z.string().min(1),
+});
+
+/** The CV Parser could not read a student's CV; the student uploads it again. */
+export const CvAnalysisFailedPayloadSchema = CvProfileReadyPayloadSchema;
+
+/** Why center staff look at a CV: its analysis failed, or its file hid text from the reader. */
+export const CV_ATTENTION_REASONS = ['ANALYSIS_FAILED', 'HIDDEN_TEXT'] as const;
+
+export type CvAttentionReason = (typeof CV_ATTENTION_REASONS)[number];
+
+/** A CV needs center staff (US-2.4 AC-11); the page "CV cần xử lý" lists them all. */
+export const CvNeedsAttentionPayloadSchema = z.object({
+  cvId: id,
+  campaignId: id,
+  campaignName: z.string().min(1),
+  reason: z.enum(CV_ATTENTION_REASONS),
+});
+
+/** `type` and the `payload` that goes with it. */
+export const NotificationContentSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('CAMPAIGN_OPENED'), payload: CampaignOpenedPayloadSchema }),
+  z.object({ type: z.literal('HR_INVITED'), payload: HrInvitedPayloadSchema }),
+  z.object({ type: z.literal('DEADLINE_REMINDER'), payload: DeadlineReminderPayloadSchema }),
+  z.object({ type: z.literal('JD_REQUIREMENTS_READY'), payload: JdRequirementsReadyPayloadSchema }),
+  z.object({ type: z.literal('JD_ANALYSIS_FAILED'), payload: JdAnalysisFailedPayloadSchema }),
+  z.object({ type: z.literal('JD_REQUIREMENTS_VERSIONED'), payload: JdRequirementsVersionedPayloadSchema }),
+  z.object({ type: z.literal('CV_PROFILE_READY'), payload: CvProfileReadyPayloadSchema }),
+  z.object({ type: z.literal('CV_ANALYSIS_FAILED'), payload: CvAnalysisFailedPayloadSchema }),
+  z.object({ type: z.literal('CV_NEEDS_ATTENTION'), payload: CvNeedsAttentionPayloadSchema }),
+]);
+
+export type NotificationContent = z.output<typeof NotificationContentSchema>;
+
+const distinct = <T>(values: readonly T[]) => new Set(values).size === values.length;
+
+/** Who receives it and how; `dedupeKey` makes a repeated call for the same recipient a no-op. */
+export const NotificationDeliverySchema = z.object({
+  userIds: z.array(id).min(1).refine(distinct, { error: 'userIds contains duplicates' }),
+  channels: z
+    .array(z.enum(NOTIFICATION_CHANNELS))
+    .min(1)
+    .refine(distinct, { error: 'channels contains duplicates' }),
+  dedupeKey: z.string().min(1).max(200).optional(),
+});
+
+/** Argument of `NotificationService.notify` (in-process, not an HTTP body). */
+export const NotifyInputSchema = z
+  .intersection(NotificationContentSchema, NotificationDeliverySchema)
+  .refine((input) => isEmailNotificationType(input.type) || !input.channels.includes('EMAIL'), {
+    error: 'this notification type is shown in the app only',
+    path: ['channels'],
+  });
+
+export type NotifyInput = z.input<typeof NotifyInputSchema>;
+
+/** One entry of the caller's in-app list, also the data of the `notification` SSE event. */
+export const NotificationSchema = z.intersection(
+  NotificationContentSchema,
+  z.object({
+    id: z.number().int(),
+    readAt: instant.nullable(),
+    createdAt: instant,
+  }),
+);
+
+export type Notification = z.output<typeof NotificationSchema>;
+
+/** `GET /api/notifications`: newest first; `before` is the smallest id of the previous page. */
+export const NotificationListQuerySchema = z.object({
+  before: z.coerce.number().int().positive().optional(),
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+});
+
+export type NotificationListQuery = z.output<typeof NotificationListQuerySchema>;
+
+export const NotificationListSchema = z.object({
+  items: z.array(NotificationSchema),
+  /** Unread in-app notifications of the caller, across all pages. */
+  unreadCount: z.number().int().min(0),
+  /** Pass as `before` to read the next page; null on the last page. */
+  nextBefore: z.number().int().nullable(),
+});
+
+export type NotificationList = z.output<typeof NotificationListSchema>;
+
+/** Body of `POST /api/notifications/read-all`. */
+export const MarkAllReadResultSchema = z.object({ updated: z.number().int().min(0) });
+
+export type MarkAllReadResult = z.output<typeof MarkAllReadResultSchema>;
+
+/**
+ * Event names on `GET /api/events/stream` (AD-13). `ready` opens every connection, so a client
+ * reloads its lists after reconnecting; `ping` keeps proxies from closing an idle stream. EPIC-2
+ * and US-3.4 add their names here.
+ */
+export const SERVER_EVENTS = {
+  READY: 'ready',
+  PING: 'ping',
+  NOTIFICATION: 'notification',
+  /** The analysis of a JD settled (US-2.3); data is `JdAnalysisEvent`, sent to HR of its company. */
+  JD_ANALYSIS: 'jd.analysis',
+  /** The analysis of a CV settled (US-2.4); data is `CvAnalysisEvent`, sent to its student. */
+  CV_ANALYSIS: 'cv.analysis',
+} as const;
+
+export type ServerEventName = (typeof SERVER_EVENTS)[keyof typeof SERVER_EVENTS];
+
+/** Data of the `jd.analysis` event: the client refetches the JD. */
+export const JdAnalysisEventSchema = z.object({
+  jdId: id,
+  analysisStatus: z.enum(['SUCCEEDED', 'FAILED']),
+});
+
+export type JdAnalysisEvent = z.output<typeof JdAnalysisEventSchema>;
+
+/** Data of the `cv.analysis` event: the client refetches the student's CVs. */
+export const CvAnalysisEventSchema = z.object({
+  cvId: id,
+  status: z.enum(['PENDING_CONFIRMATION', 'ANALYSIS_FAILED']),
+});
+
+export type CvAnalysisEvent = z.output<typeof CvAnalysisEventSchema>;

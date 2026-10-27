@@ -5,7 +5,7 @@ epic: EPIC-5
 status: backlog
 priority: P0
 points: 5
-sprint:
+sprint: sprint-2026-W44
 version_shipped:
 prd_ref:
   - FR-26

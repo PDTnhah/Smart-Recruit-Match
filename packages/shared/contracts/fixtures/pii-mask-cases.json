@@ -1,0 +1,340 @@
+{
+  "description": "PII masking cases of the CV Parser (US-2.4 AC-5 to AC-7, BR-03, CONTEXT D37). mask: mask_text(text, pii) must equal masked. contacts: mask_contacts(text) must give masked and tokens. Shared so that US-2.6 rebuilds profile_masked the same way.",
+  "mask": [
+    {
+      "name": "name in any case, with or without diacritics",
+      "pii": {
+        "full_name": "Nguyễn Văn An",
+        "emails": [
+          "nguyenvanan.dev@gmail.com"
+        ],
+        "phones": [
+          "0912 345 678"
+        ],
+        "links": [
+          "https://github.com/nguyenvanan"
+        ],
+        "address": "Số 1 Đại Cồ Việt, Hai Bà Trưng, Hà Nội",
+        "date_of_birth": "15/03/2004",
+        "gender": "MALE",
+        "hometown": "Nam Định",
+        "religion": "Phật giáo",
+        "marital_status": "SINGLE",
+        "has_photo": true
+      },
+      "text": "NGUYỄN VĂN AN - Nguyen Van An - nguyễn văn an",
+      "masked": "[NAME] - [NAME] - [NAME]"
+    },
+    {
+      "name": "name in Western order and in short forms",
+      "pii": {
+        "full_name": "Nguyễn Văn An",
+        "emails": [
+          "nguyenvanan.dev@gmail.com"
+        ],
+        "phones": [
+          "0912 345 678"
+        ],
+        "links": [
+          "https://github.com/nguyenvanan"
+        ],
+        "address": "Số 1 Đại Cồ Việt, Hai Bà Trưng, Hà Nội",
+        "date_of_birth": "15/03/2004",
+        "gender": "MALE",
+        "hometown": "Nam Định",
+        "religion": "Phật giáo",
+        "marital_status": "SINGLE",
+        "has_photo": true
+      },
+      "text": "An Nguyễn Văn; Nguyễn An; An Nguyen",
+      "masked": "[NAME]; [NAME]; [NAME]"
+    },
+    {
+      "name": "name written without spaces, as in a username",
+      "pii": {
+        "full_name": "Nguyễn Văn An",
+        "emails": [
+          "nguyenvanan.dev@gmail.com"
+        ],
+        "phones": [
+          "0912 345 678"
+        ],
+        "links": [
+          "https://github.com/nguyenvanan"
+        ],
+        "address": "Số 1 Đại Cồ Việt, Hai Bà Trưng, Hà Nội",
+        "date_of_birth": "15/03/2004",
+        "gender": "MALE",
+        "hometown": "Nam Định",
+        "religion": "Phật giáo",
+        "marital_status": "SINGLE",
+        "has_photo": true
+      },
+      "text": "Repo của nguyenvanan và Nguyen.Van.An",
+      "masked": "Repo của [NAME] và [NAME]"
+    },
+    {
+      "name": "gender is never matched as text: Việt Nam and Nam Định stay apart",
+      "pii": {
+        "full_name": "Nguyễn Văn An",
+        "emails": [
+          "nguyenvanan.dev@gmail.com"
+        ],
+        "phones": [
+          "0912 345 678"
+        ],
+        "links": [
+          "https://github.com/nguyenvanan"
+        ],
+        "address": "Số 1 Đại Cồ Việt, Hai Bà Trưng, Hà Nội",
+        "date_of_birth": "15/03/2004",
+        "gender": "MALE",
+        "hometown": "Nam Định",
+        "religion": "Phật giáo",
+        "marital_status": "SINGLE",
+        "has_photo": true
+      },
+      "text": "Sống tại Việt Nam, quê Nam Định.",
+      "masked": "Sống tại Việt Nam, quê [HOMETOWN]."
+    },
+    {
+      "name": "email, its local part and the GitHub link",
+      "pii": {
+        "full_name": "Nguyễn Văn An",
+        "emails": [
+          "nguyenvanan.dev@gmail.com"
+        ],
+        "phones": [
+          "0912 345 678"
+        ],
+        "links": [
+          "https://github.com/nguyenvanan"
+        ],
+        "address": "Số 1 Đại Cồ Việt, Hai Bà Trưng, Hà Nội",
+        "date_of_birth": "15/03/2004",
+        "gender": "MALE",
+        "hometown": "Nam Định",
+        "religion": "Phật giáo",
+        "marital_status": "SINGLE",
+        "has_photo": true
+      },
+      "text": "Mail nguyenvanan.dev@gmail.com, user nguyenvanan.dev, https://github.com/nguyenvanan/library",
+      "masked": "Mail [EMAIL], user [EMAIL], [LINK]"
+    },
+    {
+      "name": "any other email or link is masked too",
+      "pii": {
+        "full_name": "Nguyễn Văn An",
+        "emails": [
+          "nguyenvanan.dev@gmail.com"
+        ],
+        "phones": [
+          "0912 345 678"
+        ],
+        "links": [
+          "https://github.com/nguyenvanan"
+        ],
+        "address": "Số 1 Đại Cồ Việt, Hai Bà Trưng, Hà Nội",
+        "date_of_birth": "15/03/2004",
+        "gender": "MALE",
+        "hometown": "Nam Định",
+        "religion": "Phật giáo",
+        "marital_status": "SINGLE",
+        "has_photo": true
+      },
+      "text": "Nhóm: team@example.org, demo tại https://demo.example.com/app",
+      "masked": "Nhóm: [EMAIL], demo tại [LINK]"
+    },
+    {
+      "name": "phone numbers in any spacing",
+      "pii": {
+        "full_name": "Nguyễn Văn An",
+        "emails": [
+          "nguyenvanan.dev@gmail.com"
+        ],
+        "phones": [
+          "0912 345 678"
+        ],
+        "links": [
+          "https://github.com/nguyenvanan"
+        ],
+        "address": "Số 1 Đại Cồ Việt, Hai Bà Trưng, Hà Nội",
+        "date_of_birth": "15/03/2004",
+        "gender": "MALE",
+        "hometown": "Nam Định",
+        "religion": "Phật giáo",
+        "marital_status": "SINGLE",
+        "has_photo": true
+      },
+      "text": "Gọi 0912 345 678, 0912.345.678, +84 912-345-678 hoặc (+84)912345678",
+      "masked": "Gọi [PHONE], [PHONE], [PHONE] hoặc [PHONE]"
+    },
+    {
+      "name": "date of birth in other formats",
+      "pii": {
+        "full_name": "Nguyễn Văn An",
+        "emails": [
+          "nguyenvanan.dev@gmail.com"
+        ],
+        "phones": [
+          "0912 345 678"
+        ],
+        "links": [
+          "https://github.com/nguyenvanan"
+        ],
+        "address": "Số 1 Đại Cồ Việt, Hai Bà Trưng, Hà Nội",
+        "date_of_birth": "15/03/2004",
+        "gender": "MALE",
+        "hometown": "Nam Định",
+        "religion": "Phật giáo",
+        "marital_status": "SINGLE",
+        "has_photo": true
+      },
+      "text": "Sinh 15-3-2004, ngày 15 tháng 3 năm 2004, ISO 2004-03-15",
+      "masked": "Sinh [DOB], [DOB], ISO [DOB]"
+    },
+    {
+      "name": "labelled personal lines lose their value",
+      "pii": {
+        "full_name": "Nguyễn Văn An",
+        "emails": [
+          "nguyenvanan.dev@gmail.com"
+        ],
+        "phones": [
+          "0912 345 678"
+        ],
+        "links": [
+          "https://github.com/nguyenvanan"
+        ],
+        "address": "Số 1 Đại Cồ Việt, Hai Bà Trưng, Hà Nội",
+        "date_of_birth": "15/03/2004",
+        "gender": "MALE",
+        "hometown": "Nam Định",
+        "religion": "Phật giáo",
+        "marital_status": "SINGLE",
+        "has_photo": true
+      },
+      "text": "Giới tính: Nam\nTình trạng hôn nhân: Độc thân\n- Tôn giáo: Phật giáo\nQuê quán: Nam Định\nĐịa chỉ hiện tại: Số 1 Đại Cồ Việt, Hai Bà Trưng, Hà Nội",
+      "masked": "Giới tính: [GENDER]\nTình trạng hôn nhân: [MARITAL_STATUS]\n- Tôn giáo: [RELIGION]\nQuê quán: [HOMETOWN]\nĐịa chỉ hiện tại: [ADDRESS]"
+    },
+    {
+      "name": "address and hometown in free text",
+      "pii": {
+        "full_name": "Nguyễn Văn An",
+        "emails": [
+          "nguyenvanan.dev@gmail.com"
+        ],
+        "phones": [
+          "0912 345 678"
+        ],
+        "links": [
+          "https://github.com/nguyenvanan"
+        ],
+        "address": "Số 1 Đại Cồ Việt, Hai Bà Trưng, Hà Nội",
+        "date_of_birth": "15/03/2004",
+        "gender": "MALE",
+        "hometown": "Nam Định",
+        "religion": "Phật giáo",
+        "marital_status": "SINGLE",
+        "has_photo": true
+      },
+      "text": "Ở Số 1 Đại Cồ Việt, Hai Bà Trưng, Hà Nội; quê ở nam dinh.",
+      "masked": "Ở [ADDRESS]; quê ở [HOMETOWN]."
+    },
+    {
+      "name": "other words that look like the name stay",
+      "pii": {
+        "full_name": "Lê Thị Na",
+        "emails": [
+          "na.le@example.com"
+        ],
+        "phones": [
+          "+84 987 654 321"
+        ],
+        "links": [
+          "https://www.linkedin.com/in/le-thi-na"
+        ],
+        "address": null,
+        "date_of_birth": "2003-11-02",
+        "gender": "FEMALE",
+        "hometown": null,
+        "religion": null,
+        "marital_status": null,
+        "has_photo": false
+      },
+      "text": "Lê Thị Na học ở Le Nam và dùng thư viện Natural.",
+      "masked": "[NAME] học ở Le Nam và dùng thư viện Natural."
+    },
+    {
+      "name": "LinkedIn username and ISO date of birth",
+      "pii": {
+        "full_name": "Lê Thị Na",
+        "emails": [
+          "na.le@example.com"
+        ],
+        "phones": [
+          "+84 987 654 321"
+        ],
+        "links": [
+          "https://www.linkedin.com/in/le-thi-na"
+        ],
+        "address": null,
+        "date_of_birth": "2003-11-02",
+        "gender": "FEMALE",
+        "hometown": null,
+        "religion": null,
+        "marital_status": null,
+        "has_photo": false
+      },
+      "text": "Hồ sơ: linkedin.com/in/le-thi-na (le-thi-na), sinh 02/11/2003",
+      "masked": "Hồ sơ: [LINK] ([NAME]), sinh [DOB]"
+    },
+    {
+      "name": "nothing personal: the text is unchanged",
+      "pii": {
+        "full_name": "Lê Thị Na",
+        "emails": [
+          "na.le@example.com"
+        ],
+        "phones": [
+          "+84 987 654 321"
+        ],
+        "links": [
+          "https://www.linkedin.com/in/le-thi-na"
+        ],
+        "address": null,
+        "date_of_birth": "2003-11-02",
+        "gender": "FEMALE",
+        "hometown": null,
+        "religion": null,
+        "marital_status": null,
+        "has_photo": false
+      },
+      "text": "Java, Spring Boot, PostgreSQL. GPA 3.2/4, TOEIC 650, 2021 - 2025.",
+      "masked": "Java, Spring Boot, PostgreSQL. GPA 3.2/4, TOEIC 650, 2021 - 2025."
+    }
+  ],
+  "contacts": [
+    {
+      "text": "Email: a.nguyen@example.com | SĐT: 0912 345 678",
+      "masked": "Email: [EMAIL_1] | SĐT: [PHONE_1]",
+      "tokens": {
+        "[EMAIL_1]": "a.nguyen@example.com",
+        "[PHONE_1]": "0912 345 678"
+      }
+    },
+    {
+      "text": "Liên hệ (+84) 912.345.678 hoặc 0912345678, mail A.Nguyen@Example.com và a.nguyen@example.com",
+      "masked": "Liên hệ [PHONE_1] hoặc [PHONE_1], mail [EMAIL_1] và [EMAIL_1]",
+      "tokens": {
+        "[EMAIL_1]": "A.Nguyen@Example.com",
+        "[PHONE_1]": "(+84) 912.345.678"
+      }
+    },
+    {
+      "text": "Năm học 2021 - 2025, GPA 3.2/4, mã SV 20210001",
+      "masked": "Năm học 2021 - 2025, GPA 3.2/4, mã SV 20210001",
+      "tokens": {}
+    }
+  ]
+}

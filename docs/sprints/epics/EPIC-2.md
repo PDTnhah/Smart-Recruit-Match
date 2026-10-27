@@ -1,7 +1,7 @@
 ---
 id: EPIC-2
 title: "Phân tích CV và JD bằng AI"
-status: backlog
+status: in-progress
 prd_ref:
   - FR-9
   - FR-10
@@ -48,9 +48,9 @@ Ranh giới kiến trúc mà epic này giữ (AD-1, AD-4): AI Service không chu
 |---|---|---|---|---|
 | US-2.1 | 8 | T3 (W43) | B | US-1.2 |
 | US-2.2 | 5 | T4 (W44) | B | US-2.1 |
-| US-2.3 | 8 | T5 (W45) | A | US-1.5, US-2.2 |
-| US-2.4 | 8 | T5 (W45) | B | US-1.6, US-2.2 |
-| US-2.5 | 5 | T6 (W46) | B | US-2.1, US-2.4 |
+| US-2.3 | 13 | T5 (W45), làm sớm ở W43 | A | US-1.5, US-2.2 |
+| US-2.4 | 8 | T5 (W45), làm sớm ở W44 | B | US-1.6, US-2.2 |
+| US-2.5 | 8 | T6 (W46), làm sớm ở W44 | B | US-2.1, US-2.4 |
 | US-2.6 | 5 | T6 (W46) | A | US-2.4 |
 
 ### Out of scope
@@ -59,17 +59,17 @@ Ranh giới kiến trúc mà epic này giữ (AD-1, AD-4): AI Service không chu
 - **Sinh ngân hàng câu hỏi** — thuộc [EPIC-4](EPIC-4.md) (US-4.1), dù job này chạy ngay sau khi JD được duyệt.
 - **Dashboard chi phí LLM** — thuộc [EPIC-6](EPIC-6.md) (US-6.2). EPIC-2 chỉ ghi `ai.llm_calls`.
 - **Bộ đánh giá chất lượng trích xuất (P/R/F1)** — thuộc [EPIC-6](EPIC-6.md) (US-6.3).
-- **Mô hình mở tự host thay Claude (PRD Q8)** — chỉ thiết kế `LLMClient` để đổi được, không cài đặt.
+- **Mô hình mở tự host (PRD Q8, phần còn mở)** — `LLMClient` có hai nhà cung cấp thương mại (Gemini mặc định, Claude thay thế, [CONTEXT D34](../../CONTEXT.md)); mô hình tự host chỉ cần thêm một adapter, chưa cài đặt.
 
 ## FR Coverage
 
 | FR | Story | Status |
 |----|-------|--------|
-| FR-9 | US-2.3 | 📋 backlog |
-| FR-10 | US-2.3 | 📋 backlog |
-| FR-11 | US-2.4 | 📋 backlog |
-| FR-12 | US-2.6 | 📋 backlog |
-| FR-13 | US-2.5 | 📋 backlog |
+| FR-9 | US-2.3 | ✅ done |
+| FR-10 | US-2.3 | ✅ done |
+| FR-11 | US-2.4 | ✅ done |
+| FR-12 | US-2.6 | ✅ done |
+| FR-13 | US-2.5 | ✅ done |
 
 > NFR-3 (không gửi PII không cần thiết cho LLM), NFR-6 (< 30 giây/CV), NFR-10 (job có retry) và NFR-12 (thay được mô hình) được thực thi trong epic này.
 
@@ -81,7 +81,7 @@ Ranh giới kiến trúc mà epic này giữ (AD-1, AD-4): AI Service không chu
 | AD-4 | Schema `ai`, view `core.v_ai_*` đã che PII | US-2.1 |
 | AD-5 | Job AI bất đồng bộ qua RabbitMQ, idempotent, DLQ | US-2.1 |
 | AD-6 | Hợp đồng dữ liệu Zod → JSON Schema → Pydantic | US-2.1 |
-| AD-10 | Một model Claude Opus 5.5, mọi lượt gọi qua `LLMClient` | US-2.2 |
+| AD-10 | Một model cho mỗi nhà cung cấp (Gemini mặc định, Claude thay thế, D34), mọi lượt gọi qua `LLMClient` | US-2.2 |
 | AD-11 | Embedding `bge-m3` tự host | US-2.5 |
 | AD-12 | Prompt có phiên bản (phần Batches/caching dùng ở EPIC-3, EPIC-4) | US-2.2 |
 
@@ -89,12 +89,12 @@ Ranh giới kiến trúc mà epic này giữ (AD-1, AD-4): AI Service không chu
 
 | ID | Title | Goal | Status | Version |
 |---|---|---|---|---|
-| US-2.1 | Hạ tầng job AI và hợp đồng message | Job AI đi từ backend sang AI Service và quay về, idempotent, có DLQ | 📋 backlog | — |
-| US-2.2 | LLMClient và prompt có phiên bản | Mọi lượt gọi Claude đi qua một lớp có retry, refusal, ghi chi phí, fixture | 📋 backlog | — |
-| US-2.3 | JD Analyzer và HR xác nhận yêu cầu | HR nhận yêu cầu chuẩn hóa do AI đề xuất, sửa và xác nhận | 📋 backlog | — |
-| US-2.4 | CV Parser: chữ ẩn, tách PII | CV thành hồ sơ năng lực có `profile_masked`, chặn chữ ẩn | 📋 backlog | — |
-| US-2.5 | Embedding và danh mục kỹ năng | Tên kỹ năng được chuẩn hóa; quản trị duyệt kỹ năng mới | 📋 backlog | — |
-| US-2.6 | SV xác nhận hồ sơ năng lực | SV xem CV bên cạnh hồ sơ, sửa và xác nhận | 📋 backlog | — |
+| US-2.1 | Hạ tầng job AI và hợp đồng message | Job AI đi từ backend sang AI Service và quay về, idempotent, có DLQ | ✅ done | 0.7.0 |
+| US-2.2 | LLMClient và prompt có phiên bản | Mọi lượt gọi LLM (Gemini hoặc Claude) đi qua một lớp có retry, refusal, ghi chi phí, fixture | ✅ done | 0.8.0 |
+| US-2.3 | JD Analyzer và HR xác nhận yêu cầu | HR nhận yêu cầu chuẩn hóa do AI đề xuất, sửa và xác nhận | ✅ done | 0.9.0 |
+| US-2.4 | CV Parser: chữ ẩn, tách PII | CV thành hồ sơ năng lực có `profile_masked`, chặn chữ ẩn | ✅ done | 0.10.0 |
+| US-2.5 | Embedding và danh mục kỹ năng | Tên kỹ năng được chuẩn hóa; quản trị duyệt kỹ năng mới | ✅ done | 0.11.0 |
+| US-2.6 | SV xác nhận hồ sơ năng lực | SV xem CV bên cạnh hồ sơ, sửa và xác nhận | ✅ done | 0.12.0 |
 
 ## Object map & user-story interactions
 
@@ -104,8 +104,8 @@ Ranh giới kiến trúc mà epic này giữ (AD-1, AD-4): AI Service không chu
 |---|---|---|
 | US-2.1 | `packages/shared/contracts`; module `aigateway`; `ai.jobs`; `ai-service/app/consumers`; view `core.v_ai_*` | – |
 | US-2.2 | `ai-service/app/llm/`; `ai-service/app/prompts/`; `ai.llm_calls`; bucket `llm-logs` | – |
-| US-2.3 | agent `jd_analyzer`; `job_descriptions.requirements`, `version` | FR-9, FR-10 |
-| US-2.4 | agent `cv_parser`; `ai-service/app/parsing/`; `cvs.profile`, `cvs.pii`, `cvs.profile_masked`, `hidden_text_flag` | FR-11 |
+| US-2.3 | agent `jd_analyzer`; `ai-service/app/parsing/` (US-2.4 dùng lại); `job_descriptions.requirements`, `version`, `analysis_*`, `hidden_text_flag`; view `core.v_ai_jd_source` | FR-9, FR-10 |
+| US-2.4 | agent `cv_parser`; `ai-service/app/parsing/` (`pii.py`); `cvs.profile`, `cvs.pii`, `cvs.profile_masked`, `cvs.masked_text`, `analysis_*`, `hidden_text_flag`; trạng thái `ANALYSIS_FAILED` | FR-11 |
 | US-2.5 | `ai-service/app/embedding/`; `ai.embeddings`; `skills` | FR-13 |
 | US-2.6 | `apps/web/src/features/student/`; vòng đời CV | FR-12 |
 

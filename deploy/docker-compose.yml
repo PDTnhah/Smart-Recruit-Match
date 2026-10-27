@@ -1,0 +1,271 @@
+# Smart Recruit Match — full stack for development and demo (ARCHITECTURE › Deployment architecture).
+# Usage (from the repo root):
+#   cp deploy/.env.example deploy/.env        # once; then edit the passwords
+#   docker compose -f deploy/docker-compose.yml up -d --build --wait
+# Compose reads deploy/.env automatically (project directory = this folder). See DEPLOY.md.
+# Infrastructure ports are published on 127.0.0.1 only; override *_HOST_PORT in deploy/.env on clashes.
+
+name: smart-recruit-match
+
+x-healthcheck: &healthcheck
+  interval: 10s
+  timeout: 5s
+  retries: 12
+  start_period: 20s
+
+# The api and migrate services run the same image.
+x-api-build: &api-build
+  context: ..
+  dockerfile: apps/api/Dockerfile
+
+# The ai-worker and ai-api services run the same image with different commands.
+x-ai-build: &ai-build
+  context: ../ai-service
+  args:
+    # The variable ai-worker reads too: one setting builds and runs the embedding backend (D39).
+    EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-hashing}
+
+# Composed from POSTGRES_*; the password must be URL-safe (DEPLOY.md). Only `migrate` uses the owner.
+x-database-url: &database-url postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+# The API's own role: reads and writes `core`, reads `ai` (migration 0006, CONTEXT D33).
+x-api-database-url: &api-database-url postgres://api_service:${API_DB_PASSWORD}@postgres:5432/${POSTGRES_DB}
+# The AI Service's role: reads only the PII-free views core.v_ai_*, reads and writes `ai` (AD-4).
+x-ai-database-url: &ai-database-url postgres://ai_service:${AI_DB_PASSWORD}@postgres:5432/${POSTGRES_DB}
+# AI jobs and results for api, ai-worker and ai-api; RABBITMQ_DEFAULT_PASS must be URL-safe too.
+x-rabbitmq-url: &rabbitmq-url amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672
+
+services:
+  postgres:
+    # Same image as the testcontainers setup (apps/api/test/setup/images.ts).
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in deploy/.env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deploy/.env}
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB in deploy/.env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-5432}:5432"
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+    ports:
+      - "127.0.0.1:${REDIS_HOST_PORT:-6379}:6379"
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD", "redis-cli", "ping"]
+
+  rabbitmq:
+    image: rabbitmq:4.3-management-alpine
+    restart: unless-stopped
+    # Fixed hostname: RabbitMQ names its node (and its data directory) after the hostname.
+    # Without it a recreated container starts an empty node and queues look lost.
+    hostname: rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:?set RABBITMQ_DEFAULT_USER in deploy/.env}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:?set RABBITMQ_DEFAULT_PASS in deploy/.env}
+    volumes:
+      - rabbitmqdata:/var/lib/rabbitmq
+    ports:
+      - "127.0.0.1:${RABBITMQ_HOST_PORT:-5672}:5672"
+      - "127.0.0.1:${RABBITMQ_UI_HOST_PORT:-15672}:15672"
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      start_period: 40s
+
+  minio:
+    # minio/minio was removed from Docker Hub (CONTEXT D23). Chainguard rebuilds MinIO from source;
+    # pinned by digest because only the `latest` tag is free. The app talks to it via MINIO_* only.
+    image: cgr.dev/chainguard/minio@sha256:59667194421209c2c1eacbe761e24787e047985c5dfa96b15da9b59fe9b55cd0
+    restart: unless-stopped
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:?set MINIO_ACCESS_KEY in deploy/.env}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:?set MINIO_SECRET_KEY in deploy/.env}
+      # Server-side encryption of CV/JD files (SSE-S3) needs a KMS key (CONTEXT D28).
+      MINIO_KMS_SECRET_KEY: ${MINIO_KMS_SECRET_KEY:?set MINIO_KMS_SECRET_KEY in deploy/.env (see DEPLOY.md)}
+    volumes:
+      - miniodata:/data
+    ports:
+      - "127.0.0.1:${MINIO_HOST_PORT:-9000}:9000"
+      - "127.0.0.1:${MINIO_CONSOLE_HOST_PORT:-9001}:9001"
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD", "mc", "ready", "local"]
+
+  mailpit:
+    image: axllent/mailpit:v1.31
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${MAILPIT_SMTP_HOST_PORT:-1025}:1025"
+      - "127.0.0.1:${MAILPIT_UI_HOST_PORT:-8025}:8025"
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD", "/mailpit", "readyz"]
+
+  # One-shot: applies the SQL migrations in apps/api/drizzle, then exits (CONTEXT D24). Because api
+  # depends on it with service_completed_successfully, `up --wait` waits for it to exit 0.
+  migrate:
+    build: *api-build
+    command: ["node", "dist/db/migrate.js"]
+    restart: "no"
+    environment:
+      DATABASE_URL: *database-url
+      # Set as the login passwords of the service roles on every run (CONTEXT D33).
+      API_DB_PASSWORD: ${API_DB_PASSWORD:?set API_DB_PASSWORD (12+ URL-safe chars) in deploy/.env}
+      AI_DB_PASSWORD: ${AI_DB_PASSWORD:?set AI_DB_PASSWORD (12+ URL-safe chars) in deploy/.env}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    build: *api-build
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      DATABASE_URL: *api-database-url
+      # Refresh tokens and access-token signing key (CONTEXT D25).
+      REDIS_URL: redis://redis:6379
+      # AI jobs out, results in (aigateway, CONTEXT D33).
+      RABBITMQ_URL: *rabbitmq-url
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?set JWT_ACCESS_SECRET (32+ chars) in deploy/.env}
+      REFRESH_TOKEN_TTL_DAYS: ${REFRESH_TOKEN_TTL_DAYS:-7}
+      # pgcrypto key of the personal data split from each CV (cvs.pii, CONTEXT D37). The API only;
+      # the AI Service never sees it. Losing it makes stored personal data unreadable.
+      PII_ENCRYPTION_KEY: ${PII_ENCRYPTION_KEY:?set PII_ENCRYPTION_KEY (32+ chars) in deploy/.env}
+      # Cron jobs such as campaign phase changes by deadline (CONTEXT D27).
+      SCHEDULER_ENABLED: ${SCHEDULER_ENABLED:-true}
+      # Original CV/JD files; buckets jd-files and cv-files are created on first upload (CONTEXT D28).
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:?set MINIO_ENDPOINT in deploy/.env}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      # Presigned download URLs are signed for this address, the one browsers reach: by default the
+      # web origin, where nginx forwards /jd-files/ and /cv-files/ to minio (CONTEXT D29).
+      MINIO_PUBLIC_ENDPOINT: ${MINIO_PUBLIC_ENDPOINT:-http://localhost:${NGINX_PORT:-8080}}
+      # Links in emails (HR invitations, notifications) start with this address (CONTEXT D31).
+      WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:${NGINX_PORT:-8080}}
+      # Notification emails leave through the outbox; the bundled mailpit catches them by default.
+      SMTP_HOST: ${SMTP_HOST:-mailpit}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      MAIL_FROM: ${MAIL_FROM:-Smart Recruit Match <no-reply@srm.local>}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      # No minio dependency: buckets are created on the first upload, and an external S3 runs
+      # with `--scale minio=0` (DEPLOY.md).
+    healthcheck:
+      <<: *healthcheck
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/api/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+
+  # AI job consumers (FastStream). Stateless: `--scale ai-worker=N` runs N replicas sharing the
+  # queues; ai.jobs keeps a job from being processed twice (CONTEXT D33). No container_name.
+  ai-worker:
+    build: *ai-build
+    restart: unless-stopped
+    command: ["faststream", "run", "app.worker:create_app", "--factory"]
+    environment:
+      AI_DATABASE_URL: *ai-database-url
+      RABBITMQ_URL: *rabbitmq-url
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      # LLM behind LLMClient (CONTEXT D34, D35, D37). `fixture` answers only recorded requests, so
+      # the stack starts without a key, every real JD analysis fails into manual entry and every
+      # real CV into "Lỗi phân tích". Set LLM_PROVIDER=gemini and GEMINI_API_KEY in deploy/.env to
+      # analyse them (DEPLOY.md).
+      LLM_PROVIDER: ${LLM_PROVIDER:-fixture}
+      LLM_MODEL: ${LLM_MODEL:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      LLM_FIXTURES_DIR: ${LLM_FIXTURES_DIR:-/tmp/llm-fixtures}
+      # Emails and phone numbers of a CV are masked before the LLM (US-2.4 AC-5, NFR-3).
+      CV_MASK_CONTACTS: ${CV_MASK_CONTACTS:-true}
+      # Skill catalogue and profile embeddings (US-2.5, CONTEXT D39). `hashing` is a fake that needs
+      # no model, as LLM_PROVIDER=fixture is. `bge-m3` takes `up --build` (the image installs torch),
+      # 2.5–3 GB of RAM per replica, and one download of the model into hf-models (DEPLOY.md).
+      EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-hashing}
+      SKILL_MATCH_THRESHOLD: ${SKILL_MATCH_THRESHOLD:-}
+      # Original files (jd-files, cv-files) and LLM logs (llm-logs, SSE-S3, created on first write).
+      # No minio dependency, as for api: an external S3 runs with `--scale minio=0`.
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:?set MINIO_ENDPOINT in deploy/.env}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+    volumes:
+      # HF_HOME of the image: BAAI/bge-m3 is downloaded on the first start only, shared by replicas.
+      - hf-models:/models
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  # FastAPI of the AI Service: GET /health now; admin endpoints in later stories.
+  ai-api:
+    build: *ai-build
+    restart: unless-stopped
+    command: ["uvicorn", "app.main:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      AI_DATABASE_URL: *ai-database-url
+      RABBITMQ_URL: *rabbitmq-url
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "127.0.0.1:${AI_API_HOST_PORT:-8000}:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      <<: *healthcheck
+      # urlopen raises on 503, so the probe fails while PostgreSQL or RabbitMQ is unreachable.
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5)"
+
+  nginx:
+    build:
+      context: ..
+      dockerfile: deploy/nginx.Dockerfile
+    restart: unless-stopped
+    ports:
+      - "${NGINX_PORT:-8080}:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/healthz"]
+
+volumes:
+  pgdata:
+  redisdata:
+  rabbitmqdata:
+  miniodata:
+  hf-models:

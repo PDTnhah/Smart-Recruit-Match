@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./cv_parse_output.json",
+  "type": "object",
+  "properties": {
+    "prompt_version": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Versioned prompt file, e.g. cv_parser/v3"
+    },
+    "model": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Model id that produced the output"
+    },
+    "cv_id": {
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "maximum": 9007199254740991,
+      "description": "core.cvs.id of the parsed CV version"
+    },
+    "cv_version": {
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "maximum": 9007199254740991,
+      "description": "CV version that was parsed"
+    },
+    "source": {
+      "$ref": "./cv_source.json"
+    },
+    "profile": {
+      "$ref": "./cv_profile.json"
+    },
+    "pii": {
+      "$ref": "./cv_pii.json"
+    },
+    "profile_masked": {
+      "$ref": "./cv_profile.json"
+    },
+    "new_skills": {
+      "maxItems": 100,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 100
+      },
+      "description": "Skill names not in the catalogue (match NEW), one per skillMatchKey, as written"
+    },
+    "masked_text": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Visible CV text with personal data replaced; null for a scanned PDF"
+    },
+    "hidden_text_detected": {
+      "type": "boolean",
+      "description": "The CV file contained hidden text, removed before the prompt"
+    }
+  },
+  "required": [
+    "prompt_version",
+    "model",
+    "cv_id",
+    "cv_version",
+    "source",
+    "profile",
+    "pii",
+    "profile_masked",
+    "new_skills",
+    "masked_text",
+    "hidden_text_detected"
+  ],
+  "additionalProperties": false,
+  "title": "CvParseOutput",
+  "description": "Result of CV_PARSE"
+}

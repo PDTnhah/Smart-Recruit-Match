@@ -1,0 +1,28 @@
+{
+  "description": "Skill name keys (US-2.5 AC-3, CONTEXT D39): skillMatchKey(name) in packages/shared/contracts/skills.ts and skill_match_key(name) in ai-service/app/embedding/skill_key.py must both give key. Names with the same key are the same skill.",
+  "cases": [
+    { "name": "React", "key": "react" },
+    { "name": "ReactJS", "key": "reactjs" },
+    { "name": "React.js", "key": "reactjs" },
+    { "name": "react js", "key": "reactjs" },
+    { "name": "  React . JS  ", "key": "reactjs" },
+    { "name": "Node.js", "key": "nodejs" },
+    { "name": "NodeJS", "key": "nodejs" },
+    { "name": "Spring-Boot", "key": "springboot" },
+    { "name": "spring_boot", "key": "springboot" },
+    { "name": "CI/CD", "key": "cicd" },
+    { "name": "C++", "key": "c++" },
+    { "name": "C#", "key": "c#" },
+    { "name": "C", "key": "c" },
+    { "name": ".NET", "key": "net" },
+    { "name": "ASP.NET Core", "key": "aspnetcore" },
+    { "name": "Ｊａｖａ", "key": "java" },
+    { "name": "JAVA SCRIPT", "key": "javascript" },
+    { "name": "Kiểm thử API", "key": "kiểmthửapi" },
+    { "name": "KIỂM THỬ API", "key": "kiểmthửapi" },
+    { "name": "Kiểm thử API", "key": "kiểmthửapi" },
+    { "name": "Đồ họa", "key": "đồhọa" },
+    { "name": "HTML5", "key": "html5" },
+    { "name": "Vue 3", "key": "vue3" }
+  ]
+}

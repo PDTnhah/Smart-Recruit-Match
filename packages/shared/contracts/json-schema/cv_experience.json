@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./cv_experience.json",
+  "type": "object",
+  "properties": {
+    "organization": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "description": "Company or organisation"
+    },
+    "position": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Job title"
+    },
+    "description": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 5000
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Work done, as written"
+    },
+    "start": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Start as written"
+    },
+    "end": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "End as written; \"hiện tại\" when ongoing"
+    }
+  },
+  "required": [
+    "organization",
+    "position",
+    "description",
+    "start",
+    "end"
+  ],
+  "additionalProperties": false,
+  "title": "CvExperience",
+  "description": "One job, internship or role in an organisation"
+}

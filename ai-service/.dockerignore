@@ -1,0 +1,12 @@
+# Build context of the AI Service image is this folder; the root .dockerignore does not apply.
+.venv
+**/__pycache__
+.pytest_cache
+.ruff_cache
+*.egg-info
+build
+dist
+tests
+evals
+.env
+.env.*
