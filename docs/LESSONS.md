@@ -11,10 +11,11 @@
 - Jest, ESM: §9 gói chỉ có ESM (`@nestjs/schedule`, `file-type`, `promise-breaker`…) · §11 `testTimeout` trong `projects` bị bỏ qua · §21 `--selectProjects` nuốt đường dẫn test
 - Integration test: §22 các file dùng chung DB, thông báo gửi mọi tài khoản CENTER lọt vào test khác
 - Drizzle, migration: §6 migration có mốc thời gian cũ bị bỏ qua · §7 hàm dùng chung nhiều bảng: khai kiểu cụ thể · §12 `FOR UPDATE OF` sinh tên có schema
+- pgvector: §24 index HNSW lọc sau khi quét, hàng cũ chiếm chỗ ứng viên
 - Ranh giới module: §5 `exclude: node_modules` làm dependency-cruiser bỏ sót
 - Thư viện API, web: §8 CLI shadcn 4.21 · §10 Zod 4 bỏ qua `refine` khi trường khác lỗi · §13 multer đọc tên file theo latin1
 - RabbitMQ, job AI: §16 `RabbitMQModule` giữ connection static · §17 mặc định sai của thư viện message
-- ai-service (Python): §19 chặn mạng trong pytest trên Windows · §20 PyMuPDF cắt chữ ngoài trang, màu nền theo thứ tự vẽ
+- ai-service (Python): §19 chặn mạng trong pytest trên Windows · §20 PyMuPDF cắt chữ ngoài trang, màu nền theo thứ tự vẽ · §23 `HF_HUB_OFFLINE` đọc lúc import, bge-m3 tải 4,5 GB
 
 ---
 
@@ -339,3 +340,32 @@ See [US-2.4](sprints/stories/US-2.4-cv-parser-hidden-text-pii-split.md) › Impl
 - Lỗi chỉ hiện khi các file chạy cùng lúc, nên chạy riêng một file mà xanh chưa chứng minh đã sửa xong.
 
 See [US-1.7](sprints/stories/US-1.7-notifications-sse-email-reminders.md) (các test bị ảnh hưởng), [US-2.3](sprints/stories/US-2.3-jd-analyzer-hr-requirement-confirmation.md), [US-2.4](sprints/stories/US-2.4-cv-parser-hidden-text-pii-split.md) (nơi thêm thông báo gửi cả vai trò).
+
+## 23. huggingface_hub đọc `HF_HUB_OFFLINE` lúc import; transformers tải bge-m3 hai lần
+
+**What happened (0.11.0)**: Test `@slow` của US-2.5 nạp `BAAI/bge-m3` từ bộ đệm trên máy. Fixture đặt `monkeypatch.setenv("HF_HUB_OFFLINE", "1")`, nhưng test vẫn gọi tới huggingface.co, và hàng rào mạng của `conftest.py` chặn lại (LESSONS §19). Lần tải trước đó cũng chiếm khoảng 4,5 GB, gần gấp đôi con số 2,3 GB đã ghi trong tài liệu.
+
+**Why**:
+- `huggingface_hub.constants.HF_HUB_OFFLINE` được tính một lần khi module được import. Lúc fixture chạy, module đã được import, nên đặt biến môi trường sau đó không có tác dụng.
+- transformers 5 tải trọng số của bge-m3 ở cả hai dạng, `pytorch_model.bin` và `model.safetensors`.
+
+**How to avoid**:
+- Trong test, sửa thẳng hằng: `monkeypatch.setattr(huggingface_hub.constants, "HF_HUB_OFFLINE", True)`, kèm `setenv` cho tiến trình con. Ví dụ: fixture `offline_model` trong `ai-service/tests/embedding/test_model.py`.
+- Ngoài test, đặt `HF_HUB_OFFLINE=1` (và `HF_HOME`) trước khi khởi động Python.
+- Dung lượng ổ đĩa và volume `hf-models` tính theo 4,5 GB. RAM tính theo trọng số nạp vào bộ nhớ, khoảng 2,3 GB, tức 2,5–3 GB cho mỗi bản sao worker.
+- Console Windows dùng cp1252: test in tiếng Việt thì ghi byte UTF-8 vào `sys.stdout.buffer` thay vì `print`.
+
+See [US-2.5](sprints/stories/US-2.5-embeddings-skill-catalog.md), [CONTEXT D39](CONTEXT.md).
+
+## 24. Index HNSW lọc sau khi quét: hàng cũ cùng loại chiếm chỗ ứng viên, truy vấn trả thiếu
+
+**What happened (0.11.0)**: Khi review US-2.5, truy vấn tìm kỹ năng gần nhất có bộ lọc `version` (join `core.v_ai_skills`) và `model`, quét index HNSW một phần của `owner_type = 'skill'`. Mỗi lần gộp kỹ năng, `row_version` của kỹ năng đích tăng, và một vector mới được thêm cho cùng tên, nhưng vector cũ vẫn nằm trong index. Đổi `EMBEDDING_PROVIDER` cũng để lại vector của model cũ.
+
+**Why**: pgvector quét HNSW trước, lấy `hnsw.ef_search` ứng viên gần nhất (mặc định 40), rồi mới áp `WHERE` và join. Ứng viên bị lọc bỏ không được thay bằng hàng khác, trừ khi bật `hnsw.iterative_scan`. Nhiều vector cũ gần với truy vấn có thể chiếm hết 40 chỗ, nên truy vấn trả ít dòng hơn `LIMIT` hoặc không dòng nào. Lỗi không lộ ra trong test vì danh mục test nhỏ.
+
+**How to avoid**:
+- Mỗi giá trị lọc tách biệt bằng hằng thì dùng index một phần riêng, và ghi giá trị đó dạng hằng trong SQL. `ai.embeddings` có một index cho mỗi `owner_type` (CONTEXT D39).
+- Lọc theo phiên bản hoặc model thì xóa hàng không còn dùng được ngay khi ghi bản mới, như `PRUNE_SKILL_EMBEDDINGS_SQL` trong `ai-service/app/embedding/store.py`.
+- US-3.2 (embedding JD và CV theo phiên bản), US-4.1, US-4.7 sẽ gặp cùng bẫy. Nếu không xóa được hàng cũ, đặt `SET LOCAL hnsw.iterative_scan = relaxed_order` cho truy vấn đó.
+
+See [US-2.5](sprints/stories/US-2.5-embeddings-skill-catalog.md), [CONTEXT D39](CONTEXT.md).

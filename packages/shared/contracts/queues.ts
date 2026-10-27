@@ -4,6 +4,7 @@ import type { AiJobType } from './jobs.js';
 export const AI_JOB_QUEUES = {
   CV_PARSE: 'ai.cv.parse',
   JD_ANALYZE: 'ai.jd.analyze',
+  SKILL_NORMALIZE: 'ai.skills.normalize',
 } as const satisfies Record<AiJobType, string>;
 
 export const AI_RESULTS_QUEUE = 'ai.results';

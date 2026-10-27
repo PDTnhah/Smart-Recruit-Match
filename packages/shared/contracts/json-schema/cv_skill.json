@@ -7,13 +7,31 @@
       "type": "string",
       "minLength": 1,
       "maxLength": 100,
-      "description": "Skill name as the CV writes it; US-2.5 maps it to the skill catalogue"
+      "description": "Skill name as the CV writes it"
+    },
+    "canonical_name": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Name of the catalogue skill it maps to; null when match is NEW"
+    },
+    "match": {
+      "$ref": "./skill_match.json"
     }
   },
   "required": [
-    "name"
+    "name",
+    "canonical_name",
+    "match"
   ],
   "additionalProperties": false,
   "title": "CvSkill",
-  "description": "One concrete skill the CV claims"
+  "description": "One concrete skill the CV claims, mapped to the skill catalogue"
 }

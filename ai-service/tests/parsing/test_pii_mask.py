@@ -57,7 +57,11 @@ PROFILE = CvProfile.model_validate(
                 "gpa": "3.2/4",
             }
         ],
-        "skills": [{"name": "Java"}, {"name": "Spring Boot"}],
+        "skills": [
+            {"name": "Java", "canonical_name": "Java", "match": "ALIAS"},
+            {"name": "SpringBoot", "canonical_name": "Spring Boot", "match": "ALIAS"},
+            {"name": "Rust embedded", "canonical_name": None, "match": "NEW"},
+        ],
         "projects": [
             {
                 "name": "Library API",

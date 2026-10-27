@@ -89,6 +89,12 @@ describe('FR-9 JdRequirements: one schema for the LLM output, the HR form and th
       expect(issuePaths(input)).toEqual(['nice_to_have.1.skill']);
     });
 
+    it('AC-7 hai cách viết của một kỹ năng trong danh mục là trùng (US-2.5, CONTEXT D39)', () => {
+      const input = requirements();
+      input.nice_to_have.push({ skill: 'Spring-Boot', level: 'BASIC', weight: 1 });
+      expect(issuePaths(input)).toEqual(['nice_to_have.1.skill']);
+    });
+
     it('AC-7 từ chối kỹ năng trùng trong cùng một nhóm', () => {
       const input = requirements();
       input.must_have.push({ skill: 'SPRING BOOT', level: 'BASIC', weight: 1 });
@@ -120,8 +126,9 @@ describe('FR-9 JdRequirements: one schema for the LLM output, the HR form and th
     expect(JdAnalyzeOutputSchema.safeParse({ prompt_version: 'jd_analyzer/v1', model: 'm' }).success).toBe(false);
   });
 
-  it('skillKey so khớp không phân biệt hoa thường, giữ dấu tiếng Việt', () => {
-    expect(skillKey('  Kiểm Thử ')).toBe('kiểm thử');
+  it('skillKey là khóa của danh mục kỹ năng: bỏ hoa thường, khoảng trắng, dấu chấm; giữ dấu tiếng Việt (CONTEXT D39)', () => {
+    expect(skillKey('  Kiểm Thử ')).toBe('kiểmthử');
+    expect(skillKey('React.js')).toBe(skillKey('reactjs'));
     expect(skillKey('Kiểm thử')).not.toBe(skillKey('Kiem thu'));
   });
 });
@@ -140,6 +147,7 @@ describe('FR-9 JdAnalysis and JdAnalyzeOutput (AC-3)', () => {
       jd_version: 1,
       requirements: requirements(),
       position_group: 'DATA_AI',
+      new_skills: ['Airflow'],
       hidden_text_detected: true,
     };
     expect(JdAnalyzeOutputSchema.parse(output)).toEqual(output);

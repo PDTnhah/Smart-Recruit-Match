@@ -10,6 +10,7 @@ from uuid import UUID
 
 import pymupdf
 import pytest
+from embedding_support import CatalogueHarness
 
 from app.agents.jd_analyzer import (
     AGENT,
@@ -49,6 +50,13 @@ SCAN_ONLY = JdSource(15, 1, "Thực tập sinh Backend", None, "jd/15/scan.pdf")
 SCAN_WITH_DESCRIPTION = JdSource(15, 1, "Thực tập sinh Backend", FORM_DESCRIPTION, "jd/15/scan.pdf")
 REFUSED = JdSource(16, 1, "Thực tập sinh", "Mô tả công việc bị từ chối (ca kiểm thử).", None)
 DUPLICATE_THEN_VALID = JdSource(17, 1, "Thực tập sinh Frontend", "Yêu cầu React, TypeScript.", None)
+CATALOGUE_NAMES = JdSource(
+    19,
+    1,
+    "Thực tập sinh Frontend",
+    "Bắt buộc: ReactJS (khá), Postgres, React (thành thạo). Ưu tiên: React.js, Rust embedded.",
+    None,
+)
 
 FILES = {
     PDF.file_key: (JD_FILES / "jd.pdf").read_bytes(),
@@ -115,7 +123,14 @@ class Harness:
         )
         # The production registry: only the released, unchanged prompt renders (AD-12).
         prompts = PromptRegistry(active=load_active(), manifest=load_manifest())
-        self.analyzer = JdAnalyzer(sources=self.sources, files=self.files, llm=llm, prompts=prompts)
+        self.catalogue = CatalogueHarness()
+        self.analyzer = JdAnalyzer(
+            sources=self.sources,
+            files=self.files,
+            llm=llm,
+            prompts=prompts,
+            skills=self.catalogue.normalizer,
+        )
 
     async def run(self, source: JdSource) -> JdAnalyzeOutput:
         job = JdAnalyzeJob(job_id=JOB_ID, jd_id=source.jd_id, jd_version=source.version)
@@ -355,3 +370,28 @@ def test_gd1_compose_reports_hidden_spans_of_the_file():
     span = RemovedSpan("secret", HiddenReason.TINY_FONT, "page 1")
     extracted = ExtractedText(text="Visible.", removed=(span,), has_text_layer=True)
     assert compose_jd_text(JdSource(1, 1, "T", None, "k"), extracted)[1] == (span,)
+
+
+# --- US-2.5: skill catalogue --------------------------------------------------------------------
+
+
+async def test_gd1_skills_written_under_catalogue_names_each_once():
+    """US-2.5: ReactJS and React.js become React; the must-have copy with the higher weight stays,
+    the nice-to-have copy goes; a name outside the catalogue keeps its spelling and is listed."""
+    output = await Harness(CATALOGUE_NAMES).run(CATALOGUE_NAMES)
+    requirements = output.model_dump(mode="json")["requirements"]
+    assert requirements["must_have"] == [
+        {"skill": "React", "level": "ADVANCED", "weight": 5},
+        {"skill": "PostgreSQL", "level": "BASIC", "weight": 2},
+    ]
+    assert requirements["nice_to_have"] == [
+        {"skill": "Rust embedded", "level": "BASIC", "weight": 1}
+    ]
+    assert [name.root for name in output.new_skills] == ["Rust embedded"]
+
+
+async def test_gd1_names_already_in_the_catalogue_unchanged():
+    output = await Harness(FORM).run(FORM)
+    skills = [s.skill for s in (*output.requirements.must_have, *output.requirements.nice_to_have)]
+    assert skills == ["Java", "Spring Boot", "SQL", "Docker", "Git"]
+    assert [name.root for name in output.new_skills] == ["Git"]

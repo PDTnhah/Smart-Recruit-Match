@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict
 
-from . import cv_pii, cv_profile
+from . import cv_extracted_profile, cv_pii
 
 
 class CvExtraction(BaseModel):
@@ -16,4 +16,4 @@ class CvExtraction(BaseModel):
         extra='forbid',
     )
     personal: cv_pii.CvPii
-    profile: cv_profile.CvProfile
+    profile: cv_extracted_profile.CvExtractedProfile

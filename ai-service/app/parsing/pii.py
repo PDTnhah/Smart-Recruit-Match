@@ -42,6 +42,8 @@ URL = re.compile(
     re.IGNORECASE,
 )
 CONTACT_TOKEN = re.compile(r"\[(EMAIL|PHONE)_\d+\]")
+MASK_TOKEN = re.compile(r"\[[A-Z][A-Z_0-9]*\]")
+"""Any token this module writes: [NAME], [EMAIL_1], [MARITAL_STATUS]..."""
 ONLY_TOKENS = re.compile(r"(?:\[[A-Z_0-9]+\][\s,;|/.-]*)+")
 
 NAME, EMAIL_TOKEN, PHONE_TOKEN, LINK = "[NAME]", "[EMAIL]", "[PHONE]", "[LINK]"
@@ -346,6 +348,11 @@ def mask_profile(profile: CvProfile, pii: CvPii) -> CvProfile:
 def find_pii(text: str, pii: CvPii) -> list[str]:
     """Tokens of the personal values still in `text`; empty when masking worked."""
     return sorted({token for _, _, token in _spans(text, pii)})
+
+
+def has_mask_token(text: str) -> bool:
+    """`text` had personal data replaced, so it is not passed on as is (US-2.5 new skills)."""
+    return MASK_TOKEN.search(text) is not None
 
 
 def strings_of(value: Any) -> list[str]:

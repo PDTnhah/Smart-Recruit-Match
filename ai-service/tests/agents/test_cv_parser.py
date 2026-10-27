@@ -15,6 +15,7 @@ from uuid import UUID
 import pymupdf
 import pytest
 from docx import Document as DocxDocument
+from embedding_support import CatalogueHarness
 
 from app.agents.cv_parser import (
     AGENT,
@@ -27,7 +28,7 @@ from app.consumers.errors import NeedsHumanReview, PermanentError, hidden_text_o
 from app.contracts.cv_parse_job import CvParseJob
 from app.contracts.cv_parse_output import CvParseOutput
 from app.contracts.cv_parse_result import CvParseResult
-from app.contracts.cv_profile import CvProfile
+from app.embedding import ProfileEmbeddings, profile_text
 from app.llm.providers.fixture_provider import FixtureProvider
 from app.llm.recorder import CallRecord, CallRecorder
 from app.llm.structured import StructuredLLMClient
@@ -72,6 +73,7 @@ def empty_docx() -> bytes:
 
 REFUSED_TEXT = "Refusal test CV. Skills: Java."
 RETRY_TEXT = "Retry test CV. Skills: Go, Kubernetes."
+SKILLS_TEXT = "Nguyen Van Demo. Skills: Java, Rust embedded, nguyenvandemo toolkit."
 
 FILES: dict[str, bytes] = {
     "cv/1/1/clean.pdf": (CV_FILES / "cv.pdf").read_bytes(),
@@ -87,6 +89,7 @@ FILES: dict[str, bytes] = {
     "cv/6/1/broken.pdf": b"%PDF-1.7 not really",
     "cv/7/1/empty.docx": empty_docx(),
     "cv/8/1/hidden-scan.pdf": scan_with_tiny_text(),
+    "cv/9/1/skills.pdf": small_pdf(SKILLS_TEXT),
 }
 
 
@@ -139,7 +142,17 @@ class Harness:
         )
         # The production registry: only the released, unchanged prompt renders (AD-12).
         prompts = PromptRegistry(active=load_active(), manifest=load_manifest())
-        self.parser = CvParser(files=self.files, llm=llm, prompts=prompts, **options)
+        self.catalogue = CatalogueHarness()
+        self.parser = CvParser(
+            files=self.files,
+            llm=llm,
+            prompts=prompts,
+            skills=self.catalogue.normalizer,
+            embeddings=ProfileEmbeddings(
+                store=self.catalogue.store, embedder=self.catalogue.embedder
+            ),
+            **options,
+        )
 
     async def run(self, file_key: str, cv_id: int = 1, cv_version: int = 1) -> CvParseOutput:
         job = CvParseJob(job_id=JOB_ID, cv_id=cv_id, cv_version=cv_version, file_key=file_key)
@@ -362,20 +375,56 @@ async def test_visible_injection_stays_in_data_block():
     assert "100 điểm" not in harness.params["system"]
 
 
-async def test_gd2_profile_steps_run_before_masking():
-    """The hook of US-2.5: a step sees the unmasked profile; its output is masked like the rest."""
-    seen: list[CvProfile] = []
+# --- US-2.5: skill catalogue (step 6) and profile embedding (step 8) ---------------------------
 
-    async def add_skill(profile: CvProfile) -> CvProfile:
-        seen.append(profile)
-        data = profile.model_dump(mode="json")
-        data["summary"] = "Bạn Tran Thi Mau đã chuẩn hóa kỹ năng."
-        return CvProfile.model_validate(data)
 
-    output = await Harness(profile_steps=[add_skill]).run("cv/1/1/clean.pdf")
-    assert len(seen) == 1
-    assert output.profile.summary.root == "Bạn Tran Thi Mau đã chuẩn hóa kỹ năng."
-    assert output.profile_masked.summary.root == "Bạn [NAME] đã chuẩn hóa kỹ năng."
+async def test_gd2_skills_mapped_to_catalogue_new_ones_listed():
+    """US-2.5 AC-3, AC-4: each skill names its catalogue skill; Git is not in it, so it is NEW."""
+    output = await Harness().run("cv/1/1/clean.pdf")
+    skills = [
+        (skill["name"], skill["canonical_name"], skill["match"])
+        for skill in output.model_dump(mode="json")["profile"]["skills"]
+    ]
+    assert skills == [
+        ("Java", "Java", "ALIAS"),
+        ("Spring Boot", "Spring Boot", "ALIAS"),
+        ("PostgreSQL", "PostgreSQL", "ALIAS"),
+        ("Docker", "Docker", "ALIAS"),
+        ("Git", None, "NEW"),
+    ]
+    assert output.profile_masked.skills == output.profile.skills
+    assert [name.root for name in output.new_skills] == ["Git"]
+
+
+async def test_br03_new_skills_leave_out_names_with_personal_data():
+    """US-2.5: a NEW skill that held personal data is masked in profile_masked and not listed."""
+    output = await Harness().run("cv/9/1/skills.pdf", cv_id=9)
+    names = [skill.name for skill in output.profile.skills]
+    assert names == ["Java", "Rust embedded", "nguyenvandemo toolkit"]
+    assert [skill.name for skill in output.profile_masked.skills][2] == "[NAME] toolkit"
+    assert [name.root for name in output.new_skills] == ["Rust embedded"]
+
+
+async def test_br03_profile_embedding_from_masked_profile():
+    """US-2.5 AC-9: step 8 embeds profile_masked, never the profile with personal data, and
+    stores it under (cv, cv_id, cv_version, model)."""
+    harness = Harness()
+    output = await harness.run("cv/3/1/pii.docx", cv_id=3, cv_version=2)
+
+    assert ("cv", 3, 2, "hashing-v1") in harness.catalogue.store.rows
+    embedded = [text for call in harness.catalogue.embedder.calls for text in call]
+    assert profile_text(output.profile_masked) in embedded
+    assert profile_text(output.profile) not in embedded
+    assert all("binh.le.demo@example.com" not in text for text in embedded)
+    assert all(folded("Lê Thị Bình") not in folded(text) for text in embedded)
+
+
+async def test_br03_no_embedding_when_masking_fails(monkeypatch):
+    monkeypatch.setattr("app.agents.cv_parser.agent.mask_profile", lambda profile, pii: profile)
+    harness = Harness()
+    with pytest.raises(PermanentError):
+        await harness.run("cv/3/1/pii.docx", cv_id=3)
+    assert not [key for key in harness.catalogue.store.rows if key[0] == "cv"]
 
 
 # --- failures ---------------------------------------------------------------------------------

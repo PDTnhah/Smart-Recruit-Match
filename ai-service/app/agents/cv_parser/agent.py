@@ -6,15 +6,18 @@ ARCHITECTURE › Pipeline từng agent › CV Parser, CONTEXT D37).
 2. A PDF without readable text (a scan) is sent whole to the model as a document (AC-4).
 3. Otherwise emails and phone numbers are masked (AC-5) and the text goes in <cv_document>.
 4. Call the LLMClient with effort low and the CvExtraction schema (AD-10, AD-12).
-5. Put the contacts back into the profile, run the steps of US-2.5 (skill catalogue, embedding),
-   build pii, profile_masked and the masked text by code, and check nothing personal is left
+5. Put the contacts back into the profile and map its skills to the catalogue (US-2.5, step 6 of
+   ARCHITECTURE › Pipeline CV Parser).
+6. Build pii, profile_masked and the masked text by code, and check nothing personal is left
    (AC-6, AC-7).
+7. Embed profile_masked into ai.embeddings (US-2.5 AC-9, step 8) and list the skills the
+   catalogue lacks, from profile_masked too, so no personal value goes out with them (BR-03).
 
 The AI Service never writes core (AD-4): the backend encrypts pii and stores the result.
 """
 
 import logging
-from collections.abc import Awaitable, Callable, Sequence
+from collections.abc import Callable
 from typing import Any, Self
 
 import anyio
@@ -26,6 +29,8 @@ from app.contracts.cv_parse_job import CvParseJob
 from app.contracts.cv_parse_output import CvParseOutput
 from app.contracts.cv_profile import CvProfile
 from app.contracts.cv_source import CvSource
+from app.contracts.skill_match import SkillMatch
+from app.embedding import ProfileEmbeddings, SkillNormalizer, new_skill_names
 from app.llm.client import LLMClient
 from app.llm.effort import EFFORT_BY_AGENT
 from app.llm.types import Document
@@ -52,10 +57,6 @@ MIN_TEXT_CHARACTERS = 100
 """A PDF with images and less visible text than this is read as a scan: scanner apps stamp a short
 text watermark on page images (CONTEXT D37)."""
 MAX_LOGGED_SPAN = 200
-
-ProfileStep = Callable[[CvProfile], Awaitable[CvProfile]]
-"""A step on the profile before it is masked: skill catalogue and embedding of US-2.5
-(ARCHITECTURE › Pipeline CV Parser, steps 6 and 8)."""
 
 
 class CheckedCvExtraction(CvExtraction):
@@ -90,15 +91,17 @@ class CvParser:
         files: ObjectReader,
         llm: LLMClient,
         prompts: PromptRegistry,
+        skills: SkillNormalizer,
+        embeddings: ProfileEmbeddings,
         mask_contacts: bool = True,
-        profile_steps: Sequence[ProfileStep] = (),
         extract: Callable[[bytes], ExtractedText] = extract_text,
     ) -> None:
         self._files = files
         self._llm = llm
         self._prompts = prompts
+        self._skills = skills
+        self._embeddings = embeddings
         self._mask_contacts = mask_contacts
-        self._profile_steps = tuple(profile_steps)
         self._extract = extract
 
     async def __call__(self, job: CvParseJob) -> CvParseOutput:
@@ -150,11 +153,9 @@ class CvParser:
             job_id=job.job_id,
             documents=documents,
         )
-        profile = CvProfile.model_validate(
+        profile = await self._normalised(
             unmask(result.data.profile.model_dump(mode="json"), contacts.tokens)
         )
-        for step in self._profile_steps:
-            profile = await step(profile)
         # A text CV shows no photo to the model; its embedded images decide (CONTEXT D37).
         pii = build_pii(
             result.data.personal, contacts, has_photo=None if scanned else extracted.has_images
@@ -174,6 +175,7 @@ class CvParser:
                 f"CV {job.cv_id}: personal data left after masking: {', '.join(left)}",
                 code="PII_MASK_FAILED",
             )
+        await self._embeddings.store_cv(job.cv_id, job.cv_version, profile_masked)
         return CvParseOutput(
             prompt_version=result.prompt_version,
             model=result.model,
@@ -183,8 +185,18 @@ class CvParser:
             profile=profile,
             pii=pii,
             profile_masked=profile_masked,
+            new_skills=new_skill_names(
+                skill.name for skill in profile_masked.skills if skill.match is SkillMatch.NEW
+            ),
             masked_text=masked_text,
             hidden_text_detected=bool(extracted.removed),
+        )
+
+    async def _normalised(self, extracted: dict[str, Any]) -> CvProfile:
+        """The extracted profile with each skill mapped to the catalogue (AC-3, AC-4)."""
+        mappings = await self._skills.normalize([skill["name"] for skill in extracted["skills"]])
+        return CvProfile.model_validate(
+            {**extracted, "skills": [mapping.as_json() for mapping in mappings]}
         )
 
 

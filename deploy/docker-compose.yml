@@ -21,6 +21,9 @@ x-api-build: &api-build
 # The ai-worker and ai-api services run the same image with different commands.
 x-ai-build: &ai-build
   context: ../ai-service
+  args:
+    # The variable ai-worker reads too: one setting builds and runs the embedding backend (D39).
+    EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-hashing}
 
 # Composed from POSTGRES_*; the password must be URL-safe (DEPLOY.md). Only `migrate` uses the owner.
 x-database-url: &database-url postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
@@ -198,11 +201,19 @@ services:
       LLM_FIXTURES_DIR: ${LLM_FIXTURES_DIR:-/tmp/llm-fixtures}
       # Emails and phone numbers of a CV are masked before the LLM (US-2.4 AC-5, NFR-3).
       CV_MASK_CONTACTS: ${CV_MASK_CONTACTS:-true}
+      # Skill catalogue and profile embeddings (US-2.5, CONTEXT D39). `hashing` is a fake that needs
+      # no model, as LLM_PROVIDER=fixture is. `bge-m3` takes `up --build` (the image installs torch),
+      # 2.5–3 GB of RAM per replica, and one download of the model into hf-models (DEPLOY.md).
+      EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-hashing}
+      SKILL_MATCH_THRESHOLD: ${SKILL_MATCH_THRESHOLD:-}
       # Original files (jd-files, cv-files) and LLM logs (llm-logs, SSE-S3, created on first write).
       # No minio dependency, as for api: an external S3 runs with `--scale minio=0`.
       MINIO_ENDPOINT: ${MINIO_ENDPOINT:?set MINIO_ENDPOINT in deploy/.env}
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+    volumes:
+      # HF_HOME of the image: BAAI/bge-m3 is downloaded on the first start only, shared by replicas.
+      - hf-models:/models
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -257,3 +268,4 @@ volumes:
   redisdata:
   rabbitmqdata:
   miniodata:
+  hf-models:

@@ -2,156 +2,142 @@
 id: US-2.5
 title: "Embedding và danh mục kỹ năng"
 epic: EPIC-2
-status: backlog
+status: review
 priority: P1
-points: 5
-sprint:
-version_shipped:
+points: 8
+sprint: sprint-2026-W44
+version_shipped: 0.11.0
 prd_ref: [FR-13]
 arch_ref: [AD-11]
 depends_on: [US-2.1, US-2.4]
-assignee:
+assignee: PDTnhah
 commit:
 created: 2026-10-07
-updated: 2026-10-07
+updated: 2026-10-27
 ---
+
+## Story refresh — 2026-10-26 (bắt đầu story)
+
+Người dùng chốt ngày 2026-10-26: module mới `skills` (không đặt ở `matching`), `group` là enum 10 nhóm, compose mặc định `EMBEDDING_PROVIDER=hashing`. Chi tiết và các quyết định khác ở [CONTEXT D39](../../CONTEXT.md). Nhánh `us-2.5` tách từ `us-2.4`; ước lượng lại 8 điểm. AC-6 gọi LLM đang dùng (mặc định Gemini, D34).
 
 ## Goal
 
-Tên kỹ năng trong hồ sơ năng lực và yêu cầu JD được quy về một danh mục chung: "ReactJS", "React.js" đều thành `React`. Kỹ năng chưa có trong danh mục được đánh dấu là kỹ năng mới và chờ quản trị duyệt; AI không tự thêm vào danh mục. Story cũng dựng dịch vụ embedding `bge-m3` và bảng `ai.embeddings`, để US-3.2 lọc sơ bộ top-M JD, US-4.1 tìm câu hỏi trùng và US-4.7 so bài tự luận giống nhau mà không phải tự dựng lại.
+Tên kỹ năng trong hồ sơ năng lực và yêu cầu JD được quy về một danh mục chung: "ReactJS", "React.js" đều thành `React`. Kỹ năng chưa có trong danh mục được đánh dấu là kỹ năng mới và chờ quản trị duyệt; AI không tự thêm vào danh mục. Story cũng dựng dịch vụ embedding `bge-m3` và bảng `ai.embeddings` cho US-3.2 (lọc top-M JD), US-4.1 (câu hỏi trùng) và US-4.7 (bài tự luận giống nhau).
 
 ## Background
 
-GĐ2 bước 3 (PRD) yêu cầu chuẩn hóa tên kỹ năng theo danh mục; FR-13 giao cho Quản trị quản lý danh mục và duyệt kỹ năng mới do AI phát hiện (PRD › *Personas*: Quản trị quản lý danh mục kỹ năng). Nếu không chuẩn hóa, cùng một kỹ năng mang nhiều tên khác nhau, làm sai lọc sơ bộ bằng embedding và làm danh sách "kỹ năng thiếu" của SV khó hiểu.
+GĐ2 bước 3 (PRD) yêu cầu chuẩn hóa tên kỹ năng theo danh mục; FR-13 giao cho Quản trị duyệt kỹ năng mới do AI phát hiện. AD-11 ([D11](../../CONTEXT.md)): `BAAI/bge-m3` tự host trong AI Service (tiếng Việt, 1024 chiều, CPU), vector ở `ai.embeddings` (pgvector, HNSW). ARCH › *Pipeline CV Parser* bước 6 (chuẩn hóa, cosine ≥ 0,85) và bước 8 (embedding hồ sơ) cắm vào [US-2.4](US-2.4-cv-parser-hidden-text-pii-split.md); cùng bộ chuẩn hóa áp cho yêu cầu JD của [US-2.3](US-2.3-jd-analyzer-hr-requirement-confirmation.md). LLM chỉ gợi ý cho kỹ năng chưa có trong danh mục, `effort: low`, job nền.
 
-AD-11 ([D11](../../CONTEXT.md)) chọn `BAAI/bge-m3` tự host trong AI Service: Claude không có API embedding, bge-m3 hỗ trợ tiếng Việt, vector 1024 chiều, chạy được trên CPU ở quy mô đồ án (2–4 GB RAM), dữ liệu không rời máy chủ. Vector lưu trong `ai.embeddings` (pgvector, index HNSW `vector_cosine_ops`, ARCH › *Các bảng chính*).
-
-ARCH › *Pipeline CV Parser* bước 6: so embedding với danh mục kỹ năng, cosine ≥ 0,85 thì gán, thấp hơn thì đánh dấu "kỹ năng mới" cho quản trị duyệt. Bước 8: tính embedding hồ sơ, lưu `ai.embeddings`. Theo ARCH › *Bản đồ sử dụng LLM* (GĐ2), Claude chỉ được gọi cho kỹ năng chưa có trong danh mục, `effort: low`, chạy như job nền. Story này cắm hai bước đó vào pipeline của [US-2.4](US-2.4-cv-parser-hidden-text-pii-split.md) và dùng cùng bộ chuẩn hóa cho kỹ năng trong yêu cầu JD của [US-2.3](US-2.3-jd-analyzer-hr-requirement-confirmation.md).
-
-**Lessons applied**: none — LESSONS.md mới có §1 (Claude Code chỉ nạp skill từ `.claude/skills`), không liên quan nội dung story này; đọc lại khi bắt đầu story.
+**Lessons applied**: §6 (migration viết tay cho extension `vector` trước migration bảng), §7 (`skillLifecycle` khai kiểu cụ thể), §10 (refine của schema kỹ năng), §14 (biến rỗng coi như chưa đặt), §15 + §21 (dừng compose trước `pnpm test`, chạy integration theo file), §18 (image e2e build với `hashing`), §19 (test bge-m3 thật chạy offline, `@slow`), §22 (test danh mục chỉ đọc kỹ năng do chính nó tạo).
 
 ## Acceptance criteria
 
-- [ ] **AC-1** — **Given** worker AI khởi động, **When** cần embedding, **Then** mô hình `BAAI/bge-m3` được nạp một lần cho mỗi tiến trình (không nạp lại mỗi job), trả vector 1024 chiều đã chuẩn hóa, và chạy được khi không có GPU.
-- [ ] **AC-2** — **Given** bảng `ai.embeddings` (`owner_type` ∈ {`cv`, `jd`, `question`, `skill`, `essay`}, `owner_id`, `version`, `model`, `embedding vector(1024)`), **When** ghi cùng (`owner_type`, `owner_id`, `version`, `model`) lần thứ hai, **Then** vector được cập nhật, không sinh dòng trùng; có index HNSW `vector_cosine_ops`.
-- [ ] **AC-3** — **Given** danh mục có `React` với alias `ReactJS`, **When** chuẩn hóa "ReactJS", "React.js", "react js", **Then** cả ba được gán `React` (khớp alias sau khi chuẩn hóa chữ hoa/thường, dấu chấm, khoảng trắng, hoặc cosine ≥ 0,85).
-- [ ] **AC-4** — **Given** tên kỹ năng có cosine cao nhất với danh mục < 0,85, **When** chuẩn hóa, **Then** kỹ năng được giữ nguyên tên, đánh dấu `NEW` trong hồ sơ, và có trong danh sách kỹ năng mới của kết quả job; ngưỡng 0,85 đọc từ cấu hình.
-- [ ] **AC-5** — **Given** kết quả `CV_PARSE` hoặc `JD_ANALYZE` có kỹ năng mới, **When** backend xử lý, **Then** mỗi tên kỹ năng mới (đã gộp trùng theo tên chuẩn hóa) có một dòng trong `skills` ở trạng thái chờ duyệt; kỹ năng chờ duyệt không xuất hiện trong view danh mục mà AI Service đọc.
-- [ ] **AC-6** — **Given** kỹ năng mới chờ duyệt, **When** chạy job nền gợi ý, **Then** Claude được gọi qua `LLMClient` với `effort: low` chỉ cho các kỹ năng này, trả gợi ý tên chuẩn, nhóm và kỹ năng có sẵn có thể trùng; gợi ý chỉ để quản trị tham khảo, không tự duyệt.
-- [ ] **AC-7** — **Given** người dùng vai trò `ADMIN`, **When** mở màn danh mục kỹ năng, **Then** thấy danh sách chờ duyệt kèm gợi ý, và thực hiện được: duyệt (có thể sửa tên chuẩn, nhóm), gộp vào kỹ năng có sẵn (tên mới thành alias), từ chối. Mỗi thao tác ghi `audit_logs`.
-- [ ] **AC-8** — **Given** người dùng không phải `ADMIN` (SV, HR, Trung tâm), **When** gọi các endpoint quản trị danh mục, **Then** trả `403`. Endpoint tra cứu danh mục đã duyệt (cho ô gợi ý ở US-2.6, US-2.3) chỉ trả kỹ năng đã duyệt, không trả kỹ năng chờ duyệt.
-- [ ] **AC-9** — **Given** CV Parser xong, **When** pipeline chạy bước 8, **Then** embedding của hồ sơ (dựng từ `profile_masked`, không từ PII) được ghi vào `ai.embeddings` với `owner_type = cv`, `owner_id = cv_id`, `version = cv_version`.
-- [ ] **AC-10** — **Given** kỹ năng mới được duyệt hoặc gộp, **When** chuẩn hóa lần sau gặp cùng tên, **Then** tên đó được gán ngay mà không thành kỹ năng mới lần nữa.
+- [x] **AC-1** — **Given** worker AI khởi động, **When** cần embedding, **Then** mô hình `BAAI/bge-m3` được nạp một lần cho mỗi tiến trình (không nạp lại mỗi job), trả vector 1024 chiều đã chuẩn hóa, và chạy được khi không có GPU.
+- [x] **AC-2** — **Given** bảng `ai.embeddings` (`owner_type` ∈ {`cv`, `jd`, `question`, `skill`, `essay`}, `owner_id`, `version`, `model`, `embedding vector(1024)`), **When** ghi cùng (`owner_type`, `owner_id`, `version`, `model`) lần thứ hai, **Then** vector được cập nhật, không sinh dòng trùng; có index HNSW `vector_cosine_ops`.
+- [x] **AC-3** — **Given** danh mục có `React` với alias `ReactJS`, **When** chuẩn hóa "ReactJS", "React.js", "react js", **Then** cả ba được gán `React` (khớp alias sau khi chuẩn hóa chữ hoa/thường, dấu chấm, khoảng trắng, hoặc cosine ≥ 0,85).
+- [x] **AC-4** — **Given** tên kỹ năng có cosine cao nhất với danh mục < 0,85, **When** chuẩn hóa, **Then** kỹ năng được giữ nguyên tên, đánh dấu `NEW` trong hồ sơ, và có trong danh sách kỹ năng mới của kết quả job; ngưỡng 0,85 đọc từ cấu hình.
+- [x] **AC-5** — **Given** kết quả `CV_PARSE` hoặc `JD_ANALYZE` có kỹ năng mới, **When** backend xử lý, **Then** mỗi tên kỹ năng mới (đã gộp trùng theo tên chuẩn hóa) có một dòng trong `skills` ở trạng thái chờ duyệt; kỹ năng chờ duyệt không xuất hiện trong view danh mục mà AI Service đọc.
+- [x] **AC-6** — **Given** kỹ năng mới chờ duyệt, **When** chạy job nền gợi ý, **Then** LLM đang dùng (mặc định Gemini, D34) được gọi qua `LLMClient` với `effort: low` chỉ cho các kỹ năng này, trả gợi ý tên chuẩn, nhóm và kỹ năng có sẵn có thể trùng; gợi ý chỉ để quản trị tham khảo, không tự duyệt.
+- [x] **AC-7** — **Given** người dùng vai trò `ADMIN`, **When** mở màn danh mục kỹ năng, **Then** thấy danh sách chờ duyệt kèm gợi ý, và thực hiện được: duyệt (có thể sửa tên chuẩn, nhóm), gộp vào kỹ năng có sẵn (tên mới thành alias), từ chối. Mỗi thao tác ghi `audit_logs`.
+- [x] **AC-8** — **Given** người dùng không phải `ADMIN` (SV, HR, Trung tâm), **When** gọi các endpoint quản trị danh mục, **Then** trả `403`. Endpoint tra cứu danh mục đã duyệt (cho ô gợi ý ở US-2.6, US-2.3) chỉ trả kỹ năng đã duyệt, không trả kỹ năng chờ duyệt.
+- [x] **AC-9** — **Given** CV Parser xong, **When** pipeline chạy bước 8, **Then** embedding của hồ sơ (dựng từ `profile_masked`, không từ PII) được ghi vào `ai.embeddings` với `owner_type = cv`, `owner_id = cv_id`, `version = cv_version`.
+- [x] **AC-10** — **Given** kỹ năng mới được duyệt hoặc gộp, **When** chuẩn hóa lần sau gặp cùng tên, **Then** tên đó được gán ngay mà không thành kỹ năng mới lần nữa.
 
 ## Tasks
 
-- [ ] **TASK-2.5.1** — Dịch vụ embedding và bảng `ai.embeddings` (AC: 1, 2)
-  - [ ] Subtask 2.5.1.1 — `ai-service/app/embedding/model.py`: nạp `BAAI/bge-m3` bằng sentence-transformers khi worker khởi động; hàm `embed(texts)` trả vector đã chuẩn hóa.
-  - [ ] Subtask 2.5.1.2 — `ai-service/app/embedding/store.py`: upsert và truy vấn cosine trên `ai.embeddings` (pgvector).
-  - [ ] Subtask 2.5.1.3 — Migration Drizzle: bảng `ai.embeddings` theo ARCH, index HNSW `vector_cosine_ops`, ràng buộc unique (`owner_type`, `owner_id`, `version`, `model`) (đề xuất); bật extension `vector` nếu chưa bật.
-  - [ ] Subtask 2.5.1.4 — `deploy/docker-compose.yml`: volume giữ trọng số mô hình để không tải lại mỗi lần khởi động; ghi yêu cầu RAM vào `docs/SETUP.md` khi làm story.
-- [ ] **TASK-2.5.2** — Danh mục kỹ năng ở Core Backend (AC: 5, 7, 8, 10)
-  - [ ] Subtask 2.5.2.1 — Migration bảng `skills` (`id`, `canonical_name`, `aliases TEXT[]`, `group`, unique(`canonical_name`)) theo ARCH, thêm cột trạng thái duyệt và cột gợi ý (đề xuất, ARCH chưa có); seed danh mục kỹ năng IT phổ biến kèm alias.
-  - [ ] Subtask 2.5.2.2 — View `core.v_ai_skills` (tên đề xuất): chỉ kỹ năng đã duyệt; quyền `SELECT` cho role `ai_service`.
-  - [ ] Subtask 2.5.2.3 — Service và API trong module `matching` (đề xuất, xem Dev notes): `GET /api/skills?query=` (đã duyệt), `GET /api/admin/skills?status=PENDING`, `POST /api/admin/skills/{id}/approve`, `POST /api/admin/skills/{id}/merge`, `POST /api/admin/skills/{id}/reject` (tên endpoint đề xuất); guard `@Roles('ADMIN')`; audit.
-  - [ ] Subtask 2.5.2.4 — Handler: nhận danh sách kỹ năng mới trong kết quả `CV_PARSE`/`JD_ANALYZE` (qua sự kiện từ `student`/`company`), tạo dòng chờ duyệt, gộp trùng.
-- [ ] **TASK-2.5.3** — Bộ chuẩn hóa kỹ năng ở AI Service (AC: 3, 4, 9)
-  - [ ] Subtask 2.5.3.1 — `ai-service/app/embedding/skill_normalizer.py`: khớp alias đã chuẩn hóa → cosine ≥ ngưỡng → `NEW`; tự tính embedding cho kỹ năng đã duyệt còn thiếu trong `ai.embeddings` (`owner_type = skill`).
-  - [ ] Subtask 2.5.3.2 — Cắm vào `ai-service/app/agents/cv_parser/` (bước 6 và 8) và `ai-service/app/agents/jd_analyzer/`; thêm trường kỹ năng chuẩn hóa và danh sách kỹ năng mới vào hợp đồng `CvParseResult`, `JdAnalyzeResult` trong `packages/shared/contracts`.
-- [ ] **TASK-2.5.4** — Gợi ý cho kỹ năng mới bằng Claude (AC: 6)
-  - [ ] Subtask 2.5.4.1 — Job nền qua queue `ai.skills.normalize` (tên đề xuất theo quy ước `ai.<đối tượng>.<hành động>`; ARCH › *Hàng đợi* chưa có queue này), payload chỉ chứa `job_id` và ID kỹ năng.
-  - [ ] Subtask 2.5.4.2 — `ai-service/app/prompts/skill_normalizer/v1.md`; gọi `LLMClient` với `effort="low"`, đầu vào là tên kỹ năng mới và danh mục đã duyệt (JSON `sort_keys=True`).
-- [ ] **TASK-2.5.5** — Màn quản trị danh mục kỹ năng (AC: 7)
-  - [ ] Subtask 2.5.5.1 — Đọc `DESIGN.md` trước khi code; ghi `Design applied: …` vào story.
-  - [ ] Subtask 2.5.5.2 — Màn dưới `/admin/*` (thư mục đề xuất `apps/web/src/features/center/skills/`): bảng TanStack Table các kỹ năng chờ duyệt, gợi ý, nút duyệt / gộp / từ chối; trạng thái rỗng, đang tải, lỗi.
-- [ ] **TASK-2.5.6** — Test (AC: 1–10)
-  - [ ] Subtask 2.5.6.1 — `ai-service/tests/embedding/test_skill_normalizer.py` (dùng mô hình embedding giả trong unit test; một test đánh dấu chậm chạy bge-m3 thật).
-  - [ ] Subtask 2.5.6.2 — `apps/api/test/matching/skills-catalog.int-spec.ts` (duyệt, gộp, từ chối, 403, view chỉ trả kỹ năng đã duyệt).
+- [x] **TASK-2.5.1** — Hợp đồng (`CvExtractedSkill`/`CvSkill`, `new_skills`, `contracts/skills.ts`, `SKILL_NORMALIZE`, `skillMatchKey` + bộ ca dùng chung, `states/skill.ts`) và migration 0013–0015 (extension `vector`; `core.skills`, `ai.embeddings`, HNSW một phần; view, `GRANT`, seed 174 kỹ năng) (AC: 2, 5)
+- [x] **TASK-2.5.2** — `ai-service/app/embedding/`: `BgeM3Embedder`, `HashingEmbedder`, `build_embedder`; `store.py` (pgvector), `catalog.py`; `config.py`, `pyproject.toml` (AC: 1, 2)
+- [x] **TASK-2.5.3** — `SkillNormalizer` (key → cosine → `NEW`); nối vào `cv_parser` (bước 6, 8) và `jd_analyzer`, `worker.py` (AC: 3, 4, 9, 10)
+- [x] **TASK-2.5.4** — Agent `skill_normalizer`, prompt `v1`, guardrail (AC: 6)
+- [x] **TASK-2.5.5** — Module `skills`: listener, gợi ý, `GET /api/skills`, `/api/admin/skills` (duyệt, gộp, từ chối), `pnpm api:sync` (AC: 5, 7, 8, 10)
+- [x] **TASK-2.5.6** — Màn `/admin/skills` (chỉ ADMIN), ba dialog, bốn trạng thái (AC: 7)
+- [x] **TASK-2.5.7** — Dockerfile (`ARG EMBEDDING_PROVIDER`, torch CPU), compose (`hf-models`), SETUP, DEPLOY (AC: 1)
+- [x] **TASK-2.5.8** — Test theo *Verification commands*; `ai-service-role`, `ai-job-roundtrip` kiểm embedding CV (AC: 1–10)
 
 ## Dev notes
 
 ### Architecture constraints
 
-- [AD-11](../../ARCHITECTURE.md#architecture-decisions): bge-m3 chạy trong AI Service. Loại phương án gọi API embedding bên ngoài (dữ liệu rời máy chủ) và CSDL vector riêng (D4: pgvector đủ cho vài chục nghìn vector).
-- AD-4: AI Service đọc danh mục qua view, ghi `ai.embeddings`; không ghi `skills`. Kỹ năng mới đi qua `ai.results`, Core Backend tạo dòng `skills`.
-- AD-2 và PRD › *Personas*: AI chỉ gợi ý; quản trị quyết định thêm kỹ năng vào danh mục.
-- AD-10: Claude chỉ cho kỹ năng chưa có trong danh mục, `effort: low`, qua `LLMClient`.
-- Embedding hồ sơ dựng từ `profile_masked`, không dùng `pii` (BR-03).
-- Story này không thêm AD mới.
-- ARCH › *Các module* không giao bảng `skills` cho module nào. Đề xuất đặt ở `matching` vì đây là nơi dùng danh mục để so kỹ năng (GĐ3). Hỏi trước khi chốt.
-- ARCH không có queue cho job gợi ý kỹ năng mới, cũng không có cột trạng thái duyệt trong `skills`. Tên `ai.skills.normalize`, cột trạng thái và cột gợi ý là đề xuất.
-- Embedding hồ sơ tính lúc parse (ARCH bước 8) có thể lệch với hồ sơ SV đã sửa ở US-2.6 mà không đổi `cv_version`. Đề xuất: US-3.2 tính lại embedding từ `profile_masked` đã xác nhận trước khi lọc top-M (upsert cùng khóa). Chốt cùng US-3.2.
+- [AD-11](../../ARCHITECTURE.md#architecture-decisions): bge-m3 chạy trong AI Service, không gọi API embedding ngoài, không dùng CSDL vector riêng (D4).
+- AD-4: AI Service đọc danh mục qua view, ghi `ai.embeddings`, không ghi `skills`; kỹ năng mới đi qua `ai.results`. AD-2: AI chỉ gợi ý, quản trị quyết định.
+- Embedding hồ sơ dựng từ `profile_masked` (BR-03). Hồ sơ SV sửa ở US-2.6 mà không đổi `cv_version` sẽ lệch embedding: đề xuất US-3.2 tính lại từ hồ sơ đã xác nhận trước khi lọc top-M (upsert cùng khóa).
 
 ### Cross-story dependencies
 
-- Builds on [US-2.1](US-2.1-ai-job-pipeline-message-contracts.md) — schema `ai`, role `ai_service`, khung consumer, `aigateway`.
-- Builds on [US-2.4](US-2.4-cv-parser-hidden-text-pii-split.md) — pipeline `cv_parser` có chỗ cắm bước 6 và 8; hợp đồng `CvParseResult`.
-- Builds on [US-2.2](US-2.2-llm-client-versioned-prompts.md) — `LLMClient` cho job gợi ý kỹ năng mới.
-- Builds on [US-2.3](US-2.3-jd-analyzer-hr-requirement-confirmation.md) — áp cùng bộ chuẩn hóa cho kỹ năng trong `JdRequirements`.
-- Sibling [US-2.6](US-2.6-student-profile-confirmation.md) — cùng tuần T6, làn khác. US-2.6 dùng `GET /api/skills?query=` để gợi ý khi SV sửa kỹ năng; story này tạo bảng `skills` nên merge migration trước.
-- Required by [US-3.2](US-3.2-batch-matching-agent.md) — top-M JD theo cosine trên `ai.embeddings`.
-- Required by [US-4.1](US-4.1-exam-blueprint-test-generator.md) — `find_similar_questions` dùng embedding câu hỏi.
-- Required by [US-4.7](US-4.7-cheating-signals.md) — so độ tương đồng bài tự luận bằng embedding.
+- Builds on [US-2.1](US-2.1-ai-job-pipeline-message-contracts.md), [US-2.2](US-2.2-llm-client-versioned-prompts.md), [US-2.3](US-2.3-jd-analyzer-hr-requirement-confirmation.md), [US-2.4](US-2.4-cv-parser-hidden-text-pii-split.md).
+- Sibling [US-2.6](US-2.6-student-profile-confirmation.md): dùng `GET /api/skills?query=`; migration của US-2.6 phải đứng sau 0018.
+- Required by [US-3.2](US-3.2-batch-matching-agent.md), [US-4.1](US-4.1-exam-blueprint-test-generator.md), [US-4.7](US-4.7-cheating-signals.md): dùng `app/embedding/` (AGENTS › *Mẫu có sẵn*; LESSONS §24 khi lọc theo phiên bản).
 
 ### Performance budget
 
-- Ngưỡng gán kỹ năng: cosine ≥ 0,85 (epic › *Performance budgets*, ARCH › *Pipeline CV Parser*). Kiểm bằng `ai-service/tests/embedding/test_skill_normalizer.py`.
-- Bước chuẩn hóa và embedding nằm trong ngân sách NFR-6 (< 30 giây/CV) của US-2.4; mô hình nạp sẵn khi khởi động để không cộng thời gian nạp vào từng job.
+- Ngưỡng gán 0,85, đo với bge-m3 thật (D39). Chuẩn hóa và embedding nằm trong NFR-6 (< 30 giây/CV) của US-2.4; mô hình nạp lúc khởi động.
 
 ### What we explicitly did NOT do
 
-- Không chuẩn hóa lại các hồ sơ đã lưu khi một kỹ năng mới được duyệt. Trigger để làm lại: nhiều SV có kỹ năng `NEW` sau khi danh mục đã được duyệt.
-- Không tính embedding JD lúc phân tích, vì HR còn sửa yêu cầu. US-3.2 tính cho phiên bản đã xác nhận.
-- Không dùng Claude để chuẩn hóa kỹ năng đã có trong danh mục (ARCH: Claude chỉ cho kỹ năng chưa có).
+- Không chuẩn hóa lại hồ sơ đã lưu khi một kỹ năng được duyệt; hồ sơ trước 0.11.0 giữ tên gốc với `match: NEW` (migration 0018). Trigger để làm: nhiều SV có kỹ năng `NEW` sau khi danh mục đã được duyệt.
+- Không tính embedding JD lúc phân tích (HR còn sửa); US-3.2 tính cho phiên bản đã xác nhận.
+- Không dùng LLM cho kỹ năng đã có trong danh mục.
+- Không thêm ô gợi ý kỹ năng vào form JD hay hồ sơ SV; không báo ADMIN khi có kỹ năng mới.
+- Danh sách quản trị tối đa 500 dòng mỗi trạng thái, chưa phân trang hay tìm kiếm. Trigger: danh mục đã duyệt vượt khoảng 400 kỹ năng.
 
 ### References
 
-- [Source: PRD › GĐ2 – Sinh viên nộp CV (bước 3)](../../PRD.md)
-- [Source: PRD › Functional Requirements (FR-13); Personas](../../PRD.md#functional-requirements)
-- [Source: ARCHITECTURE › Pipeline từng agent › CV Parser (bước 6, 8)](../../ARCHITECTURE.md)
-- [Source: ARCHITECTURE › Bản đồ sử dụng LLM theo giai đoạn (GĐ2, chuẩn hóa tên kỹ năng)](../../ARCHITECTURE.md)
-- [Source: ARCHITECTURE › Tech stack (Embedding); Các bảng chính (`skills`, `ai.embeddings`); Docker Compose](../../ARCHITECTURE.md)
-- [Source: CONTEXT D4, D11](../../CONTEXT.md)
-- [Source: Epic EPIC-2](../epics/EPIC-2.md)
+[PRD](../../PRD.md) › GĐ2 bước 3, FR-13; [ARCHITECTURE](../../ARCHITECTURE.md) › Pipeline từng agent, Các bảng chính, Docker Compose; [CONTEXT](../../CONTEXT.md) D11, D33, D34, D37, D39.
 
 ## Verification commands
 
-> Lệnh chạy cụ thể (`pnpm …`, `pytest …`) sẽ điền khi US-1.1 tạo script (AGENTS › Lệnh). Bảng dưới ghi file test và tên case.
+> Python: `ai-service/.venv/Scripts/pytest ai-service/<file>`; `@slow` chạy riêng bằng `-m slow` sau khi cài extra `embedding` và tải bge-m3 (SETUP §4). Jest: `pnpm --filter @srm/api exec jest --testPathPatterns 'test/integration/skills-catalog' --selectProjects integration`.
 
 | AC | Command |
 |---|---|
-| AC-1 | `ai-service/tests/embedding/test_model.py::test_ad11_bge_m3_loaded_once_returns_1024_dims` (đánh dấu chậm) |
-| AC-2 | `apps/api/test/matching/skills-catalog.int-spec.ts` › "AD-11 ai.embeddings upsert không trùng, có index HNSW" |
-| AC-3 | `ai-service/tests/embedding/test_skill_normalizer.py::test_gd2_reactjs_variants_map_to_react` |
-| AC-4 | `ai-service/tests/embedding/test_skill_normalizer.py::test_gd2_below_threshold_marked_new` |
-| AC-5 | `apps/api/test/matching/skills-catalog.int-spec.ts` › "FR-13 kỹ năng mới vào trạng thái chờ duyệt, không có trong v_ai_skills" |
-| AC-6 | `ai-service/tests/agents/test_skill_normalizer_agent.py::test_new_skill_suggestion_effort_low_fixture` |
-| AC-7 | `apps/api/test/matching/skills-catalog.int-spec.ts` › "FR-13 quản trị duyệt, gộp, từ chối có audit" |
-| AC-8 | `apps/api/test/matching/skills-catalog.int-spec.ts` › "FR-13 vai trò khác ADMIN nhận 403; tra cứu chỉ trả kỹ năng đã duyệt" |
-| AC-9 | `ai-service/tests/agents/test_cv_parser.py::test_br03_profile_embedding_from_masked_profile` |
-| AC-10 | `ai-service/tests/embedding/test_skill_normalizer.py::test_approved_skill_matched_next_time` |
+| AC-1 | `tests/embedding/test_model.py::test_ad11_model_loaded_once_per_process`, `::test_ad11_bge_m3_without_the_extra_asks_for_a_rebuild`, `::test_ad11_bge_m3_1024_normalized_on_cpu` (`@slow`) |
+| AC-2 | `skills-catalog.int-spec.ts` › "AD-11 ai.embeddings upsert không trùng, có index HNSW"; `tests/embedding/test_store_sql.py`; `test_skill_normalizer.py::test_ad11_superseded_skill_embeddings_deleted` |
+| AC-3 | `test_skill_normalizer.py::test_gd2_reactjs_variants_map_to_react`, `::test_gd2_close_name_maps_by_embedding`; `test_skill_key.py`; `contracts/__tests__/skills.spec.ts` |
+| AC-4 | `test_skill_normalizer.py::test_gd2_below_threshold_marked_new`; `tests/test_config.py`; `test_model.py::test_gd2_threshold_085_on_labelled_pairs` (`@slow`) |
+| AC-5 | `skills-catalog.int-spec.ts` › describe "AC-5"; `tests/agents/test_cv_parser.py::test_br03_new_skills_leave_out_names_with_personal_data` |
+| AC-6 | `tests/agents/test_skill_normalizer_agent.py` (effort low, guardrail, chỉ dẫn lọt vào dữ liệu, không còn kỹ năng chờ duyệt) |
+| AC-7 | `skills-catalog.int-spec.ts` › describe "AC-7 ADMIN review"; › "FR-13 Invariant 11: DB chặn hai kỹ năng khớp cùng một key" |
+| AC-8 | `skills-catalog.int-spec.ts` › "FR-13 vai trò khác ADMIN nhận 403; tra cứu chỉ trả kỹ năng đã duyệt" |
+| AC-9 | `test_cv_parser.py::test_br03_profile_embedding_from_masked_profile`, `::test_br03_no_embedding_when_masking_fails`; `ai-job-roundtrip.int-spec.ts` |
+| AC-10 | `test_skill_normalizer.py::test_approved_skill_matched_next_time`; phần AC-10 trong các test duyệt và gộp |
 
 ## Changelog entry
 
-### Added
-- Dịch vụ embedding `BAAI/bge-m3` tự host trong AI Service và bảng `ai.embeddings` (pgvector, index HNSW).
-- Chuẩn hóa tên kỹ năng trong hồ sơ năng lực và yêu cầu JD theo danh mục (khớp alias hoặc cosine ≥ 0,85); kỹ năng chưa có được đánh dấu là kỹ năng mới.
-- Màn quản trị danh mục kỹ năng: duyệt, gộp, từ chối kỹ năng mới do AI phát hiện, kèm gợi ý tên chuẩn từ Claude.
+Xem [CHANGELOG 0.11.0](../../CHANGELOG.md).
 
 **Commit**:
 
 ## Implementation notes
 
-_Chưa bắt đầu._
+- 2026-10-26 — Phiên 1 (Plan), phiên 2 (a, b, c): mọi quyết định ở [CONTEXT D39](../../CONTEXT.md), gồm kết quả đo ngưỡng 0,85 với bge-m3 thật.
+- **Design applied**: DESIGN §1, §4, §6 (`table`, `alert-dialog` có form, `select`, `badge` nhóm kỹ năng `secondary`, `radio-group` mới), §7 (bốn trạng thái cho trang và cho danh sách tìm trong dialog gộp), §8, §9, §10 (`formatDateTime`), §12 (route `adminOnly`). Không dùng combobox của shadcn vì cần `@base-ui/react`.
+- Mọi kết quả CV/JD có tên `NEW` sinh dòng `core.skills` và job `SKILL_NORMALIZE`; với LLM fixture job này FAILED, nên assertion đếm job phải lọc theo loại.
+- 2026-10-27 — Phiên 3: `/code-review` (high) ra 10 điểm, đã sửa cả 10:
+  - `evals/smoke_llm.py --cv` hỏng vì `CvParser` đổi chữ ký: thêm danh mục rỗng và kho embedding không lưu gì.
+  - Vector kỹ năng cũ (theo `row_version`) và của model khác chiếm chỗ ứng viên HNSW: xóa khi tính bù (LESSONS §24).
+  - Key alias chỉ được kiểm bằng TS (Invariant 11): thêm `alias_keys` + trigger `skills_keys_distinct` (0016, 0017); `GET /api/skills` so `alias_keys` chính xác.
+  - Hồ sơ CV của 0.10.0 thiếu `canonical_name`, `match`: migration 0018.
+  - Kỹ năng trùng của JD so bằng `skillMatchKey`.
+  - Image chạy provider đã cài khi không truyền `EMBEDDING_PROVIDER` (`ENV` từ build arg).
+  - Danh sách quản trị: trạng thái đã xử lý xếp quyết định mới trước.
+  - Bỏ hằng trùng (ngưỡng, `MAX_SIMILAR_SKILLS`, bảng key của danh mục). ARCH, AGENTS cập nhật ở doc gate.
+- koni-qc: mọi AC có ca dương và ca âm, AC-3, AC-4, AC-5 có ca biên (ngưỡng đúng 0,85, C/C++/C#, lô 51 kỹ năng). Bảo mật: endpoint quản trị chỉ ADMIN (403, 401 có test), LIKE được escape, tên kỹ năng vào prompt qua `untrusted(...)` và guardrail, `new_skills` lấy từ bản đã che PII, React hiển thị tên dạng text. Không có phát hiện mới.
+- **Còn lại, cần người kiểm**: xem `/admin/skills` ở 1024 px và 768 px; chạy compose với `EMBEDDING_PROVIDER=bge-m3` (ổ C: máy dev không đủ chỗ) và `evals/perf_cv_parse.py` cho NFR-6; `smoke_llm.py --cv` với key thật.
+
+Lessons: §23 mới (`HF_HUB_OFFLINE` đọc lúc import, bge-m3 tải 4,5 GB), §24 mới (HNSW lọc sau khi quét).
 
 ## Files modified
 
-_Chưa bắt đầu._
+- `packages/shared`: `contracts/` (`skills.ts` mới, `cv.ts`, `jd.ts`, `envelope.ts`, `jobs.ts`, `queues.ts`, `schemas.ts`, `json-schema/`, `fixtures/skill-key-cases.json`, test), `states/skill.ts`, `schemas/{skill,errors}.ts`.
+- `apps/api`: `drizzle/0013–0018` + snapshot, `src/db/schema/`, `src/db/lifecycles.ts`, `modules/skills/` (mới), `aigateway/domain/events.ts`, `app.module.ts`, `common/errors`, `common/scheduling/advisory-lock.ts`; `test/integration/skills-catalog.int-spec.ts` (mới), helper và test bị chạm.
+- `ai-service`: `app/embedding/` (mới), `app/agents/skill_normalizer/` (mới), `app/agents/{cv_parser,jd_analyzer}`, `app/contracts/` (sinh), `app/prompts/skill_normalizer/`, `app/{config,worker}.py`, `app/consumers/`, `app/handlers/`, `app/parsing/pii.py`, `evals/smoke_llm.py`, `pyproject.toml`, `Dockerfile`; `tests/embedding/`, test agent, consumer, fixture LLM.
+- `apps/web`: `features/center/skills/` (mới), `app/router.tsx`, `components/ui/radio-group.tsx`, `shared/api/`.
+- Triển khai và tài liệu: `deploy/`, `DEPLOY.md`, `DESIGN.md`, `AGENTS.md`, `docs/{SETUP,ARCHITECTURE,CONTEXT,LESSONS,CHANGELOG}.md`, sprint W44, EPIC-2, VERSION và `package.json`.
 
 ## Cross-references
 
 - [PRD FR-13](../../PRD.md#functional-requirements)
 - [Epic EPIC-2](../epics/EPIC-2.md)
 - [CHANGELOG](../../CHANGELOG.md)
-- [CONTEXT D11](../../CONTEXT.md)
+- [CONTEXT D11, D39](../../CONTEXT.md)
 - [ARCHITECTURE › Architecture decisions](../../ARCHITECTURE.md#architecture-decisions)

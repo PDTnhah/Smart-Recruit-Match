@@ -17,6 +17,7 @@ import { CampaignModule } from './modules/campaign/index.js';
 import { CompanyModule } from './modules/company/index.js';
 import { IamModule } from './modules/iam/index.js';
 import { NotificationModule } from './modules/notification/index.js';
+import { SkillsModule } from './modules/skills/index.js';
 import { StudentModule } from './modules/student/index.js';
 import { RedisModule } from './redis/redis.module.js';
 
@@ -53,6 +54,7 @@ import { RedisModule } from './redis/redis.module.js';
     StudentModule,
     NotificationModule,
     AiGatewayModule,
+    SkillsModule,
   ],
   providers: [
     { provide: APP_PIPE, useClass: ZodRequestValidationPipe },

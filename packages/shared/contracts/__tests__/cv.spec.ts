@@ -1,5 +1,6 @@
 import {
   buildContractSchemas,
+  CvExtractedProfileSchema,
   CvExtractionSchema,
   CvParseOutputSchema,
   type CvPii,
@@ -20,7 +21,11 @@ const profile = (): CvProfile => ({
       gpa: '3.2/4',
     },
   ],
-  skills: [{ name: 'Java' }, { name: 'Spring Boot' }],
+  skills: [
+    { name: 'Java', canonical_name: 'Java', match: 'ALIAS' },
+    { name: 'SpringBoot', canonical_name: 'Spring Boot', match: 'ALIAS' },
+    { name: 'Rust embedded', canonical_name: null, match: 'NEW' },
+  ],
   projects: [
     {
       name: 'Quản lý thư viện',
@@ -54,7 +59,26 @@ describe('FR-11 CvProfile and CvPii: one schema for the LLM, the review screen a
   it('GĐ2 a complete profile and personal section parse', () => {
     expect(CvProfileSchema.parse(profile())).toEqual(profile());
     expect(CvPiiSchema.parse(pii())).toEqual(pii());
-    expect(CvExtractionSchema.parse({ personal: pii(), profile: profile() })).toBeTruthy();
+    const extracted = { ...profile(), skills: [{ name: 'Java' }] };
+    expect(CvExtractionSchema.parse({ personal: pii(), profile: extracted })).toBeTruthy();
+  });
+
+  it('US-2.5 the LLM returns skill names only; the stored profile maps each to the catalogue', () => {
+    expect(CvExtractedProfileSchema.safeParse(profile()).success).toBe(false);
+    expect(CvProfileSchema.safeParse({ ...profile(), skills: [{ name: 'Java' }] }).success).toBe(false);
+  });
+
+  it('US-2.5 canonical_name is null exactly when the skill is NEW', () => {
+    const withSkill = (skill: object) => ({ ...profile(), skills: [skill] });
+    expect(CvProfileSchema.safeParse(withSkill({ name: 'Go', canonical_name: null, match: 'ALIAS' })).success).toBe(
+      false,
+    );
+    expect(
+      CvProfileSchema.safeParse(withSkill({ name: 'Go', canonical_name: 'Go', match: 'NEW' })).success,
+    ).toBe(false);
+    expect(
+      CvProfileSchema.safeParse(withSkill({ name: 'Golang', canonical_name: 'Go', match: 'EMBEDDING' })).success,
+    ).toBe(true);
   });
 
   it('BR-03 the profile has no field for personal data', () => {
@@ -69,8 +93,10 @@ describe('FR-11 CvProfile and CvPii: one schema for the LLM, the review screen a
 
   it('GĐ2 texts are trimmed before their length is checked', () => {
     const blank = { ...profile(), skills: [{ name: '   ' }] };
-    expect(CvProfileSchema.safeParse(blank).success).toBe(false);
-    expect(CvProfileSchema.parse({ ...profile(), skills: [{ name: ' Java ' }] }).skills).toEqual([{ name: 'Java' }]);
+    expect(CvExtractedProfileSchema.safeParse(blank).success).toBe(false);
+    expect(CvExtractedProfileSchema.parse({ ...profile(), skills: [{ name: ' Java ' }] }).skills).toEqual([
+      { name: 'Java' },
+    ]);
   });
 
   it('AC-8 the CV_PARSE output carries the profile, the personal data, the masked copies and the source', () => {
@@ -83,6 +109,7 @@ describe('FR-11 CvProfile and CvPii: one schema for the LLM, the review screen a
       profile: profile(),
       pii: pii(),
       profile_masked: profile(),
+      new_skills: ['Rust embedded'],
       masked_text: null,
       hidden_text_detected: false,
     };
@@ -97,5 +124,19 @@ describe('FR-11 CvProfile and CvPii: one schema for the LLM, the review screen a
     expect(outputProperties.profile).toEqual({ $ref: './cv_profile.json' });
     expect(outputProperties.profile_masked).toEqual({ $ref: './cv_profile.json' });
     expect(outputProperties.pii).toEqual({ $ref: './cv_pii.json' });
+  });
+
+  it('US-2.5 the LLM schema keeps the fields and texts of US-2.4, so recorded fixtures still match', () => {
+    const schemas = buildContractSchemas();
+    const extraction = schemas.cv_extraction?.properties as Record<string, unknown>;
+    expect(extraction.profile).toEqual({ $ref: './cv_extracted_profile.json' });
+    expect(schemas.cv_extracted_profile?.description).toBe(
+      'Competence profile of a CV, without its personal section (FR-11)',
+    );
+    expect(schemas.cv_extracted_skill).toMatchObject({
+      description: 'One concrete skill the CV claims',
+      properties: { name: { description: 'Skill name as the CV writes it; US-2.5 maps it to the skill catalogue' } },
+      required: ['name'],
+    });
   });
 });

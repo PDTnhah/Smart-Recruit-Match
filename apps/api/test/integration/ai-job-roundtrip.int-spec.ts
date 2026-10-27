@@ -123,6 +123,14 @@ describe('AD-5: AI jobs round trip through RabbitMQ and the AI Service', () => {
     const [row] = await t.db.select().from(cvs).where(eq(cvs.id, cv.id));
     expect(row).toMatchObject({ analysisSource: 'TEXT_PDF', analysisPromptVersion: 'cv_parser/v1' });
     expect(row!.maskedText).toContain('Email: [EMAIL] | Phone: [PHONE] | [LINK]');
+    // Step 8 stored the profile embedding (US-2.5 AC-9), from the fake embedder the worker runs
+    // with (EMBEDDING_PROVIDER=hashing).
+    const { rows: embeddings } = await owner.query<{ model: string; dimensions: number }>(
+      `SELECT model, vector_dims(embedding) AS dimensions FROM ai.embeddings
+        WHERE owner_type = 'cv' AND owner_id = $1 AND version = $2`,
+      [cv.id, cv.version],
+    );
+    expect(embeddings).toEqual([{ model: 'hashing-v1', dimensions: 1024 }]);
   });
 
   it('AD-5 nhận trùng ai.results không ghi trùng', async () => {

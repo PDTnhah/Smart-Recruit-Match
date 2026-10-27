@@ -6,6 +6,8 @@ import {
   AiResultMessageSchema,
   CvParseJobSchema,
   JdAnalyzeJobSchema,
+  SKILL_NORMALIZE_BATCH,
+  SkillNormalizeJobSchema,
   aiQueueManifest,
   allAiQueues,
   buildContractSchemas,
@@ -24,7 +26,7 @@ const cvJob = { job_id: JOB_ID, cv_id: 457, cv_version: 2, file_key: 'cvs/457/2.
 const profile = {
   summary: null,
   education: [],
-  skills: [{ name: 'Java' }],
+  skills: [{ name: 'Java', canonical_name: 'Java', match: 'ALIAS' }],
   projects: [],
   experience: [],
   languages: [],
@@ -51,6 +53,7 @@ const output = {
     has_photo: false,
   },
   profile_masked: profile,
+  new_skills: [],
   masked_text: '[NAME] Java',
   hidden_text_detected: false,
 };
@@ -92,9 +95,11 @@ describe('AD-6: contracts are generated, not written by hand', () => {
     expect(allAiQueues()).toEqual([
       'ai.cv.parse',
       'ai.jd.analyze',
+      'ai.skills.normalize',
       'ai.results',
       'ai.cv.parse.dlq',
       'ai.jd.analyze.dlq',
+      'ai.skills.normalize.dlq',
       'ai.results.dlq',
     ]);
   });
@@ -104,6 +109,14 @@ describe('AD-5: job payloads carry IDs only', () => {
   it('AD-5 job payloads accept the ARCHITECTURE fields', () => {
     expect(CvParseJobSchema.parse(cvJob)).toEqual(cvJob);
     expect(JdAnalyzeJobSchema.parse({ job_id: JOB_ID, jd_id: 9, jd_version: 1 })).toBeTruthy();
+    expect(SkillNormalizeJobSchema.parse({ job_id: JOB_ID, skill_ids: [3, 4] })).toBeTruthy();
+  });
+
+  it('US-2.5 a SKILL_NORMALIZE job names 1 to 50 skills', () => {
+    const job = (skillIds: number[]) => SkillNormalizeJobSchema.safeParse({ job_id: JOB_ID, skill_ids: skillIds });
+    expect(job([]).success).toBe(false);
+    expect(job(Array.from({ length: SKILL_NORMALIZE_BATCH }, (_, i) => i + 1)).success).toBe(true);
+    expect(job(Array.from({ length: SKILL_NORMALIZE_BATCH + 1 }, (_, i) => i + 1)).success).toBe(false);
   });
 
   it('AD-5 job payloads reject extra fields, so CV or JD content cannot ride along', () => {

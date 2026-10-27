@@ -9,6 +9,10 @@ from pydantic import BaseModel, ConfigDict, Field, RootModel
 from . import cv_pii, cv_profile, cv_source
 
 
+class NewSkill(RootModel[str]):
+    root: Annotated[str, Field(max_length=100, min_length=1)]
+
+
 class MaskedText(RootModel[str]):
     root: Annotated[str, Field(min_length=1)]
     """
@@ -44,6 +48,10 @@ class CvParseOutput(BaseModel):
     profile: cv_profile.CvProfile
     pii: cv_pii.CvPii
     profile_masked: cv_profile.CvProfile
+    new_skills: Annotated[list[NewSkill], Field(max_length=100)]
+    """
+    Skill names not in the catalogue (match NEW), one per skillMatchKey, as written
+    """
     masked_text: MaskedText | None
     """
     Visible CV text with personal data replaced; null for a scanned PDF

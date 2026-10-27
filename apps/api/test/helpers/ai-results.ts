@@ -84,6 +84,8 @@ export async function startAiWorker(vhost: RabbitVhost): Promise<StartedTestCont
       // API: a request without a recorded reply fails with LLM_FIXTURE_MISSING.
       LLM_PROVIDER: 'fixture',
       LLM_FIXTURES_DIR: '/tmp/llm-fixtures',
+      // The image has no embedding model (US-2.5): the deterministic fake, as compose defaults to.
+      EMBEDDING_PROVIDER: 'hashing',
       AI_FAKE_FILE_KEYS: 'true',
       MINIO_ENDPOINT: 'http://minio:9000',
       MINIO_ACCESS_KEY: requiredEnv('MINIO_ACCESS_KEY'),
@@ -122,7 +124,10 @@ export const PARSED_PROFILE: CvProfile = {
   education: [
     { institution: 'Trường Đại học Demo', degree: 'Kỹ sư', major: 'Công nghệ thông tin', start: '2022', end: null, gpa: '3.2/4' },
   ],
-  skills: [{ name: 'Java' }, { name: 'Spring Boot' }],
+  skills: [
+    { name: 'Java', canonical_name: 'Java', match: 'ALIAS' },
+    { name: 'Spring Boot', canonical_name: 'Spring Boot', match: 'ALIAS' },
+  ],
   projects: [
     {
       name: 'Library API',
@@ -174,6 +179,7 @@ export function cvParseOutput(cv: { id: number; version: number }, overrides: Pa
     profile: PARSED_PROFILE,
     pii: PARSED_PII,
     profile_masked: PARSED_PROFILE,
+    new_skills: [],
     masked_text: '[NAME]\nEmail: [EMAIL]\nJava, Spring Boot',
     hidden_text_detected: false,
     ...overrides,

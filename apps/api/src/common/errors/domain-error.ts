@@ -267,3 +267,24 @@ export class CvSubmissionConflictError extends DomainError {
     super(`another CV for campaign ${campaignId} was submitted at the same time`, { campaignId });
   }
 }
+
+// Skill catalogue review (US-2.5, CONTEXT D39).
+
+/**
+ * The name would share its match key with another skill (its name, or an approved skill's alias):
+ * two catalogue skills must never match one spelling. `details` names that skill, so ADMIN can
+ * merge into it instead.
+ */
+export class SkillNameTakenError extends DomainError {
+  readonly code = 'SKILL_NAME_TAKEN';
+  readonly httpStatus = 409;
+
+  constructor(name: string, owner: { id: number; canonicalName: string; status: string }) {
+    super(`"${name}" matches skill ${owner.id} (${owner.canonicalName}, ${owner.status})`, {
+      name,
+      skillId: owner.id,
+      canonicalName: owner.canonicalName,
+      status: owner.status,
+    });
+  }
+}

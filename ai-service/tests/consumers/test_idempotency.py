@@ -14,6 +14,8 @@ from app.contracts.cv_parse_job import CvParseJob
 from app.contracts.cv_parse_output import CvParseOutput
 from app.contracts.jd_analyze_job import JdAnalyzeJob
 from app.contracts.jd_analyze_output import JdAnalyzeOutput
+from app.contracts.skill_normalize_job import SkillNormalizeJob
+from app.contracts.skill_normalize_output import SkillNormalizeOutput
 from app.handlers import build_handlers
 from app.queues import QUEUES
 from app.worker import build_runners, subscribe_all
@@ -34,6 +36,7 @@ JD_OUTPUT = {
         },
     },
     "position_group": "BACKEND",
+    "new_skills": [],
     "hidden_text_detected": False,
 }
 
@@ -50,7 +53,19 @@ async def stub_cv_parse(job: CvParseJob) -> CvParseOutput:
     return fake_cv_output(job.cv_id, job.cv_version)
 
 
-HANDLERS = build_handlers(cv_parser=stub_cv_parse, jd_analyzer=stub_jd_analyze, fake_file_keys=True)
+async def stub_skill_normalize(job: SkillNormalizeJob) -> SkillNormalizeOutput:
+    """Stands in for the skill normalizer, which has its own tests (tests/agents)."""
+    return SkillNormalizeOutput(
+        prompt_version="skill_normalizer/v1", model="fixture", suggestions=[]
+    )
+
+
+STUBS = {
+    "cv_parser": stub_cv_parse,
+    "jd_analyzer": stub_jd_analyze,
+    "skill_normalizer": stub_skill_normalize,
+}
+HANDLERS = build_handlers(**STUBS, fake_file_keys=True)
 
 
 def wired_broker(store, handlers) -> tuple[RabbitBroker, list[Any], list[Any]]:
@@ -143,7 +158,7 @@ def test_ad5_every_queue_has_a_consumer() -> None:
 
 async def test_us24_fake_markers_only_when_the_test_setting_is_on(store) -> None:
     """Without AI_FAKE_FILE_KEYS a marker is an ordinary key, read by the real handler."""
-    handlers = build_handlers(cv_parser=stub_cv_parse, jd_analyzer=stub_jd_analyze)
+    handlers = build_handlers(**STUBS)
     broker, results, _ = wired_broker(store, handlers)
     job = {**cv_job(), "file_key": "__fake__/permanent/cv.pdf"}
     async with TestRabbitBroker(broker) as test_broker:

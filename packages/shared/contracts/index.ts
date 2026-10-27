@@ -3,6 +3,7 @@
 export * from './jobs.js';
 export * from './jd.js';
 export * from './cv.js';
+export * from './skills.js';
 export * from './envelope.js';
 export * from './queues.js';
 export * from './schemas.js';

@@ -37,6 +37,16 @@
     "profile_masked": {
       "$ref": "./cv_profile.json"
     },
+    "new_skills": {
+      "maxItems": 100,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 100
+      },
+      "description": "Skill names not in the catalogue (match NEW), one per skillMatchKey, as written"
+    },
     "masked_text": {
       "anyOf": [
         {
@@ -63,6 +73,7 @@
     "profile",
     "pii",
     "profile_masked",
+    "new_skills",
     "masked_text",
     "hidden_text_detected"
   ],

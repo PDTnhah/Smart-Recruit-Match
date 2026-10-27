@@ -7,7 +7,7 @@
       "$ref": "./cv_pii.json"
     },
     "profile": {
-      "$ref": "./cv_profile.json"
+      "$ref": "./cv_extracted_profile.json"
     }
   },
   "required": [

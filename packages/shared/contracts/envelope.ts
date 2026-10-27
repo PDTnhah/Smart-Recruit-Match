@@ -1,7 +1,8 @@
 import { z } from 'zod';
 import { CvPiiSchema, CvProfileSchema, CvSourceSchema } from './cv.js';
 import { JdRequirementsSchema, PositionGroupSchema } from './jd.js';
-import { CvParseJobSchema, JdAnalyzeJobSchema, type AiJobType } from './jobs.js';
+import { CvParseJobSchema, JdAnalyzeJobSchema, SkillNormalizeJobSchema, type AiJobType } from './jobs.js';
+import { SKILL_NORMALIZE_BATCH, SkillSuggestionSchema } from './skills.js';
 
 /** Outcome of a job as reported on `ai.results` (ARCHITECTURE › Hàng đợi). */
 export const AI_RESULT_STATUSES = ['SUCCEEDED', 'PARTIAL', 'FAILED'] as const;
@@ -38,6 +39,13 @@ const outputBase = {
   model: z.string().min(1).describe('Model id that produced the output'),
 };
 
+/** Names the catalogue does not have yet (US-2.5 AC-4); the backend queues them for ADMIN (FR-13). */
+const newSkills = () =>
+  z
+    .array(z.string().trim().min(1).max(100))
+    .max(100)
+    .describe('Skill names not in the catalogue (match NEW), one per skillMatchKey, as written');
+
 /**
  * Output of CV_PARSE (US-2.4 AC-8, CONTEXT D37). `pii` travels in clear over the broker and the
  * backend encrypts it before storing; the text the AI Service dropped as hidden is never part of
@@ -54,6 +62,8 @@ export const CvParseOutputSchema = z
     pii: CvPiiSchema,
     // The profile with every personal value replaced by a token (BR-03); same shape, so same schema.
     profile_masked: CvProfileSchema,
+    // Taken from profile_masked, without any name that holds a token: no personal data (BR-03).
+    new_skills: newSkills(),
     masked_text: z
       .string()
       .min(1)
@@ -74,11 +84,28 @@ export const JdAnalyzeOutputSchema = z
     ...outputBase,
     jd_id: z.int().positive().describe('core.job_descriptions.id the requirements belong to'),
     jd_version: z.int().positive().describe('JD version that was analysed'),
+    // Skill names mapped to the catalogue are replaced by its canonical names (US-2.5).
     requirements: JdRequirementsSchema,
     position_group: PositionGroupSchema,
+    new_skills: newSkills(),
     hidden_text_detected: z.boolean().describe('The JD file contained hidden text, removed before the prompt'),
   })
   .meta({ title: 'JdAnalyzeOutput', description: 'Result of JD_ANALYZE' });
+
+/**
+ * Output of SKILL_NORMALIZE (US-2.5 AC-6): suggestions for new skills awaiting review. ADMIN reads
+ * them; nothing is approved from them (AD-2). A skill the LLM gave no valid suggestion for is left
+ * out.
+ */
+export const SkillNormalizeOutputSchema = z
+  .strictObject({
+    ...outputBase,
+    suggestions: z
+      .array(SkillSuggestionSchema)
+      .max(SKILL_NORMALIZE_BATCH)
+      .describe('At most one suggestion per skill of the job'),
+  })
+  .meta({ title: 'SkillNormalizeOutput', description: 'Result of SKILL_NORMALIZE' });
 
 /**
  * One result message per job type. `job` echoes the job payload so a FAILED result still tells the
@@ -105,12 +132,21 @@ export const JdAnalyzeResultSchema = resultMessage('JD_ANALYZE', JdAnalyzeJobSch
   description: 'Message on ai.results for a JD_ANALYZE job',
 });
 
+export const SkillNormalizeResultSchema = resultMessage(
+  'SKILL_NORMALIZE',
+  SkillNormalizeJobSchema,
+  SkillNormalizeOutputSchema,
+).meta({
+  title: 'SkillNormalizeResult',
+  description: 'Message on ai.results for a SKILL_NORMALIZE job',
+});
+
 /**
  * A message on `ai.results`. The status/result/error checks live here only: `z.toJSONSchema` drops
  * refinements, so the AI Service builds the message in one place and tests it (CONTEXT D33).
  */
 export const AiResultMessageSchema = z
-  .discriminatedUnion('type', [CvParseResultSchema, JdAnalyzeResultSchema])
+  .discriminatedUnion('type', [CvParseResultSchema, JdAnalyzeResultSchema, SkillNormalizeResultSchema])
   .superRefine((msg, ctx) => {
     if (msg.job.job_id !== msg.job_id) {
       ctx.addIssue({ code: 'custom', path: ['job', 'job_id'], message: 'job.job_id must equal job_id' });

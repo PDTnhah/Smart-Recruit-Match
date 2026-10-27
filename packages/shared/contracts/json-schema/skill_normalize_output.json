@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./skill_normalize_output.json",
+  "type": "object",
+  "properties": {
+    "prompt_version": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Versioned prompt file, e.g. cv_parser/v3"
+    },
+    "model": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Model id that produced the output"
+    },
+    "suggestions": {
+      "maxItems": 50,
+      "type": "array",
+      "items": {
+        "$ref": "./skill_suggestion.json"
+      },
+      "description": "At most one suggestion per skill of the job"
+    }
+  },
+  "required": [
+    "prompt_version",
+    "model",
+    "suggestions"
+  ],
+  "additionalProperties": false,
+  "title": "SkillNormalizeOutput",
+  "description": "Result of SKILL_NORMALIZE"
+}

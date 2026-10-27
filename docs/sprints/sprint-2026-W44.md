@@ -10,6 +10,7 @@ goal: 'Ship US-2.4: CV sinh viên được AI phân tích thành hồ sơ năng 
 | US     | Title                                             | Epic   | Pri | Points | Status     | Carry    | Story file                                                                                                             |
 | ------ | ------------------------------------------------- | ------ | --- | ------ | ---------- | -------- | ---------------------------------------------------------------------------------------------------------------------- |
 | US-2.4 | CV Parser: chữ ẩn, tách PII                       | EPIC-2 | P0  | 8      | 👀 review  | new      | [stories/US-2.4-cv-parser-hidden-text-pii-split.md](stories/US-2.4-cv-parser-hidden-text-pii-split.md)                 |
+| US-2.5 | Embedding và danh mục kỹ năng                     | EPIC-2 | P1  | 8      | 👀 review  | new      | [stories/US-2.5-embeddings-skill-catalog.md](stories/US-2.5-embeddings-skill-catalog.md)                               |
 | US-5.1 | Allocation Engine và property-based test          | EPIC-5 | P0  | 5      | 📋 backlog | new      | [stories/US-5.1-allocation-engine-property-tests.md](stories/US-5.1-allocation-engine-property-tests.md)               |
 | US-6.4 | Mô phỏng phân bổ so với baseline                  | EPIC-6 | P1  | 5      | 📋 backlog | new      | [stories/US-6.4-allocation-simulation-vs-baselines.md](stories/US-6.4-allocation-simulation-vs-baselines.md)           |
 | US-2.1 | Hạ tầng job AI và hợp đồng message                | EPIC-2 | P0  | 8      | 👀 review  | from W43 | [stories/US-2.1-ai-job-pipeline-message-contracts.md](stories/US-2.1-ai-job-pipeline-message-contracts.md)             |
@@ -41,6 +42,8 @@ Tuần T4 của lộ trình 13 tuần ([sprints/README › Lộ trình](README.m
 
 US-2.4 sinh migration `0011`, `0012`. Đây là story duy nhất sinh migration đầu tuần; US-5.1 và US-6.4 là hàm thuần và mô phỏng, không cần migration.
 
+Ngày 2026-10-26 kéo thêm US-2.5 sớm từ W46 (8 điểm, v0.11.0, [CONTEXT D39](../CONTEXT.md)): embedding `bge-m3` và `ai.embeddings`, chuẩn hóa tên kỹ năng của CV và JD theo danh mục, màn ADMIN duyệt, gộp, từ chối kỹ năng mới. US-2.5 sinh migration `0013`–`0018`; US-2.6 (cùng tuần T6) phải tạo migration sau khi US-2.5 merge ([LESSONS §6](../LESSONS.md)).
+
 ## Parked / deferred from W43
 
 - ✅ **Started in W43, carried as new**: US-2.4 — bắt đầu ngày 2026-10-25, ship 0.10.0, ở `review`.
@@ -51,6 +54,8 @@ US-2.4 sinh migration `0011`, `0012`. Đây là story duy nhất sinh migration 
 ## Risks & dependencies
 
 - **US-2.4 cần người dùng duyệt `TERMS_V2` và chạy với key Gemini thật** — *Impact*: chưa gửi CV thật cho Gemini được; AC-12 (p95 < 30 giây) chưa có số liệu. *Mitigation*: compose mặc định `LLM_PROVIDER=fixture`; `perf_cv_parse.py` và `smoke_llm.py` chạy tay trên CV giả. *Owner*: @PDTnhah.
+
+- **US-2.5 chưa chạy compose với `EMBEDDING_PROVIDER=bge-m3`** — *Impact*: chưa đo thời gian nạp mô hình và NFR-6 với bge-m3 thật trong container; image thêm khoảng 1 GB, volume `hf-models` khoảng 4,5 GB, ổ C: của máy dev không đủ chỗ. *Mitigation*: test `@slow` đã chạy bge-m3 thật ngoài Docker; compose mặc định `hashing`. *Owner*: @PDTnhah.
 
 - **Máy dev thiếu RAM khi chạy integration test** — *Impact*: Jest worker hết bộ nhớ, suite đỏ ngẫu nhiên. *Mitigation*: dừng compose trước `pnpm test` ([LESSONS §15](../LESSONS.md)); chạy riêng các suite bị ảnh hưởng với `--runInBand`. *Owner*: @PDTnhah.
 
@@ -72,6 +77,7 @@ US-2.4 sinh migration `0011`, `0012`. Đây là story duy nhất sinh migration 
 ## Cross-references
 
 - [Story US-2.4](stories/US-2.4-cv-parser-hidden-text-pii-split.md) — AC + Tasks
+- [Story US-2.5](stories/US-2.5-embeddings-skill-catalog.md) — kéo sớm từ W46
 - [Story US-5.1](stories/US-5.1-allocation-engine-property-tests.md), [US-6.4](stories/US-6.4-allocation-simulation-vs-baselines.md) — kế hoạch tuần
 - [Story US-2.1](stories/US-2.1-ai-job-pipeline-message-contracts.md), [US-2.2](stories/US-2.2-llm-client-versioned-prompts.md), [US-2.3](stories/US-2.3-jd-analyzer-hr-requirement-confirmation.md) — chuyển từ W43
 - [Story US-1.1](stories/US-1.1-scaffold-monorepo-docker-compose-ci.md), [US-1.3](stories/US-1.3-auth-rbac-design-system-app-shell.md), [US-1.4](stories/US-1.4-campaign-setup-and-config.md), [US-1.5](stories/US-1.5-company-hr-accounts-jd-posting-approval.md), [US-1.6](stories/US-1.6-data-consent-and-cv-upload.md), [US-1.7](stories/US-1.7-notifications-sse-email-reminders.md) — chuyển từ W41, W42

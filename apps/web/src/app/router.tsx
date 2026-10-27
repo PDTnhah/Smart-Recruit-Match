@@ -15,6 +15,7 @@ import { CompanyCreatePage, CompanyDetailPage } from '@/features/center/companie
 import { CvAttentionPage } from '@/features/center/cvs/cv-attention-page';
 import { JdApprovalDetailPage } from '@/features/center/jd-approval/jd-approval-detail-page';
 import { JdApprovalListPage } from '@/features/center/jd-approval/jd-approval-list-page';
+import { SkillReviewPage } from '@/features/center/skills/skill-review-page';
 import { HrJdListPage } from '@/features/hr/jds/hr-jd-list-page';
 import { HrJdCreatePage, HrJdDetailPage } from '@/features/hr/jds/hr-jd-pages';
 import { StudentHomePage } from '@/features/student/home/student-home-page';
@@ -44,6 +45,10 @@ function portalRoute(
 
 function centerOnly(page: ReactNode): ReactNode {
   return <RequireRole roles={['CENTER']}>{page}</RequireRole>;
+}
+
+function adminOnly(page: ReactNode): ReactNode {
+  return <RequireRole roles={['ADMIN']}>{page}</RequireRole>;
 }
 
 export const router = createBrowserRouter([
@@ -80,6 +85,8 @@ export const router = createBrowserRouter([
     { path: 'job-descriptions/:id', element: centerOnly(<JdApprovalDetailPage />) },
     // US-2.4: CVs whose analysis failed or whose file hid text.
     { path: 'cvs', element: centerOnly(<CvAttentionPage />) },
+    // US-2.5: review of the new skills the AI found.
+    { path: 'skills', element: adminOnly(<SkillReviewPage />) },
   ]),
   { path: '*', element: <Navigate to="/" replace /> },
 ]);

@@ -45,6 +45,7 @@
 - D36 · Ma trận S_cv đọc hai chiều: JD gợi ý cho sinh viên, CV phù hợp theo JD cho Trung tâm
 - D37 · Phân tích CV: lỗi phân tích, `pii` mã hóa, che PII bằng code, PDF scan, `TERMS_V2` (US-2.4)
 - D38 · Giới hạn chi phí context của agent: ba phiên mỗi story, mục lục, AGENTS.md không giữ trạng thái
+- D39 · Danh mục kỹ năng và embedding: module `skills`, `EMBEDDING_PROVIDER`, hợp đồng kỹ năng, HNSW một phần (US-2.5)
 
 ---
 
@@ -1228,3 +1229,86 @@ Ngoài ra còn phải giải quyết:
 
 **Date**: 2026-10-25
 **Version**: 0.10.0
+
+### D39. Danh mục kỹ năng và embedding: module `skills`, `EMBEDDING_PROVIDER`, hợp đồng kỹ năng, index HNSW một phần (US-2.5)
+
+**Context**: Story US-2.5 còn để mở các điểm sau:
+
+1. Danh mục kỹ năng thuộc module nào. Story đề xuất `matching`, nhưng cả `student` (US-2.6) và form JD đều cần tra cứu.
+2. Compose có tải sẵn `BAAI/bge-m3` hay không. Mô hình nặng khoảng 2,3 GB và cần 2,5–3 GB RAM cho mỗi bản sao worker.
+3. `group` của kỹ năng là chuỗi tự do hay enum.
+4. Nơi đặt kết quả chuẩn hóa trong hợp đồng mà không làm đổi khóa fixture LLM của US-2.4.
+5. Các bước 6 và 8 của ARCH › *Pipeline CV Parser* cắm vào đâu (D37 để chỗ `profile_steps`).
+
+**Decision** (người dùng chốt ba mục đầu ngày 2026-10-26):
+
+- **Module NestJS mới `skills`.** Module này sở hữu `core.skills` và export `SkillCatalogService.search` cho US-2.6, form JD và matching. Nó nghe thẳng `ai.result.CV_PARSE` / `ai.result.JD_ANALYZE` để tạo dòng chờ duyệt. Cách này giao ít nhất một lần và có thử lại.
+- **`EMBEDDING_PROVIDER = bge-m3 | hashing`.**
+  - Compose mặc định `hashing`: embedding giả, tất định (trigram ký tự băm vào 1024 chiều, model `hashing-v1`), giống `LLM_PROVIDER=fixture`. Worker ghi WARNING khi chạy chế độ này.
+  - Muốn dùng `bge-m3` thì đặt biến này trong `deploy/.env` rồi `up --build`. Compose truyền cùng một biến làm build arg của image và env của `ai-worker`. Image mặc định không cài `torch` và `sentence-transformers`. Image `bge-m3` thêm một layer torch bản CPU rồi cài extra `embedding`, đặt `HF_HOME=/models` trên volume `hf-models`. Lần đầu tải khoảng 4,5 GB, vì transformers tải trọng số cả dạng `.bin` lẫn safetensors. Chọn `bge-m3` trên image chưa có extra thì worker dừng lúc khởi động và báo cần build lại.
+  - `Settings` của ai-service mặc định `bge-m3` (AD-11). Compose và test e2e đặt `hashing`. Image đặt `ENV EMBEDDING_PROVIDER` theo build arg, nên chạy image mà không truyền biến vẫn dùng đúng thứ đã cài.
+  - Mô hình nạp một lần cho mỗi tiến trình trong `on_startup`, rồi tính embedding cho các kỹ năng của danh mục còn thiếu. Ghim `sentence-transformers==6.1.0` (extra `embedding`), `pgvector==0.5.1`, `torch==2.14.1` bản CPU.
+- **`group` là enum** `SKILL_GROUPS`: LANGUAGE, FRAMEWORK, DATABASE, CLOUD_DEVOPS, TOOL, TESTING, DATA_AI, METHODOLOGY, SOFT_SKILL, OTHER. DB có CHECK; kỹ năng `APPROVED` bắt buộc có `group`.
+- **Khóa so tên** `skillMatchKey` (TS) và `skill_match_key` (Python): NFKC, chữ thường, bỏ khoảng trắng, `.`, `-`, `_`, `/`; giữ `+` và `#`. Bộ ca dùng chung nằm ở `contracts/fixtures/skill-key-cases.json`. Chuẩn hóa theo thứ tự: khớp key với tên chuẩn hoặc alias (`ALIAS`), rồi cosine ≥ `SKILL_MATCH_THRESHOLD` (mặc định 0,85) với kỹ năng gần nhất (`EMBEDDING`), còn lại là `NEW`. Embedding của kỹ năng tính từ `canonical_name`, khóa theo `row_version`. Khi tính bù, vector kỹ năng của phiên bản cũ và của model khác bị xóa, vì index HNSW lọc sau khi quét (LESSONS §24).
+- **Hợp đồng**:
+  - Phía LLM: `CvExtractedSkill`, `CvExtractedProfile`, giữ nguyên field và mô tả nên schema gửi LLM và khóa fixture không đổi.
+  - Phía lưu: `CvSkill = { name, canonical_name | null, match }`, có refine `canonical_name` null đúng khi `NEW`.
+  - `CvParseOutput.new_skills` lấy từ `profile_masked` và bỏ tên chứa token che PII (BR-03).
+  - JD không thêm field: tên khớp được thay bằng tên chuẩn ngay trong `requirements`. Hai tên cùng quy về một kỹ năng thì giữ bản `must_have`; trong cùng nhóm, giữ bản có trọng số cao hơn. `JdAnalyzeOutput.new_skills` thêm vào output.
+  - Quy tắc kỹ năng trùng của `JdRequirements` (`skillKey`, dùng ở form HR và API) so bằng `skillMatchKey`, nên HR không nhập được "React" cùng "React.js".
+  - Hồ sơ phân tích trước 0.11.0: migration 0018 thêm `canonical_name: null, match: NEW` vào từng kỹ năng. Các tên này không vào hàng chờ duyệt, và CV không có embedding hồ sơ; US-3.2 tính embedding từ hồ sơ đã xác nhận.
+- **Thay `CvParser(profile_steps=…)`** bằng hai phụ thuộc bắt buộc: `skills: SkillNormalizer` (bước 6, trước khi che PII) và `embeddings: ProfileEmbeddings` (bước 8, sau khi kiểm che PII, từ `profile_masked`, upsert `(cv, cv_id, cv_version, model)`). `JdAnalyzer` nhận `skills`.
+- **Bảng `core.skills`**:
+  - cột `canonical_name` UNIQUE, `name_key` UNIQUE, `aliases text[]`, `alias_keys text[]` (cùng số phần tử, index GIN), `group`, `status`, `merged_into_id`, `suggestion` + `suggestion_model` + `suggestion_prompt_version` (CHECK cùng null);
+  - CHECK `MERGED` ⇒ có `merged_into_id`. Chỉ một chiều, vì chỉ `transitionTo` được ghi `status` (AD-8): khi gộp, backend ghi đích trước rồi mới chuyển trạng thái.
+
+  Kỹ năng chờ duyệt giữ tên như CV/JD viết trong `canonical_name`. Dòng đã duyệt, gộp hay từ chối vẫn được giữ, nên key của nó chặn việc đưa cùng tên vào hàng chờ lần nữa. Máy trạng thái `skillMachine`: `PENDING → APPROVED | REJECTED | MERGED`, ba trạng thái sau là trạng thái cuối. Seed 174 kỹ năng IT kèm alias, không có hai cách viết nào của hai kỹ năng khác nhau trùng key.
+- **View**: `core.v_ai_skills` (`APPROVED`: `skill_id, canonical_name, aliases, group, version`) và `core.v_ai_skill_candidates` (`PENDING`: `skill_id, name`).
+- **`ai.embeddings`**:
+  - unique `(owner_type, owner_id, version, model)`, `owner_type` viết thường theo ARCH;
+  - mỗi `owner_type` một index HNSW `vector_cosine_ops` một phần;
+  - truy vấn ghi `owner_type` dạng hằng trong SQL để planner chọn đúng index.
+
+  Một index chung cộng bộ lọc sẽ quét vector CV trước và có thể trả thiếu kỹ năng. Adapter là `pgvector.psycopg`, đăng ký trong `configure` của pool.
+- **Job gợi ý**: kiểu `SKILL_NORMALIZE`, queue `ai.skills.normalize`, agent `skill_normalizer` (`effort: low`), payload `{ job_id, skill_ids[1..50] }`.
+  - Agent chỉ đọc các kỹ năng của job còn `PENDING`. Nếu không còn kỹ năng nào thì job FAILED với mã `SKILLS_NOT_PENDING`; backend bỏ qua kết quả FAILED.
+  - Guardrail: bỏ gợi ý cho `skill_id` ngoài job và gợi ý lặp lại; `similar_skills` chỉ giữ tên có trong danh mục, ghi theo tên chuẩn. Tên chuẩn LLM gợi ý mà trùng key một kỹ năng có sẵn thì kỹ năng đó được thêm vào `similar_skills`.
+- **Backend** (module `skills`):
+  - Listener `ai.result.CV_PARSE` / `JD_ANALYZE` bỏ qua tên mà một kỹ năng đã duyệt khớp theo tên hoặc alias, kể cả alias vừa sinh ra do đổi tên lúc duyệt. Lý do: AI Service có thể đọc danh mục trước quyết định mới nhất của ADMIN, và `ON CONFLICT (name_key)` không bắt được alias.
+  - Gợi ý: chỉ lưu gợi ý đầu tiên của một kỹ năng còn `PENDING`, không tăng `row_version` (gợi ý chỉ để tham khảo, ADMIN không sửa). Audit `SKILL_PROPOSED`, `SKILL_SUGGESTED` với actor SYSTEM.
+  - Không hai kỹ năng nào khớp cùng một key, gồm tên của mọi dòng và alias của kỹ năng đã duyệt. API kiểm điều này bằng TypeScript (`domain/catalogue-keys.ts`), dưới khóa advisory `SKILL_CATALOGUE` (2505): ADMIN giữ khóa exclusive, listener giữ khóa shared. Vi phạm trả 409 `SKILL_NAME_TAKEN`, `details` nêu kỹ năng đang giữ key để ADMIN gộp vào. DB giữ cùng quy tắc (Invariant 11): backend ghi `alias_keys` cùng `aliases`, như `name_key`, và trigger `skills_keys_distinct` (migration 0017) kiểm lúc commit, vì khi gộp, alias của đích được ghi trước `merged_into_id` của nguồn.
+  - Duyệt có đổi tên sang key khác thì tên CV/JD viết thành alias. Gộp chỉ nhận đích `APPROVED`, khác chính nó; sai thì trả 422 `TRANSITION_CONDITION_FAILED` / `MERGE_TARGET_NOT_APPROVED`. Đích nhận thêm alias thì tăng `row_version`.
+  - `GET /api/skills?query=` so key của câu truy vấn với `name_key` và `alias_keys`. Migration 0016 tính `alias_keys` cho seed bằng SQL tương đương `skillMatchKey`; test kiểm nó khớp kết quả của TypeScript.
+  - `GET /api/admin/skills`: kỹ năng chờ duyệt xếp cũ trước như hàng đợi; trạng thái khác xếp quyết định mới trước. Tối đa 500 dòng, chưa phân trang.
+
+- **Ngưỡng 0,85, đo với bge-m3 thật** (test `@slow`, ngày 2026-10-26, 6 cặp cùng kỹ năng và 6 cặp khác kỹ năng trông giống nhau):
+  - Không cặp khác kỹ năng nào đạt 0,85. Cao nhất là "Kiểm thử tự động" ~ "Kiểm thử thủ công" (0,847), rồi React ~ React Native (0,807).
+  - Biến thể cách viết thì khớp: ReactJS ~ React 0,857, Node JS ~ Node.js 0,903, Postgres SQL ~ PostgreSQL 0,910.
+  - Tên Việt ~ Anh và tên có thêm chữ thì không khớp (0,63–0,70; VD "Học máy" ~ "Machine Learning" 0,664).
+
+  Giữ 0,85: hạ xuống 0,80 thì React Native bị gán vào React. Tên không khớp thành kỹ năng mới. ADMIN gộp một lần, từ đó alias bắt được tên này (AC-10).
+- **Web** (`/admin/skills`, chỉ ADMIN):
+  - Bảng lọc theo trạng thái, mặc định "Chờ duyệt". Duyệt, gộp và từ chối đều dùng `AlertDialog`, vì cả ba đều không hoàn tác được.
+  - Dialog duyệt điền sẵn gợi ý của AI. Gặp `SKILL_NAME_TAKEN` mà kỹ năng giữ tên đã được duyệt, dialog cho gộp luôn vào kỹ năng đó.
+  - Ô chọn đích khi gộp là ô tìm (`GET /api/skills`, tối đa 6 kết quả) cùng `RadioGroup`. Không dùng combobox của shadcn vì nó cần `@base-ui/react`, nằm ngoài stack.
+
+**Rationale**: Một module sở hữu danh mục tránh vòng import giữa `student`, `company` và `matching`. Chế độ `hashing` giữ được việc khởi động bằng một lệnh `compose up` trên máy dev, như LLM fixture. Enum `group` giúp lọc và hiển thị nhãn tiếng Việt, và ép structured output. Tách hợp đồng phía LLM với phía lưu giữ được các fixture đã ghi của US-2.4. Lấy `new_skills` từ bản đã che thì tên ghi vào `core.skills` và gửi LLM không mang dữ liệu cá nhân.
+
+**Alternatives considered**:
+- Đặt danh mục trong `matching` — loại vì `student` và `company` sẽ phải import `matching`.
+- Compose tải bge-m3 mặc định — loại vì máy dev cần thêm khoảng 3 GB RAM và lần đầu phải tải khoảng 4,5 GB.
+- `group` là chuỗi tự do — loại vì khó lọc và LLM có thể sinh nhóm lạ.
+- Thêm field `canonical_name` vào `JdSkillRequirement` — loại vì sửa form HR của US-2.3. Thay tên ngay trong `requirements` là đủ, HR vẫn sửa được.
+- Một index HNSW chung cho mọi `owner_type` — loại vì bẫy lọc nói ở trên.
+- Bảng khóa riêng (`key` là khóa chính, trỏ tới kỹ năng) để giữ mỗi key cho một kỹ năng — loại vì phải viết lại listener và seed. Trigger trên `alias_keys` đủ cho danh mục vài trăm dòng.
+
+**Impact**:
+- `packages/shared`: `contracts/{skills,cv,envelope,jobs,queues}.ts`, `states/skill.ts`.
+- `apps/api`: migration 0013–0018, `db/schema/{skills,ai}.ts`, `skillLifecycle`, `AI_RESULT_EVENTS.SKILL_NORMALIZE`, module `modules/skills/`, lỗi `SKILL_NAME_TAKEN`, khóa advisory `SKILL_CATALOGUE`.
+- `ai-service`: `app/embedding/`, `app/agents/skill_normalizer/`, prompt `skill_normalizer/v1`, CV Parser, JD Analyzer, `worker.py`, `config.py`.
+- `apps/web`: `features/center/skills/`, route `/admin/skills`, primitive `radio-group` (DESIGN §6).
+- Triển khai: `ai-service/Dockerfile` (`ARG EMBEDDING_PROVIDER`), compose (`EMBEDDING_PROVIDER`, `SKILL_MATCH_THRESHOLD`, volume `hf-models`), `deploy/.env.example`, `DEPLOY.md`, `docs/SETUP.md`.
+- ARCH: *Tech stack*, *Các module*, *Pipeline từng agent*, *Các bảng chính*, *Hàng đợi*, *API architecture*, *Docker Compose*; AGENTS *Mẫu có sẵn*.
+
+**Date**: 2026-10-26 (bổ sung sau review 2026-10-27)
+**Version**: 0.11.0

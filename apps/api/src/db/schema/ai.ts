@@ -1,7 +1,7 @@
 import { AI_JOB_RUN_STATUSES, AI_JOB_TYPES, type AiJobRunStatus, type AiJobType } from '@srm/shared';
 import { sql } from 'drizzle-orm';
-import { check, index, integer, numeric, pgSchema, text, uuid } from 'drizzle-orm/pg-core';
-import { id, oneOf, timestamptz } from './columns.js';
+import { check, index, integer, numeric, pgSchema, text, unique, uuid, vector } from 'drizzle-orm/pg-core';
+import { id, oneOf, ref, timestamptz } from './columns.js';
 
 /**
  * Owned by the AI Service: job state, LLM call log, embeddings (ARCHITECTURE › Phân vùng schema).
@@ -85,5 +85,53 @@ export const aiLlmCalls = ai.table(
     ),
     check('llm_calls_cost_usd_check', sql`${t.costUsd} >= 0`),
     check('llm_calls_latency_ms_check', sql`${t.latencyMs} >= 0`),
+  ],
+);
+
+/** Owners of an embedding (US-2.5 AC-2). Lower case, as ARCHITECTURE › Các bảng chính names them. */
+export const EMBEDDING_OWNER_TYPES = ['cv', 'jd', 'question', 'skill', 'essay'] as const;
+
+export type EmbeddingOwnerType = (typeof EMBEDDING_OWNER_TYPES)[number];
+
+/** BAAI/bge-m3 (AD-11); the fake `hashing-v1` embedder of compose uses the same size. */
+export const EMBEDDING_DIMENSIONS = 1024;
+
+const OWNER_TYPE = /^[a-z]+$/;
+
+const ownerTypeLiteral = (type: string) => {
+  if (!OWNER_TYPE.test(type)) throw new Error(`Refusing to inline owner type: ${type}`);
+  return sql.raw(`'${type}'`);
+};
+
+/**
+ * One vector per owner version and model (AD-11, US-2.5, CONTEXT D39), written by the AI Service
+ * with an upsert on that key. `version` is the owner's version: cvs.version, skills.row_version, …
+ * Each owner type has its own partial HNSW index: a nearest-skill search filtered on one shared
+ * index would scan CV vectors first and could return too few rows.
+ */
+export const aiEmbeddings = ai.table(
+  'embeddings',
+  {
+    id: id(),
+    ownerType: text('owner_type').$type<EmbeddingOwnerType>().notNull(),
+    ownerId: ref('owner_id').notNull(),
+    version: integer('version').notNull(),
+    model: text('model').notNull(),
+    embedding: vector('embedding', { dimensions: EMBEDDING_DIMENSIONS }).notNull(),
+    createdAt: timestamptz('created_at').notNull().defaultNow(),
+    updatedAt: timestamptz('updated_at').notNull().defaultNow(),
+  },
+  (t) => [
+    unique('embeddings_owner_key').on(t.ownerType, t.ownerId, t.version, t.model),
+    check(
+      'embeddings_owner_type_check',
+      sql`${t.ownerType} in (${sql.join(EMBEDDING_OWNER_TYPES.map(ownerTypeLiteral), sql`, `)})`,
+    ),
+    check('embeddings_version_check', sql`${t.version} >= 0`),
+    ...EMBEDDING_OWNER_TYPES.map((type) =>
+      index(`embeddings_${type}_hnsw_idx`)
+        .using('hnsw', t.embedding.op('vector_cosine_ops'))
+        .where(sql`${t.ownerType} = ${ownerTypeLiteral(type)}`),
+    ),
   ],
 );

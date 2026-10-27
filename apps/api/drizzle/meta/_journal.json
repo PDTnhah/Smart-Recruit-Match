@@ -92,6 +92,48 @@
       "when": 1792928818108,
       "tag": "0012_ai_cv_masked_text_view",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1793028001200,
+      "tag": "0013_pgvector_extension",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1793028009502,
+      "tag": "0014_skills_embeddings",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1793028096482,
+      "tag": "0015_ai_skill_views_seed",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1793061920760,
+      "tag": "0016_skill_alias_keys",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1793061940930,
+      "tag": "0017_skill_keys_distinct",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1793061984951,
+      "tag": "0018_cv_profile_skill_match",
+      "breakpoints": true
     }
   ]
 }

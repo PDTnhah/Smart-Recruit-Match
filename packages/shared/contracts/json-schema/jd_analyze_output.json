@@ -31,6 +31,16 @@
     "position_group": {
       "$ref": "./position_group.json"
     },
+    "new_skills": {
+      "maxItems": 100,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 100
+      },
+      "description": "Skill names not in the catalogue (match NEW), one per skillMatchKey, as written"
+    },
     "hidden_text_detected": {
       "type": "boolean",
       "description": "The JD file contained hidden text, removed before the prompt"
@@ -43,6 +53,7 @@
     "jd_version",
     "requirements",
     "position_group",
+    "new_skills",
     "hidden_text_detected"
   ],
   "additionalProperties": false,

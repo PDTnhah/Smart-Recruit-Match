@@ -76,5 +76,5 @@
   ],
   "additionalProperties": false,
   "title": "CvProfile",
-  "description": "Competence profile of a CV, without its personal section (FR-11)"
+  "description": "Competence profile of a CV, without its personal section; skills mapped to the catalogue (FR-11)"
 }

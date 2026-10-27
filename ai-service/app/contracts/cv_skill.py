@@ -4,12 +4,21 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, RootModel
+
+from . import skill_match
+
+
+class CanonicalName(RootModel[str]):
+    root: Annotated[str, Field(max_length=100, min_length=1)]
+    """
+    Name of the catalogue skill it maps to; null when match is NEW
+    """
 
 
 class CvSkill(BaseModel):
     """
-    One concrete skill the CV claims
+    One concrete skill the CV claims, mapped to the skill catalogue
     """
 
     model_config = ConfigDict(
@@ -17,5 +26,10 @@ class CvSkill(BaseModel):
     )
     name: Annotated[str, Field(max_length=100, min_length=1)]
     """
-    Skill name as the CV writes it; US-2.5 maps it to the skill catalogue
+    Skill name as the CV writes it
     """
+    canonical_name: CanonicalName | None
+    """
+    Name of the catalogue skill it maps to; null when match is NEW
+    """
+    match: skill_match.SkillMatch
