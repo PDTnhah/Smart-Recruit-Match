@@ -11,7 +11,7 @@ prd_ref: [FR-13]
 arch_ref: [AD-11]
 depends_on: [US-2.1, US-2.4]
 assignee: PDTnhah
-commit:
+commit: 9db09995ce273507d9e457485178a2590265168e
 created: 2026-10-07
 updated: 2026-10-27
 ---
@@ -105,7 +105,7 @@ GĐ2 bước 3 (PRD) yêu cầu chuẩn hóa tên kỹ năng theo danh mục; FR
 
 Xem [CHANGELOG 0.11.0](../../CHANGELOG.md).
 
-**Commit**:
+**Commit**: 9db0999
 
 ## Implementation notes
 

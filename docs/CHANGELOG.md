@@ -71,7 +71,7 @@ US-2.5. Tên kỹ năng trong hồ sơ năng lực và yêu cầu JD được qu
 - Muốn dùng bge-m3: đặt `EMBEDDING_PROVIDER=bge-m3` trong `deploy/.env` rồi `up --build`. Mỗi bản sao `ai-worker` cần 2,5–3 GB RAM; lần đầu tải khoảng 4,5 GB vào volume `hf-models`. Đặt biến này mà không build lại thì worker dừng lúc khởi động và báo cần build lại.
 - Kỹ năng trong hồ sơ phân tích trước 0.11.0 không được chuẩn hóa lại, và các CV đó chưa có embedding hồ sơ.
 
-**Commit**:
+**Commit**: 9db0999
 
 ---
 
