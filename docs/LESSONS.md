@@ -13,7 +13,7 @@
 - Drizzle, migration: §6 migration có mốc thời gian cũ bị bỏ qua · §7 hàm dùng chung nhiều bảng: khai kiểu cụ thể · §12 `FOR UPDATE OF` sinh tên có schema
 - pgvector: §24 index HNSW lọc sau khi quét, hàng cũ chiếm chỗ ứng viên
 - Ranh giới module: §5 `exclude: node_modules` làm dependency-cruiser bỏ sót
-- Thư viện API, web: §8 CLI shadcn 4.21 · §10 Zod 4 bỏ qua `refine` khi trường khác lỗi · §13 multer đọc tên file theo latin1
+- Thư viện API, web: §8 CLI shadcn 4.21 · §10 Zod 4 bỏ qua `refine` khi trường khác lỗi · §13 multer đọc tên file theo latin1 · §25 form gửi `row_version` của query mới nhất, bỏ qua khóa lạc quan
 - RabbitMQ, job AI: §16 `RabbitMQModule` giữ connection static · §17 mặc định sai của thư viện message
 - ai-service (Python): §19 chặn mạng trong pytest trên Windows · §20 PyMuPDF cắt chữ ngoài trang, màu nền theo thứ tự vẽ · §23 `HF_HUB_OFFLINE` đọc lúc import, bge-m3 tải 4,5 GB
 
@@ -369,3 +369,16 @@ See [US-2.5](sprints/stories/US-2.5-embeddings-skill-catalog.md), [CONTEXT D39](
 - US-3.2 (embedding JD và CV theo phiên bản), US-4.1, US-4.7 sẽ gặp cùng bẫy. Nếu không xóa được hàng cũ, đặt `SET LOCAL hnsw.iterative_scan = relaxed_order` cho truy vấn đó.
 
 See [US-2.5](sprints/stories/US-2.5-embeddings-skill-catalog.md), [CONTEXT D39](CONTEXT.md).
+
+## 25. Form có `row_version`: gửi bản lúc form được nạp, không gửi bản của query mới nhất
+
+**What happened (0.12.0)**: Khi review US-2.6, form hồ sơ năng lực gửi `rowVersion: view.rowVersion`, với `view` là dữ liệu mới nhất của `useCvProfile`. Query này tự tải lại mỗi khi có sự kiện SSE `cv.analysis`, vì handler invalidate cả tiền tố `['cvs', 'me']`. Form thì giữ giá trị cũ, do `defaultValues` chỉ đọc một lần. Ví dụ: SV lưu ở tab B, tab A tải lại `view` vì một sự kiện khác. Sau đó tab A lưu và gửi `row_version` mới, kèm hồ sơ cũ. Server nhận, ghi đè bản của tab B, và không trả 409.
+
+**Why**: Khóa lạc quan chỉ đúng khi `row_version` gửi lên đi cùng giá trị mà form đã đọc. TanStack Query thay `data` ngầm khi refetch (invalidate theo tiền tố, focus cửa sổ). React Hook Form không tự `reset` khi prop đổi.
+
+**How to avoid**:
+- Giữ `rowVersion` của lần nạp form trong state hoặc trong giá trị form. Cập nhật nó sau khi lưu thành công và khi người dùng bấm tải lại, như `ProfileForm` (`features/student/profile/profile-form.tsx`).
+- Cách khác: đặt `key={data.rowVersion}` cho form, như các form đợt (`campaign-pages.tsx`). Form dựng lại khi dữ liệu đổi, nhưng mất phần đang sửa. Không dùng cách này khi query hay tự tải lại (SSE).
+- Review form có `row_version` thì tìm `rowVersion: <dữ liệu query>.rowVersion` trong hàm gửi.
+
+See [US-2.6](sprints/stories/US-2.6-student-profile-confirmation.md), [CONTEXT D40](CONTEXT.md).

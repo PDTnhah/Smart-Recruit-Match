@@ -46,6 +46,7 @@
 - D37 · Phân tích CV: lỗi phân tích, `pii` mã hóa, che PII bằng code, PDF scan, `TERMS_V2` (US-2.4)
 - D38 · Giới hạn chi phí context của agent: ba phiên mỗi story, mục lục, AGENTS.md không giữ trạng thái
 - D39 · Danh mục kỹ năng và embedding: module `skills`, `EMBEDDING_PROVIDER`, hợp đồng kỹ năng, HNSW một phần (US-2.5)
+- D40 · SV xác nhận hồ sơ: che PII lại bằng TS, "Sửa lại" tạo phiên bản mới, kỹ năng SV nhập vào hàng chờ duyệt (US-2.6)
 
 ---
 
@@ -1312,3 +1313,50 @@ Ngoài ra còn phải giải quyết:
 
 **Date**: 2026-10-26 (bổ sung sau review 2026-10-27)
 **Version**: 0.11.0
+
+### D40. SV xác nhận hồ sơ năng lực: che PII lại bằng TypeScript, "Sửa lại" tạo phiên bản mới, kỹ năng SV nhập vào hàng chờ duyệt (US-2.6)
+
+**Context**: Story US-2.6 còn để mở các điểm sau:
+
+1. Sau khi SV sửa `profile`, `profile_masked` được tạo lại ở đâu. ARCH chỉ đặt việc che PII ở `ai-service/app/parsing/`; story đề xuất hàm thuần TS và ghi là điểm mơ hồ.
+2. "Sửa lại" sau khi đã xác nhận (AC-12). Spec chỉ nói SV cập nhật CV trước hạn thì tạo phiên bản mới; story đề xuất cách không gọi lại AI và ghi phải hỏi.
+3. Kỹ năng SV tự nhập ngoài danh mục (AC-3). FR-13 chỉ nói ADMIN duyệt kỹ năng mới "do AI phát hiện".
+4. Cách API nhận diện CV. ARCH ghi `PUT /api/cvs/me/profile/confirm`, nhưng một SV có thể có CV ở nhiều đợt, và một bản mới có thể được tải lên trong lúc SV đang sửa bản cũ.
+
+**Decision** (người dùng chốt ba mục đầu ngày 2026-10-27):
+
+- **Che PII lại bằng TypeScript.** `apps/api/src/modules/student/domain/mask-profile.ts` port 1:1 các hàm `mask_text`, `mask_profile`, `find_pii` của `pii.py`. Hai phía cùng chạy bộ ca `packages/shared/contracts/fixtures/pii-mask-cases.json`. Một ca không qua thì sửa code, không sửa fixture. Core Backend giải mã `pii` bằng `pgp_sym_decrypt` trong giao dịch. Che, lưu, chuyển trạng thái và audit nằm trong cùng một giao dịch. Lưu nháp cũng tạo lại `profile_masked`, để `profile_masked` luôn là bản che của `profile`.
+- **"Sửa lại" tạo phiên bản mới** (`POST /api/cvs/me/profile/reopen`, chỉ khi đợt còn ở `INTAKE` trước `intake_end`):
+  - Chép `file_key`, `file_name`, `profile`, `profile_masked`, `pii` (bytea, không giải mã), `masked_text`, `analysis_source`/`model`/`prompt_version` và `hidden_text_flag` sang version n+1. Không chép mã lỗi.
+  - Bản cũ mất `active` (audit `CV_SUPERSEDED`) nhưng vẫn giữ `CONFIRMED`, nên vẫn còn dấu hồ sơ đã xác nhận. Bản mới chèn ở `PENDING_ANALYSIS` rồi `transitionTo('PENDING_CONFIRMATION')` trong cùng giao dịch, nên bảng chuyển trạng thái không đổi.
+  - Không phát `cv.submitted`, nên không gửi job AI.
+  - Như lần tải CV lên, phiên bản mới cần SV đã đồng ý điều khoản hiện hành của đợt (403 `CONSENT_REQUIRED`), vì nó chép cả `pii`. Bổ sung ở phiên Review.
+- **Kỹ năng SV nhập được đưa vào hàng chờ duyệt.** Sau khi commit xác nhận, module `student` gọi hàm công khai của `skills` (`NewSkillsService.proposeFromStudentProfile`). Tên lấy từ `profile_masked`, bỏ tên chứa token che PII, như `new_skills` của CV Parser. Audit `SKILL_PROPOSED` ghi `source: 'CV_PROFILE'`, `jobId: null`. Lỗi ở bước này chỉ ghi log, vì việc xác nhận đã commit.
+- **Backend tự chuẩn hóa lại kỹ năng**, không tin `canonical_name`/`match` do client gửi. Tên khớp key với một kỹ năng `APPROVED` thì thành `ALIAS` kèm tên chuẩn. `EMBEDDING` chỉ được giữ khi tên và `canonical_name` y như bản đang lưu. Còn lại là `NEW`.
+- **API nhận `cvId` + `rowVersion` trong body**, đường dẫn giữ `/api/cvs/me/profile…` theo ARCH. `GET /api/cvs/me/profile?campaignId=` trả CV `active` của SV trong đợt. CV của người khác trả 404. `rowVersion` lệch trả 409 `ROW_VERSION_CONFLICT`. Mã này cũng áp dụng cho bản vừa bị bản mới thay, vì `deactivate` tăng `row_version`. CV không ở `PENDING_CONFIRMATION` trả 409 `CV_PROFILE_NOT_EDITABLE`.
+- **Kiểm giao diện:** như D35, không thêm Vitest hay Testing Library. Form dùng chung schema với API, nên phần kiểm bằng Jest nằm ở `packages/shared`; bố cục và trạng thái được kiểm tay ở 360/768/1024 px.
+
+**Rationale**:
+
+- Hàm thuần TS chạy đồng bộ trong giao dịch xác nhận, nên AC-5 được đáp ứng mà không cần thêm trạng thái trung gian hay job AI. Bộ ca dùng chung giữ hai phía che giống nhau.
+- Tạo phiên bản mới giữ được hồ sơ đã xác nhận mà không phải lưu nội dung hồ sơ vào audit (nội dung có thể chứa PII), và dùng lại đúng luồng BR-01 của lần nộp CV.
+- Đưa tên SV nhập vào hàng chờ giúp danh mục học được kỹ năng mới; tên đã qua bước che nên không mang dữ liệu cá nhân.
+- Có `cvId` trong body thì một bản mới tải lên ở tab khác không bị ghi đè bằng hồ sơ của bản cũ, kể cả khi `row_version` của hai bản trùng nhau.
+
+**Alternatives considered**:
+- **Job che PII sang AI Service:** loại vì xác nhận phải chờ kết quả bất đồng bộ (cần trạng thái trung gian hoặc SSE) và không nằm trong một giao dịch.
+- **Mở lại chính bản đã xác nhận** (cạnh `CONFIRMED → PENDING_CONFIRMATION`): loại vì mất ảnh chụp hồ sơ đã xác nhận.
+- **Chỉ đánh dấu `NEW`, không vào hàng chờ:** loại theo lựa chọn của người dùng.
+- **Nhận diện CV theo `campaignId`:** loại vì lý do ở *Rationale*.
+
+**Impact**:
+- Không có migration mới. View `core.v_ai_cv_profile_masked` đã chỉ lấy CV `active` ở `CONFIRMED`.
+- `packages/shared`: thông báo lỗi tiếng Việt trong `contracts/cv.ts` (JSON Schema không đổi), schema hồ sơ và form trong `schemas/cv.ts`, mã lỗi `CV_PROFILE_NOT_EDITABLE`.
+- `apps/api`: module `student` (`mask-profile.ts`, `profile-editing.ts`, `CvProfileService`, controller), module `skills` (`SkillCatalogService.matchKeys`, `NewSkillsService.proposeFromStudentProfile`).
+- `apps/web`: màn Hồ sơ hai cột (từ `lg`) hoặc hai tab, primitive `tabs`, thư viện `react-pdf`.
+- **Lưu ý cho story sau:**
+  - **US-3.2:** embedding hồ sơ do CV Parser tính là bản trước khi SV sửa và được khóa theo `cvs.version`, nên không còn đúng sau khi SV sửa. US-3.2 phải tính lại embedding từ `profile_masked` đã xác nhận.
+  - **Xóa dữ liệu khi hết hạn lưu (NFR-2):** sau "Sửa lại", hai phiên bản dùng chung một `file_key`. Chỉ xóa file khi không còn dòng nào tham chiếu.
+
+**Date**: 2026-10-27
+**Version**: 0.12.0

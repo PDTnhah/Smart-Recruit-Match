@@ -7,7 +7,7 @@ import {
   type SkillStatus,
   type SkillSuggestion,
 } from '@srm/shared';
-import { and, asc, desc, eq, inArray, isNull, or, type SQL, sql } from 'drizzle-orm';
+import { and, arrayOverlaps, asc, desc, eq, inArray, isNull, or, type SQL, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { RowVersionConflictError } from '../../../common/errors/index.js';
 import { ADVISORY_LOCK_KEYS } from '../../../common/scheduling/advisory-lock.js';
@@ -124,6 +124,17 @@ export class SkillRepository {
       .limit(limit);
     // CHECK skills_approved_group_check: an approved skill always has a group.
     return rows.map((row) => ({ ...row, group: row.group! }));
+  }
+
+  /** Approved skills whose name or one of whose aliases has one of `keys`. */
+  async approvedByKeys(keys: readonly string[]): Promise<Array<{ canonicalName: string; nameKey: string; aliasKeys: string[] }>> {
+    if (keys.length === 0) return [];
+    return this.db
+      .select({ canonicalName: skills.canonicalName, nameKey: skills.nameKey, aliasKeys: skills.aliasKeys })
+      .from(skills)
+      .where(
+        and(eq(skills.status, 'APPROVED'), or(inArray(skills.nameKey, [...keys]), arrayOverlaps(skills.aliasKeys, [...keys]))),
+      );
   }
 
   /** Locks the rows in id order, so two transactions locking the same pair cannot deadlock. */

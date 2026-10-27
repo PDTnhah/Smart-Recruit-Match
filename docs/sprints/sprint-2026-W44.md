@@ -11,6 +11,7 @@ goal: 'Ship US-2.4: CV sinh viên được AI phân tích thành hồ sơ năng 
 | ------ | ------------------------------------------------- | ------ | --- | ------ | ---------- | -------- | ---------------------------------------------------------------------------------------------------------------------- |
 | US-2.4 | CV Parser: chữ ẩn, tách PII                       | EPIC-2 | P0  | 8      | 👀 review  | new      | [stories/US-2.4-cv-parser-hidden-text-pii-split.md](stories/US-2.4-cv-parser-hidden-text-pii-split.md)                 |
 | US-2.5 | Embedding và danh mục kỹ năng                     | EPIC-2 | P1  | 8      | 👀 review  | new      | [stories/US-2.5-embeddings-skill-catalog.md](stories/US-2.5-embeddings-skill-catalog.md)                               |
+| US-2.6 | SV xác nhận hồ sơ năng lực                        | EPIC-2 | P0  | 5      | 👀 review  | new      | [stories/US-2.6-student-profile-confirmation.md](stories/US-2.6-student-profile-confirmation.md)                       |
 | US-5.1 | Allocation Engine và property-based test          | EPIC-5 | P0  | 5      | 📋 backlog | new      | [stories/US-5.1-allocation-engine-property-tests.md](stories/US-5.1-allocation-engine-property-tests.md)               |
 | US-6.4 | Mô phỏng phân bổ so với baseline                  | EPIC-6 | P1  | 5      | 📋 backlog | new      | [stories/US-6.4-allocation-simulation-vs-baselines.md](stories/US-6.4-allocation-simulation-vs-baselines.md)           |
 | US-2.1 | Hạ tầng job AI và hợp đồng message                | EPIC-2 | P0  | 8      | 👀 review  | from W43 | [stories/US-2.1-ai-job-pipeline-message-contracts.md](stories/US-2.1-ai-job-pipeline-message-contracts.md)             |
@@ -43,6 +44,8 @@ Tuần T4 của lộ trình 13 tuần ([sprints/README › Lộ trình](README.m
 US-2.4 sinh migration `0011`, `0012`. Đây là story duy nhất sinh migration đầu tuần; US-5.1 và US-6.4 là hàm thuần và mô phỏng, không cần migration.
 
 Ngày 2026-10-26 kéo thêm US-2.5 sớm từ W46 (8 điểm, v0.11.0, [CONTEXT D39](../CONTEXT.md)): embedding `bge-m3` và `ai.embeddings`, chuẩn hóa tên kỹ năng của CV và JD theo danh mục, màn ADMIN duyệt, gộp, từ chối kỹ năng mới. US-2.5 sinh migration `0013`–`0018`; US-2.6 (cùng tuần T6) phải tạo migration sau khi US-2.5 merge ([LESSONS §6](../LESSONS.md)).
+
+Ngày 2026-10-27 kéo thêm US-2.6 sớm từ W46 (5 điểm, v0.12.0, [CONTEXT D40](../CONTEXT.md)): SV xem CV cạnh hồ sơ năng lực, sửa, xác nhận và "Sửa lại"; `profile_masked` được che lại bằng TS. Không có migration.
 
 ## Parked / deferred from W43
 

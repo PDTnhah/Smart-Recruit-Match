@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type { CenterCvListQuery, CvPii, CvProfile, CvSource, CvStatus } from '@srm/shared';
+import { type CenterCvListQuery, type CvPii, CvPiiSchema, type CvProfile, type CvSource, type CvStatus } from '@srm/shared';
 import { and, desc, eq, inArray, max, or, type SQL, sql } from 'drizzle-orm';
-import { CvSubmissionConflictError, RowVersionConflictError } from '../../../common/errors/index.js';
+import { CvSubmissionConflictError, EntityNotFoundError, RowVersionConflictError } from '../../../common/errors/index.js';
 import { uniqueViolation } from '../../../db/errors.js';
 import { cvs, students } from '../../../db/schema/index.js';
 import { DRIZZLE } from '../../../db/tokens.js';
@@ -50,6 +50,32 @@ export interface CvAnalysisRow {
   active: boolean;
   rowVersion: number;
 }
+
+/** A CV version with its profile, as the student reviews it (US-2.6). */
+export interface CvProfileRecord {
+  id: number;
+  studentId: number;
+  campaignId: number;
+  version: number;
+  status: CvStatus;
+  active: boolean;
+  rowVersion: number;
+  fileName: string;
+  /** Null until the analysis succeeds (CHECK cvs_analysed_check). */
+  profile: CvProfile | null;
+}
+
+const PROFILE_COLUMNS = {
+  id: cvs.id,
+  studentId: cvs.studentId,
+  campaignId: cvs.campaignId,
+  version: cvs.version,
+  status: cvs.status,
+  active: cvs.active,
+  rowVersion: cvs.rowVersion,
+  fileName: cvs.fileName,
+  profile: cvs.profile,
+};
 
 /** What a successful analysis stores (US-2.4 AC-9). `pii` is encrypted by the database. */
 export interface CvAnalysisResult {
@@ -186,6 +212,44 @@ export class CvRepository {
     });
   }
 
+  /** The active version of a student in a campaign, with its profile (US-2.6). */
+  async findActiveProfile(studentId: number, campaignId: number): Promise<CvProfileRecord | undefined> {
+    const [row] = await this.db
+      .select(PROFILE_COLUMNS)
+      .from(cvs)
+      .where(and(eq(cvs.studentId, studentId), eq(cvs.campaignId, campaignId), eq(cvs.active, true)));
+    return row;
+  }
+
+  /** Locks one CV row for the student's review (LESSONS §12: no join, so plain `FOR UPDATE`). */
+  async lockForProfile(tx: DbTx, id: number): Promise<CvProfileRecord | undefined> {
+    const [row] = await tx.select(PROFILE_COLUMNS).from(cvs).where(eq(cvs.id, id)).for('update');
+    return row;
+  }
+
+  /**
+   * The personal data of a CV, decrypted under `key` to mask the edited profile again (US-2.6
+   * AC-5). The key travels as a bound parameter; the values never leave this process.
+   */
+  async readPii(tx: DbTx, id: number, key: string): Promise<CvPii | null> {
+    const [row] = await tx
+      .select({ pii: sql<string | null>`pgp_sym_decrypt(${cvs.pii}, ${key}::text)` })
+      .from(cvs)
+      .where(eq(cvs.id, id));
+    return row?.pii ? CvPiiSchema.parse(JSON.parse(row.pii)) : null;
+  }
+
+  /** The profile the student saved and its masked copy, with `WHERE row_version = n` (AD-8). */
+  async storeProfile(
+    tx: DbTx,
+    id: number,
+    expectedRowVersion: number,
+    profile: CvProfile,
+    profileMasked: CvProfile,
+  ): Promise<void> {
+    await this.updateVersioned(tx, id, expectedRowVersion, { profile, profileMasked });
+  }
+
   private async updateVersioned(
     tx: DbTx,
     id: number,
@@ -253,9 +317,47 @@ export class CvRepository {
    * Inserts the new active version (PENDING_ANALYSIS by default, AD-8). A concurrent upload that
    * committed first makes the unique index refuse it: 409 (AC-6).
    */
-  async insert(tx: DbTx, values: CvInsert): Promise<CvRecord> {
+  insert(tx: DbTx, values: CvInsert): Promise<CvRecord & { rowVersion: number }> {
+    return this.insertVersion(tx, values);
+  }
+
+  /**
+   * "Sửa lại" (US-2.6 AC-12, CONTEXT D40): version `version` copies the file, the profile, the
+   * encrypted personal data (as stored, never decrypted) and the analysis of `fromId`, so it needs
+   * no new analysis. Inserted PENDING_ANALYSIS like every version; the caller moves it on with
+   * transitionTo. Both versions then share one file object.
+   */
+  async insertReopened(tx: DbTx, fromId: number, version: number): Promise<CvRecord & { rowVersion: number }> {
+    const [source] = await tx
+      .select({
+        studentId: cvs.studentId,
+        campaignId: cvs.campaignId,
+        fileKey: cvs.fileKey,
+        fileName: cvs.fileName,
+        profile: cvs.profile,
+        profileMasked: cvs.profileMasked,
+        pii: cvs.pii,
+        maskedText: cvs.maskedText,
+        analysisSource: cvs.analysisSource,
+        analysisModel: cvs.analysisModel,
+        analysisPromptVersion: cvs.analysisPromptVersion,
+        hiddenTextFlag: cvs.hiddenTextFlag,
+      })
+      .from(cvs)
+      .where(eq(cvs.id, fromId));
+    if (!source) throw new EntityNotFoundError('cv', fromId);
+    return this.insertVersion(tx, { ...source, version });
+  }
+
+  private async insertVersion(
+    tx: DbTx,
+    values: typeof cvs.$inferInsert & CvInsert,
+  ): Promise<CvRecord & { rowVersion: number }> {
     try {
-      const [row] = await tx.insert(cvs).values(values).returning(RECORD_COLUMNS);
+      const [row] = await tx
+        .insert(cvs)
+        .values(values)
+        .returning({ ...RECORD_COLUMNS, rowVersion: cvs.rowVersion });
       if (!row) throw new Error('insert into cvs returned no row');
       return row;
     } catch (error) {

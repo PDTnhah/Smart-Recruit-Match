@@ -642,6 +642,150 @@
         ]
       }
     },
+    "/api/cvs/me/profile": {
+      "get": {
+        "operationId": "CvProfileController_get",
+        "parameters": [
+          {
+            "name": "campaignId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "maximum": 9007199254740991,
+              "exclusiveMinimum": true,
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CvProfileViewDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "cvs"
+        ]
+      },
+      "put": {
+        "operationId": "CvProfileController_save",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveCvProfileRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CvProfileViewDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "cvs"
+        ]
+      }
+    },
+    "/api/cvs/me/profile/confirm": {
+      "put": {
+        "operationId": "CvProfileController_confirm",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveCvProfileRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CvProfileViewDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "cvs"
+        ]
+      }
+    },
+    "/api/cvs/me/profile/reopen": {
+      "post": {
+        "operationId": "CvProfileController_reopen",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReopenCvProfileRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CvProfileViewDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "cvs"
+        ]
+      }
+    },
     "/api/campaigns": {
       "post": {
         "operationId": "CampaignController_create",
@@ -831,6 +975,239 @@
         ],
         "tags": [
           "campaigns"
+        ]
+      }
+    },
+    "/api/skills": {
+      "get": {
+        "operationId": "SkillsController_search",
+        "parameters": [
+          {
+            "name": "query",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maxLength": 100,
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogSkillListDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "skills"
+        ]
+      }
+    },
+    "/api/admin/skills": {
+      "get": {
+        "operationId": "AdminSkillsController_list",
+        "parameters": [
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "PENDING",
+              "type": "string",
+              "enum": [
+                "PENDING",
+                "APPROVED",
+                "REJECTED",
+                "MERGED"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminSkillListDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/skills/{id}/approve": {
+      "post": {
+        "operationId": "AdminSkillsController_approve",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "maximum": 9007199254740991,
+              "exclusiveMinimum": true,
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApproveSkillRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminSkillDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/skills/{id}/merge": {
+      "post": {
+        "operationId": "AdminSkillsController_merge",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "maximum": 9007199254740991,
+              "exclusiveMinimum": true,
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MergeSkillRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminSkillDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/skills/{id}/reject": {
+      "post": {
+        "operationId": "AdminSkillsController_reject",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "maximum": 9007199254740991,
+              "exclusiveMinimum": true,
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RejectSkillRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminSkillDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin"
         ]
       }
     },
@@ -1659,239 +2036,6 @@
           "events"
         ]
       }
-    },
-    "/api/skills": {
-      "get": {
-        "operationId": "SkillsController_search",
-        "parameters": [
-          {
-            "name": "query",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "maxLength": 100,
-              "type": "string"
-            }
-          },
-          {
-            "name": "limit",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "minimum": 1,
-              "maximum": 50,
-              "default": 20,
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "default": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CatalogSkillListDto_Output"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "tags": [
-          "skills"
-        ]
-      }
-    },
-    "/api/admin/skills": {
-      "get": {
-        "operationId": "AdminSkillsController_list",
-        "parameters": [
-          {
-            "name": "status",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "default": "PENDING",
-              "type": "string",
-              "enum": [
-                "PENDING",
-                "APPROVED",
-                "REJECTED",
-                "MERGED"
-              ]
-            }
-          }
-        ],
-        "responses": {
-          "default": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AdminSkillListDto_Output"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "tags": [
-          "admin"
-        ]
-      }
-    },
-    "/api/admin/skills/{id}/approve": {
-      "post": {
-        "operationId": "AdminSkillsController_approve",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "maximum": 9007199254740991,
-              "exclusiveMinimum": true,
-              "type": "integer",
-              "minimum": 0
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ApproveSkillRequestDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AdminSkillDto_Output"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "tags": [
-          "admin"
-        ]
-      }
-    },
-    "/api/admin/skills/{id}/merge": {
-      "post": {
-        "operationId": "AdminSkillsController_merge",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "maximum": 9007199254740991,
-              "exclusiveMinimum": true,
-              "type": "integer",
-              "minimum": 0
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/MergeSkillRequestDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AdminSkillDto_Output"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "tags": [
-          "admin"
-        ]
-      }
-    },
-    "/api/admin/skills/{id}/reject": {
-      "post": {
-        "operationId": "AdminSkillsController_reject",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "maximum": 9007199254740991,
-              "exclusiveMinimum": true,
-              "type": "integer",
-              "minimum": 0
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RejectSkillRequestDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AdminSkillDto_Output"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "tags": [
-          "admin"
-        ]
-      }
     }
   },
   "info": {
@@ -2563,6 +2707,731 @@
           "items"
         ],
         "additionalProperties": false
+      },
+      "CvProfileViewDto_Output": {
+        "type": "object",
+        "properties": {
+          "cvId": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "campaignId": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "version": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING_ANALYSIS",
+              "PENDING_CONFIRMATION",
+              "CONFIRMED",
+              "ANALYSIS_FAILED"
+            ]
+          },
+          "rowVersion": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "fileName": {
+            "type": "string"
+          },
+          "profile": {
+            "type": "object",
+            "properties": {
+              "summary": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 3000,
+                "description": "Career objective or summary as written; no personal details",
+                "nullable": true
+              },
+              "education": {
+                "maxItems": 10,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "institution": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "description": "School or university"
+                    },
+                    "degree": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100,
+                      "description": "Degree or programme level, e.g. \"Kỹ sư\", \"Cử nhân\"",
+                      "nullable": true
+                    },
+                    "major": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "description": "Major or field of study",
+                      "nullable": true
+                    },
+                    "start": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 40,
+                      "description": "Start as written",
+                      "nullable": true
+                    },
+                    "end": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 40,
+                      "description": "End as written; \"hiện tại\" when ongoing",
+                      "nullable": true
+                    },
+                    "gpa": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 40,
+                      "description": "GPA as written, with its scale, e.g. \"3.2/4\"",
+                      "nullable": true
+                    }
+                  },
+                  "required": [
+                    "institution",
+                    "degree",
+                    "major",
+                    "start",
+                    "end",
+                    "gpa"
+                  ],
+                  "additionalProperties": false,
+                  "title": "CvEducation",
+                  "description": "One school or degree"
+                },
+                "description": "Education, most recent first"
+              },
+              "skills": {
+                "maxItems": 100,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100,
+                      "description": "Skill name as the CV writes it"
+                    },
+                    "canonical_name": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100,
+                      "description": "Name of the catalogue skill it maps to; null when match is NEW",
+                      "nullable": true
+                    },
+                    "match": {
+                      "type": "string",
+                      "enum": [
+                        "ALIAS",
+                        "EMBEDDING",
+                        "NEW"
+                      ],
+                      "title": "SkillMatch",
+                      "description": "ALIAS = its key equals the key of a catalogue name or alias, EMBEDDING = cosine to a catalogue skill at or above the threshold, NEW = not in the catalogue"
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "canonical_name",
+                    "match"
+                  ],
+                  "additionalProperties": false,
+                  "title": "CvSkill",
+                  "description": "One concrete skill the CV claims, mapped to the skill catalogue"
+                },
+                "description": "Skills, one entry each"
+              },
+              "projects": {
+                "maxItems": 30,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "description": "Project name"
+                    },
+                    "role": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "description": "The student's role in the project",
+                      "nullable": true
+                    },
+                    "description": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 5000,
+                      "description": "What the project does and what the student did, as written",
+                      "nullable": true
+                    },
+                    "technologies": {
+                      "maxItems": 30,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 100
+                      },
+                      "description": "Languages, frameworks and tools the project used"
+                    },
+                    "start": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 40,
+                      "description": "Start as written",
+                      "nullable": true
+                    },
+                    "end": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 40,
+                      "description": "End as written",
+                      "nullable": true
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "role",
+                    "description",
+                    "technologies",
+                    "start",
+                    "end"
+                  ],
+                  "additionalProperties": false,
+                  "title": "CvProject",
+                  "description": "One project, academic or personal"
+                },
+                "description": "Projects"
+              },
+              "experience": {
+                "maxItems": 30,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "organization": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "description": "Company or organisation"
+                    },
+                    "position": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "description": "Job title",
+                      "nullable": true
+                    },
+                    "description": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 5000,
+                      "description": "Work done, as written",
+                      "nullable": true
+                    },
+                    "start": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 40,
+                      "description": "Start as written",
+                      "nullable": true
+                    },
+                    "end": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 40,
+                      "description": "End as written; \"hiện tại\" when ongoing",
+                      "nullable": true
+                    }
+                  },
+                  "required": [
+                    "organization",
+                    "position",
+                    "description",
+                    "start",
+                    "end"
+                  ],
+                  "additionalProperties": false,
+                  "title": "CvExperience",
+                  "description": "One job, internship or role in an organisation"
+                },
+                "description": "Work experience"
+              },
+              "languages": {
+                "maxItems": 10,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "language": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100,
+                      "description": "Language, e.g. \"Tiếng Anh\""
+                    },
+                    "level": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100,
+                      "description": "Level or certificate as written, e.g. \"TOEIC 650\", \"N3\"",
+                      "nullable": true
+                    }
+                  },
+                  "required": [
+                    "language",
+                    "level"
+                  ],
+                  "additionalProperties": false,
+                  "title": "CvLanguage",
+                  "description": "One foreign language"
+                },
+                "description": "Foreign languages"
+              },
+              "certificates": {
+                "maxItems": 30,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "description": "Certificate or award"
+                    },
+                    "issuer": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "description": "Who issued it",
+                      "nullable": true
+                    },
+                    "year": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 40,
+                      "description": "When, as written",
+                      "nullable": true
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "issuer",
+                    "year"
+                  ],
+                  "additionalProperties": false,
+                  "title": "CvCertificate",
+                  "description": "One certificate or award"
+                },
+                "description": "Certificates and awards"
+              }
+            },
+            "required": [
+              "summary",
+              "education",
+              "skills",
+              "projects",
+              "experience",
+              "languages",
+              "certificates"
+            ],
+            "additionalProperties": false,
+            "title": "CvProfile",
+            "description": "Competence profile of a CV, without its personal section; skills mapped to the catalogue (FR-11)",
+            "nullable": true
+          },
+          "editable": {
+            "type": "boolean"
+          },
+          "canReopen": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "cvId",
+          "campaignId",
+          "version",
+          "status",
+          "rowVersion",
+          "fileName",
+          "profile",
+          "editable",
+          "canReopen"
+        ],
+        "additionalProperties": false
+      },
+      "SaveCvProfileRequestDto": {
+        "type": "object",
+        "properties": {
+          "cvId": {
+            "type": "integer",
+            "exclusiveMinimum": true,
+            "maximum": 9007199254740991,
+            "minimum": 0
+          },
+          "rowVersion": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "profile": {
+            "type": "object",
+            "properties": {
+              "summary": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 3000,
+                "description": "Career objective or summary as written; no personal details",
+                "nullable": true
+              },
+              "education": {
+                "maxItems": 10,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "institution": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "description": "School or university"
+                    },
+                    "degree": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100,
+                      "description": "Degree or programme level, e.g. \"Kỹ sư\", \"Cử nhân\"",
+                      "nullable": true
+                    },
+                    "major": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "description": "Major or field of study",
+                      "nullable": true
+                    },
+                    "start": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 40,
+                      "description": "Start as written",
+                      "nullable": true
+                    },
+                    "end": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 40,
+                      "description": "End as written; \"hiện tại\" when ongoing",
+                      "nullable": true
+                    },
+                    "gpa": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 40,
+                      "description": "GPA as written, with its scale, e.g. \"3.2/4\"",
+                      "nullable": true
+                    }
+                  },
+                  "required": [
+                    "institution",
+                    "degree",
+                    "major",
+                    "start",
+                    "end",
+                    "gpa"
+                  ],
+                  "additionalProperties": false,
+                  "title": "CvEducation",
+                  "description": "One school or degree"
+                },
+                "description": "Education, most recent first"
+              },
+              "skills": {
+                "maxItems": 100,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100,
+                      "description": "Skill name as the CV writes it"
+                    },
+                    "canonical_name": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100,
+                      "description": "Name of the catalogue skill it maps to; null when match is NEW",
+                      "nullable": true
+                    },
+                    "match": {
+                      "type": "string",
+                      "enum": [
+                        "ALIAS",
+                        "EMBEDDING",
+                        "NEW"
+                      ],
+                      "title": "SkillMatch",
+                      "description": "ALIAS = its key equals the key of a catalogue name or alias, EMBEDDING = cosine to a catalogue skill at or above the threshold, NEW = not in the catalogue"
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "canonical_name",
+                    "match"
+                  ],
+                  "additionalProperties": false,
+                  "title": "CvSkill",
+                  "description": "One concrete skill the CV claims, mapped to the skill catalogue"
+                },
+                "description": "Skills, one entry each"
+              },
+              "projects": {
+                "maxItems": 30,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "description": "Project name"
+                    },
+                    "role": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "description": "The student's role in the project",
+                      "nullable": true
+                    },
+                    "description": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 5000,
+                      "description": "What the project does and what the student did, as written",
+                      "nullable": true
+                    },
+                    "technologies": {
+                      "maxItems": 30,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 100
+                      },
+                      "description": "Languages, frameworks and tools the project used"
+                    },
+                    "start": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 40,
+                      "description": "Start as written",
+                      "nullable": true
+                    },
+                    "end": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 40,
+                      "description": "End as written",
+                      "nullable": true
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "role",
+                    "description",
+                    "technologies",
+                    "start",
+                    "end"
+                  ],
+                  "additionalProperties": false,
+                  "title": "CvProject",
+                  "description": "One project, academic or personal"
+                },
+                "description": "Projects"
+              },
+              "experience": {
+                "maxItems": 30,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "organization": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "description": "Company or organisation"
+                    },
+                    "position": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "description": "Job title",
+                      "nullable": true
+                    },
+                    "description": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 5000,
+                      "description": "Work done, as written",
+                      "nullable": true
+                    },
+                    "start": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 40,
+                      "description": "Start as written",
+                      "nullable": true
+                    },
+                    "end": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 40,
+                      "description": "End as written; \"hiện tại\" when ongoing",
+                      "nullable": true
+                    }
+                  },
+                  "required": [
+                    "organization",
+                    "position",
+                    "description",
+                    "start",
+                    "end"
+                  ],
+                  "additionalProperties": false,
+                  "title": "CvExperience",
+                  "description": "One job, internship or role in an organisation"
+                },
+                "description": "Work experience"
+              },
+              "languages": {
+                "maxItems": 10,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "language": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100,
+                      "description": "Language, e.g. \"Tiếng Anh\""
+                    },
+                    "level": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100,
+                      "description": "Level or certificate as written, e.g. \"TOEIC 650\", \"N3\"",
+                      "nullable": true
+                    }
+                  },
+                  "required": [
+                    "language",
+                    "level"
+                  ],
+                  "additionalProperties": false,
+                  "title": "CvLanguage",
+                  "description": "One foreign language"
+                },
+                "description": "Foreign languages"
+              },
+              "certificates": {
+                "maxItems": 30,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "description": "Certificate or award"
+                    },
+                    "issuer": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "description": "Who issued it",
+                      "nullable": true
+                    },
+                    "year": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 40,
+                      "description": "When, as written",
+                      "nullable": true
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "issuer",
+                    "year"
+                  ],
+                  "additionalProperties": false,
+                  "title": "CvCertificate",
+                  "description": "One certificate or award"
+                },
+                "description": "Certificates and awards"
+              }
+            },
+            "required": [
+              "summary",
+              "education",
+              "skills",
+              "projects",
+              "experience",
+              "languages",
+              "certificates"
+            ],
+            "additionalProperties": false,
+            "title": "CvProfile",
+            "description": "Competence profile of a CV, without its personal section; skills mapped to the catalogue (FR-11)"
+          }
+        },
+        "required": [
+          "cvId",
+          "rowVersion",
+          "profile"
+        ]
+      },
+      "ReopenCvProfileRequestDto": {
+        "type": "object",
+        "properties": {
+          "cvId": {
+            "type": "integer",
+            "exclusiveMinimum": true,
+            "maximum": 9007199254740991,
+            "minimum": 0
+          },
+          "rowVersion": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "cvId",
+          "rowVersion"
+        ]
       },
       "CreateCampaignRequestDto": {
         "type": "object",
@@ -3254,6 +4123,411 @@
         ]
       },
       "OpenCampaignRequestDto": {
+        "type": "object",
+        "properties": {
+          "rowVersion": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "rowVersion"
+        ]
+      },
+      "CatalogSkillListDto_Output": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "canonicalName": {
+                  "type": "string"
+                },
+                "group": {
+                  "type": "string",
+                  "enum": [
+                    "LANGUAGE",
+                    "FRAMEWORK",
+                    "DATABASE",
+                    "CLOUD_DEVOPS",
+                    "TOOL",
+                    "TESTING",
+                    "DATA_AI",
+                    "METHODOLOGY",
+                    "SOFT_SKILL",
+                    "OTHER"
+                  ]
+                },
+                "aliases": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [
+                "id",
+                "canonicalName",
+                "group",
+                "aliases"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "AdminSkillListDto_Output": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "canonicalName": {
+                  "type": "string"
+                },
+                "aliases": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "group": {
+                  "type": "string",
+                  "enum": [
+                    "LANGUAGE",
+                    "FRAMEWORK",
+                    "DATABASE",
+                    "CLOUD_DEVOPS",
+                    "TOOL",
+                    "TESTING",
+                    "DATA_AI",
+                    "METHODOLOGY",
+                    "SOFT_SKILL",
+                    "OTHER",
+                    null
+                  ],
+                  "nullable": true
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "PENDING",
+                    "APPROVED",
+                    "REJECTED",
+                    "MERGED"
+                  ]
+                },
+                "mergedInto": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "canonicalName": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "canonicalName"
+                  ],
+                  "additionalProperties": false,
+                  "nullable": true
+                },
+                "suggestion": {
+                  "type": "object",
+                  "properties": {
+                    "canonicalName": {
+                      "type": "string"
+                    },
+                    "group": {
+                      "type": "string",
+                      "enum": [
+                        "LANGUAGE",
+                        "FRAMEWORK",
+                        "DATABASE",
+                        "CLOUD_DEVOPS",
+                        "TOOL",
+                        "TESTING",
+                        "DATA_AI",
+                        "METHODOLOGY",
+                        "SOFT_SKILL",
+                        "OTHER"
+                      ]
+                    },
+                    "similarSkills": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "model": {
+                      "type": "string"
+                    },
+                    "promptVersion": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "canonicalName",
+                    "group",
+                    "similarSkills",
+                    "model",
+                    "promptVersion"
+                  ],
+                  "additionalProperties": false,
+                  "nullable": true
+                },
+                "rowVersion": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                },
+                "updatedAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                }
+              },
+              "required": [
+                "id",
+                "canonicalName",
+                "aliases",
+                "group",
+                "status",
+                "mergedInto",
+                "suggestion",
+                "rowVersion",
+                "createdAt",
+                "updatedAt"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "ApproveSkillRequestDto": {
+        "type": "object",
+        "properties": {
+          "rowVersion": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "canonicalName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "group": {
+            "type": "string",
+            "enum": [
+              "LANGUAGE",
+              "FRAMEWORK",
+              "DATABASE",
+              "CLOUD_DEVOPS",
+              "TOOL",
+              "TESTING",
+              "DATA_AI",
+              "METHODOLOGY",
+              "SOFT_SKILL",
+              "OTHER"
+            ]
+          }
+        },
+        "required": [
+          "rowVersion",
+          "canonicalName",
+          "group"
+        ]
+      },
+      "AdminSkillDto_Output": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "canonicalName": {
+            "type": "string"
+          },
+          "aliases": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "group": {
+            "type": "string",
+            "enum": [
+              "LANGUAGE",
+              "FRAMEWORK",
+              "DATABASE",
+              "CLOUD_DEVOPS",
+              "TOOL",
+              "TESTING",
+              "DATA_AI",
+              "METHODOLOGY",
+              "SOFT_SKILL",
+              "OTHER",
+              null
+            ],
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "APPROVED",
+              "REJECTED",
+              "MERGED"
+            ]
+          },
+          "mergedInto": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "canonicalName": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "canonicalName"
+            ],
+            "additionalProperties": false,
+            "nullable": true
+          },
+          "suggestion": {
+            "type": "object",
+            "properties": {
+              "canonicalName": {
+                "type": "string"
+              },
+              "group": {
+                "type": "string",
+                "enum": [
+                  "LANGUAGE",
+                  "FRAMEWORK",
+                  "DATABASE",
+                  "CLOUD_DEVOPS",
+                  "TOOL",
+                  "TESTING",
+                  "DATA_AI",
+                  "METHODOLOGY",
+                  "SOFT_SKILL",
+                  "OTHER"
+                ]
+              },
+              "similarSkills": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "model": {
+                "type": "string"
+              },
+              "promptVersion": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "canonicalName",
+              "group",
+              "similarSkills",
+              "model",
+              "promptVersion"
+            ],
+            "additionalProperties": false,
+            "nullable": true
+          },
+          "rowVersion": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          }
+        },
+        "required": [
+          "id",
+          "canonicalName",
+          "aliases",
+          "group",
+          "status",
+          "mergedInto",
+          "suggestion",
+          "rowVersion",
+          "createdAt",
+          "updatedAt"
+        ],
+        "additionalProperties": false
+      },
+      "MergeSkillRequestDto": {
+        "type": "object",
+        "properties": {
+          "rowVersion": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "targetId": {
+            "type": "integer",
+            "exclusiveMinimum": true,
+            "maximum": 9007199254740991,
+            "minimum": 0
+          }
+        },
+        "required": [
+          "rowVersion",
+          "targetId"
+        ]
+      },
+      "RejectSkillRequestDto": {
         "type": "object",
         "properties": {
           "rowVersion": {
@@ -5095,411 +6369,6 @@
           "updated"
         ],
         "additionalProperties": false
-      },
-      "CatalogSkillListDto_Output": {
-        "type": "object",
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "id": {
-                  "type": "integer",
-                  "minimum": -9007199254740991,
-                  "maximum": 9007199254740991
-                },
-                "canonicalName": {
-                  "type": "string"
-                },
-                "group": {
-                  "type": "string",
-                  "enum": [
-                    "LANGUAGE",
-                    "FRAMEWORK",
-                    "DATABASE",
-                    "CLOUD_DEVOPS",
-                    "TOOL",
-                    "TESTING",
-                    "DATA_AI",
-                    "METHODOLOGY",
-                    "SOFT_SKILL",
-                    "OTHER"
-                  ]
-                },
-                "aliases": {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                }
-              },
-              "required": [
-                "id",
-                "canonicalName",
-                "group",
-                "aliases"
-              ],
-              "additionalProperties": false
-            }
-          }
-        },
-        "required": [
-          "items"
-        ],
-        "additionalProperties": false
-      },
-      "AdminSkillListDto_Output": {
-        "type": "object",
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "id": {
-                  "type": "integer",
-                  "minimum": -9007199254740991,
-                  "maximum": 9007199254740991
-                },
-                "canonicalName": {
-                  "type": "string"
-                },
-                "aliases": {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                },
-                "group": {
-                  "type": "string",
-                  "enum": [
-                    "LANGUAGE",
-                    "FRAMEWORK",
-                    "DATABASE",
-                    "CLOUD_DEVOPS",
-                    "TOOL",
-                    "TESTING",
-                    "DATA_AI",
-                    "METHODOLOGY",
-                    "SOFT_SKILL",
-                    "OTHER",
-                    null
-                  ],
-                  "nullable": true
-                },
-                "status": {
-                  "type": "string",
-                  "enum": [
-                    "PENDING",
-                    "APPROVED",
-                    "REJECTED",
-                    "MERGED"
-                  ]
-                },
-                "mergedInto": {
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "type": "integer",
-                      "minimum": -9007199254740991,
-                      "maximum": 9007199254740991
-                    },
-                    "canonicalName": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "id",
-                    "canonicalName"
-                  ],
-                  "additionalProperties": false,
-                  "nullable": true
-                },
-                "suggestion": {
-                  "type": "object",
-                  "properties": {
-                    "canonicalName": {
-                      "type": "string"
-                    },
-                    "group": {
-                      "type": "string",
-                      "enum": [
-                        "LANGUAGE",
-                        "FRAMEWORK",
-                        "DATABASE",
-                        "CLOUD_DEVOPS",
-                        "TOOL",
-                        "TESTING",
-                        "DATA_AI",
-                        "METHODOLOGY",
-                        "SOFT_SKILL",
-                        "OTHER"
-                      ]
-                    },
-                    "similarSkills": {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      }
-                    },
-                    "model": {
-                      "type": "string"
-                    },
-                    "promptVersion": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "canonicalName",
-                    "group",
-                    "similarSkills",
-                    "model",
-                    "promptVersion"
-                  ],
-                  "additionalProperties": false,
-                  "nullable": true
-                },
-                "rowVersion": {
-                  "type": "integer",
-                  "minimum": -9007199254740991,
-                  "maximum": 9007199254740991
-                },
-                "createdAt": {
-                  "type": "string",
-                  "format": "date-time",
-                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                },
-                "updatedAt": {
-                  "type": "string",
-                  "format": "date-time",
-                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                }
-              },
-              "required": [
-                "id",
-                "canonicalName",
-                "aliases",
-                "group",
-                "status",
-                "mergedInto",
-                "suggestion",
-                "rowVersion",
-                "createdAt",
-                "updatedAt"
-              ],
-              "additionalProperties": false
-            }
-          }
-        },
-        "required": [
-          "items"
-        ],
-        "additionalProperties": false
-      },
-      "ApproveSkillRequestDto": {
-        "type": "object",
-        "properties": {
-          "rowVersion": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 9007199254740991
-          },
-          "canonicalName": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 100
-          },
-          "group": {
-            "type": "string",
-            "enum": [
-              "LANGUAGE",
-              "FRAMEWORK",
-              "DATABASE",
-              "CLOUD_DEVOPS",
-              "TOOL",
-              "TESTING",
-              "DATA_AI",
-              "METHODOLOGY",
-              "SOFT_SKILL",
-              "OTHER"
-            ]
-          }
-        },
-        "required": [
-          "rowVersion",
-          "canonicalName",
-          "group"
-        ]
-      },
-      "AdminSkillDto_Output": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "integer",
-            "minimum": -9007199254740991,
-            "maximum": 9007199254740991
-          },
-          "canonicalName": {
-            "type": "string"
-          },
-          "aliases": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "group": {
-            "type": "string",
-            "enum": [
-              "LANGUAGE",
-              "FRAMEWORK",
-              "DATABASE",
-              "CLOUD_DEVOPS",
-              "TOOL",
-              "TESTING",
-              "DATA_AI",
-              "METHODOLOGY",
-              "SOFT_SKILL",
-              "OTHER",
-              null
-            ],
-            "nullable": true
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "PENDING",
-              "APPROVED",
-              "REJECTED",
-              "MERGED"
-            ]
-          },
-          "mergedInto": {
-            "type": "object",
-            "properties": {
-              "id": {
-                "type": "integer",
-                "minimum": -9007199254740991,
-                "maximum": 9007199254740991
-              },
-              "canonicalName": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "id",
-              "canonicalName"
-            ],
-            "additionalProperties": false,
-            "nullable": true
-          },
-          "suggestion": {
-            "type": "object",
-            "properties": {
-              "canonicalName": {
-                "type": "string"
-              },
-              "group": {
-                "type": "string",
-                "enum": [
-                  "LANGUAGE",
-                  "FRAMEWORK",
-                  "DATABASE",
-                  "CLOUD_DEVOPS",
-                  "TOOL",
-                  "TESTING",
-                  "DATA_AI",
-                  "METHODOLOGY",
-                  "SOFT_SKILL",
-                  "OTHER"
-                ]
-              },
-              "similarSkills": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
-              },
-              "model": {
-                "type": "string"
-              },
-              "promptVersion": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "canonicalName",
-              "group",
-              "similarSkills",
-              "model",
-              "promptVersion"
-            ],
-            "additionalProperties": false,
-            "nullable": true
-          },
-          "rowVersion": {
-            "type": "integer",
-            "minimum": -9007199254740991,
-            "maximum": 9007199254740991
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time",
-            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-          },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time",
-            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-          }
-        },
-        "required": [
-          "id",
-          "canonicalName",
-          "aliases",
-          "group",
-          "status",
-          "mergedInto",
-          "suggestion",
-          "rowVersion",
-          "createdAt",
-          "updatedAt"
-        ],
-        "additionalProperties": false
-      },
-      "MergeSkillRequestDto": {
-        "type": "object",
-        "properties": {
-          "rowVersion": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 9007199254740991
-          },
-          "targetId": {
-            "type": "integer",
-            "exclusiveMinimum": true,
-            "maximum": 9007199254740991,
-            "minimum": 0
-          }
-        },
-        "required": [
-          "rowVersion",
-          "targetId"
-        ]
-      },
-      "RejectSkillRequestDto": {
-        "type": "object",
-        "properties": {
-          "rowVersion": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 9007199254740991
-          }
-        },
-        "required": [
-          "rowVersion"
-        ]
       }
     }
   }

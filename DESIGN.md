@@ -59,7 +59,7 @@ Màu trạng thái nghiệp vụ (đạt, chờ, trượt…) chưa có token ri
 - Thang 4 px của Tailwind.
 - **Lề trang:** `p-4` trên điện thoại, `md:p-6` từ 768 px.
 - **Khoảng cách:** giữa các khối trong trang `gap-6`; giữa phần tử trong một khối `gap-4`; trong nhóm nhỏ (nhãn và ô nhập, icon và chữ) `gap-2`.
-- **Chiều rộng nội dung:** form đứng một mình `max-w-sm`; trang đọc `max-w-3xl`; bảng dùng hết chiều rộng.
+- **Chiều rộng nội dung:** form đứng một mình `max-w-sm`; trang đọc `max-w-3xl`; bảng dùng hết chiều rộng. Khối đặt hai phần cạnh nhau ở cổng SV (màn Hồ sơ: CV | hồ sơ năng lực, US-2.6) từ `lg` rộng tới `80rem`, vượt cột `max-w-3xl`: `lg:relative lg:left-1/2 lg:w-[min(80rem,calc(100vw_-_3rem))] lg:-translate-x-1/2`.
 - **Bo góc:** `--radius` = `0.625rem`. Nút, ô nhập dùng `rounded-lg`; `Card` dùng `rounded-xl` (mặc định của primitive). Không tự đặt bo góc khác.
 
 ## 5. Breakpoint và điện thoại
@@ -102,7 +102,8 @@ Nền Radix, preset `radix-nova`, base color `neutral`, icon `lucide-react` (CON
 | `tooltip` | Nhãn của nút chỉ có icon | `TooltipProvider` đặt ở `app/providers.tsx` |
 | `table` | Bảng dữ liệu ở cổng HR, Trung tâm (danh sách đợt) | Primitive đã bọc `overflow-x-auto`. Cột thao tác có tiêu đề `sr-only`. Bảng cần sắp xếp, phân trang thì thêm TanStack Table |
 | `badge` | Trạng thái (đợt, JD, hồ sơ…), giá trị ngắn | Luôn có chữ. Trạng thái đợt dùng biến thể có sẵn: nháp `outline`, đang chạy `default`, đã đóng `secondary`. Trạng thái JD: nháp `outline`; đang chờ (chờ phân tích, chờ HR xác nhận, chờ duyệt) `secondary`; đã duyệt, đang tuyển `default`; đủ chỉ tiêu, đóng `secondary`. Trạng thái CV: đang phân tích, chờ xác nhận hồ sơ `secondary`; đã xác nhận `default`; lỗi phân tích `destructive` (US-2.4); cờ "Có chữ ẩn" `outline`; phiên bản đang dùng thêm nhãn `outline` "Đang dùng". Nhóm kỹ năng: `secondary`. Thông báo chưa đọc: `default` "Mới"; số chưa đọc trên chuông: `default`, tối đa "9+", `aria-hidden` vì nhãn của nút đã đọc số đó. Chưa thêm token màu trạng thái (§2) |
-| `alert-dialog` | Xác nhận hành động khó đảo ngược (mở đợt; duyệt, gộp, từ chối kỹ năng) | Luôn có `AlertDialogTitle`. Nút xác nhận là `Button` thường để hộp thoại mở tới khi request xong và hiện lỗi bên trong. Cần nhập thêm (tên, nhóm kỹ năng) thì đặt `form` trong `AlertDialogContent`, nút hủy `type="button"` |
+| `alert-dialog` | Xác nhận hành động khó đảo ngược (mở đợt; duyệt, gộp, từ chối kỹ năng) | Luôn có `AlertDialogTitle`. Nút xác nhận là `Button` thường để hộp thoại mở tới khi request xong và hiện lỗi bên trong. Cần nhập thêm (tên, nhóm kỹ năng) thì đặt `form` trong `AlertDialogContent`, nút hủy `type="button"`. Cổng SV dùng `ConfirmActionDialog` (`features/student/profile/`): `Sheet side="bottom"` dưới `md` (§5 mục 7), `AlertDialog` từ `md` |
+| `tabs` | Hai phần của một màn trên điện thoại (CV / Hồ sơ năng lực, US-2.6) | Từ `lg` hai phần thành hai cột trong cùng một cây: `TabsContent forceMount` + `data-[state=inactive]:hidden lg:data-[state=inactive]:block`, `TabsList` có `lg:hidden`. Nhờ vậy đổi tab hay xoay máy không mất phần đang sửa. **Đã sửa:** `pointer-coarse:` 44 px cho `TabsList` ngang |
 | `radio-group` | Chọn một mục trong danh sách tìm được (kỹ năng đích khi gộp, US-2.5) | Mỗi mục là thẻ lựa chọn `FieldLabel` > `Field orientation="horizontal"` > `FieldContent` + `RadioGroupItem`; cả nhóm nằm trong `FieldSet` + `FieldLegend`. Dùng thay combobox của shadcn (cần `@base-ui/react`, ngoài stack) |
 | `popover`, `calendar` | Chọn ngày (`react-day-picker`); danh sách thông báo của chuông trên desktop (US-1.7) | Chuông: `Popover` từ `md` trở lên, `Sheet side="bottom"` dưới `md` (§5 mục 7), cùng một `NotificationList`. Chọn ngày: `locale={vi}` của date-fns; giờ nhập bằng `Input type="time"` cạnh nút chọn ngày. **Đã sửa:** `calendar` thêm `pointer-coarse:[--cell-size:--spacing(11)]` cho ô ngày 44 px |
 | `textarea` | Lý do, ghi chú nhiều dòng | Luôn nằm trong `Field` |
@@ -184,7 +185,7 @@ Một SPA, điều hướng theo vai trò (ARCH › *Frontend*, CONTEXT D25). H�
 
 | Cổng | Vai trò | Khung | Điều hướng |
 |---|---|---|---|
-| `/sv` | `STUDENT` | `StudentLayout`: header (tên hệ thống + menu tài khoản) và nội dung một cột `max-w-3xl` | Dưới `md`: thanh dưới cố định, tối đa 5 mục, icon + nhãn. Từ `md`: liên kết ngang trong header |
+| `/sv` | `STUDENT` | `StudentLayout`: header (tên hệ thống + menu tài khoản) và nội dung một cột `max-w-3xl` (màn Hồ sơ từ `lg` rộng tới `80rem`, §4) | Dưới `md`: thanh dưới cố định, tối đa 5 mục, icon + nhãn. Từ `md`: liên kết ngang trong header |
 | `/hr` | `HR` | `PortalSidebarLayout`: `Sidebar` thu thành icon trên desktop; `SidebarInset` có header (nút thu gọn, tiêu đề trang, menu tài khoản) | Thanh bên; dưới `md` là `Sheet` |
 | `/admin` | `CENTER`, `ADMIN` | Như `/hr` | Menu khác nhau theo vai trò |
 

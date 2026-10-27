@@ -180,6 +180,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/cvs/me/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["CvProfileController_get"];
+        put: operations["CvProfileController_save"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cvs/me/profile/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["CvProfileController_confirm"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cvs/me/profile/reopen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["CvProfileController_reopen"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/campaigns": {
         parameters: {
             query?: never;
@@ -222,6 +270,86 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["CampaignController_open"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/skills": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["SkillsController_search"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/skills": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["AdminSkillsController_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/skills/{id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AdminSkillsController_approve"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/skills/{id}/merge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AdminSkillsController_merge"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/skills/{id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AdminSkillsController_reject"];
         delete?: never;
         options?: never;
         head?: never;
@@ -468,86 +596,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/skills": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["SkillsController_search"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/admin/skills": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["AdminSkillsController_list"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/admin/skills/{id}/approve": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["AdminSkillsController_approve"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/admin/skills/{id}/merge": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["AdminSkillsController_merge"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/admin/skills/{id}/reject": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["AdminSkillsController_reject"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -685,6 +733,185 @@ export interface components {
                 /** Format: date-time */
                 createdAt: string;
             }[];
+        };
+        CvProfileViewDto_Output: {
+            cvId: number;
+            campaignId: number;
+            version: number;
+            /** @enum {string} */
+            status: "PENDING_ANALYSIS" | "PENDING_CONFIRMATION" | "CONFIRMED" | "ANALYSIS_FAILED";
+            rowVersion: number;
+            fileName: string;
+            /**
+             * CvProfile
+             * @description Competence profile of a CV, without its personal section; skills mapped to the catalogue (FR-11)
+             */
+            profile: {
+                /** @description Career objective or summary as written; no personal details */
+                summary: string | null;
+                /** @description Education, most recent first */
+                education: {
+                    /** @description School or university */
+                    institution: string;
+                    /** @description Degree or programme level, e.g. "Kỹ sư", "Cử nhân" */
+                    degree: string | null;
+                    /** @description Major or field of study */
+                    major: string | null;
+                    /** @description Start as written */
+                    start: string | null;
+                    /** @description End as written; "hiện tại" when ongoing */
+                    end: string | null;
+                    /** @description GPA as written, with its scale, e.g. "3.2/4" */
+                    gpa: string | null;
+                }[];
+                /** @description Skills, one entry each */
+                skills: {
+                    /** @description Skill name as the CV writes it */
+                    name: string;
+                    /** @description Name of the catalogue skill it maps to; null when match is NEW */
+                    canonical_name: string | null;
+                    /**
+                     * SkillMatch
+                     * @description ALIAS = its key equals the key of a catalogue name or alias, EMBEDDING = cosine to a catalogue skill at or above the threshold, NEW = not in the catalogue
+                     * @enum {string}
+                     */
+                    match: "ALIAS" | "EMBEDDING" | "NEW";
+                }[];
+                /** @description Projects */
+                projects: {
+                    /** @description Project name */
+                    name: string;
+                    /** @description The student's role in the project */
+                    role: string | null;
+                    /** @description What the project does and what the student did, as written */
+                    description: string | null;
+                    /** @description Languages, frameworks and tools the project used */
+                    technologies: string[];
+                    /** @description Start as written */
+                    start: string | null;
+                    /** @description End as written */
+                    end: string | null;
+                }[];
+                /** @description Work experience */
+                experience: {
+                    /** @description Company or organisation */
+                    organization: string;
+                    /** @description Job title */
+                    position: string | null;
+                    /** @description Work done, as written */
+                    description: string | null;
+                    /** @description Start as written */
+                    start: string | null;
+                    /** @description End as written; "hiện tại" when ongoing */
+                    end: string | null;
+                }[];
+                /** @description Foreign languages */
+                languages: {
+                    /** @description Language, e.g. "Tiếng Anh" */
+                    language: string;
+                    /** @description Level or certificate as written, e.g. "TOEIC 650", "N3" */
+                    level: string | null;
+                }[];
+                /** @description Certificates and awards */
+                certificates: {
+                    /** @description Certificate or award */
+                    name: string;
+                    /** @description Who issued it */
+                    issuer: string | null;
+                    /** @description When, as written */
+                    year: string | null;
+                }[];
+            } | null;
+            editable: boolean;
+            canReopen: boolean;
+        };
+        SaveCvProfileRequestDto: {
+            cvId: number;
+            rowVersion: number;
+            /**
+             * CvProfile
+             * @description Competence profile of a CV, without its personal section; skills mapped to the catalogue (FR-11)
+             */
+            profile: {
+                /** @description Career objective or summary as written; no personal details */
+                summary: string | null;
+                /** @description Education, most recent first */
+                education: {
+                    /** @description School or university */
+                    institution: string;
+                    /** @description Degree or programme level, e.g. "Kỹ sư", "Cử nhân" */
+                    degree: string | null;
+                    /** @description Major or field of study */
+                    major: string | null;
+                    /** @description Start as written */
+                    start: string | null;
+                    /** @description End as written; "hiện tại" when ongoing */
+                    end: string | null;
+                    /** @description GPA as written, with its scale, e.g. "3.2/4" */
+                    gpa: string | null;
+                }[];
+                /** @description Skills, one entry each */
+                skills: {
+                    /** @description Skill name as the CV writes it */
+                    name: string;
+                    /** @description Name of the catalogue skill it maps to; null when match is NEW */
+                    canonical_name: string | null;
+                    /**
+                     * SkillMatch
+                     * @description ALIAS = its key equals the key of a catalogue name or alias, EMBEDDING = cosine to a catalogue skill at or above the threshold, NEW = not in the catalogue
+                     * @enum {string}
+                     */
+                    match: "ALIAS" | "EMBEDDING" | "NEW";
+                }[];
+                /** @description Projects */
+                projects: {
+                    /** @description Project name */
+                    name: string;
+                    /** @description The student's role in the project */
+                    role: string | null;
+                    /** @description What the project does and what the student did, as written */
+                    description: string | null;
+                    /** @description Languages, frameworks and tools the project used */
+                    technologies: string[];
+                    /** @description Start as written */
+                    start: string | null;
+                    /** @description End as written */
+                    end: string | null;
+                }[];
+                /** @description Work experience */
+                experience: {
+                    /** @description Company or organisation */
+                    organization: string;
+                    /** @description Job title */
+                    position: string | null;
+                    /** @description Work done, as written */
+                    description: string | null;
+                    /** @description Start as written */
+                    start: string | null;
+                    /** @description End as written; "hiện tại" when ongoing */
+                    end: string | null;
+                }[];
+                /** @description Foreign languages */
+                languages: {
+                    /** @description Language, e.g. "Tiếng Anh" */
+                    language: string;
+                    /** @description Level or certificate as written, e.g. "TOEIC 650", "N3" */
+                    level: string | null;
+                }[];
+                /** @description Certificates and awards */
+                certificates: {
+                    /** @description Certificate or award */
+                    name: string;
+                    /** @description Who issued it */
+                    issuer: string | null;
+                    /** @description When, as written */
+                    year: string | null;
+                }[];
+            };
+        };
+        ReopenCvProfileRequestDto: {
+            cvId: number;
+            rowVersion: number;
         };
         CreateCampaignRequestDto: {
             name: string;
@@ -854,6 +1081,82 @@ export interface components {
             reason?: string;
         };
         OpenCampaignRequestDto: {
+            rowVersion: number;
+        };
+        CatalogSkillListDto_Output: {
+            items: {
+                id: number;
+                canonicalName: string;
+                /** @enum {string} */
+                group: "LANGUAGE" | "FRAMEWORK" | "DATABASE" | "CLOUD_DEVOPS" | "TOOL" | "TESTING" | "DATA_AI" | "METHODOLOGY" | "SOFT_SKILL" | "OTHER";
+                aliases: string[];
+            }[];
+        };
+        AdminSkillListDto_Output: {
+            items: {
+                id: number;
+                canonicalName: string;
+                aliases: string[];
+                /** @enum {string|null} */
+                group: "LANGUAGE" | "FRAMEWORK" | "DATABASE" | "CLOUD_DEVOPS" | "TOOL" | "TESTING" | "DATA_AI" | "METHODOLOGY" | "SOFT_SKILL" | "OTHER" | null;
+                /** @enum {string} */
+                status: "PENDING" | "APPROVED" | "REJECTED" | "MERGED";
+                mergedInto: {
+                    id: number;
+                    canonicalName: string;
+                } | null;
+                suggestion: {
+                    canonicalName: string;
+                    /** @enum {string} */
+                    group: "LANGUAGE" | "FRAMEWORK" | "DATABASE" | "CLOUD_DEVOPS" | "TOOL" | "TESTING" | "DATA_AI" | "METHODOLOGY" | "SOFT_SKILL" | "OTHER";
+                    similarSkills: string[];
+                    model: string;
+                    promptVersion: string;
+                } | null;
+                rowVersion: number;
+                /** Format: date-time */
+                createdAt: string;
+                /** Format: date-time */
+                updatedAt: string;
+            }[];
+        };
+        ApproveSkillRequestDto: {
+            rowVersion: number;
+            canonicalName: string;
+            /** @enum {string} */
+            group: "LANGUAGE" | "FRAMEWORK" | "DATABASE" | "CLOUD_DEVOPS" | "TOOL" | "TESTING" | "DATA_AI" | "METHODOLOGY" | "SOFT_SKILL" | "OTHER";
+        };
+        AdminSkillDto_Output: {
+            id: number;
+            canonicalName: string;
+            aliases: string[];
+            /** @enum {string|null} */
+            group: "LANGUAGE" | "FRAMEWORK" | "DATABASE" | "CLOUD_DEVOPS" | "TOOL" | "TESTING" | "DATA_AI" | "METHODOLOGY" | "SOFT_SKILL" | "OTHER" | null;
+            /** @enum {string} */
+            status: "PENDING" | "APPROVED" | "REJECTED" | "MERGED";
+            mergedInto: {
+                id: number;
+                canonicalName: string;
+            } | null;
+            suggestion: {
+                canonicalName: string;
+                /** @enum {string} */
+                group: "LANGUAGE" | "FRAMEWORK" | "DATABASE" | "CLOUD_DEVOPS" | "TOOL" | "TESTING" | "DATA_AI" | "METHODOLOGY" | "SOFT_SKILL" | "OTHER";
+                similarSkills: string[];
+                model: string;
+                promptVersion: string;
+            } | null;
+            rowVersion: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        MergeSkillRequestDto: {
+            rowVersion: number;
+            targetId: number;
+        };
+        RejectSkillRequestDto: {
             rowVersion: number;
         };
         CreateCompanyRequestDto: {
@@ -1279,82 +1582,6 @@ export interface components {
         MarkAllReadResultDto_Output: {
             updated: number;
         };
-        CatalogSkillListDto_Output: {
-            items: {
-                id: number;
-                canonicalName: string;
-                /** @enum {string} */
-                group: "LANGUAGE" | "FRAMEWORK" | "DATABASE" | "CLOUD_DEVOPS" | "TOOL" | "TESTING" | "DATA_AI" | "METHODOLOGY" | "SOFT_SKILL" | "OTHER";
-                aliases: string[];
-            }[];
-        };
-        AdminSkillListDto_Output: {
-            items: {
-                id: number;
-                canonicalName: string;
-                aliases: string[];
-                /** @enum {string|null} */
-                group: "LANGUAGE" | "FRAMEWORK" | "DATABASE" | "CLOUD_DEVOPS" | "TOOL" | "TESTING" | "DATA_AI" | "METHODOLOGY" | "SOFT_SKILL" | "OTHER" | null;
-                /** @enum {string} */
-                status: "PENDING" | "APPROVED" | "REJECTED" | "MERGED";
-                mergedInto: {
-                    id: number;
-                    canonicalName: string;
-                } | null;
-                suggestion: {
-                    canonicalName: string;
-                    /** @enum {string} */
-                    group: "LANGUAGE" | "FRAMEWORK" | "DATABASE" | "CLOUD_DEVOPS" | "TOOL" | "TESTING" | "DATA_AI" | "METHODOLOGY" | "SOFT_SKILL" | "OTHER";
-                    similarSkills: string[];
-                    model: string;
-                    promptVersion: string;
-                } | null;
-                rowVersion: number;
-                /** Format: date-time */
-                createdAt: string;
-                /** Format: date-time */
-                updatedAt: string;
-            }[];
-        };
-        ApproveSkillRequestDto: {
-            rowVersion: number;
-            canonicalName: string;
-            /** @enum {string} */
-            group: "LANGUAGE" | "FRAMEWORK" | "DATABASE" | "CLOUD_DEVOPS" | "TOOL" | "TESTING" | "DATA_AI" | "METHODOLOGY" | "SOFT_SKILL" | "OTHER";
-        };
-        AdminSkillDto_Output: {
-            id: number;
-            canonicalName: string;
-            aliases: string[];
-            /** @enum {string|null} */
-            group: "LANGUAGE" | "FRAMEWORK" | "DATABASE" | "CLOUD_DEVOPS" | "TOOL" | "TESTING" | "DATA_AI" | "METHODOLOGY" | "SOFT_SKILL" | "OTHER" | null;
-            /** @enum {string} */
-            status: "PENDING" | "APPROVED" | "REJECTED" | "MERGED";
-            mergedInto: {
-                id: number;
-                canonicalName: string;
-            } | null;
-            suggestion: {
-                canonicalName: string;
-                /** @enum {string} */
-                group: "LANGUAGE" | "FRAMEWORK" | "DATABASE" | "CLOUD_DEVOPS" | "TOOL" | "TESTING" | "DATA_AI" | "METHODOLOGY" | "SOFT_SKILL" | "OTHER";
-                similarSkills: string[];
-                model: string;
-                promptVersion: string;
-            } | null;
-            rowVersion: number;
-            /** Format: date-time */
-            createdAt: string;
-            /** Format: date-time */
-            updatedAt: string;
-        };
-        MergeSkillRequestDto: {
-            rowVersion: number;
-            targetId: number;
-        };
-        RejectSkillRequestDto: {
-            rowVersion: number;
-        };
     };
     responses: never;
     parameters: never;
@@ -1764,6 +1991,96 @@ export interface operations {
             };
         };
     };
+    CvProfileController_get: {
+        parameters: {
+            query: {
+                campaignId: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CvProfileViewDto_Output"];
+                };
+            };
+        };
+    };
+    CvProfileController_save: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveCvProfileRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CvProfileViewDto_Output"];
+                };
+            };
+        };
+    };
+    CvProfileController_confirm: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveCvProfileRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CvProfileViewDto_Output"];
+                };
+            };
+        };
+    };
+    CvProfileController_reopen: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReopenCvProfileRequestDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CvProfileViewDto_Output"];
+                };
+            };
+        };
+    };
     CampaignController_list: {
         parameters: {
             query?: never;
@@ -1873,6 +2190,124 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CampaignDto_Output"];
+                };
+            };
+        };
+    };
+    SkillsController_search: {
+        parameters: {
+            query?: {
+                query?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogSkillListDto_Output"];
+                };
+            };
+        };
+    };
+    AdminSkillsController_list: {
+        parameters: {
+            query?: {
+                status?: "PENDING" | "APPROVED" | "REJECTED" | "MERGED";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSkillListDto_Output"];
+                };
+            };
+        };
+    };
+    AdminSkillsController_approve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApproveSkillRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSkillDto_Output"];
+                };
+            };
+        };
+    };
+    AdminSkillsController_merge: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MergeSkillRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSkillDto_Output"];
+                };
+            };
+        };
+    };
+    AdminSkillsController_reject: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RejectSkillRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSkillDto_Output"];
                 };
             };
         };
@@ -2328,124 +2763,6 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
-            };
-        };
-    };
-    SkillsController_search: {
-        parameters: {
-            query?: {
-                query?: string;
-                limit?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CatalogSkillListDto_Output"];
-                };
-            };
-        };
-    };
-    AdminSkillsController_list: {
-        parameters: {
-            query?: {
-                status?: "PENDING" | "APPROVED" | "REJECTED" | "MERGED";
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AdminSkillListDto_Output"];
-                };
-            };
-        };
-    };
-    AdminSkillsController_approve: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ApproveSkillRequestDto"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AdminSkillDto_Output"];
-                };
-            };
-        };
-    };
-    AdminSkillsController_merge: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["MergeSkillRequestDto"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AdminSkillDto_Output"];
-                };
-            };
-        };
-    };
-    AdminSkillsController_reject: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RejectSkillRequestDto"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AdminSkillDto_Output"];
-                };
             };
         };
     };

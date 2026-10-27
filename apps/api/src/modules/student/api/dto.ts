@@ -6,7 +6,11 @@ import {
   ConsentSchema,
   CvListQuerySchema,
   CvListSchema,
+  CvProfileQuerySchema,
+  CvProfileViewSchema,
   CvSchema,
+  ReopenCvProfileRequestSchema,
+  SaveCvProfileRequestSchema,
   SubmitCvFieldsSchema,
 } from '@srm/shared';
 import { createZodDto } from 'nestjs-zod';
@@ -23,3 +27,8 @@ export class CvDto extends createZodDto(CvSchema) {}
 export class CvListDto extends createZodDto(CvListSchema) {}
 export class CenterCvListQueryDto extends createZodDto(CenterCvListQuerySchema) {}
 export class CenterCvListDto extends createZodDto(CenterCvListSchema) {}
+
+export class CvProfileQueryDto extends createZodDto(CvProfileQuerySchema) {}
+export class CvProfileViewDto extends createZodDto(CvProfileViewSchema) {}
+export class SaveCvProfileRequestDto extends createZodDto(SaveCvProfileRequestSchema) {}
+export class ReopenCvProfileRequestDto extends createZodDto(ReopenCvProfileRequestSchema) {}

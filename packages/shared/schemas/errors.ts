@@ -30,6 +30,8 @@ export const API_ERROR_CODES = [
   'JD_REQUIREMENTS_NOT_EDITABLE',
   // Skill catalogue review (US-2.5, CONTEXT D39).
   'SKILL_NAME_TAKEN',
+  // Profile review by the student (US-2.6, CONTEXT D40).
+  'CV_PROFILE_NOT_EDITABLE',
   'INTERNAL_ERROR',
 ] as const;
 
