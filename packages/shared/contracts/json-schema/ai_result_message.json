@@ -7,6 +7,9 @@
     },
     {
       "$ref": "./jd_analyze_result.json"
+    },
+    {
+      "$ref": "./skill_normalize_result.json"
     }
   ],
   "title": "AiResultMessage",

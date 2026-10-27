@@ -1,14 +1,18 @@
 // US-2.1 AC-8, AC-9 (AD-4, CONTEXT D33): the AI Service's database role reads `core` only through
 // the PII-free views and writes only `ai`; the API's role writes `core` and only reads `ai`.
 // US-2.2 AC-5 (CONTEXT D34): ai.llm_calls takes the row the AI Service writes for each LLM call.
+// US-2.5 AC-5 (CONTEXT D39): the skill catalogue views, and ai.embeddings.
 import {
   CV_STATES,
   JOB_DESCRIPTION_STATES,
+  SKILL_STATES,
   cvMachine,
   jobDescriptionMachine,
   reachableFrom,
+  skillMachine,
   type CvStatus,
   type JobDescriptionStatus,
+  type SkillStatus,
 } from '@srm/shared';
 import { randomUUID } from 'node:crypto';
 import { Client } from 'pg';
@@ -19,6 +23,8 @@ import { SAMPLE_REQUIREMENTS } from '../helpers/jd.js';
 const CV_VIEW = 'core.v_ai_cv_profile_masked';
 const JD_VIEW = 'core.v_ai_jd_requirements';
 const JD_SOURCE_VIEW = 'core.v_ai_jd_source';
+const SKILLS_VIEW = 'core.v_ai_skills';
+const SKILL_CANDIDATES_VIEW = 'core.v_ai_skill_candidates';
 
 /** PostgreSQL's insufficient_privilege, raised before the statement touches any row. */
 async function expectDenied(promise: Promise<unknown>): Promise<void> {
@@ -123,6 +129,10 @@ describe('AD-4: database roles of the AI Service and the API', () => {
        FROM information_schema.table_privileges WHERE grantee = 'ai_service' ORDER BY 1`,
     );
     expect(rows.map((r) => r.grant)).toEqual([
+      'ai.embeddings DELETE',
+      'ai.embeddings INSERT',
+      'ai.embeddings SELECT',
+      'ai.embeddings UPDATE',
       'ai.jobs DELETE',
       'ai.jobs INSERT',
       'ai.jobs SELECT',
@@ -132,6 +142,8 @@ describe('AD-4: database roles of the AI Service and the API', () => {
       `${CV_VIEW} SELECT`,
       `${JD_VIEW} SELECT`,
       `${JD_SOURCE_VIEW} SELECT`,
+      `${SKILL_CANDIDATES_VIEW} SELECT`,
+      `${SKILLS_VIEW} SELECT`,
     ]);
   });
 
@@ -151,7 +163,7 @@ describe('AD-4: database roles of the AI Service and the API', () => {
       expect([table, await can(`core.${table}`, 'DELETE')]).toEqual([table, !audit]);
       expect([table, await can(`core.${table}`, 'TRUNCATE')]).toEqual([table, false]);
     }
-    for (const table of ['ai.jobs', 'ai.llm_calls']) {
+    for (const table of ['ai.jobs', 'ai.llm_calls', 'ai.embeddings']) {
       expect([table, await can(table, 'SELECT')]).toEqual([table, true]);
       for (const privilege of ['INSERT', 'UPDATE', 'DELETE']) {
         expect([table, privilege, await can(table, privilege)]).toEqual([table, privilege, false]);
@@ -197,6 +209,44 @@ describe('AD-4: views the AI Service reads', () => {
     expect(await columnsOf(JD_VIEW)).toEqual(['jd_id', 'version', 'campaign_id', 'position_group', 'requirements']);
     // The company's own text; no student data and nothing of the JD's workflow (US-2.3).
     expect(await columnsOf(JD_SOURCE_VIEW)).toEqual(['jd_id', 'version', 'title', 'raw_text', 'file_key']);
+    // The catalogue, and the names awaiting ADMIN; no data of who wrote them (US-2.5).
+    expect(await columnsOf(SKILLS_VIEW)).toEqual(['skill_id', 'canonical_name', 'aliases', 'group', 'version']);
+    expect(await columnsOf(SKILL_CANDIDATES_VIEW)).toEqual(['skill_id', 'name']);
+  });
+
+  it('FR-13 v_ai_skills shows only approved skills; v_ai_skill_candidates only those awaiting review', async () => {
+    const catalogue = new Set<SkillStatus>(reachableFrom(skillMachine, 'APPROVED'));
+    const insert = async (status: SkillStatus, mergedIntoId: number | null = null) => {
+      const name = `Role test skill ${status} ${randomUUID()}`;
+      const { rows } = await owner.query<{ id: string }>(
+        `INSERT INTO core.skills (canonical_name, name_key, "group", status, merged_into_id)
+         VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+        [name, name.toLowerCase().replace(/[\s._/-]+/g, ''), status === 'APPROVED' ? 'TOOL' : null, status, mergedIntoId],
+      );
+      return Number(rows[0]!.id);
+    };
+    // One client runs one query at a time: no Promise.all here.
+    const target = await insert('APPROVED');
+    const skills: { status: SkillStatus; id: number }[] = [];
+    for (const status of SKILL_STATES) {
+      skills.push({ status, id: status === 'APPROVED' ? target : await insert(status, status === 'MERGED' ? target : null) });
+    }
+    const ids = skills.map((s) => s.id);
+    const visible = async (view: string) =>
+      new Set(
+        (await ai.query<{ skill_id: string }>(`SELECT skill_id FROM ${view} WHERE skill_id = ANY($1)`, [ids])).rows.map(
+          (r) => Number(r.skill_id),
+        ),
+      );
+    const approved = await visible(SKILLS_VIEW);
+    const pending = await visible(SKILL_CANDIDATES_VIEW);
+    for (const skill of skills) {
+      expect([skill.status, approved.has(skill.id), pending.has(skill.id)]).toEqual([
+        skill.status,
+        catalogue.has(skill.status),
+        skill.status === 'PENDING',
+      ]);
+    }
   });
 
   it('AD-4 v_ai_jd_source shows only JDs awaiting analysis (US-2.3, CONTEXT D35)', async () => {

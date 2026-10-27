@@ -6,12 +6,18 @@ from typing import Annotated
 
 from pydantic import Field, RootModel
 
-from . import cv_parse_result, jd_analyze_result
+from . import cv_parse_result, jd_analyze_result, skill_normalize_result
 
 
-class AiResultMessage(RootModel[cv_parse_result.CvParseResult | jd_analyze_result.JdAnalyzeResult]):
+class AiResultMessage(
+    RootModel[
+        cv_parse_result.CvParseResult
+        | jd_analyze_result.JdAnalyzeResult
+        | skill_normalize_result.SkillNormalizeResult
+    ]
+):
     root: Annotated[
-        cv_parse_result.CvParseResult | jd_analyze_result.JdAnalyzeResult,
+        cv_parse_result.CvParseResult | jd_analyze_result.JdAnalyzeResult | skill_normalize_result.SkillNormalizeResult,
         Field(title='AiResultMessage'),
     ]
     """

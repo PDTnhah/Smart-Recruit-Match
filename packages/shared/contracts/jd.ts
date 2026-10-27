@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { skillMatchKey } from './skills.js';
 
 // Normalised requirements of a JD (PRD GĐ1 step 2, FR-9, US-2.3, CONTEXT D35). One definition for
 // the LLM output of the JD Analyzer, the HR confirmation form and the API (AD-6). Enum values are
@@ -79,8 +80,11 @@ export const JdHardConditionsSchema = z
 
 export type JdHardConditions = z.output<typeof JdHardConditionsSchema>;
 
-/** Key two skill names are compared by: trimmed, case-insensitive. */
-export const skillKey = (skill: string): string => skill.trim().toLocaleLowerCase('vi');
+/**
+ * Key two skill names are compared by: the catalogue's match key (US-2.5, CONTEXT D39), so "React"
+ * and "React.js" are one skill here as they are to the skill normalizer.
+ */
+export const skillKey = (skill: string): string => skillMatchKey(skill);
 
 const SKILL_GROUPS = ['must_have', 'nice_to_have'] as const;
 
@@ -97,8 +101,9 @@ function checkDistinctSkills(
     const items: unknown = requirements[group];
     if (!Array.isArray(items)) continue;
     (items as readonly { skill?: unknown }[]).forEach((item, index) => {
-      if (typeof item?.skill !== 'string' || item.skill.trim() === '') return;
+      if (typeof item?.skill !== 'string') return;
       const key = skillKey(item.skill);
+      if (key === '') return;
       if (seen.has(key)) {
         ctx.addIssue({ code: 'custom', path: [group, index, 'skill'], message: `Kỹ năng "${item.skill.trim()}" bị trùng` });
       }

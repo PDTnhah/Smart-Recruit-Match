@@ -1,7 +1,8 @@
 {
   "jobs": {
     "CV_PARSE": "ai.cv.parse",
-    "JD_ANALYZE": "ai.jd.analyze"
+    "JD_ANALYZE": "ai.jd.analyze",
+    "SKILL_NORMALIZE": "ai.skills.normalize"
   },
   "results": "ai.results",
   "dlq_suffix": ".dlq",

@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./skill_match.json",
+  "type": "string",
+  "enum": [
+    "ALIAS",
+    "EMBEDDING",
+    "NEW"
+  ],
+  "title": "SkillMatch",
+  "description": "ALIAS = its key equals the key of a catalogue name or alias, EMBEDDING = cosine to a catalogue skill at or above the threshold, NEW = not in the catalogue"
+}

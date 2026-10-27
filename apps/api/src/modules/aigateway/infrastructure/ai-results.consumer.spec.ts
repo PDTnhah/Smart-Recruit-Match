@@ -8,7 +8,7 @@ const JOB_ID = '7f6c1e2a-4b8d-4c1e-9a2b-3c4d5e6f7a8b';
 const PROFILE = {
   summary: null,
   education: [],
-  skills: [{ name: 'Java' }],
+  skills: [{ name: 'Java', canonical_name: 'Java', match: 'ALIAS' }],
   projects: [],
   experience: [],
   languages: [],
@@ -40,6 +40,7 @@ const RESULT = {
       has_photo: false,
     },
     profile_masked: PROFILE,
+    new_skills: [],
     masked_text: 'Java',
     hidden_text_detected: false,
   },

@@ -45,3 +45,26 @@ def test_us24_contacts_masked_and_fake_keys_off_by_default() -> None:
 def test_us24_refuses_a_flag_that_is_not_a_boolean() -> None:
     with pytest.raises(RuntimeError, match="Invalid environment variables"):
         load_settings({**ENV, "CV_MASK_CONTACTS": "maybe"})
+
+
+def test_us25_embedding_provider_and_threshold_defaults() -> None:
+    """LESSONS §14: compose passes an unset variable as an empty string."""
+    settings = load_settings({**ENV, "EMBEDDING_PROVIDER": "", "SKILL_MATCH_THRESHOLD": ""})
+    assert (settings.embedding_provider, settings.skill_match_threshold) == ("bge-m3", 0.85)
+    settings = load_settings(
+        {**ENV, "EMBEDDING_PROVIDER": "Hashing", "SKILL_MATCH_THRESHOLD": "0.9"}
+    )
+    assert (settings.embedding_provider, settings.skill_match_threshold) == ("hashing", 0.9)
+
+
+@pytest.mark.parametrize(
+    "override",
+    [
+        {"EMBEDDING_PROVIDER": "openai"},
+        {"SKILL_MATCH_THRESHOLD": "1.5"},
+        {"SKILL_MATCH_THRESHOLD": "0"},
+    ],
+)
+def test_us25_refuses_an_unknown_provider_or_threshold(override: dict[str, str]) -> None:
+    with pytest.raises(RuntimeError, match="Invalid environment variables"):
+        load_settings({**ENV, **override})

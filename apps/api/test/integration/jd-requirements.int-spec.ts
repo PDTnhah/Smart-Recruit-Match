@@ -96,6 +96,7 @@ describe('US-2.3: JD analysis and requirement confirmation', () => {
         jd_version: version,
         requirements,
         position_group: 'BACKEND',
+        new_skills: [],
         hidden_text_detected: true,
       },
       error: null,

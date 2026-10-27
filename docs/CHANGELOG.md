@@ -6,6 +6,75 @@ Lịch sử phát hành của Smart Recruit Match. Mỗi commit ship code tăng 
 
 ---
 
+## [0.11.0] — 2026-10-27 — Embedding và danh mục kỹ năng — v0.11.0
+
+US-2.5. Tên kỹ năng trong hồ sơ năng lực và yêu cầu JD được quy về một danh mục chung: "ReactJS", "React.js", "react js" đều thành `React`. Kỹ năng chưa có trong danh mục được giữ tên, đánh dấu là kỹ năng mới và chờ quản trị duyệt; AI chỉ gợi ý, không tự thêm vào danh mục (FR-13, AD-2). AI Service có dịch vụ embedding `BAAI/bge-m3` tự host và bảng `ai.embeddings` (pgvector) để US-3.2, US-4.1, US-4.7 dùng lại. Compose mặc định chạy embedding giả, tất định (`hashing`); bge-m3 bật bằng `EMBEDDING_PROVIDER` ([CONTEXT D39](CONTEXT.md)).
+
+### Added
+- **Embedding** (`ai-service/app/embedding/`):
+  - `BgeM3Embedder`: nạp mô hình một lần lúc worker khởi động, chạy CPU, vector 1024 chiều đã chuẩn hóa;
+  - `HashingEmbedder` (`hashing-v1`): embedding giả, tất định, không cần mô hình;
+  - `PostgresEmbeddingStore`: upsert vào `ai.embeddings`, tìm kỹ năng gần nhất theo lô.
+  - Embedding hồ sơ CV tính từ `profile_masked` (không từ PII), ghi theo (`cv`, `cv_id`, `cv_version`, model).
+- **Chuẩn hóa kỹ năng** (`SkillNormalizer`, không dùng LLM), theo thứ tự:
+  - khớp khóa tên `skillMatchKey` / `skill_match_key` (NFKC, chữ thường, bỏ khoảng trắng, `.`, `-`, `_`, `/`; giữ `+`, `#`) với tên chuẩn hoặc alias;
+  - không khớp thì so cosine với kỹ năng gần nhất, gán khi ≥ `SKILL_MATCH_THRESHOLD` (mặc định 0,85);
+  - còn lại là `NEW`.
+
+  Áp cho CV Parser (`CvSkill` có `canonical_name`, `match`) và JD Analyzer (tên chuẩn ghi ngay trong `requirements`, hai tên của một kỹ năng gộp làm một). Kết quả CV và JD thêm `new_skills`, đã bỏ tên chứa token che PII.
+- **Ngưỡng 0,85 đo với bge-m3 thật** (test `@slow`): không cặp kỹ năng khác nhau nào đạt ngưỡng (cao nhất 0,847); các biến thể cách viết thì khớp (ReactJS ~ React 0,857).
+- **Danh mục kỹ năng** (`core.skills`, module `skills` mới):
+  - trạng thái `PENDING → APPROVED | MERGED | REJECTED` qua `transitionTo`;
+  - 10 nhóm cố định (`SKILL_GROUPS`);
+  - seed 174 kỹ năng IT kèm alias;
+  - view `core.v_ai_skills` (đã duyệt) và `core.v_ai_skill_candidates` (chờ duyệt) cho AI Service.
+- **Kỹ năng mới vào hàng chờ:** backend nghe kết quả `CV_PARSE` và `JD_ANALYZE`, tạo một dòng chờ duyệt cho mỗi tên chưa gặp, rồi gửi job `SKILL_NORMALIZE` (queue `ai.skills.normalize`, tối đa 50 kỹ năng mỗi job).
+- **Agent `skill_normalizer`:** gọi `LLMClient` với `effort: low`, prompt `skill_normalizer/v1`, gợi ý tên chuẩn, nhóm và kỹ năng có sẵn có thể trùng. Guardrail bỏ gợi ý cho kỹ năng ngoài job và bỏ tên không có trong danh mục. Gợi ý lưu kèm model và prompt.
+- **API:**
+  - `GET /api/skills?query=&limit=`: mọi vai trò đã đăng nhập, chỉ trả kỹ năng đã duyệt;
+  - `GET /api/admin/skills?status=`;
+  - `POST /api/admin/skills/{id}/approve | merge | reject`: chỉ ADMIN, có `rowVersion` và audit;
+  - đổi tên khi duyệt thì tên gốc thành alias;
+  - tên trùng kỹ năng có sẵn trả `409 SKILL_NAME_TAKEN`.
+- **Màn "Danh mục kỹ năng"** (`/admin/skills`, chỉ ADMIN): bảng lọc theo trạng thái, kèm gợi ý của AI. Ba dialog duyệt (điền sẵn gợi ý, cho gộp ngay khi tên đã có), gộp (tìm trong danh mục) và từ chối. Có đủ trạng thái đang tải, rỗng, lỗi.
+- **Test:**
+  - pytest cho mô hình (kể cả bge-m3 thật, `@slow`), bộ chuẩn hóa, khóa tên dùng chung với TS, SQL khớp migration, agent gợi ý và guardrail;
+  - Jest cho hợp đồng và integration: hàng chờ, gợi ý, duyệt, gộp, từ chối, 403, tra cứu, `ai.embeddings`, seed, ràng buộc khóa ở DB;
+  - test trọn vòng kiểm embedding của CV.
+
+### Changed
+- **`ai.embeddings`** (migration `0013`–`0014`):
+  - extension `vector`;
+  - unique (`owner_type`, `owner_id`, `version`, `model`);
+  - mỗi `owner_type` một index HNSW (`vector_cosine_ops`) một phần.
+
+  Vector kỹ năng của phiên bản cũ hoặc của model khác bị xóa khi tính lại (LESSONS §24).
+- **`core.skills`** (migration `0014`–`0017`):
+  - cột `name_key`, `alias_keys`, `status`, `merged_into_id`, cột gợi ý;
+  - trigger `skills_keys_distinct` giữ mỗi khóa tên cho một kỹ năng (Invariant 11);
+  - CHECK `ai.jobs.type` thêm `SKILL_NORMALIZE`.
+- **Hồ sơ CV đã lưu** (migration `0018`): kỹ năng của hồ sơ phân tích trước 0.11.0 nhận `canonical_name: null, match: "NEW"`.
+- **Quy tắc kỹ năng trùng của yêu cầu JD** so bằng khóa của danh mục: HR không nhập được "React" cùng "React.js".
+- **`CvParser`** nhận hai phụ thuộc `skills` và `embeddings`, thay chỗ cắm `profile_steps` của 0.10.0.
+- **Image `ai-service`:** `ARG EMBEDDING_PROVIDER` (mặc định `hashing`). `bge-m3` thêm torch bản CPU và extra `embedding`, khoảng 1 GB. Mô hình nằm ở `/models` (`HF_HOME`).
+- **Compose:** `EMBEDDING_PROVIDER` vừa là build arg vừa là env của `ai-worker`; thêm `SKILL_MATCH_THRESHOLD` và volume `hf-models`.
+- **Tài liệu:**
+  - CONTEXT D39;
+  - LESSONS §23 (`HF_HUB_OFFLINE` đọc lúc import), §24 (HNSW lọc sau khi quét);
+  - ARCHITECTURE (module `skills`, bảng, hàng đợi, pipeline CV, API, compose);
+  - AGENTS (*Mẫu có sẵn*), DESIGN §6 (`radio-group`, badge nhóm kỹ năng);
+  - DEPLOY, SETUP, `deploy/.env.example`.
+
+### Upgrade notes
+- Chạy migration `0013`–`0018`; dịch vụ `migrate` của compose tự chạy. Image PostgreSQL phải có pgvector (`pgvector/pgvector`).
+- Build lại image `ai-service` và `api`: `docker compose … up -d --build`.
+- Muốn dùng bge-m3: đặt `EMBEDDING_PROVIDER=bge-m3` trong `deploy/.env` rồi `up --build`. Mỗi bản sao `ai-worker` cần 2,5–3 GB RAM; lần đầu tải khoảng 4,5 GB vào volume `hf-models`. Đặt biến này mà không build lại thì worker dừng lúc khởi động và báo cần build lại.
+- Kỹ năng trong hồ sơ phân tích trước 0.11.0 không được chuẩn hóa lại, và các CV đó chưa có embedding hồ sơ.
+
+**Commit**: 9db0999
+
+---
+
 ## [0.10.0] — 2026-10-25 — CV Parser: chữ ẩn, tách PII — v0.10.0
 
 US-2.4. Sinh viên nộp CV thì AI Service biến CV (PDF có chữ, PDF scan, DOCX) thành hồ sơ năng lực có cấu trúc. Chữ ẩn bị loại khỏi dữ liệu gửi LLM và CV bị gắn cờ. Email, SĐT được che trước khi gửi. Thông tin cá nhân được tách riêng, Core Backend mã hóa bằng pgcrypto. Bản `profile_masked` dùng cho chấm điểm và văn bản CV đã che do code tạo, không nhờ LLM (BR-03, NFR-3). Phân tích lỗi thì CV chuyển "Lỗi phân tích", sinh viên được mời tải lại và Trung tâm thấy CV ở trang "CV cần xử lý". Điều khoản xử lý dữ liệu lên phiên bản 2, ghi tên Google ([CONTEXT D37](CONTEXT.md)).

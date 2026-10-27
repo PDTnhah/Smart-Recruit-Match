@@ -4,10 +4,14 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, RootModel
 
 from . import jd_requirements
 from . import position_group as position_group_1
+
+
+class NewSkill(RootModel[str]):
+    root: Annotated[str, Field(max_length=100, min_length=1)]
 
 
 class JdAnalyzeOutput(BaseModel):
@@ -36,6 +40,10 @@ class JdAnalyzeOutput(BaseModel):
     """
     requirements: jd_requirements.JdRequirements
     position_group: position_group_1.PositionGroup
+    new_skills: Annotated[list[NewSkill], Field(max_length=100)]
+    """
+    Skill names not in the catalogue (match NEW), one per skillMatchKey, as written
+    """
     hidden_text_detected: bool
     """
     The JD file contained hidden text, removed before the prompt

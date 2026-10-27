@@ -1,10 +1,11 @@
 import { z } from 'zod';
+import { SKILL_NORMALIZE_BATCH } from './skills.js';
 
 /**
  * Job types handled by the AI Service. Each later agent story adds its own type, payload schema,
  * queue and result output (US-3.2, US-4.1, …).
  */
-export const AI_JOB_TYPES = ['CV_PARSE', 'JD_ANALYZE'] as const;
+export const AI_JOB_TYPES = ['CV_PARSE', 'JD_ANALYZE', 'SKILL_NORMALIZE'] as const;
 
 export type AiJobType = (typeof AI_JOB_TYPES)[number];
 
@@ -36,9 +37,24 @@ export const JdAnalyzeJobSchema = z
 
 export type JdAnalyzeJob = z.infer<typeof JdAnalyzeJobSchema>;
 
+/** Payload on `ai.skills.normalize` (US-2.5 AC-6): new skills to suggest a name and group for. */
+export const SkillNormalizeJobSchema = z
+  .strictObject({
+    job_id: jobId(),
+    skill_ids: z
+      .array(rowId())
+      .min(1)
+      .max(SKILL_NORMALIZE_BATCH)
+      .describe('core.skills.id of new skills awaiting review; skills reviewed meanwhile are skipped'),
+  })
+  .meta({ title: 'SkillNormalizeJob', description: 'Job on ai.skills.normalize: suggest names and groups for new skills' });
+
+export type SkillNormalizeJob = z.infer<typeof SkillNormalizeJobSchema>;
+
 export const AI_JOB_SCHEMAS = {
   CV_PARSE: CvParseJobSchema,
   JD_ANALYZE: JdAnalyzeJobSchema,
+  SKILL_NORMALIZE: SkillNormalizeJobSchema,
 } as const satisfies Record<AiJobType, z.ZodType>;
 
 export type AiJobPayload<T extends AiJobType> = z.infer<(typeof AI_JOB_SCHEMAS)[T]>;

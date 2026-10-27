@@ -1,8 +1,8 @@
 // Minimal valid rows for the core tables. Test files share one database and run in parallel,
 // so every unique column gets a fresh value.
 import type { Database } from '../../src/db/types.js';
-import type { CvProfile, CvStatus, Role } from '@srm/shared';
-import { campaigns, companies, cvs, jobDescriptions, students, users } from '../../src/db/schema/index.js';
+import { type CvProfile, type CvStatus, type Role, skillMatchKey } from '@srm/shared';
+import { campaigns, companies, cvs, jobDescriptions, skills, students, users } from '../../src/db/schema/index.js';
 
 let sequence = 0;
 
@@ -59,7 +59,7 @@ export async function createJobDescription(
 export const SAMPLE_CV_PROFILE: CvProfile = {
   summary: null,
   education: [],
-  skills: [{ name: 'SQL' }],
+  skills: [{ name: 'SQL', canonical_name: 'SQL', match: 'ALIAS' }],
   projects: [],
   experience: [],
   languages: [],
@@ -111,6 +111,26 @@ export async function createUser(
   const [row] = await db
     .insert(users)
     .values({ email: `${uniqueValue('user')}@test.local`, fullName: 'Người dùng thử', ...values })
+    .returning();
+  return row!;
+}
+
+/**
+ * A `skills` row, APPROVED in group OTHER unless told otherwise; the name gets a unique suffix and
+ * `name_key` follows it. Pass `group: null` for a PENDING one.
+ */
+export async function createSkill(db: Database, values: Partial<typeof skills.$inferInsert> = {}) {
+  const canonicalName = values.canonicalName ?? uniqueValue('Skill');
+  const [row] = await db
+    .insert(skills)
+    .values({
+      status: 'APPROVED',
+      group: 'OTHER',
+      ...values,
+      canonicalName,
+      nameKey: skillMatchKey(canonicalName),
+      aliasKeys: (values.aliases ?? []).map(skillMatchKey),
+    })
     .returning();
   return row!;
 }

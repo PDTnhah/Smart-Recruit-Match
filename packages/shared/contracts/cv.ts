@@ -1,11 +1,14 @@
 import { z } from 'zod';
+import { SkillMatchSchema } from './skills.js';
 
 // Competence profile of a CV and its personal data, split apart (PRD GĐ2 step 3, FR-11, BR-03,
 // US-2.4, CONTEXT D37). One definition for the LLM output of the CV Parser, the student's review
 // screen (US-2.6) and the API (AD-6). `profile` never holds the personal section: that goes to
 // `pii`, which the backend encrypts. `profile_masked` has the shape of `profile` with every
 // personal value left in its free text replaced by a token such as [NAME]; code builds it, not the
-// LLM, so the masking is deterministic and tested (pii-mask-cases.json).
+// LLM, so the masking is deterministic and tested (pii-mask-cases.json). The LLM returns skill
+// names only (`CvExtractedProfile`); the stored `CvProfile` maps each one to the skill catalogue
+// (US-2.5, CONTEXT D39).
 
 /** Where the profile was read from: the text of a PDF, the whole scanned PDF, or a DOCX. */
 export const CV_SOURCES = ['TEXT_PDF', 'SCANNED_PDF', 'DOCX'] as const;
@@ -39,11 +42,29 @@ export const CvEducationSchema = z
   })
   .meta({ title: 'CvEducation', description: 'One school or degree' });
 
-export const CvSkillSchema = z
+/** Asked of the LLM: the name only. The fields and texts keep the keys of recorded fixtures. */
+export const CvExtractedSkillSchema = z
   .strictObject({
     name: text(100).describe('Skill name as the CV writes it; US-2.5 maps it to the skill catalogue'),
   })
-  .meta({ title: 'CvSkill', description: 'One concrete skill the CV claims' });
+  .meta({ title: 'CvExtractedSkill', description: 'One concrete skill the CV claims' });
+
+/** A skill of the stored profile: the name as written and the catalogue skill it maps to. */
+export const CvSkillSchema = z
+  .strictObject({
+    name: text(100).describe('Skill name as the CV writes it'),
+    canonical_name: text(100)
+      .nullable()
+      .describe('Name of the catalogue skill it maps to; null when match is NEW'),
+    match: SkillMatchSchema,
+  })
+  .refine((skill) => (skill.match === 'NEW') === (skill.canonical_name === null), {
+    error: 'canonical_name is null exactly when match is NEW',
+    path: ['canonical_name'],
+  })
+  .meta({ title: 'CvSkill', description: 'One concrete skill the CV claims, mapped to the skill catalogue' });
+
+export type CvSkill = z.output<typeof CvSkillSchema>;
 
 export const CvProjectSchema = z
   .strictObject({
@@ -81,17 +102,29 @@ export const CvCertificateSchema = z
   })
   .meta({ title: 'CvCertificate', description: 'One certificate or award' });
 
-export const CvProfileSchema = z
-  .strictObject({
+/** Same fields for the LLM output and the stored profile; only the skill entries differ. */
+const profileOf = <S extends z.ZodType>(skill: S) =>
+  z.strictObject({
     summary: text(3000).nullable().describe('Career objective or summary as written; no personal details'),
     education: list(CvEducationSchema, 10).describe('Education, most recent first'),
-    skills: list(CvSkillSchema, 100).describe('Skills, one entry each'),
+    skills: list(skill, 100).describe('Skills, one entry each'),
     projects: list(CvProjectSchema, 30).describe('Projects'),
     experience: list(CvExperienceSchema, 30).describe('Work experience'),
     languages: list(CvLanguageSchema, 10).describe('Foreign languages'),
     certificates: list(CvCertificateSchema, 30).describe('Certificates and awards'),
-  })
-  .meta({ title: 'CvProfile', description: 'Competence profile of a CV, without its personal section (FR-11)' });
+  });
+
+export const CvExtractedProfileSchema = profileOf(CvExtractedSkillSchema).meta({
+  title: 'CvExtractedProfile',
+  description: 'Competence profile of a CV, without its personal section (FR-11)',
+});
+
+export type CvExtractedProfile = z.output<typeof CvExtractedProfileSchema>;
+
+export const CvProfileSchema = profileOf(CvSkillSchema).meta({
+  title: 'CvProfile',
+  description: 'Competence profile of a CV, without its personal section; skills mapped to the catalogue (FR-11)',
+});
 
 export type CvProfile = z.output<typeof CvProfileSchema>;
 
@@ -125,7 +158,7 @@ export type CvPii = z.output<typeof CvPiiSchema>;
 export const CvExtractionSchema = z
   .strictObject({
     personal: CvPiiSchema,
-    profile: CvProfileSchema,
+    profile: CvExtractedProfileSchema,
   })
   .meta({ title: 'CvExtraction', description: 'Structured output of the CV Parser' });
 

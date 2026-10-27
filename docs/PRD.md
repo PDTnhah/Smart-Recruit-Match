@@ -802,7 +802,7 @@ Mọi thông báo đều hiện trong ứng dụng (chuông ở ba cổng, cập
 | FR-10 | HR xem, sửa và xác nhận yêu cầu chuẩn hóa; sửa sau khi đã mở test phải tạo phiên bản mới và chấm lại (UC-21, BR-02, BR-18) | P0 | 👀 review | EPIC-2 |
 | FR-11 | AI phân tích CV thành hồ sơ năng lực: chuẩn hóa tên kỹ năng theo danh mục, tách thông tin nhạy cảm, phát hiện chữ ẩn (UC-30, BR-03, GĐ2) | P0 | 👀 review | EPIC-2 |
 | FR-12 | Sinh viên xem, sửa và xác nhận hồ sơ năng lực; chỉ hồ sơ đã xác nhận mới được chấm (UC-11, BR-01) | P0 | 📋 backlog | EPIC-2 |
-| FR-13 | Quản trị quản lý danh mục kỹ năng và duyệt kỹ năng mới do AI phát hiện | P1 | 📋 backlog | EPIC-2 |
+| FR-13 | Quản trị quản lý danh mục kỹ năng và duyệt kỹ năng mới do AI phát hiện | P1 | 👀 review | EPIC-2 |
 | FR-14 | Lọc điều kiện cứng và chấm độ phù hợp mọi cặp SV × JD: điểm từng tiêu chí, bằng chứng, kỹ năng thiếu; tính S_cv và lập shortlist (UC-31, GĐ3) | P0 | 📋 backlog | EPIC-3 |
 | FR-15 | Sinh viên xem shortlist kèm S_cv, kỹ năng còn thiếu và gợi ý cải thiện (UC-12) | P0 | 📋 backlog | EPIC-3 |
 | FR-16 | Sinh viên chọn và sắp thứ tự tối đa N_NV nguyện vọng từ shortlist; danh sách khóa khi hết hạn (UC-13, BR-04, GĐ4) | P0 | 📋 backlog | EPIC-3 |
@@ -912,8 +912,8 @@ Mỗi epic tương ứng một giai đoạn trong [ARCHITECTURE.md › Implement
 | US-2.1 | Hạ tầng job AI và hợp đồng message | 👀 review | 0.7.0 |
 | US-2.2 | LLMClient và prompt có phiên bản | 👀 review | 0.8.0 |
 | US-2.3 | JD Analyzer và HR xác nhận yêu cầu | 👀 review | 0.9.0 |
-| US-2.4 | CV Parser: chữ ẩn, tách PII | 📋 backlog | — |
-| US-2.5 | Embedding và danh mục kỹ năng | 📋 backlog | — |
+| US-2.4 | CV Parser: chữ ẩn, tách PII | 👀 review | 0.10.0 |
+| US-2.5 | Embedding và danh mục kỹ năng | 👀 review | 0.11.0 |
 | US-2.6 | SV xác nhận hồ sơ năng lực | 📋 backlog | — |
 
 ### EPIC-3: Chấm phù hợp và chọn nguyện vọng

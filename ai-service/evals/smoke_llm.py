@@ -10,7 +10,8 @@ adapters match the live APIs, so run it after changing an adapter or upgrading a
 `--record local` (default) writes the ai.llm_calls rows and the log files under evals/.out/.
 `--record db` writes them to PostgreSQL (AI_DATABASE_URL) and MinIO (MINIO_*), as the worker will.
 `--cv FILE` runs the CV Parser on a sample CV instead (US-2.4); a scan checks that the adapter
-sends a document: `--cv tests/fixtures/cv/cv_scanned.pdf`.
+sends a document: `--cv tests/fixtures/cv/cv_scanned.pdf`. Its skills all come back NEW: the run
+has an empty catalogue and keeps no embedding (US-2.5).
 Use synthetic data only: the free tier of Gemini may use requests to improve Google's products.
 """
 
@@ -18,6 +19,7 @@ import argparse
 import asyncio
 import json
 import sys
+from collections.abc import Sequence
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any
@@ -27,6 +29,16 @@ from pydantic import BaseModel, Field
 
 from app.agents.cv_parser import CvParser
 from app.contracts.cv_parse_job import CvParseJob
+from app.embedding import (
+    CatalogSkill,
+    EmbeddingRow,
+    HashingEmbedder,
+    NearestSkill,
+    ProfileEmbeddings,
+    SkillCandidate,
+    SkillNormalizer,
+    SkillText,
+)
 from app.llm.effort import EFFORT_BY_AGENT
 from app.llm.factory import build_llm_client, build_log_store, build_prompt_registry
 from app.llm.recorder import CallRecord, PostgresLlmCallStore
@@ -81,8 +93,43 @@ class LocalFile:
         return self._path.read_bytes()
 
 
+class NoCatalogue:
+    """The skill catalogue of the CV run: empty, so the run needs no database."""
+
+    async def approved(self) -> list[CatalogSkill]:
+        return []
+
+    async def candidates(self, skill_ids: Sequence[int]) -> list[SkillCandidate]:
+        return []
+
+
+class NoEmbeddings:
+    """ai.embeddings of the CV run: keeps nothing."""
+
+    async def upsert(self, owner_type: str, model: str, rows: Sequence[EmbeddingRow]) -> None:
+        return None
+
+    async def skills_without_embedding(self, model: str) -> list[SkillText]:
+        return []
+
+    async def prune_skill_embeddings(self, model: str) -> None:
+        return None
+
+    async def nearest_skills(
+        self, vectors: Sequence[Sequence[float]], model: str
+    ) -> list[NearestSkill]:
+        return []
+
+
 async def parse_cv(client, settings, path: Path) -> str:
-    parser = CvParser(files=LocalFile(path), llm=client, prompts=build_prompt_registry(settings))
+    embedder, store = HashingEmbedder(), NoEmbeddings()
+    parser = CvParser(
+        files=LocalFile(path),
+        llm=client,
+        prompts=build_prompt_registry(settings),
+        skills=SkillNormalizer(catalog=NoCatalogue(), store=store, embedder=embedder),
+        embeddings=ProfileEmbeddings(store=store, embedder=embedder),
+    )
     job = CvParseJob(job_id=uuid4(), cv_id=1, cv_version=1, file_key=path.name)
     output = await parser(job)
     return output.model_dump_json(indent=2)

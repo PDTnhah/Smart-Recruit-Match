@@ -5,7 +5,7 @@ from app.contracts.cv_parse_output import CvParseOutput
 PROFILE = {
     "summary": None,
     "education": [],
-    "skills": [{"name": "Java"}],
+    "skills": [{"name": "Java", "canonical_name": "Java", "match": "ALIAS"}],
     "projects": [],
     "experience": [],
     "languages": [],
@@ -37,6 +37,7 @@ def fake_cv_output(cv_id: int = 457, cv_version: int = 2) -> CvParseOutput:
             "profile": PROFILE,
             "pii": PII,
             "profile_masked": PROFILE,
+            "new_skills": [],
             "masked_text": "[NAME]\nJava",
             "hidden_text_detected": False,
         }

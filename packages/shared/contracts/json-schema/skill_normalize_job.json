@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./skill_normalize_job.json",
+  "type": "object",
+  "properties": {
+    "job_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique id of this job; the AI Service processes each job_id once (AD-5)"
+    },
+    "skill_ids": {
+      "minItems": 1,
+      "maxItems": 50,
+      "type": "array",
+      "items": {
+        "type": "integer",
+        "exclusiveMinimum": 0,
+        "maximum": 9007199254740991
+      },
+      "description": "core.skills.id of new skills awaiting review; skills reviewed meanwhile are skipped"
+    }
+  },
+  "required": [
+    "job_id",
+    "skill_ids"
+  ],
+  "additionalProperties": false,
+  "title": "SkillNormalizeJob",
+  "description": "Job on ai.skills.normalize: suggest names and groups for new skills"
+}

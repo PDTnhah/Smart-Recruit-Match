@@ -468,6 +468,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/skills": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["SkillsController_search"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/skills": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["AdminSkillsController_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/skills/{id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AdminSkillsController_approve"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/skills/{id}/merge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AdminSkillsController_merge"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/skills/{id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AdminSkillsController_reject"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1198,6 +1278,82 @@ export interface components {
         };
         MarkAllReadResultDto_Output: {
             updated: number;
+        };
+        CatalogSkillListDto_Output: {
+            items: {
+                id: number;
+                canonicalName: string;
+                /** @enum {string} */
+                group: "LANGUAGE" | "FRAMEWORK" | "DATABASE" | "CLOUD_DEVOPS" | "TOOL" | "TESTING" | "DATA_AI" | "METHODOLOGY" | "SOFT_SKILL" | "OTHER";
+                aliases: string[];
+            }[];
+        };
+        AdminSkillListDto_Output: {
+            items: {
+                id: number;
+                canonicalName: string;
+                aliases: string[];
+                /** @enum {string|null} */
+                group: "LANGUAGE" | "FRAMEWORK" | "DATABASE" | "CLOUD_DEVOPS" | "TOOL" | "TESTING" | "DATA_AI" | "METHODOLOGY" | "SOFT_SKILL" | "OTHER" | null;
+                /** @enum {string} */
+                status: "PENDING" | "APPROVED" | "REJECTED" | "MERGED";
+                mergedInto: {
+                    id: number;
+                    canonicalName: string;
+                } | null;
+                suggestion: {
+                    canonicalName: string;
+                    /** @enum {string} */
+                    group: "LANGUAGE" | "FRAMEWORK" | "DATABASE" | "CLOUD_DEVOPS" | "TOOL" | "TESTING" | "DATA_AI" | "METHODOLOGY" | "SOFT_SKILL" | "OTHER";
+                    similarSkills: string[];
+                    model: string;
+                    promptVersion: string;
+                } | null;
+                rowVersion: number;
+                /** Format: date-time */
+                createdAt: string;
+                /** Format: date-time */
+                updatedAt: string;
+            }[];
+        };
+        ApproveSkillRequestDto: {
+            rowVersion: number;
+            canonicalName: string;
+            /** @enum {string} */
+            group: "LANGUAGE" | "FRAMEWORK" | "DATABASE" | "CLOUD_DEVOPS" | "TOOL" | "TESTING" | "DATA_AI" | "METHODOLOGY" | "SOFT_SKILL" | "OTHER";
+        };
+        AdminSkillDto_Output: {
+            id: number;
+            canonicalName: string;
+            aliases: string[];
+            /** @enum {string|null} */
+            group: "LANGUAGE" | "FRAMEWORK" | "DATABASE" | "CLOUD_DEVOPS" | "TOOL" | "TESTING" | "DATA_AI" | "METHODOLOGY" | "SOFT_SKILL" | "OTHER" | null;
+            /** @enum {string} */
+            status: "PENDING" | "APPROVED" | "REJECTED" | "MERGED";
+            mergedInto: {
+                id: number;
+                canonicalName: string;
+            } | null;
+            suggestion: {
+                canonicalName: string;
+                /** @enum {string} */
+                group: "LANGUAGE" | "FRAMEWORK" | "DATABASE" | "CLOUD_DEVOPS" | "TOOL" | "TESTING" | "DATA_AI" | "METHODOLOGY" | "SOFT_SKILL" | "OTHER";
+                similarSkills: string[];
+                model: string;
+                promptVersion: string;
+            } | null;
+            rowVersion: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        MergeSkillRequestDto: {
+            rowVersion: number;
+            targetId: number;
+        };
+        RejectSkillRequestDto: {
+            rowVersion: number;
         };
     };
     responses: never;
@@ -2172,6 +2328,124 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    SkillsController_search: {
+        parameters: {
+            query?: {
+                query?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogSkillListDto_Output"];
+                };
+            };
+        };
+    };
+    AdminSkillsController_list: {
+        parameters: {
+            query?: {
+                status?: "PENDING" | "APPROVED" | "REJECTED" | "MERGED";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSkillListDto_Output"];
+                };
+            };
+        };
+    };
+    AdminSkillsController_approve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApproveSkillRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSkillDto_Output"];
+                };
+            };
+        };
+    };
+    AdminSkillsController_merge: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MergeSkillRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSkillDto_Output"];
+                };
+            };
+        };
+    };
+    AdminSkillsController_reject: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RejectSkillRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSkillDto_Output"];
+                };
             };
         };
     };

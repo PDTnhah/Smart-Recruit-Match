@@ -14,6 +14,11 @@ export const ADVISORY_LOCK_KEYS = {
    * orders HR invitation emails of one user (US-1.7). PostgreSQL keeps one-key and two-key locks apart.
    */
   HR_INVITATION_EMAIL: 1_702,
+  /**
+   * Transaction lock `pg_advisory_xact_lock(2_505)` taken by every ADMIN change to the names and
+   * aliases of the skill catalogue (US-2.5), so the check that their keys stay distinct cannot race.
+   */
+  SKILL_CATALOGUE: 2_505,
 } as const;
 
 export type AdvisoryLockResult<T> = { acquired: true; result: T } | { acquired: false };

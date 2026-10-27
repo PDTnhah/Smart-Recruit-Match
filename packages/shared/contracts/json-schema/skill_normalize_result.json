@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./skill_normalize_result.json",
+  "type": "object",
+  "properties": {
+    "job_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "type": {
+      "type": "string",
+      "const": "SKILL_NORMALIZE"
+    },
+    "status": {
+      "$ref": "./ai_result_status.json"
+    },
+    "job": {
+      "$ref": "./skill_normalize_job.json"
+    },
+    "result": {
+      "anyOf": [
+        {
+          "$ref": "./skill_normalize_output.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "error": {
+      "anyOf": [
+        {
+          "$ref": "./ai_job_error.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "job_id",
+    "type",
+    "status",
+    "job",
+    "result",
+    "error"
+  ],
+  "additionalProperties": false,
+  "title": "SkillNormalizeResult",
+  "description": "Message on ai.results for a SKILL_NORMALIZE job"
+}

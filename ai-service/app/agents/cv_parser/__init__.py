@@ -6,7 +6,6 @@ from .agent import (
     MIN_TEXT_CHARACTERS,
     CheckedCvExtraction,
     CvParser,
-    ProfileStep,
     source_of,
 )
 
@@ -16,6 +15,5 @@ __all__ = [
     "MIN_TEXT_CHARACTERS",
     "CheckedCvExtraction",
     "CvParser",
-    "ProfileStep",
     "source_of",
 ]

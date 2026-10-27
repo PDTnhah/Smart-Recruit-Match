@@ -1,0 +1,1672 @@
+{
+  "id": "62faed85-462f-494c-b76c-c4df89485f8d",
+  "prevId": "82e4beb7-57d2-46d4-b902-6390e19861cf",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "core.campaigns": {
+      "name": "campaigns",
+      "schema": "core",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "name": "campaigns_id_seq",
+            "increment": "1",
+            "minValue": "1",
+            "maxValue": "9223372036854775807",
+            "startWith": "1",
+            "cache": "1",
+            "cycle": false,
+            "schema": "core",
+            "type": "always"
+          }
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'DRAFT'"
+        },
+        "phase_deadlines": {
+          "name": "phase_deadlines",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "config": {
+          "name": "config",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "row_version": {
+          "name": "row_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "campaigns_status_check": {
+          "name": "campaigns_status_check",
+          "value": "\"core\".\"campaigns\".\"status\" in ('DRAFT', 'INTAKE', 'PREFERENCE_SELECTION', 'TESTING', 'ALLOCATION_REVIEW', 'SUPPLEMENTARY', 'CLOSED')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "core.companies": {
+      "name": "companies",
+      "schema": "core",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "name": "companies_id_seq",
+            "increment": "1",
+            "minValue": "1",
+            "maxValue": "9223372036854775807",
+            "startWith": "1",
+            "cache": "1",
+            "cycle": false,
+            "schema": "core",
+            "type": "always"
+          }
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "field": {
+          "name": "field",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "address": {
+          "name": "address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "contact": {
+          "name": "contact",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "core.students": {
+      "name": "students",
+      "schema": "core",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "name": "students_id_seq",
+            "increment": "1",
+            "minValue": "1",
+            "maxValue": "9223372036854775807",
+            "startWith": "1",
+            "cache": "1",
+            "cycle": false,
+            "schema": "core",
+            "type": "always"
+          }
+        },
+        "student_code": {
+          "name": "student_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "full_name": {
+          "name": "full_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "major": {
+          "name": "major",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cohort": {
+          "name": "cohort",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "gpa": {
+          "name": "gpa",
+          "type": "numeric(4, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "students_student_code_unique": {
+          "name": "students_student_code_unique",
+          "columns": [
+            "student_code"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "students_gpa_check": {
+          "name": "students_gpa_check",
+          "value": "\"core\".\"students\".\"gpa\" between 0 and 10"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "core.users": {
+      "name": "users",
+      "schema": "core",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "name": "users_id_seq",
+            "increment": "1",
+            "minValue": "1",
+            "maxValue": "9223372036854775807",
+            "startWith": "1",
+            "cache": "1",
+            "cycle": false,
+            "schema": "core",
+            "type": "always"
+          }
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "password_hash": {
+          "name": "password_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "invitation_nonce": {
+          "name": "invitation_nonce",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "full_name": {
+          "name": "full_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "role": {
+          "name": "role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "company_id": {
+          "name": "company_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "student_id": {
+          "name": "student_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_active": {
+          "name": "is_active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "users_company_id_idx": {
+          "name": "users_company_id_idx",
+          "columns": [
+            {
+              "expression": "company_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "users_company_id_companies_id_fk": {
+          "name": "users_company_id_companies_id_fk",
+          "tableFrom": "users",
+          "columnsFrom": [
+            "company_id"
+          ],
+          "tableTo": "companies",
+          "schemaTo": "core",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "users_student_id_students_id_fk": {
+          "name": "users_student_id_students_id_fk",
+          "tableFrom": "users",
+          "columnsFrom": [
+            "student_id"
+          ],
+          "tableTo": "students",
+          "schemaTo": "core",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "users_email_unique": {
+          "name": "users_email_unique",
+          "columns": [
+            "email"
+          ],
+          "nullsNotDistinct": false
+        },
+        "users_student_id_unique": {
+          "name": "users_student_id_unique",
+          "columns": [
+            "student_id"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "users_role_check": {
+          "name": "users_role_check",
+          "value": "\"core\".\"users\".\"role\" in ('CENTER', 'STUDENT', 'HR', 'ADMIN')"
+        },
+        "users_email_lowercase_check": {
+          "name": "users_email_lowercase_check",
+          "value": "\"core\".\"users\".\"email\" = lower(\"core\".\"users\".\"email\")"
+        },
+        "users_hr_company_check": {
+          "name": "users_hr_company_check",
+          "value": "(\"core\".\"users\".\"role\" = 'HR') = (\"core\".\"users\".\"company_id\" is not null)"
+        },
+        "users_student_link_check": {
+          "name": "users_student_link_check",
+          "value": "(\"core\".\"users\".\"role\" = 'STUDENT') = (\"core\".\"users\".\"student_id\" is not null)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "core.job_descriptions": {
+      "name": "job_descriptions",
+      "schema": "core",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "name": "job_descriptions_id_seq",
+            "increment": "1",
+            "minValue": "1",
+            "maxValue": "9223372036854775807",
+            "startWith": "1",
+            "cache": "1",
+            "cycle": false,
+            "schema": "core",
+            "type": "always"
+          }
+        },
+        "campaign_id": {
+          "name": "campaign_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "company_id": {
+          "name": "company_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "position_group": {
+          "name": "position_group",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "location": {
+          "name": "location",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "work_mode": {
+          "name": "work_mode",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "internship_period": {
+          "name": "internship_period",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "allowance": {
+          "name": "allowance",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "raw_text": {
+          "name": "raw_text",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "file_key": {
+          "name": "file_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "file_name": {
+          "name": "file_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "requirements": {
+          "name": "requirements",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "analysis_status": {
+          "name": "analysis_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "analysis_model": {
+          "name": "analysis_model",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "analysis_prompt_version": {
+          "name": "analysis_prompt_version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "hidden_text_flag": {
+          "name": "hidden_text_flag",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "quota": {
+          "name": "quota",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "exam_blueprint": {
+          "name": "exam_blueprint",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'DRAFT'"
+        },
+        "row_version": {
+          "name": "row_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "job_descriptions_campaign_id_status_idx": {
+          "name": "job_descriptions_campaign_id_status_idx",
+          "columns": [
+            {
+              "expression": "campaign_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "job_descriptions_company_id_idx": {
+          "name": "job_descriptions_company_id_idx",
+          "columns": [
+            {
+              "expression": "company_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "job_descriptions_campaign_id_campaigns_id_fk": {
+          "name": "job_descriptions_campaign_id_campaigns_id_fk",
+          "tableFrom": "job_descriptions",
+          "columnsFrom": [
+            "campaign_id"
+          ],
+          "tableTo": "campaigns",
+          "schemaTo": "core",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "job_descriptions_company_id_companies_id_fk": {
+          "name": "job_descriptions_company_id_companies_id_fk",
+          "tableFrom": "job_descriptions",
+          "columnsFrom": [
+            "company_id"
+          ],
+          "tableTo": "companies",
+          "schemaTo": "core",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "job_descriptions_status_check": {
+          "name": "job_descriptions_status_check",
+          "value": "\"core\".\"job_descriptions\".\"status\" in ('DRAFT', 'PENDING_HR_CONFIRMATION', 'PENDING_APPROVAL', 'APPROVED', 'RECRUITING', 'FILLED', 'CLOSED')"
+        },
+        "job_descriptions_work_mode_check": {
+          "name": "job_descriptions_work_mode_check",
+          "value": "\"core\".\"job_descriptions\".\"work_mode\" in ('ONSITE', 'HYBRID', 'REMOTE')"
+        },
+        "job_descriptions_position_group_check": {
+          "name": "job_descriptions_position_group_check",
+          "value": "\"core\".\"job_descriptions\".\"position_group\" in ('BACKEND', 'FRONTEND', 'MOBILE', 'DATA_AI', 'TESTER_QA', 'BA', 'DEVOPS', 'OTHER')"
+        },
+        "job_descriptions_analysis_status_check": {
+          "name": "job_descriptions_analysis_status_check",
+          "value": "\"core\".\"job_descriptions\".\"analysis_status\" in ('PENDING', 'SUCCEEDED', 'FAILED')"
+        },
+        "job_descriptions_analysis_source_check": {
+          "name": "job_descriptions_analysis_source_check",
+          "value": "(\"core\".\"job_descriptions\".\"analysis_model\" is null) = (\"core\".\"job_descriptions\".\"analysis_prompt_version\" is null)"
+        },
+        "job_descriptions_quota_check": {
+          "name": "job_descriptions_quota_check",
+          "value": "\"core\".\"job_descriptions\".\"quota\" > 0"
+        },
+        "job_descriptions_file_pair_check": {
+          "name": "job_descriptions_file_pair_check",
+          "value": "(\"core\".\"job_descriptions\".\"file_key\" is null) = (\"core\".\"job_descriptions\".\"file_name\" is null)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "core.cvs": {
+      "name": "cvs",
+      "schema": "core",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "name": "cvs_id_seq",
+            "increment": "1",
+            "minValue": "1",
+            "maxValue": "9223372036854775807",
+            "startWith": "1",
+            "cache": "1",
+            "cycle": false,
+            "schema": "core",
+            "type": "always"
+          }
+        },
+        "student_id": {
+          "name": "student_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "campaign_id": {
+          "name": "campaign_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "file_key": {
+          "name": "file_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "file_name": {
+          "name": "file_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "profile": {
+          "name": "profile",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "profile_masked": {
+          "name": "profile_masked",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "pii": {
+          "name": "pii",
+          "type": "bytea",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "masked_text": {
+          "name": "masked_text",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "analysis_source": {
+          "name": "analysis_source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "analysis_model": {
+          "name": "analysis_model",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "analysis_prompt_version": {
+          "name": "analysis_prompt_version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "analysis_error_code": {
+          "name": "analysis_error_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'PENDING_ANALYSIS'"
+        },
+        "active": {
+          "name": "active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "hidden_text_flag": {
+          "name": "hidden_text_flag",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "row_version": {
+          "name": "row_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "cvs_student_campaign_active_key": {
+          "name": "cvs_student_campaign_active_key",
+          "columns": [
+            {
+              "expression": "student_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "campaign_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "with": {},
+          "method": "btree",
+          "where": "\"core\".\"cvs\".\"active\"",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "cvs_student_id_students_id_fk": {
+          "name": "cvs_student_id_students_id_fk",
+          "tableFrom": "cvs",
+          "columnsFrom": [
+            "student_id"
+          ],
+          "tableTo": "students",
+          "schemaTo": "core",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "cvs_campaign_id_campaigns_id_fk": {
+          "name": "cvs_campaign_id_campaigns_id_fk",
+          "tableFrom": "cvs",
+          "columnsFrom": [
+            "campaign_id"
+          ],
+          "tableTo": "campaigns",
+          "schemaTo": "core",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "cvs_student_campaign_version_key": {
+          "name": "cvs_student_campaign_version_key",
+          "columns": [
+            "student_id",
+            "campaign_id",
+            "version"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "cvs_status_check": {
+          "name": "cvs_status_check",
+          "value": "\"core\".\"cvs\".\"status\" in ('PENDING_ANALYSIS', 'PENDING_CONFIRMATION', 'CONFIRMED', 'ANALYSIS_FAILED')"
+        },
+        "cvs_analysis_source_check": {
+          "name": "cvs_analysis_source_check",
+          "value": "\"core\".\"cvs\".\"analysis_source\" in ('TEXT_PDF', 'SCANNED_PDF', 'DOCX')"
+        },
+        "cvs_version_check": {
+          "name": "cvs_version_check",
+          "value": "\"core\".\"cvs\".\"version\" > 0"
+        },
+        "cvs_analysis_model_check": {
+          "name": "cvs_analysis_model_check",
+          "value": "(\"core\".\"cvs\".\"analysis_model\" is null) = (\"core\".\"cvs\".\"analysis_prompt_version\" is null)"
+        },
+        "cvs_analysed_check": {
+          "name": "cvs_analysed_check",
+          "value": "\"core\".\"cvs\".\"status\" not in ('PENDING_CONFIRMATION', 'CONFIRMED') or (\"core\".\"cvs\".\"profile\" is not null and \"core\".\"cvs\".\"profile_masked\" is not null and \"core\".\"cvs\".\"pii\" is not null and \"core\".\"cvs\".\"analysis_model\" is not null and \"core\".\"cvs\".\"analysis_source\" is not null)"
+        },
+        "cvs_analysis_failed_check": {
+          "name": "cvs_analysis_failed_check",
+          "value": "\"core\".\"cvs\".\"status\" <> 'ANALYSIS_FAILED' or \"core\".\"cvs\".\"analysis_error_code\" is not null"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "core.consents": {
+      "name": "consents",
+      "schema": "core",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "name": "consents_id_seq",
+            "increment": "1",
+            "minValue": "1",
+            "maxValue": "9223372036854775807",
+            "startWith": "1",
+            "cache": "1",
+            "cycle": false,
+            "schema": "core",
+            "type": "always"
+          }
+        },
+        "student_id": {
+          "name": "student_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "campaign_id": {
+          "name": "campaign_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "terms_version": {
+          "name": "terms_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "terms_sha256": {
+          "name": "terms_sha256",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "accepted_at": {
+          "name": "accepted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "consents_student_id_students_id_fk": {
+          "name": "consents_student_id_students_id_fk",
+          "tableFrom": "consents",
+          "columnsFrom": [
+            "student_id"
+          ],
+          "tableTo": "students",
+          "schemaTo": "core",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "consents_campaign_id_campaigns_id_fk": {
+          "name": "consents_campaign_id_campaigns_id_fk",
+          "tableFrom": "consents",
+          "columnsFrom": [
+            "campaign_id"
+          ],
+          "tableTo": "campaigns",
+          "schemaTo": "core",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "consents_student_campaign_terms_key": {
+          "name": "consents_student_campaign_terms_key",
+          "columns": [
+            "student_id",
+            "campaign_id",
+            "terms_version"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "consents_terms_version_check": {
+          "name": "consents_terms_version_check",
+          "value": "\"core\".\"consents\".\"terms_version\" > 0"
+        },
+        "consents_terms_sha256_check": {
+          "name": "consents_terms_sha256_check",
+          "value": "\"core\".\"consents\".\"terms_sha256\" ~ '^[0-9a-f]{64}$'"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "core.notifications": {
+      "name": "notifications",
+      "schema": "core",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "name": "notifications_id_seq",
+            "increment": "1",
+            "minValue": "1",
+            "maxValue": "9223372036854775807",
+            "startWith": "1",
+            "cache": "1",
+            "cycle": false,
+            "schema": "core",
+            "type": "always"
+          }
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type": {
+          "name": "type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "payload": {
+          "name": "payload",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "channels": {
+          "name": "channels",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "read_at": {
+          "name": "read_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "dedupe_key": {
+          "name": "dedupe_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "email_status": {
+          "name": "email_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "email_attempts": {
+          "name": "email_attempts",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "email_next_attempt_at": {
+          "name": "email_next_attempt_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "email_sent_at": {
+          "name": "email_sent_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "email_last_error": {
+          "name": "email_last_error",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "notifications_user_id_read_at_idx": {
+          "name": "notifications_user_id_read_at_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "read_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "notifications_email_outbox_idx": {
+          "name": "notifications_email_outbox_idx",
+          "columns": [
+            {
+              "expression": "email_next_attempt_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "where": "\"core\".\"notifications\".\"email_status\" = 'PENDING'",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "notifications_user_id_users_id_fk": {
+          "name": "notifications_user_id_users_id_fk",
+          "tableFrom": "notifications",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "tableTo": "users",
+          "schemaTo": "core",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "notifications_user_id_dedupe_key_key": {
+          "name": "notifications_user_id_dedupe_key_key",
+          "columns": [
+            "user_id",
+            "dedupe_key"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "notifications_type_check": {
+          "name": "notifications_type_check",
+          "value": "\"core\".\"notifications\".\"type\" in ('CAMPAIGN_OPENED', 'HR_INVITED', 'DEADLINE_REMINDER', 'JD_REQUIREMENTS_READY', 'JD_ANALYSIS_FAILED', 'JD_REQUIREMENTS_VERSIONED', 'CV_PROFILE_READY', 'CV_ANALYSIS_FAILED', 'CV_NEEDS_ATTENTION')"
+        },
+        "notifications_email_status_check": {
+          "name": "notifications_email_status_check",
+          "value": "\"core\".\"notifications\".\"email_status\" in ('PENDING', 'SENT', 'FAILED', 'CANCELLED')"
+        },
+        "notifications_channels_check": {
+          "name": "notifications_channels_check",
+          "value": "cardinality(\"core\".\"notifications\".\"channels\") > 0 and \"core\".\"notifications\".\"channels\" <@ array['IN_APP', 'EMAIL']::text[]"
+        },
+        "notifications_email_status_channel_check": {
+          "name": "notifications_email_status_channel_check",
+          "value": "('EMAIL' = any(\"core\".\"notifications\".\"channels\")) = (\"core\".\"notifications\".\"email_status\" is not null)"
+        },
+        "notifications_email_attempts_check": {
+          "name": "notifications_email_attempts_check",
+          "value": "\"core\".\"notifications\".\"email_attempts\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "core.audit_logs": {
+      "name": "audit_logs",
+      "schema": "core",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "name": "audit_logs_id_seq",
+            "increment": "1",
+            "minValue": "1",
+            "maxValue": "9223372036854775807",
+            "startWith": "1",
+            "cache": "1",
+            "cycle": false,
+            "schema": "core",
+            "type": "always"
+          }
+        },
+        "actor_kind": {
+          "name": "actor_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "actor_id": {
+          "name": "actor_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "action": {
+          "name": "action",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "entity": {
+          "name": "entity",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "entity_id": {
+          "name": "entity_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "before": {
+          "name": "before",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "after": {
+          "name": "after",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "at": {
+          "name": "at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "audit_logs_entity_idx": {
+          "name": "audit_logs_entity_idx",
+          "columns": [
+            {
+              "expression": "entity",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "entity_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "audit_logs_actor_kind_check": {
+          "name": "audit_logs_actor_kind_check",
+          "value": "\"core\".\"audit_logs\".\"actor_kind\" in ('USER', 'SYSTEM')"
+        },
+        "audit_logs_actor_id_check": {
+          "name": "audit_logs_actor_id_check",
+          "value": "(\"core\".\"audit_logs\".\"actor_kind\" = 'USER') = (\"core\".\"audit_logs\".\"actor_id\" is not null)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "ai.jobs": {
+      "name": "jobs",
+      "schema": "ai",
+      "columns": {
+        "job_id": {
+          "name": "job_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "type": {
+          "name": "type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "attempts": {
+          "name": "attempts",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "last_error": {
+          "name": "last_error",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "finished_at": {
+          "name": "finished_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "jobs_type_check": {
+          "name": "jobs_type_check",
+          "value": "\"ai\".\"jobs\".\"type\" in ('CV_PARSE', 'JD_ANALYZE')"
+        },
+        "jobs_status_check": {
+          "name": "jobs_status_check",
+          "value": "\"ai\".\"jobs\".\"status\" in ('PROCESSING', 'SUCCEEDED', 'PARTIAL', 'FAILED')"
+        },
+        "jobs_attempts_check": {
+          "name": "jobs_attempts_check",
+          "value": "\"ai\".\"jobs\".\"attempts\" >= 0"
+        },
+        "jobs_finished_at_check": {
+          "name": "jobs_finished_at_check",
+          "value": "(\"ai\".\"jobs\".\"status\" = 'PROCESSING') = (\"ai\".\"jobs\".\"finished_at\" is null)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "ai.llm_calls": {
+      "name": "llm_calls",
+      "schema": "ai",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "name": "llm_calls_id_seq",
+            "increment": "1",
+            "minValue": "1",
+            "maxValue": "9223372036854775807",
+            "startWith": "1",
+            "cache": "1",
+            "cycle": false,
+            "schema": "ai",
+            "type": "always"
+          }
+        },
+        "job_id": {
+          "name": "job_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "agent": {
+          "name": "agent",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "prompt_version": {
+          "name": "prompt_version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "provider": {
+          "name": "provider",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "model": {
+          "name": "model",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "effort": {
+          "name": "effort",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "attempt": {
+          "name": "attempt",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "outcome": {
+          "name": "outcome",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "stop_reason": {
+          "name": "stop_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "raw_stop_reason": {
+          "name": "raw_stop_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "input_tokens": {
+          "name": "input_tokens",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "cache_read_tokens": {
+          "name": "cache_read_tokens",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "cache_write_tokens": {
+          "name": "cache_write_tokens",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "output_tokens": {
+          "name": "output_tokens",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "cost_usd": {
+          "name": "cost_usd",
+          "type": "numeric(12, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "latency_ms": {
+          "name": "latency_ms",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "log_key": {
+          "name": "log_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "llm_calls_agent_created_at_idx": {
+          "name": "llm_calls_agent_created_at_idx",
+          "columns": [
+            {
+              "expression": "agent",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "llm_calls_job_id_idx": {
+          "name": "llm_calls_job_id_idx",
+          "columns": [
+            {
+              "expression": "job_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "llm_calls_job_id_jobs_job_id_fk": {
+          "name": "llm_calls_job_id_jobs_job_id_fk",
+          "tableFrom": "llm_calls",
+          "columnsFrom": [
+            "job_id"
+          ],
+          "tableTo": "jobs",
+          "schemaTo": "ai",
+          "columnsTo": [
+            "job_id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "llm_calls_log_key_unique": {
+          "name": "llm_calls_log_key_unique",
+          "columns": [
+            "log_key"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "llm_calls_prompt_version_check": {
+          "name": "llm_calls_prompt_version_check",
+          "value": "\"ai\".\"llm_calls\".\"prompt_version\" ~ '^[a-z][a-z0-9_]*/v[1-9][0-9]*$'"
+        },
+        "llm_calls_provider_check": {
+          "name": "llm_calls_provider_check",
+          "value": "\"ai\".\"llm_calls\".\"provider\" in ('GEMINI', 'ANTHROPIC', 'FIXTURE')"
+        },
+        "llm_calls_effort_check": {
+          "name": "llm_calls_effort_check",
+          "value": "\"ai\".\"llm_calls\".\"effort\" in ('LOW', 'MEDIUM', 'HIGH')"
+        },
+        "llm_calls_outcome_check": {
+          "name": "llm_calls_outcome_check",
+          "value": "\"ai\".\"llm_calls\".\"outcome\" in ('SUCCEEDED', 'INVALID_OUTPUT', 'TRUNCATED', 'REFUSED', 'API_ERROR')"
+        },
+        "llm_calls_stop_reason_check": {
+          "name": "llm_calls_stop_reason_check",
+          "value": "\"ai\".\"llm_calls\".\"stop_reason\" in ('END_TURN', 'MAX_TOKENS', 'REFUSAL', 'OTHER')"
+        },
+        "llm_calls_stop_reason_present_check": {
+          "name": "llm_calls_stop_reason_present_check",
+          "value": "(\"ai\".\"llm_calls\".\"outcome\" = 'API_ERROR') = (\"ai\".\"llm_calls\".\"stop_reason\" is null)"
+        },
+        "llm_calls_attempt_check": {
+          "name": "llm_calls_attempt_check",
+          "value": "\"ai\".\"llm_calls\".\"attempt\" >= 1"
+        },
+        "llm_calls_tokens_check": {
+          "name": "llm_calls_tokens_check",
+          "value": "\"ai\".\"llm_calls\".\"input_tokens\" >= 0 and \"ai\".\"llm_calls\".\"cache_read_tokens\" >= 0 and \"ai\".\"llm_calls\".\"cache_write_tokens\" >= 0 and \"ai\".\"llm_calls\".\"output_tokens\" >= 0"
+        },
+        "llm_calls_cost_usd_check": {
+          "name": "llm_calls_cost_usd_check",
+          "value": "\"ai\".\"llm_calls\".\"cost_usd\" >= 0"
+        },
+        "llm_calls_latency_ms_check": {
+          "name": "llm_calls_latency_ms_check",
+          "value": "\"ai\".\"llm_calls\".\"latency_ms\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {
+    "core": "core",
+    "ai": "ai"
+  },
+  "views": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

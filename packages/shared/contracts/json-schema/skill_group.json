@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./skill_group.json",
+  "type": "string",
+  "enum": [
+    "LANGUAGE",
+    "FRAMEWORK",
+    "DATABASE",
+    "CLOUD_DEVOPS",
+    "TOOL",
+    "TESTING",
+    "DATA_AI",
+    "METHODOLOGY",
+    "SOFT_SKILL",
+    "OTHER"
+  ],
+  "title": "SkillGroup",
+  "description": "LANGUAGE = programming or markup language, FRAMEWORK = framework or library, DATABASE, CLOUD_DEVOPS = cloud, containers, CI/CD, TOOL = tool or platform, TESTING, DATA_AI = data analysis, data engineering, machine learning, METHODOLOGY = process or practice, SOFT_SKILL, OTHER"
+}

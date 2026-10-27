@@ -25,9 +25,16 @@ dependencies = [
   # PyMuPDF reports colour, size and position per span (CONTEXT D3).
   "pymupdf==1.28.2",
   "python-docx==1.2.0",
+  # ai.embeddings: the vector type for psycopg (AD-11, US-2.5). Pure Python; numpy is optional.
+  "pgvector==0.5.1",
 ]
 
 [project.optional-dependencies]
+# BAAI/bge-m3 on CPU (AD-11, US-2.5). Only images built with EMBEDDING_PROVIDER=bge-m3 install it;
+# the Dockerfile installs the CPU build of torch first, from download.pytorch.org.
+embedding = [
+  "sentence-transformers==6.1.0",
+]
 dev = [
   "pytest>=9,<10",
   "ruff==0.16.10",  # pinned: new ruff minors can add rules to the selected groups
@@ -56,6 +63,10 @@ select = ["E", "F", "I", "B", "UP"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# `slow` runs the real bge-m3 from the local cache: `pytest -m slow` after installing the
+# `embedding` extra and downloading the model once (US-2.5, LESSONS §19).
+markers = ["slow: needs the embedding extra and the cached BAAI/bge-m3 model"]
+addopts = "-m 'not slow'"
 
 # Used by `pnpm contracts:gen` (scripts/gen-contracts.mjs), which runs the generator from this
 # directory. app/contracts holds generated files only (AD-6).

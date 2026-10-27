@@ -28,6 +28,8 @@ export const API_ERROR_CODES = [
   'CV_SUBMISSION_CONFLICT',
   // JD requirements confirmation and versioning (US-2.3, CONTEXT D35).
   'JD_REQUIREMENTS_NOT_EDITABLE',
+  // Skill catalogue review (US-2.5, CONTEXT D39).
+  'SKILL_NAME_TAKEN',
   'INTERNAL_ERROR',
 ] as const;
 

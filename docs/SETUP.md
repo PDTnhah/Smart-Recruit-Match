@@ -61,6 +61,15 @@ python3.12 -m venv .venv          # hoặc bất kỳ Python ≥ 3.12
 
 Trên Windows, venv đặt file chạy ở `.venv/Scripts/` thay cho `.venv/bin/` (VD `.venv/Scripts/pip install -e ".[dev]"`). Máy chưa có Python 3.12 thì có thể lấy từ conda rồi tạo venv chuẩn: `conda create -n srm-py312 python=3.12`, sau đó `<thư mục env>/python -m venv .venv`.
 
+Test `@slow` (mô hình embedding `BAAI/bge-m3` thật, US-2.5) không chạy mặc định. Muốn chạy thì cài torch bản CPU và extra `embedding`, tải mô hình một lần (khoảng 4,5 GB, vào bộ nhớ đệm của Hugging Face ở `HF_HOME`, mặc định `~/.cache/huggingface`), rồi chạy offline ([LESSONS §19](LESSONS.md)). Trên Windows dùng `.venv/Scripts/`:
+
+```bash
+.venv/bin/pip install torch==2.14.1 --index-url https://download.pytorch.org/whl/cpu
+.venv/bin/pip install -e ".[dev,embedding]"
+.venv/bin/python -c "from sentence_transformers import SentenceTransformer as S; S('BAAI/bge-m3')"
+HF_HUB_OFFLINE=1 .venv/bin/pytest -m slow
+```
+
 `pnpm contracts:gen` cần venv này: nó gọi `datamodel-code-generator` để sinh model Pydantic. Script tìm Python theo thứ tự `$AI_SERVICE_PYTHON`, `ai-service/.venv`, rồi `python3`/`python` trên PATH.
 
 ### 5. Cổng commit koni-harness
@@ -195,6 +204,14 @@ SMTP_PORT=1025
 SMTP_USER=
 SMTP_PASSWORD=
 MAIL_FROM=Smart Recruit Match <no-reply@srm.local>
+
+# Embedding của AI Service (added in v0.11.0, CONTEXT D39)
+# `hashing` là vector giả, tất định, không cần mô hình: kỹ năng chỉ khớp danh mục theo alias.
+# Dùng BAAI/bge-m3 (CPU) thì đặt bge-m3 rồi build lại (`up -d --build`): image cài thêm torch, mỗi bản sao
+# ai-worker cần 2,5–3 GB RAM, mô hình (khoảng 4,5 GB) tải một lần vào volume hf-models.
+EMBEDDING_PROVIDER=hashing
+# Cosine tối thiểu để gán tên kỹ năng cho kỹ năng gần nhất của danh mục; trống = 0.85.
+SKILL_MATCH_THRESHOLD=
 
 # Core Backend (added in v0.1.0)
 # Mức log pino: fatal | error | warn | info | debug | trace | silent

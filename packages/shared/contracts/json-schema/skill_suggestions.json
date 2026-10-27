@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./skill_suggestions.json",
+  "type": "object",
+  "properties": {
+    "suggestions": {
+      "maxItems": 50,
+      "type": "array",
+      "items": {
+        "$ref": "./skill_suggestion.json"
+      },
+      "description": "One suggestion per new skill"
+    }
+  },
+  "required": [
+    "suggestions"
+  ],
+  "additionalProperties": false,
+  "title": "SkillSuggestions",
+  "description": "Structured output of the skill normalizer"
+}

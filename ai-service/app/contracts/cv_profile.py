@@ -18,7 +18,7 @@ class Summary(RootModel[str]):
 
 class CvProfile(BaseModel):
     """
-    Competence profile of a CV, without its personal section (FR-11)
+    Competence profile of a CV, without its personal section; skills mapped to the catalogue (FR-11)
     """
 
     model_config = ConfigDict(

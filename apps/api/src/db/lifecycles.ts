@@ -7,11 +7,13 @@ import {
   cvMachine,
   type JobDescriptionStatus,
   jobDescriptionMachine,
+  type SkillStatus,
+  skillMachine,
   type StateMachine,
 } from '@srm/shared';
 import type { ColumnBaseConfig } from 'drizzle-orm';
 import type { PgColumn, PgTable } from 'drizzle-orm/pg-core';
-import { campaigns, cvs, jobDescriptions } from './schema/index.js';
+import { campaigns, cvs, jobDescriptions, skills } from './schema/index.js';
 
 type NumberColumn = PgColumn<ColumnBaseConfig<'number', string>>;
 type StringColumn = PgColumn<ColumnBaseConfig<'string', string>>;
@@ -36,3 +38,5 @@ export const jobDescriptionLifecycle: Lifecycle<JobDescriptionStatus> = {
 };
 
 export const cvLifecycle: Lifecycle<CvStatus> = { table: cvs, machine: cvMachine };
+
+export const skillLifecycle: Lifecycle<SkillStatus> = { table: skills, machine: skillMachine };

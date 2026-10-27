@@ -5,7 +5,7 @@
 ## Yêu cầu
 
 - Docker Engine và Docker Compose v2 (`docker compose version`).
-- Khoảng 2 GB RAM trống cho hạ tầng. Từ US-2.1, AI Service chạy `bge-m3` nên cần thêm 2–4 GB.
+- Khoảng 2 GB RAM trống cho hạ tầng. Bật mô hình embedding thật (`EMBEDDING_PROVIDER=bge-m3`, mục *AI Service và hàng đợi*) thì cần thêm 2,5–3 GB RAM cho mỗi bản sao `ai-worker`, khoảng 1 GB cho image và 4,5 GB đĩa cho mô hình.
 
 ## Chạy
 
@@ -35,7 +35,7 @@ Compose tự đọc `deploy/.env`, vì thư mục project là thư mục chứa 
 | `rabbitmq` | `rabbitmq:4.3-management-alpine` | 127.0.0.1:5672, UI 15672 | `hostname` cố định để giữ dữ liệu |
 | `minio` | `cgr.dev/chainguard/minio@sha256:…` | 127.0.0.1:9000, console 9001 | [CONTEXT D23](docs/CONTEXT.md) |
 | `mailpit` | `axllent/mailpit:v1.31` | 127.0.0.1:1025 (SMTP), UI 8025 | Bắt email khi phát triển |
-| `ai-worker` | build từ `ai-service/Dockerfile` | – | Worker FastStream nhận job AI (`ai.cv.parse`, `ai.jd.analyze`). Chạy nhiều bản sao được: `up -d --scale ai-worker=2` ([CONTEXT D33](docs/CONTEXT.md)) |
+| `ai-worker` | build từ `ai-service/Dockerfile` | – | Worker FastStream nhận job AI (`ai.cv.parse`, `ai.jd.analyze`, `ai.skills.normalize`). Chạy nhiều bản sao được: `up -d --scale ai-worker=2` ([CONTEXT D33](docs/CONTEXT.md)) |
 | `ai-api` | build từ `ai-service/Dockerfile` (cùng image `ai-worker`) | 127.0.0.1:8000 | FastAPI của AI Service. `GET /health` trả 200 khi kết nối được PostgreSQL (role `ai_service`) và RabbitMQ, ngược lại 503 |
 
 Cổng hạ tầng chỉ mở trên `127.0.0.1`. Nếu cổng đã bị chiếm, đổi biến `*_HOST_PORT` trong `deploy/.env`.
@@ -66,6 +66,18 @@ GEMINI_API_KEY=...        # free tier chỉ dùng với dữ liệu giả (CONTE
 
 rồi chạy `docker compose -f deploy/docker-compose.yml up -d ai-worker`. Thiếu key của nhà cung cấp đã chọn thì `ai-worker` dừng ngay lúc khởi động và in tên biến thiếu. Từng lượt gọi LLM được ghi ở bảng `ai.llm_calls`; request và response đầy đủ nằm ở bucket `llm-logs`. AI Service tạo bucket này, bật SSE-S3, ở lần ghi đầu.
 
+**Embedding và danh mục kỹ năng.** Từ 0.11.0, `ai-worker` quy tên kỹ năng trong CV và JD về danh mục `core.skills` và ghi embedding hồ sơ vào `ai.embeddings` ([CONTEXT D39](docs/CONTEXT.md)). Tên chưa có trong danh mục chờ Quản trị duyệt ở trang "Danh mục kỹ năng" (`/admin/skills`). Mặc định `EMBEDDING_PROVIDER=hashing`: vector giả, tất định, không cần mô hình, nên tên kỹ năng chỉ khớp theo alias. Dùng mô hình thật `BAAI/bge-m3` (chạy CPU):
+
+```bash
+EMBEDDING_PROVIDER=bge-m3     # trong deploy/.env
+docker compose -f deploy/docker-compose.yml up -d --build --wait
+```
+
+- Biến này vừa là build arg của image vừa là env của `ai-worker`, nên đổi giá trị thì phải `--build`. Quên `--build` thì `ai-worker` dừng lúc khởi động và báo cần build lại image.
+- Image cài thêm torch bản CPU, lớn hơn khoảng 1 GB. Lần khởi động đầu tải mô hình vào volume `hf-models`: khoảng 4,5 GB, vì transformers tải trọng số cả dạng `.bin` lẫn safetensors; các lần sau và các bản sao khác dùng lại. Worker nạp mô hình một lần trước khi nhận job (log `loading embedding model BAAI/bge-m3`).
+- Mỗi bản sao `ai-worker` cần 2,5–3 GB RAM.
+- Đổi nhà cung cấp thì embedding của danh mục kỹ năng được tính bù cho mô hình mới ở lần chuẩn hóa đầu tiên; vector của mô hình cũ không được dùng lẫn.
+
 **Điều khoản v2.** Từ 0.10.0, điều khoản hiện hành là `TERMS_V2` (ghi tên Google và Anthropic). Sinh viên đã đồng ý v1 phải đồng ý lại trước khi nộp CV. Chỉ gửi CV thật cho Gemini với gói trả phí ([CONTEXT D34, D37](docs/CONTEXT.md)).
 
 **Gửi lại CV chưa phân tích.** CV nộp trước 0.10.0 (hoặc nộp khi RabbitMQ lỗi) nằm ở "Đang phân tích" mà không có job. Lệnh dưới gửi job cho mọi CV đang dùng còn chờ phân tích; `--retry-failed` gửi lại cả CV "Lỗi phân tích"; `--campaign N` giới hạn trong một đợt. Lệnh chạy từ máy host với cùng biến môi trường như API ngoài Docker ([SETUP](docs/SETUP.md)), cổng theo `POSTGRES_HOST_PORT`, `RABBITMQ_HOST_PORT`:
@@ -79,7 +91,7 @@ docker compose -f deploy/docker-compose.yml up -d --scale ai-worker=2     # thê
 docker compose -f deploy/docker-compose.yml logs -f ai-worker
 ```
 
-- Queue `ai.cv.parse`, `ai.jd.analyze`, `ai.results` và các `*.dlq` được khai báo khi `api` hoặc `ai-worker` kết nối. Xem ở giao diện RabbitMQ `http://localhost:<RABBITMQ_UI_HOST_PORT>` (tài khoản `RABBITMQ_DEFAULT_USER`).
+- Queue `ai.cv.parse`, `ai.jd.analyze`, `ai.skills.normalize`, `ai.results` và các `*.dlq` được khai báo khi `api` hoặc `ai-worker` kết nối. Xem ở giao diện RabbitMQ `http://localhost:<RABBITMQ_UI_HOST_PORT>` (tài khoản `RABBITMQ_DEFAULT_USER`).
 - Job lỗi tạm thời được thử lại sau 2 s rồi 10 s; lần thứ 3 lỗi thì vào `<queue>.dlq`. Message trong DLQ có header `x-srm-dlq-reason`, `x-srm-attempts`, `x-srm-source-queue`. Chưa có màn quản trị DLQ trong web; xử lý bằng giao diện RabbitMQ (*Get messages*, *Move messages*).
 - Trạng thái từng job nằm ở bảng `ai.jobs` (`status`, `attempts`, `last_error`).
 
@@ -90,7 +102,7 @@ docker compose -f deploy/docker-compose.yml down        # dừng, GIỮ dữ li�
 docker compose -f deploy/docker-compose.yml down -v     # dừng và XÓA mọi volume (mất dữ liệu)
 ```
 
-Dữ liệu nằm trong các named volume `smart-recruit-match_pgdata`, `_redisdata`, `_rabbitmqdata`, `_miniodata`. Chạy `down` rồi `up` lại (không có `-v`) thì dữ liệu vẫn còn.
+Dữ liệu nằm trong các named volume `smart-recruit-match_pgdata`, `_redisdata`, `_rabbitmqdata`, `_miniodata`. Chạy `down` rồi `up` lại (không có `-v`) thì dữ liệu vẫn còn. Volume `_hf-models` chỉ chứa bộ nhớ đệm mô hình embedding; xóa thì lần khởi động sau tải lại.
 
 Tài khoản PostgreSQL, RabbitMQ và MinIO chỉ được tạo ở lần đầu khởi động volume. Nếu đổi mật khẩu trong `.env` sau đó, phải đổi trong chính service đó, hoặc xóa volume để tạo lại.
 
@@ -130,6 +142,8 @@ Nguồn: `deploy/.env` (sao từ [`deploy/.env.example`](deploy/.env.example)). 
 | `ANTHROPIC_API_KEY` | Required khi `LLM_PROVIDER=anthropic` | Claude Console | |
 | `LLM_MODEL` | Optional (trống = mặc định của nhà cung cấp) | Tên model | Mặc định `gemini-3.8-flash` hoặc `claude-opus-5-5` |
 | `CV_MASK_CONTACTS` | Optional (`true`) | `true`/`false` | `ai-worker` che email, SĐT của CV có chữ trước khi gửi LLM (NFR-3, [CONTEXT D37](docs/CONTEXT.md)). Giữ `true` |
+| `EMBEDDING_PROVIDER` | Optional (`hashing` trong compose) | `hashing` hoặc `bge-m3` | Build arg của image AI Service và env của `ai-worker` ([CONTEXT D39](docs/CONTEXT.md)). `bge-m3` cần `up --build`, 2,5–3 GB RAM mỗi bản sao worker; `hashing` là vector giả cho dev, test |
+| `SKILL_MATCH_THRESHOLD` | Optional (trống = 0.85) | Số trong (0, 1] | Cosine tối thiểu để gán tên kỹ năng cho kỹ năng gần nhất của danh mục (US-2.5); thấp hơn thì tên thành kỹ năng mới chờ duyệt |
 | `JWT_ACCESS_SECRET` | Required | Chuỗi ngẫu nhiên ≥ 32 ký tự (`openssl rand -base64 48`) | Khóa ký access token HS256 (CONTEXT D25). Đổi khóa thì mọi người phải đăng nhập lại trong vòng 15 phút |
 | `PII_ENCRYPTION_KEY` | Required | Chuỗi ngẫu nhiên ≥ 32 ký tự (`openssl rand -base64 48`), không bắt đầu bằng `change-me` | Khóa pgcrypto mã hóa cột `cvs.pii` (thông tin cá nhân trích từ CV, [CONTEXT D37](docs/CONTEXT.md)). Chỉ `api` có khóa. Lưu bản sao: mất hoặc đổi khóa thì không đọc được dữ liệu đã lưu |
 | `REFRESH_TOKEN_TTL_DAYS` | Optional (7) | Tự đặt, 1–90 | Thời hạn refresh token (cookie httpOnly, Redis lưu hash) |
