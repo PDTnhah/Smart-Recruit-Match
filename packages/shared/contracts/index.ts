@@ -2,6 +2,7 @@
 // Defined once here, exported to JSON Schema and generated as Pydantic by `pnpm contracts:gen`.
 export * from './jobs.js';
 export * from './jd.js';
+export * from './matching.js';
 export * from './cv.js';
 export * from './skills.js';
 export * from './envelope.js';

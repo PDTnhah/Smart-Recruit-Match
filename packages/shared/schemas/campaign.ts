@@ -61,11 +61,19 @@ const CONFIG_FIELDS = {
   reminder_hours_before: positiveInt('Thời gian nhắc trước hạn').max(168, {
     error: 'Thời gian nhắc trước hạn tối đa 168 giờ (7 ngày)',
   }),
+  // Weights wᵢ of the five S_cv criteria (PRD › S_cv, US-3.1, CONTEXT D41). Flat keys, so the
+  // patch merge and the DRAFT lock of US-1.4 treat them like any other parameter.
+  scv_weight_must_have: weight('Trọng số kỹ năng bắt buộc'),
+  scv_weight_nice_to_have: weight('Trọng số kỹ năng bổ trợ'),
+  scv_weight_project: weight('Trọng số dự án'),
+  scv_weight_education: weight('Trọng số học vấn'),
+  scv_weight_language: weight('Trọng số ngoại ngữ'),
 };
 
 /**
  * PRD GĐ0 defaults. Q1 (N_NV) and Q3 (k) are still open; these are the PRD proposals.
- * `reminder_hours_before` is not in the PRD table: added by US-1.7 (CONTEXT D31).
+ * `reminder_hours_before` is not in the PRD table: added by US-1.7 (CONTEXT D31). The `scv_weight_*`
+ * defaults are the PRD › S_cv table (US-3.1, CONTEXT D41).
  */
 export const DEFAULT_CAMPAIGN_CONFIG = {
   n_nv: 3,
@@ -79,9 +87,27 @@ export const DEFAULT_CAMPAIGN_CONFIG = {
   sla_hr_business_days: 5,
   t_offer_days: 3,
   reminder_hours_before: 24,
+  scv_weight_must_have: 0.4,
+  scv_weight_nice_to_have: 0.15,
+  scv_weight_project: 0.2,
+  scv_weight_education: 0.15,
+  scv_weight_language: 0.1,
 } as const;
 
+/** The S_cv criteria in PRD table order; the sum error is reported on the last one. */
+export const SCV_WEIGHT_KEYS = [
+  'scv_weight_must_have',
+  'scv_weight_nice_to_have',
+  'scv_weight_project',
+  'scv_weight_education',
+  'scv_weight_language',
+] as const;
+
+export type ScvWeightKey = (typeof SCV_WEIGHT_KEYS)[number];
+
 const WEIGHTS_MESSAGE = 'α + β phải bằng 1';
+
+const SCV_WEIGHTS_MESSAGE = 'Tổng 5 trọng số S_cv phải bằng 1';
 
 /**
  * Runs a cross-field check as long as the fields it reads are valid, even when other fields are
@@ -99,6 +125,17 @@ function checkWeights(
   if (toHundredths(config.alpha) + toHundredths(config.beta) !== 100) {
     ctx.addIssue({ code: 'custom', message: WEIGHTS_MESSAGE, path: ['beta'] });
   }
+}
+
+/** Checked only when all five weights are present: a patch may change some of them. */
+function checkScvWeights(config: Partial<Record<ScvWeightKey, number | undefined>>, ctx: z.RefinementCtx): void {
+  let sum = 0;
+  for (const key of SCV_WEIGHT_KEYS) {
+    const value = config[key];
+    if (value === undefined) return;
+    sum += toHundredths(value);
+  }
+  if (sum !== 100) ctx.addIssue({ code: 'custom', message: SCV_WEIGHTS_MESSAGE, path: ['scv_weight_language'] });
 }
 
 /** campaigns.config parameters; omitted keys take the PRD defaults. */
@@ -119,19 +156,35 @@ export const CampaignConfigSchema = z
     reminder_hours_before: CONFIG_FIELDS.reminder_hours_before.default(
       DEFAULT_CAMPAIGN_CONFIG.reminder_hours_before,
     ),
+    scv_weight_must_have: CONFIG_FIELDS.scv_weight_must_have.default(DEFAULT_CAMPAIGN_CONFIG.scv_weight_must_have),
+    scv_weight_nice_to_have: CONFIG_FIELDS.scv_weight_nice_to_have.default(
+      DEFAULT_CAMPAIGN_CONFIG.scv_weight_nice_to_have,
+    ),
+    scv_weight_project: CONFIG_FIELDS.scv_weight_project.default(DEFAULT_CAMPAIGN_CONFIG.scv_weight_project),
+    scv_weight_education: CONFIG_FIELDS.scv_weight_education.default(DEFAULT_CAMPAIGN_CONFIG.scv_weight_education),
+    scv_weight_language: CONFIG_FIELDS.scv_weight_language.default(DEFAULT_CAMPAIGN_CONFIG.scv_weight_language),
   })
-  .superRefine(checkWeights, whenValid(['alpha', 'beta']));
+  .superRefine(checkWeights, whenValid(['alpha', 'beta']))
+  .superRefine(checkScvWeights, whenValid(SCV_WEIGHT_KEYS));
 
 export type CampaignConfig = z.output<typeof CampaignConfigSchema>;
 
+/** The five S_cv weights of a campaign, in the shape `computeScv` takes. */
+export type ScvWeights = Readonly<Record<ScvWeightKey, number>>;
+
+export function scvWeightsOf(config: CampaignConfig): ScvWeights {
+  return Object.fromEntries(SCV_WEIGHT_KEYS.map((key) => [key, config[key]])) as ScvWeights;
+}
+
 /**
  * Changed parameters only. The API merges them into the stored config and parses the result with
- * CampaignConfigSchema, so α + β is always checked on the merged values.
+ * CampaignConfigSchema, so α + β and the S_cv weights are always checked on the merged values.
  */
 export const CampaignConfigPatchSchema = z
   .object(CONFIG_FIELDS)
   .partial()
-  .superRefine(checkWeights, whenValid(['alpha', 'beta']));
+  .superRefine(checkWeights, whenValid(['alpha', 'beta']))
+  .superRefine(checkScvWeights, whenValid(SCV_WEIGHT_KEYS));
 
 export type CampaignConfigPatch = z.output<typeof CampaignConfigPatchSchema>;
 
@@ -160,9 +213,12 @@ export const CampaignTargetSchema = z.object({
 
 export type CampaignTarget = z.output<typeof CampaignTargetSchema>;
 
-/** Cohorts and majors match ignoring case and surrounding spaces ("cntt" = "CNTT"). */
+/**
+ * Cohorts and majors match ignoring case and extra spaces ("cntt" = " CNTT "), and however the
+ * accents were typed: Unikey's composed and decomposed forms read alike (NFC).
+ */
 export function normalizeAudienceValue(value: string): string {
-  return value.trim().toLocaleLowerCase('vi');
+  return value.normalize('NFC').trim().replace(/\s+/g, ' ').toLocaleLowerCase('vi');
 }
 
 // --- Phase deadlines --------------------------------------------------------------------------

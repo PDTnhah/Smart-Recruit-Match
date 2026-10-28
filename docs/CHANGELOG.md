@@ -6,6 +6,38 @@ Lịch sử phát hành của Smart Recruit Match. Mỗi commit ship code tăng 
 
 ---
 
+## [0.13.0] — 2026-10-28 — Lọc điều kiện cứng và công thức S_cv — v0.13.0
+
+US-3.1. Phần tất định của GĐ3, dạng hàm TypeScript thuần trong `apps/api/src/modules/matching/domain/`: lọc điều kiện cứng trước khi gọi LLM, tính S_cv từ verdict từng tiêu chí của Matching Agent, và lập shortlist. LLM chỉ trả verdict kèm bằng chứng; code tính điểm, nên đổi trọng số không phải gọi lại LLM (FR-14, AD-2, BR-13). US-3.2 nối các hàm này vào lô chấm; chưa có bảng hay endpoint mới ([CONTEXT D41](CONTEXT.md)).
+
+### Added
+- **Lọc điều kiện cứng** (`checkHardFilters`): ngành, năm học tối thiểu, GPA tối thiểu, từng ngoại ngữ bắt buộc. Mỗi điều kiện không đạt cho đúng một lý do (`MAJOR_NOT_ALLOWED`, `MAJOR_MISSING`, `YEAR_BELOW_MIN`, `YEAR_MISSING`, `GPA_BELOW_MIN`, `GPA_MISSING`, `LANGUAGE_NOT_MET`) kèm `required` và `actual`. Đầu vào `HardFilterFacts` không có trường nhạy cảm nào (BR-03).
+- **Đọc ngoại ngữ bằng code** (`meetsLanguageRequirement`), không dùng LLM:
+  - chứng chỉ TOEIC, IELTS, TOEFL iBT và ITP, JLPT, TOPIK, HSK, VSTEP/CEFR, "bậc 1–6"; chỉ so chứng chỉ cùng loại, chưa quy đổi giữa các loại;
+  - yêu cầu chỉ nêu tên ngôn ngữ thì cần một mục cùng ngôn ngữ; ngôn ngữ ngoài bảng chỉ khớp chính nó;
+  - "hoặc" là các lựa chọn, "và" thì phải đạt hết; đọc được "HSK5", "TOEIC650đ", "TOEIC 4 kỹ năng 600".
+- **S_cv** (`computeScv`): 5 tiêu chí (kỹ năng bắt buộc, bổ trợ, dự án, học vấn, ngoại ngữ), tính bằng phân số `bigint`, trả `scvX100` nguyên, làm tròn half-up một lần, kèm bảng thành phần. Đầu ra mẫu ở PRD cho 58,80.
+  - Kỹ năng ghép với yêu cầu JD theo `skillKey`, theo trọng số của JD: LLM không thêm, bỏ hay đổi trọng số kỹ năng được. Kỹ năng LLM bỏ sót hoặc verdict thiếu bằng chứng tính `NOT_MET`.
+  - Tiêu chí rỗng (JD không có kỹ năng bổ trợ, không yêu cầu ngoại ngữ) chia lại trọng số cho các tiêu chí còn lại theo tỷ lệ.
+  - Học vấn = ngành (100 / 60 / 20) × 0,6 + GPA thang 4 × 25 × 0,4.
+- **Shortlist** (`selectShortlist`): JD đủ điều kiện có S_cv ≥ θ_cv, sắp giảm dần, hòa thì theo `jdId`.
+- **Trọng số S_cv trong cấu hình đợt:** 5 khóa `scv_weight_*`, mặc định 0,40 / 0,15 / 0,20 / 0,15 / 0,10, tổng bằng 1. Form tạo đợt có nhóm "Trọng số điểm phù hợp CV (S_cv)"; sau `DRAFT` chỉ đọc. Đợt cũ nhận giá trị mặc định.
+- **Hợp đồng `MatchCriteria`** (`packages/shared/contracts/matching.ts`) cho Matching Agent của US-3.2: verdict `MET` / `PARTIAL` cần `evidence`; JSON Schema và Pydantic sinh bằng `contracts:gen`.
+- **Test:** unit cho lọc điều kiện cứng, đọc ngoại ngữ, S_cv (ví dụ PRD, trọng số, làm tròn, tiêu chí rỗng), shortlist; property-based test bằng `fast-check` 4.10.2 (S_cv trong 0–100, không giảm khi nâng verdict, tất định).
+
+### Changed
+- **GPA sinh viên dùng thang 4**, cùng thang với `min_gpa` của JD: form nhập và CHECK `students_gpa_check` chỉ nhận 0–4 (migration `0019_student_gpa_scale_4`).
+- **Ngành, khóa so khớp không phân biệt cách gõ dấu:** `normalizeAudienceValue` chuẩn hóa NFC và gộp khoảng trắng thừa.
+- **Form đợt:** sửa một ô của tổng (α + β, 5 trọng số S_cv) thì lỗi tổng ở ô cuối được kiểm lại, không còn đứng yên khi tổng đã đúng.
+- **Tài liệu:** CONTEXT D41; LESSONS §26 (lỗi tổng của form không mất khi sửa ô khác).
+
+### Upgrade notes
+- Migration `0019` **xóa GPA lớn hơn 4** (nhập theo thang 10 cũ) trước khi thêm CHECK mới, vì không có quy đổi chính xác sang thang 4. Nhập lại GPA thang 4 cho các SV này. Build lại image `api` và `web`.
+
+**Commit**:
+
+---
+
 ## [0.12.0] — 2026-10-27 — SV xác nhận hồ sơ năng lực — v0.12.0
 
 US-2.6. Sinh viên xem file CV cạnh hồ sơ năng lực do AI trích xuất, sửa chỗ sai và xác nhận. Chỉ hồ sơ đã xác nhận mới vào view dữ liệu cho bước chấm, nên đầu vào của Matching (US-3.2) là dữ liệu SV đã kiểm (FR-12, BR-01). Mỗi lần lưu, Core Backend chuẩn hóa lại kỹ năng và che PII lại bằng bản port TS của `pii.py`, chạy cùng bộ ca với phía Python (BR-03, [CONTEXT D40](CONTEXT.md)).

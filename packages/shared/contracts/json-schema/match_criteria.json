@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./match_criteria.json",
+  "type": "object",
+  "properties": {
+    "must_have": {
+      "maxItems": 30,
+      "type": "array",
+      "items": {
+        "$ref": "./match_skill_verdict.json"
+      },
+      "description": "One verdict per must-have skill of the JD"
+    },
+    "nice_to_have": {
+      "maxItems": 30,
+      "type": "array",
+      "items": {
+        "$ref": "./match_skill_verdict.json"
+      },
+      "description": "One verdict per nice-to-have skill of the JD"
+    },
+    "project_relevance": {
+      "$ref": "./match_project_relevance.json"
+    },
+    "education": {
+      "$ref": "./match_education.json"
+    },
+    "language": {
+      "anyOf": [
+        {
+          "$ref": "./match_language_verdict.json"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "null when the JD requires no foreign language"
+    }
+  },
+  "required": [
+    "must_have",
+    "nice_to_have",
+    "project_relevance",
+    "education",
+    "language"
+  ],
+  "additionalProperties": false,
+  "title": "MatchCriteria",
+  "description": "Per-criterion verdicts of the Matching Agent; code computes S_cv (AD-2)"
+}

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { GPA_SCALE_MAX } from '../contracts/jd.js';
 import { ROLES } from './roles.js';
 
 // Login, session and account schemas (FR-1, CONTEXT D25). The web form and the API
@@ -65,10 +66,11 @@ export const StudentProfileInputSchema = z.object({
   studentCode: z.string().trim().min(1, { error: 'Vui lòng nhập mã sinh viên' }).max(32),
   major: z.string().trim().min(1, { error: 'Vui lòng nhập ngành' }).max(200),
   cohort: z.string().trim().min(1, { error: 'Vui lòng nhập khóa' }).max(32),
+  // 4-point scale, as the JD's min_gpa (US-3.1, CONTEXT D41).
   gpa: z
     .number()
-    .min(0, { error: 'GPA phải từ 0 đến 10' })
-    .max(10, { error: 'GPA phải từ 0 đến 10' })
+    .min(0, { error: `GPA phải từ 0 đến ${GPA_SCALE_MAX}` })
+    .max(GPA_SCALE_MAX, { error: `GPA phải từ 0 đến ${GPA_SCALE_MAX}` })
     .multipleOf(0.01, { error: 'GPA có tối đa hai chữ số thập phân' }),
 });
 

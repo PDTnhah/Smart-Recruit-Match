@@ -2281,7 +2281,7 @@
               "gpa": {
                 "type": "number",
                 "minimum": 0,
-                "maximum": 10,
+                "maximum": 4,
                 "multipleOf": 0.01
               }
             },
@@ -3570,6 +3570,41 @@
                 "exclusiveMinimum": true,
                 "maximum": 168,
                 "minimum": 0
+              },
+              "scv_weight_must_have": {
+                "default": 0.4,
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1,
+                "multipleOf": 0.01
+              },
+              "scv_weight_nice_to_have": {
+                "default": 0.15,
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1,
+                "multipleOf": 0.01
+              },
+              "scv_weight_project": {
+                "default": 0.2,
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1,
+                "multipleOf": 0.01
+              },
+              "scv_weight_education": {
+                "default": 0.15,
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1,
+                "multipleOf": 0.01
+              },
+              "scv_weight_language": {
+                "default": 0.1,
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1,
+                "multipleOf": 0.01
               }
             }
           }
@@ -3728,6 +3763,41 @@
                 "exclusiveMinimum": true,
                 "maximum": 168,
                 "minimum": 0
+              },
+              "scv_weight_must_have": {
+                "default": 0.4,
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1,
+                "multipleOf": 0.01
+              },
+              "scv_weight_nice_to_have": {
+                "default": 0.15,
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1,
+                "multipleOf": 0.01
+              },
+              "scv_weight_project": {
+                "default": 0.2,
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1,
+                "multipleOf": 0.01
+              },
+              "scv_weight_education": {
+                "default": 0.15,
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1,
+                "multipleOf": 0.01
+              },
+              "scv_weight_language": {
+                "default": 0.1,
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1,
+                "multipleOf": 0.01
               }
             },
             "required": [
@@ -3741,7 +3811,12 @@
               "t_test_minutes",
               "sla_hr_business_days",
               "t_offer_days",
-              "reminder_hours_before"
+              "reminder_hours_before",
+              "scv_weight_must_have",
+              "scv_weight_nice_to_have",
+              "scv_weight_project",
+              "scv_weight_education",
+              "scv_weight_language"
             ],
             "additionalProperties": false
           },
@@ -3928,6 +4003,41 @@
                       "exclusiveMinimum": true,
                       "maximum": 168,
                       "minimum": 0
+                    },
+                    "scv_weight_must_have": {
+                      "default": 0.4,
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1,
+                      "multipleOf": 0.01
+                    },
+                    "scv_weight_nice_to_have": {
+                      "default": 0.15,
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1,
+                      "multipleOf": 0.01
+                    },
+                    "scv_weight_project": {
+                      "default": 0.2,
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1,
+                      "multipleOf": 0.01
+                    },
+                    "scv_weight_education": {
+                      "default": 0.15,
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1,
+                      "multipleOf": 0.01
+                    },
+                    "scv_weight_language": {
+                      "default": 0.1,
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1,
+                      "multipleOf": 0.01
                     }
                   },
                   "required": [
@@ -3941,7 +4051,12 @@
                     "t_test_minutes",
                     "sla_hr_business_days",
                     "t_offer_days",
-                    "reminder_hours_before"
+                    "reminder_hours_before",
+                    "scv_weight_must_have",
+                    "scv_weight_nice_to_have",
+                    "scv_weight_project",
+                    "scv_weight_education",
+                    "scv_weight_language"
                   ],
                   "additionalProperties": false
                 },
@@ -4110,6 +4225,36 @@
                 "exclusiveMinimum": true,
                 "maximum": 168,
                 "minimum": 0
+              },
+              "scv_weight_must_have": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1,
+                "multipleOf": 0.01
+              },
+              "scv_weight_nice_to_have": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1,
+                "multipleOf": 0.01
+              },
+              "scv_weight_project": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1,
+                "multipleOf": 0.01
+              },
+              "scv_weight_education": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1,
+                "multipleOf": 0.01
+              },
+              "scv_weight_language": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1,
+                "multipleOf": 0.01
               }
             }
           },

@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./major_match.json",
+  "type": "string",
+  "enum": [
+    "EXACT",
+    "RELATED",
+    "OTHER"
+  ],
+  "title": "MajorMatch",
+  "description": "EXACT = the major the JD asks for, RELATED = a close major, OTHER = unrelated"
+}

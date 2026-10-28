@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./match_education.json",
+  "type": "object",
+  "properties": {
+    "major_match": {
+      "$ref": "./major_match.json"
+    }
+  },
+  "required": [
+    "major_match"
+  ],
+  "additionalProperties": false,
+  "title": "MatchEducation",
+  "description": "Major against the JD; the GPA comes from the school record, not from the CV (CONTEXT D41)"
+}

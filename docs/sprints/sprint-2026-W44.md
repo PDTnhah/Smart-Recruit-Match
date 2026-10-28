@@ -9,20 +9,21 @@ goal: 'Ship US-2.4: CV sinh viên được AI phân tích thành hồ sơ năng 
 
 | US     | Title                                             | Epic   | Pri | Points | Status     | Carry    | Story file                                                                                                             |
 | ------ | ------------------------------------------------- | ------ | --- | ------ | ---------- | -------- | ---------------------------------------------------------------------------------------------------------------------- |
-| US-2.4 | CV Parser: chữ ẩn, tách PII                       | EPIC-2 | P0  | 8      | ✅ done    | new      | [stories/US-2.4-cv-parser-hidden-text-pii-split.md](stories/US-2.4-cv-parser-hidden-text-pii-split.md)                 |
-| US-2.5 | Embedding và danh mục kỹ năng                     | EPIC-2 | P1  | 8      | ✅ done    | new      | [stories/US-2.5-embeddings-skill-catalog.md](stories/US-2.5-embeddings-skill-catalog.md)                               |
-| US-2.6 | SV xác nhận hồ sơ năng lực                        | EPIC-2 | P0  | 5      | ✅ done    | new      | [stories/US-2.6-student-profile-confirmation.md](stories/US-2.6-student-profile-confirmation.md)                       |
+| US-2.4 | CV Parser: chữ ẩn, tách PII                       | EPIC-2 | P0  | 8      | ✅ done     | new      | [stories/US-2.4-cv-parser-hidden-text-pii-split.md](stories/US-2.4-cv-parser-hidden-text-pii-split.md)                 |
+| US-2.5 | Embedding và danh mục kỹ năng                     | EPIC-2 | P1  | 8      | ✅ done     | new      | [stories/US-2.5-embeddings-skill-catalog.md](stories/US-2.5-embeddings-skill-catalog.md)                               |
+| US-2.6 | SV xác nhận hồ sơ năng lực                        | EPIC-2 | P0  | 5      | ✅ done     | new      | [stories/US-2.6-student-profile-confirmation.md](stories/US-2.6-student-profile-confirmation.md)                       |
+| US-3.1 | Lọc điều kiện cứng và công thức S_cv              | EPIC-3 | P0  | 5      | 👀 review  | new      | [stories/US-3.1-hard-filters-and-scv-formula.md](stories/US-3.1-hard-filters-and-scv-formula.md)                       |
 | US-5.1 | Allocation Engine và property-based test          | EPIC-5 | P0  | 5      | 📋 backlog | new      | [stories/US-5.1-allocation-engine-property-tests.md](stories/US-5.1-allocation-engine-property-tests.md)               |
 | US-6.4 | Mô phỏng phân bổ so với baseline                  | EPIC-6 | P1  | 5      | 📋 backlog | new      | [stories/US-6.4-allocation-simulation-vs-baselines.md](stories/US-6.4-allocation-simulation-vs-baselines.md)           |
-| US-2.1 | Hạ tầng job AI và hợp đồng message                | EPIC-2 | P0  | 8      | ✅ done    | from W43 | [stories/US-2.1-ai-job-pipeline-message-contracts.md](stories/US-2.1-ai-job-pipeline-message-contracts.md)             |
-| US-2.2 | LLMClient và prompt có phiên bản                  | EPIC-2 | P0  | 5      | ✅ done    | from W43 | [stories/US-2.2-llm-client-versioned-prompts.md](stories/US-2.2-llm-client-versioned-prompts.md)                       |
-| US-2.3 | JD Analyzer và HR xác nhận yêu cầu                | EPIC-2 | P0  | 13     | ✅ done    | from W43 | [stories/US-2.3-jd-analyzer-hr-requirement-confirmation.md](stories/US-2.3-jd-analyzer-hr-requirement-confirmation.md) |
-| US-1.1 | Scaffold monorepo, Docker Compose, CI             | EPIC-1 | P0  | 5      | ✅ done    | from W41 | [stories/US-1.1-scaffold-monorepo-docker-compose-ci.md](stories/US-1.1-scaffold-monorepo-docker-compose-ci.md)         |
-| US-1.3 | Đăng nhập, phân quyền, DESIGN.md, khung giao diện | EPIC-1 | P0  | 8      | ✅ done    | from W41 | [stories/US-1.3-auth-rbac-design-system-app-shell.md](stories/US-1.3-auth-rbac-design-system-app-shell.md)             |
-| US-1.4 | Tạo và cấu hình đợt thực tập                      | EPIC-1 | P0  | 5      | ✅ done    | from W42 | [stories/US-1.4-campaign-setup-and-config.md](stories/US-1.4-campaign-setup-and-config.md)                             |
-| US-1.5 | Doanh nghiệp, tài khoản HR, đăng và duyệt JD      | EPIC-1 | P0  | 8      | ✅ done    | from W42 | [stories/US-1.5-company-hr-accounts-jd-posting-approval.md](stories/US-1.5-company-hr-accounts-jd-posting-approval.md) |
-| US-1.6 | Đồng ý xử lý dữ liệu và nộp CV                    | EPIC-1 | P0  | 5      | ✅ done    | from W42 | [stories/US-1.6-data-consent-and-cv-upload.md](stories/US-1.6-data-consent-and-cv-upload.md)                           |
-| US-1.7 | Thông báo trong app, SSE, email, nhắc hạn         | EPIC-1 | P1  | 5      | ✅ done    | from W42 | [stories/US-1.7-notifications-sse-email-reminders.md](stories/US-1.7-notifications-sse-email-reminders.md)             |
+| US-2.1 | Hạ tầng job AI và hợp đồng message                | EPIC-2 | P0  | 8      | ✅ done     | from W43 | [stories/US-2.1-ai-job-pipeline-message-contracts.md](stories/US-2.1-ai-job-pipeline-message-contracts.md)             |
+| US-2.2 | LLMClient và prompt có phiên bản                  | EPIC-2 | P0  | 5      | ✅ done     | from W43 | [stories/US-2.2-llm-client-versioned-prompts.md](stories/US-2.2-llm-client-versioned-prompts.md)                       |
+| US-2.3 | JD Analyzer và HR xác nhận yêu cầu                | EPIC-2 | P0  | 13     | ✅ done     | from W43 | [stories/US-2.3-jd-analyzer-hr-requirement-confirmation.md](stories/US-2.3-jd-analyzer-hr-requirement-confirmation.md) |
+| US-1.1 | Scaffold monorepo, Docker Compose, CI             | EPIC-1 | P0  | 5      | ✅ done     | from W41 | [stories/US-1.1-scaffold-monorepo-docker-compose-ci.md](stories/US-1.1-scaffold-monorepo-docker-compose-ci.md)         |
+| US-1.3 | Đăng nhập, phân quyền, DESIGN.md, khung giao diện | EPIC-1 | P0  | 8      | ✅ done     | from W41 | [stories/US-1.3-auth-rbac-design-system-app-shell.md](stories/US-1.3-auth-rbac-design-system-app-shell.md)             |
+| US-1.4 | Tạo và cấu hình đợt thực tập                      | EPIC-1 | P0  | 5      | ✅ done     | from W42 | [stories/US-1.4-campaign-setup-and-config.md](stories/US-1.4-campaign-setup-and-config.md)                             |
+| US-1.5 | Doanh nghiệp, tài khoản HR, đăng và duyệt JD      | EPIC-1 | P0  | 8      | ✅ done     | from W42 | [stories/US-1.5-company-hr-accounts-jd-posting-approval.md](stories/US-1.5-company-hr-accounts-jd-posting-approval.md) |
+| US-1.6 | Đồng ý xử lý dữ liệu và nộp CV                    | EPIC-1 | P0  | 5      | ✅ done     | from W42 | [stories/US-1.6-data-consent-and-cv-upload.md](stories/US-1.6-data-consent-and-cv-upload.md)                           |
+| US-1.7 | Thông báo trong app, SSE, email, nhắc hạn         | EPIC-1 | P1  | 5      | ✅ done     | from W42 | [stories/US-1.7-notifications-sse-email-reminders.md](stories/US-1.7-notifications-sse-email-reminders.md)             |
 
 > **Convention**: AC + Tasks live inside each story file. This sprint file lists planned
 > stories at a glance only. Design + decision docs cross-linked at the bottom.
@@ -46,6 +47,8 @@ US-2.4 sinh migration `0011`, `0012`. Đây là story duy nhất sinh migration 
 Ngày 2026-10-26 kéo thêm US-2.5 sớm từ W46 (8 điểm, v0.11.0, [CONTEXT D39](../CONTEXT.md)): embedding `bge-m3` và `ai.embeddings`, chuẩn hóa tên kỹ năng của CV và JD theo danh mục, màn ADMIN duyệt, gộp, từ chối kỹ năng mới. US-2.5 sinh migration `0013`–`0018`; US-2.6 (cùng tuần T6) phải tạo migration sau khi US-2.5 merge ([LESSONS §6](../LESSONS.md)).
 
 Ngày 2026-10-27 kéo thêm US-2.6 sớm từ W46 (5 điểm, v0.12.0, [CONTEXT D40](../CONTEXT.md)): SV xem CV cạnh hồ sơ năng lực, sửa, xác nhận và "Sửa lại"; `profile_masked` được che lại bằng TS. Không có migration.
+
+Ngày 2026-10-28 kéo thêm US-3.1 sớm từ W45 (5 điểm, v0.13.0, [CONTEXT D41](../CONTEXT.md)): hàm thuần lọc điều kiện cứng, tính S_cv, lập shortlist; 5 trọng số S_cv trên form đợt; GPA thang 4 (migration `0019`, sinh sau migration mới nhất của `dev`).
 
 ## Parked / deferred from W43
 

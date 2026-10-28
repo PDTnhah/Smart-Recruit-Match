@@ -39,7 +39,7 @@ Epic này **không** tính S_test hay S_final và không phân bổ. Các phần
 
 | Story | Điểm | Tuần | Làn | Phụ thuộc |
 |---|---|---|---|---|
-| US-3.1 | 3 | T5 (W45) | A | US-2.3 |
+| US-3.1 | 5 | T5 (W45), làm sớm ở W44 | A | US-2.3, US-1.4 |
 | US-3.2 | 8 | T7 (W47) | A + B | US-2.2, US-2.5, US-2.6, US-3.1 |
 | US-3.3 | 8 | T8 (W48) | A | US-3.2, US-1.4 |
 | US-3.4 | 3 | T8 (W48) | A | US-3.3, US-1.7 |
@@ -70,7 +70,7 @@ Epic này **không** tính S_test hay S_final và không phân bổ. Các phần
 
 | ID | Title | Goal | Status | Version |
 |---|---|---|---|---|
-| US-3.1 | Lọc điều kiện cứng và công thức S_cv | Điều kiện cứng và S_cv được tính bằng hàm thuần có unit test | 📋 backlog | — |
+| US-3.1 | Lọc điều kiện cứng và công thức S_cv | Điều kiện cứng và S_cv được tính bằng hàm thuần có unit test | 👀 review | — |
 | US-3.2 | Matching Agent chạy hàng loạt | Mọi cặp SV × JD hợp lệ có điểm tiêu chí, bằng chứng đã kiểm tra và S_cv | 📋 backlog | — |
 | US-3.3 | Shortlist và chọn nguyện vọng | SV xem shortlist có giải thích và sắp tối đa N_NV nguyện vọng | 📋 backlog | — |
 | US-3.4 | Mức cạnh tranh và gợi ý ít cạnh tranh | SV thấy mức cạnh tranh khi chọn NV; Trung tâm biết JD thiếu NV | 📋 backlog | — |

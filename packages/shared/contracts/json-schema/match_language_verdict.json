@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./match_language_verdict.json",
+  "type": "object",
+  "properties": {
+    "verdict": {
+      "$ref": "./match_verdict.json"
+    },
+    "evidence": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Quote copied from the CV that supports the verdict; null when NOT_MET"
+    }
+  },
+  "required": [
+    "verdict",
+    "evidence"
+  ],
+  "additionalProperties": false,
+  "title": "MatchLanguageVerdict",
+  "description": "How well the languages and certificates meet the JD"
+}
