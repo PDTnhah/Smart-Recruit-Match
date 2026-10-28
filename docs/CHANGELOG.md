@@ -34,7 +34,7 @@ US-3.1. Phần tất định của GĐ3, dạng hàm TypeScript thuần trong `a
 ### Upgrade notes
 - Migration `0019` **xóa GPA lớn hơn 4** (nhập theo thang 10 cũ) trước khi thêm CHECK mới, vì không có quy đổi chính xác sang thang 4. Nhập lại GPA thang 4 cho các SV này. Build lại image `api` và `web`.
 
-**Commit**:
+**Commit**: 8d00d27
 
 ---
 

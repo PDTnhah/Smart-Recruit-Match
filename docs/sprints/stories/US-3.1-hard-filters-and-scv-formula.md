@@ -11,7 +11,7 @@ prd_ref: [FR-14]
 arch_ref: [AD-2]
 depends_on: [US-2.3, US-1.4]
 assignee: PDTnhah
-commit:
+commit: 8d00d2733ccce8c551ada2d760e7e3b0933eaf75
 created: 2026-10-07
 updated: 2026-10-28
 ---
@@ -101,7 +101,7 @@ Chi tiết thiết kế ở [CONTEXT D41](../../CONTEXT.md). Đường dẫn dom
 ### Changed
 - GPA sinh viên dùng thang 4 (migration `0019`); ngành so khớp không phân biệt cách gõ dấu (NFC).
 
-**Commit**:
+**Commit**: 8d00d27
 
 ## Implementation notes
 
