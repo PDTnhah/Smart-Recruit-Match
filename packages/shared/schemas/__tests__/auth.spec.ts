@@ -44,17 +44,18 @@ describe('FR-1: admin create-user schema', () => {
     expect(CreateUserRequestSchema.safeParse({ ...base, role: 'HR' }).success).toBe(true);
   });
 
-  it('bounds the initial password and the GPA', () => {
+  it('US-3.1 bounds the initial password and the GPA on the 4-point scale (CONTEXT D41)', () => {
     expect(CreateUserRequestSchema.safeParse({ ...base, role: 'CENTER', password: 'short' }).success).toBe(
       false,
     );
     const gpa = (value: number) =>
       CreateUserRequestSchema.safeParse({ ...base, role: 'STUDENT', student: { ...student, gpa: value } })
         .success;
-    expect([gpa(0), gpa(10), gpa(3.45), gpa(10.01), gpa(-1), gpa(3.456)]).toEqual([
+    expect([gpa(0), gpa(4), gpa(3.45), gpa(4.01), gpa(10), gpa(-1), gpa(3.456)]).toEqual([
       true,
       true,
       true,
+      false,
       false,
       false,
       false,

@@ -952,6 +952,16 @@ export interface components {
                 t_offer_days: number;
                 /** @default 24 */
                 reminder_hours_before: number;
+                /** @default 0.4 */
+                scv_weight_must_have: number;
+                /** @default 0.15 */
+                scv_weight_nice_to_have: number;
+                /** @default 0.2 */
+                scv_weight_project: number;
+                /** @default 0.15 */
+                scv_weight_education: number;
+                /** @default 0.1 */
+                scv_weight_language: number;
             };
         };
         CampaignDto_Output: {
@@ -994,6 +1004,16 @@ export interface components {
                 t_offer_days: number;
                 /** @default 24 */
                 reminder_hours_before: number;
+                /** @default 0.4 */
+                scv_weight_must_have: number;
+                /** @default 0.15 */
+                scv_weight_nice_to_have: number;
+                /** @default 0.2 */
+                scv_weight_project: number;
+                /** @default 0.15 */
+                scv_weight_education: number;
+                /** @default 0.1 */
+                scv_weight_language: number;
             };
             rowVersion: number;
             /** Format: date-time */
@@ -1042,6 +1062,16 @@ export interface components {
                     t_offer_days: number;
                     /** @default 24 */
                     reminder_hours_before: number;
+                    /** @default 0.4 */
+                    scv_weight_must_have: number;
+                    /** @default 0.15 */
+                    scv_weight_nice_to_have: number;
+                    /** @default 0.2 */
+                    scv_weight_project: number;
+                    /** @default 0.15 */
+                    scv_weight_education: number;
+                    /** @default 0.1 */
+                    scv_weight_language: number;
                 };
                 rowVersion: number;
                 /** Format: date-time */
@@ -1077,6 +1107,11 @@ export interface components {
                 sla_hr_business_days?: number;
                 t_offer_days?: number;
                 reminder_hours_before?: number;
+                scv_weight_must_have?: number;
+                scv_weight_nice_to_have?: number;
+                scv_weight_project?: number;
+                scv_weight_education?: number;
+                scv_weight_language?: number;
             };
             reason?: string;
         };

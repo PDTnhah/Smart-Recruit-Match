@@ -33,6 +33,15 @@ import {
   SkillLevelSchema,
 } from './jd.js';
 import { CvParseJobSchema, JdAnalyzeJobSchema, SkillNormalizeJobSchema } from './jobs.js';
+import {
+  MajorMatchSchema,
+  MatchCriteriaSchema,
+  MatchEducationSchema,
+  MatchLanguageVerdictSchema,
+  MatchProjectRelevanceSchema,
+  MatchSkillVerdictSchema,
+  MatchVerdictSchema,
+} from './matching.js';
 import { SkillGroupSchema, SkillMatchSchema, SkillSuggestionSchema, SkillSuggestionsSchema } from './skills.js';
 
 /**
@@ -52,6 +61,13 @@ const CONTRACTS: ReadonlyArray<[z.ZodType, string]> = [
   [JdHardConditionsSchema, 'jd_hard_conditions'],
   [JdRequirementsSchema, 'jd_requirements'],
   [JdAnalysisSchema, 'jd_analysis'],
+  [MatchVerdictSchema, 'match_verdict'],
+  [MajorMatchSchema, 'major_match'],
+  [MatchSkillVerdictSchema, 'match_skill_verdict'],
+  [MatchProjectRelevanceSchema, 'match_project_relevance'],
+  [MatchEducationSchema, 'match_education'],
+  [MatchLanguageVerdictSchema, 'match_language_verdict'],
+  [MatchCriteriaSchema, 'match_criteria'],
   [CvSourceSchema, 'cv_source'],
   [CvEducationSchema, 'cv_education'],
   [SkillGroupSchema, 'skill_group'],

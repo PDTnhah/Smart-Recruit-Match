@@ -22,7 +22,7 @@ import { apiErrorMessage } from '@/shared/api/errors';
 import { applyServerFieldErrors } from '@/shared/forms/server-errors';
 import { useCreateCampaign, useUpdateCampaign } from './api';
 import { DeadlineField } from './deadline-field';
-import { DEADLINE_LABELS, PARAMETER_FIELDS } from './labels';
+import { DEADLINE_LABELS, PARAMETER_FIELDS, SCV_WEIGHT_FIELDS } from './labels';
 import { ParameterInputs } from './parameter-fields';
 import { CAMPAIGNS_PATH, campaignPath } from './paths';
 import { ValueListInput } from './value-list-input';
@@ -35,7 +35,7 @@ const FIELDS = [
   'target.cohorts',
   'target.majors',
   ...CAMPAIGN_DEADLINE_KEYS.map((key) => `phaseDeadlines.${key}`),
-  ...PARAMETER_FIELDS.map((parameter) => `config.${parameter.key}`),
+  ...[...PARAMETER_FIELDS, ...SCV_WEIGHT_FIELDS].map((parameter) => `config.${parameter.key}`),
 ];
 
 function defaultsOf(campaign: Campaign | undefined): FormInput {

@@ -11,9 +11,9 @@ export const students = core.table(
     fullName: text('full_name').notNull(),
     major: text('major'),
     cohort: text('cohort'),
-    // Fits both the 4- and 10-point scales; which one applies is still open (US-1.2 Dev notes).
+    // 4-point scale, the scale of a JD's min_gpa (US-3.1, CONTEXT D41).
     gpa: numeric('gpa', { precision: 4, scale: 2, mode: 'number' }),
     ...timestamps(),
   },
-  (t) => [check('students_gpa_check', sql`${t.gpa} between 0 and 10`)],
+  (t) => [check('students_gpa_check', sql`${t.gpa} between 0 and 4`)],
 );

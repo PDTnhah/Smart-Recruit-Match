@@ -90,6 +90,15 @@ export const PARAMETER_FIELDS: readonly ParameterField[] = [
   },
 ];
 
+/** Weights wᵢ of the five S_cv criteria, in PRD › S_cv table order (US-3.1, CONTEXT D41). */
+export const SCV_WEIGHT_FIELDS: readonly ParameterField[] = [
+  { key: 'scv_weight_must_have', label: 'Kỹ năng bắt buộc', description: 'Mặc định 0,4.', step: 0.01 },
+  { key: 'scv_weight_nice_to_have', label: 'Kỹ năng bổ trợ', description: 'Mặc định 0,15.', step: 0.01 },
+  { key: 'scv_weight_project', label: 'Dự án, kinh nghiệm liên quan', description: 'Mặc định 0,2.', step: 0.01 },
+  { key: 'scv_weight_education', label: 'Học vấn (ngành, GPA)', description: 'Mặc định 0,15.', step: 0.01 },
+  { key: 'scv_weight_language', label: 'Ngoại ngữ, chứng chỉ', description: 'Mặc định 0,1.', step: 0.01 },
+];
+
 /** Why a draft could not be opened, by `reasonCode` of the 422 answer (US-1.4 AC-5). */
 export const OPEN_FAILURE_MESSAGES: Record<string, string> = {
   DEADLINES_MISSING: 'Đợt chưa đủ ba mốc thời gian. Thêm các mốc còn thiếu rồi mở lại.',

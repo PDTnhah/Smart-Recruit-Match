@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./match_verdict.json",
+  "type": "string",
+  "enum": [
+    "MET",
+    "PARTIAL",
+    "NOT_MET"
+  ],
+  "title": "MatchVerdict",
+  "description": "MET = shown by a project or experience in the CV; PARTIAL = only listed, or below the required level; NOT_MET = no evidence"
+}

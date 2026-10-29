@@ -5,8 +5,11 @@ import {
   CreateCampaignRequestSchema,
   DEFAULT_CAMPAIGN_CONFIG,
   ExtendDeadlinesRequestSchema,
+  normalizeAudienceValue,
   PHASE_END_DEADLINE,
   PhaseDeadlinesInputSchema,
+  SCV_WEIGHT_KEYS,
+  scvWeightsOf,
   toHundredths,
 } from '../campaign.js';
 
@@ -35,6 +38,11 @@ describe('GĐ0: campaign config schema', () => {
       sla_hr_business_days: 5,
       t_offer_days: 3,
       reminder_hours_before: 24,
+      scv_weight_must_have: 0.4,
+      scv_weight_nice_to_have: 0.15,
+      scv_weight_project: 0.2,
+      scv_weight_education: 0.15,
+      scv_weight_language: 0.1,
     });
     expect(CampaignConfigSchema.parse({})).toEqual(DEFAULT_CAMPAIGN_CONFIG);
   });
@@ -116,6 +124,55 @@ describe('GĐ0: campaign config schema', () => {
   });
 });
 
+describe('GĐ0: S_cv weights in the campaign config (US-3.1, CONTEXT D41)', () => {
+  const weights = (values: number[]) => Object.fromEntries(SCV_WEIGHT_KEYS.map((key, i) => [key, values[i]]));
+
+  it('GĐ0 S_cv weights default and sum error shows with other errors', () => {
+    // A campaign stored before these keys existed is parsed with the PRD › S_cv defaults.
+    const legacy = CampaignConfigSchema.parse({ n_nv: 3, alpha: 0.4, beta: 0.6 });
+    expect(scvWeightsOf(legacy)).toEqual({
+      scv_weight_must_have: 0.4,
+      scv_weight_nice_to_have: 0.15,
+      scv_weight_project: 0.2,
+      scv_weight_education: 0.15,
+      scv_weight_language: 0.1,
+    });
+    expect(issues(CampaignConfigSchema.safeParse({ ...weights([0.5, 0.15, 0.2, 0.15, 0.1]), k: 0 }))).toEqual([
+      'k: k phải từ 1 trở lên',
+      'scv_weight_language: Tổng 5 trọng số S_cv phải bằng 1',
+    ]);
+    // Both sums are wrong: each reports on its own last field.
+    expect(issues(CampaignConfigSchema.safeParse({ alpha: 0.5, scv_weight_project: 0.3 }))).toEqual([
+      'beta: α + β phải bằng 1',
+      'scv_weight_language: Tổng 5 trọng số S_cv phải bằng 1',
+    ]);
+  });
+
+  it('GĐ0 S_cv weights must sum to 1 and be non-negative', () => {
+    expect(CampaignConfigSchema.safeParse(weights([0.3, 0.1, 0.3, 0.2, 0.1])).success).toBe(true);
+    expect(CampaignConfigSchema.safeParse(weights([1, 0, 0, 0, 0])).success).toBe(true);
+    // Compared ×100: 0.1 + 0.2 + 0.7 is 1 although the float sum is not.
+    expect(CampaignConfigSchema.safeParse(weights([0.1, 0.2, 0.7, 0, 0])).success).toBe(true);
+    expect(issues(CampaignConfigSchema.safeParse(weights([0.4, 0.15, 0.2, 0.15, 0.11])))).toEqual([
+      'scv_weight_language: Tổng 5 trọng số S_cv phải bằng 1',
+    ]);
+    expect(issues(CampaignConfigSchema.safeParse(weights([0.6, -0.1, 0.2, 0.2, 0.1])))).toEqual([
+      'scv_weight_nice_to_have: Trọng số kỹ năng bổ trợ phải từ 0 đến 1',
+    ]);
+    expect(issues(CampaignConfigSchema.safeParse(weights([0.405, 0.145, 0.2, 0.15, 0.1])))).toEqual([
+      'scv_weight_must_have: Trọng số kỹ năng bắt buộc có tối đa hai chữ số thập phân',
+      'scv_weight_nice_to_have: Trọng số kỹ năng bổ trợ có tối đa hai chữ số thập phân',
+    ]);
+  });
+
+  it('GĐ0 S_cv weight patch is checked only when all five are given', () => {
+    expect(CampaignConfigPatchSchema.parse({ scv_weight_project: 0.3 })).toEqual({ scv_weight_project: 0.3 });
+    expect(issues(CampaignConfigPatchSchema.safeParse(weights([0.4, 0.15, 0.3, 0.15, 0.1])))).toEqual([
+      'scv_weight_language: Tổng 5 trọng số S_cv phải bằng 1',
+    ]);
+  });
+});
+
 describe('GĐ0: campaign target schema', () => {
   it('requires at least one cohort and one major', () => {
     expect(issues(CampaignTargetSchema.safeParse({ cohorts: [], majors: [] }))).toEqual([
@@ -127,6 +184,14 @@ describe('GĐ0: campaign target schema', () => {
   it('trims values and rejects duplicates that differ only in case', () => {
     expect(CampaignTargetSchema.parse({ cohorts: [' K66 '], majors: ['CNTT'] })).toEqual(target);
     expect(issues(CampaignTargetSchema.safeParse({ cohorts: ['K66'], majors: ['CNTT', 'cntt'] }))).toEqual([
+      'majors: Có ngành bị trùng',
+    ]);
+  });
+
+  it('GĐ0 audience values match however the accents were typed (NFC) and with extra spaces', () => {
+    const decomposed = 'Công nghệ thông tin'.normalize('NFD');
+    expect(normalizeAudienceValue(decomposed)).toBe(normalizeAudienceValue(' CÔNG  nghệ thông tin'));
+    expect(issues(CampaignTargetSchema.safeParse({ cohorts: ['K66'], majors: ['Công nghệ thông tin', decomposed] }))).toEqual([
       'majors: Có ngành bị trùng',
     ]);
   });

@@ -47,6 +47,7 @@
 - D38 · Giới hạn chi phí context của agent: ba phiên mỗi story, mục lục, AGENTS.md không giữ trạng thái
 - D39 · Danh mục kỹ năng và embedding: module `skills`, `EMBEDDING_PROVIDER`, hợp đồng kỹ năng, HNSW một phần (US-2.5)
 - D40 · SV xác nhận hồ sơ: che PII lại bằng TS, "Sửa lại" tạo phiên bản mới, kỹ năng SV nhập vào hàng chờ duyệt (US-2.6)
+- D41 · Trọng số S_cv trong cấu hình đợt, tiêu chí rỗng chia lại trọng số, GPA thang 4, đọc chứng chỉ ngoại ngữ bằng code (US-3.1)
 
 ---
 
@@ -1360,3 +1361,78 @@ Ngoài ra còn phải giải quyết:
 
 **Date**: 2026-10-27
 **Version**: 0.12.0
+
+---
+
+## Phase 5 — Thực hiện EPIC-3 (2026-10-28)
+
+### D41. Trọng số S_cv trong cấu hình đợt, tiêu chí rỗng chia lại trọng số, GPA thang 4 từ `students.gpa`, đọc chứng chỉ ngoại ngữ bằng code (US-3.1)
+
+**Context**: Story US-3.1 để mở năm điểm và ghi phải hỏi trước khi chốt. Code đã có cũng lệch với spec viết ngày 2026-10-07:
+
+1. **Trọng số wᵢ.** Bảng tham số GĐ0 không có wᵢ. ARCH › *Pipeline từng agent* › Matching (bước 6) lại nói "theo trọng số của JD".
+2. **Tiêu chí rỗng.** JD không có kỹ năng bổ trợ hoặc không yêu cầu ngoại ngữ. PRD không nói trọng số của tiêu chí đó đi đâu.
+3. **GPA.** `students.gpa` có CHECK 0–10, `StudentProfileInputSchema` cũng cho nhập 0–10. US-1.2 để thang GPA cho story này chốt. Trong khi đó `min_gpa` của JD dùng thang 4 (D35). Đầu ra mẫu của Matching Agent ở PRD còn có `education.gpa_4` do LLM trích.
+4. **Ngoại ngữ bắt buộc.** `required_languages` của JD là chuỗi tự do, ví dụ `"Tiếng Anh (TOEIC 500)"`. Phía SV, ngoại ngữ và chứng chỉ trong hồ sơ cũng là chuỗi tự do. Theo Nguyên tắc 2, không được dùng LLM cho điều kiện cứng.
+5. **Năm học.** JD có `min_study_year` (năm học tối thiểu), không có danh sách năm cho phép. Bảng `students` chỉ có `cohort`.
+
+**Decision** (người dùng chốt bốn mục đầu ngày 2026-10-28):
+
+- **Trọng số nằm trong `campaigns.config`**, gồm 5 khóa phẳng: `scv_weight_must_have`, `scv_weight_nice_to_have`, `scv_weight_project`, `scv_weight_education`, `scv_weight_language`.
+  - Giá trị là phân số 0–1, tối đa 2 số lẻ, như α/β. Mặc định 0,40 / 0,15 / 0,20 / 0,15 / 0,10.
+  - Tổng phải bằng 1 (so dạng ×100). Lỗi gắn vào ô cuối và vẫn hiện khi ô khác cũng lỗi (LESSONS §10).
+  - Form tạo đợt có thêm 5 ô. Như các tham số khác, trọng số bị khóa sau `DRAFT` (D27).
+  - Chưa có trọng số riêng cho từng JD.
+  - Dùng khóa phẳng chứ không lồng `scv_weights`, vì phần gộp patch, `lockedFieldChanges` (so `!==`) và `PARAMETER_FIELDS` của US-1.4 chỉ xử lý được giá trị số.
+- **Tiêu chí rỗng được chia lại trọng số theo tỷ lệ**: `S_cv = Σ wᵢ·sᵢ / Σ wᵢ`, chỉ tính trên các tiêu chí còn dùng được.
+  - Một tiêu chí là rỗng khi nhóm kỹ năng của JD không có kỹ năng nào, khi tổng trọng số kỹ năng bằng 0, hoặc khi JD không có `required_languages`.
+  - Tổng trọng số còn lại bằng 0 thì `scvX100 = 0`.
+- **GPA lấy từ `students.gpa`, thang 4**:
+  - quy về thang 100 bằng `gpa × 25`;
+  - siết CHECK của DB và schema nhập về 0–4;
+  - `MatchCriteria.education` chỉ còn `major_match` (`EXACT` / `RELATED` / `OTHER`), không có `gpa_4`.
+  - SV chưa có GPA: nếu JD có `min_gpa` thì không đủ điều kiện, mã `GPA_MISSING`; ở tiêu chí học vấn, phần GPA tính 0.
+- **Ngoại ngữ bắt buộc do code đọc ở cả hai phía** (`matching/domain/language-requirement.ts`):
+  - Yêu cầu có chứng chỉ thì SV phải có chứng chỉ **cùng loại** với điểm hoặc bậc ≥ yêu cầu. Các loại đọc được: TOEIC, IELTS, TOEFL iBT, JLPT, TOPIK, HSK, VSTEP/CEFR.
+  - Yêu cầu chỉ nêu tên ngôn ngữ thì SV phải có ngôn ngữ đó.
+  - Yêu cầu không đọc được thì so chuỗi đã chuẩn hóa.
+  - Chưa quy đổi giữa các loại chứng chỉ.
+- **Năm học** (theo đề xuất của story): application layer của US-3.2 suy ra `yearOfStudy` từ `cohort`; quy tắc suy ra chốt ở US-3.2. JD có `min_study_year` mà SV không có `yearOfStudy` thì trả `YEAR_MISSING`.
+- **Số học:**
+  - S_cv tính bằng phân số `bigint`, làm tròn half-up một lần ở bước cuối, trả `scvX100`.
+  - Trọng số tiêu chí tính theo phần vạn. Trọng số kỹ năng của JD làm tròn đến phần trăm.
+  - LLM bỏ sót kỹ năng nào của JD thì kỹ năng đó tính `NOT_MET`. Kỹ năng LLM trả thừa bị bỏ qua.
+  - Shortlist hòa điểm thì sắp theo `jdId` tăng dần.
+- **Mã lý do không đủ điều kiện:** `MAJOR_NOT_ALLOWED`, `MAJOR_MISSING`, `YEAR_BELOW_MIN`, `YEAR_MISSING`, `GPA_BELOW_MIN`, `GPA_MISSING`, `LANGUAGE_NOT_MET`. Mỗi lý do có `required` và `actual`.
+
+**Rationale**:
+
+- Trọng số ở cấp đợt thì mọi JD trong đợt chấm cùng một thước đo, nên S_cv giữa các JD so được với nhau. Cách này cũng khớp với θ_cv và α/β đã nằm ở cấp đợt. Không có ô trên form thì Trung tâm không đổi được trọng số, và AC-6 (đổi trọng số không gọi lại LLM) không dùng được trên thực tế.
+- Chia lại theo tỷ lệ giữ thang 0–100 cho mọi JD. Cho tiêu chí rỗng 0 điểm thì JD không có kỹ năng bổ trợ bị giới hạn ở 85, còn cho 100 điểm thì JD ít yêu cầu được điểm cao một cách vô lý.
+- GPA học vụ do trường cấp và Trung tâm kiểm. Số LLM đọc từ CV là số SV tự khai. Dùng thang 4 thì so thẳng được với `min_gpa` mà không cần bảng quy đổi.
+- Đọc chứng chỉ bằng code thì kết quả tất định và giải thích được. Chỉ so cùng loại để tránh phải chốt một bảng quy đổi TOEIC ↔ IELTS mà spec chưa có.
+
+**Alternatives considered**:
+- **Trọng số theo từng JD (theo chữ ARCH bước 6):** loại vì phải đổi `JdRequirements`, form HR và sinh lại Pydantic, và S_cv giữa các JD không còn cùng thước đo.
+- **Khóa lồng nhau `scv_weights` (đề xuất của story):** loại vì phải sửa phần gộp patch, so khóa và form của US-1.4.
+- **Tiêu chí rỗng tính 0 hoặc 100 điểm:** loại, lý do ở trên.
+- **GPA thang 10 có bảng quy đổi, hoặc GPA do LLM trích:** loại; cách thứ nhất thêm một bước làm tròn và một bảng cần chốt, cách thứ hai dùng số chưa được kiểm.
+- **Chỉ kiểm tên ngôn ngữ, để mức điểm cho LLM chấm:** loại vì khi đó "TOEIC 550" không còn là điều kiện cứng.
+
+**Impact**:
+- `packages/shared`:
+  - mới: `contracts/matching.ts` (`MatchCriteria`, đăng ký trong `CONTRACTS`) và `schemas/matching.ts` (`HardFilterFacts`, `IneligibleReason`);
+  - `schemas/campaign.ts`: 5 khóa trọng số, kiểm tổng;
+  - `schemas/auth.ts`: GPA 0–4.
+- `apps/api`:
+  - `modules/matching/domain/` (hàm thuần; NestJS module để US-3.2 tạo);
+  - migration `0019`: CHECK `students_gpa_check` 0–4;
+  - devDependency `fast-check`.
+- `apps/web`: form và trang chi tiết đợt có thêm 5 trọng số; sinh lại `openapi.json` và `schema.d.ts`.
+- Story liên quan:
+  - US-3.2 dựng `HardFilterFacts` từ `students` cùng hồ sơ đã xác nhận, chốt quy tắc suy ra năm học, và sinh Pydantic cho `MatchCriteria`;
+  - US-4.4 dùng cùng cách làm tròn half-up;
+  - US-1.2 Dev notes: thang GPA đã chốt.
+
+**Date**: 2026-10-28
+**Version**: 0.13.0

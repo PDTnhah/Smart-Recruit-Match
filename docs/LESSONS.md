@@ -13,7 +13,7 @@
 - Drizzle, migration: §6 migration có mốc thời gian cũ bị bỏ qua · §7 hàm dùng chung nhiều bảng: khai kiểu cụ thể · §12 `FOR UPDATE OF` sinh tên có schema
 - pgvector: §24 index HNSW lọc sau khi quét, hàng cũ chiếm chỗ ứng viên
 - Ranh giới module: §5 `exclude: node_modules` làm dependency-cruiser bỏ sót
-- Thư viện API, web: §8 CLI shadcn 4.21 · §10 Zod 4 bỏ qua `refine` khi trường khác lỗi · §13 multer đọc tên file theo latin1 · §25 form gửi `row_version` của query mới nhất, bỏ qua khóa lạc quan
+- Thư viện API, web: §8 CLI shadcn 4.21 · §10 Zod 4 bỏ qua `refine` khi trường khác lỗi · §13 multer đọc tên file theo latin1 · §25 form gửi `row_version` của query mới nhất, bỏ qua khóa lạc quan · §26 lỗi tổng của form không mất khi sửa ô khác của tổng
 - RabbitMQ, job AI: §16 `RabbitMQModule` giữ connection static · §17 mặc định sai của thư viện message
 - ai-service (Python): §19 chặn mạng trong pytest trên Windows · §20 PyMuPDF cắt chữ ngoài trang, màu nền theo thứ tự vẽ · §23 `HF_HUB_OFFLINE` đọc lúc import, bge-m3 tải 4,5 GB
 
@@ -382,3 +382,16 @@ See [US-2.5](sprints/stories/US-2.5-embeddings-skill-catalog.md), [CONTEXT D39](
 - Review form có `row_version` thì tìm `rowVersion: <dữ liệu query>.rowVersion` trong hàm gửi.
 
 See [US-2.6](sprints/stories/US-2.6-student-profile-confirmation.md), [CONTEXT D40](CONTEXT.md).
+
+## 26. Lỗi "tổng phải bằng 1" của form không mất khi sửa một ô khác của tổng
+
+**What happened (0.13.0)**: Khi review US-3.1, `/code-review` phát hiện lỗi này ở form đợt. Schema dùng chung gắn lỗi tổng vào ô cuối của tổng: `beta` cho α + β, `scv_weight_language` cho 5 trọng số S_cv. Ví dụ: đặt trọng số ngoại ngữ 0,2, form báo "Tổng 5 trọng số S_cv phải bằng 1". Hạ kỹ năng bắt buộc từ 0,4 xuống 0,3 cho tổng về 1, nhưng lỗi vẫn hiện dưới ô ngoại ngữ cho tới khi người dùng chạm vào ô đó hoặc bấm lưu. Lỗi α + β có từ US-1.4.
+
+**Why**: Với `resolver`, React Hook Form chạy schema cho cả form nhưng chỉ cập nhật lỗi của ô vừa đổi. Lỗi của ô khác giữ nguyên, kể cả khi lần chạy mới không còn lỗi đó.
+
+**How to avoid**:
+- Ô thuộc một tổng (hoặc một ràng buộc chéo khác) khai `rules={{ deps: ['<ô mang lỗi>'] }}` trên `Controller`. Mỗi lần đổi, RHF kiểm lại cả ô mang lỗi. Mẫu: `SUM_ERROR_FIELD` trong `features/center/campaigns/parameter-fields.tsx`.
+- `deps` chỉ chạy khi ô vừa đổi được kiểm, tức theo `mode` của form (`onTouched`: sau lần blur đầu).
+- Thêm ràng buộc chéo mới vào schema form thì kiểm cả hai chiều: lỗi hiện khi sai, và mất khi sửa ở ô *khác*.
+
+See [US-3.1](sprints/stories/US-3.1-hard-filters-and-scv-formula.md), §10.
