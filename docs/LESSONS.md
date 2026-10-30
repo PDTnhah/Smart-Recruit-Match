@@ -7,13 +7,13 @@
 **Mục lục** (chủ đề → mục)
 
 - Claude Code, skill, hook, koni-docs: §1 skill phải nằm ở `.claude/skills` · §2 `docs:sync` định dạng lại PRD, đổi ngày · §3 snippet hook của koni-harness không chặn commit
-- Docker, compose, image: §4 `minio/minio` không còn trên Docker Hub · §14 compose truyền biến chưa đặt thành `""` · §15 hết RAM khi chạy test (compose, số worker Jest, commit memory của Windows) · §18 testcontainers build image không cache, Jest treo
+- Docker, compose, image: §4 `minio/minio` không còn trên Docker Hub · §14 compose truyền biến chưa đặt thành `""` · §15 hết RAM khi chạy test (compose, số worker Jest, commit memory của Windows) · §18 testcontainers build image không cache, Jest treo · §27 nginx trả `.mjs` là `octet-stream`, worker pdf.js không nạp
 - Jest, ESM: §9 gói chỉ có ESM (`@nestjs/schedule`, `file-type`, `promise-breaker`…) · §11 `testTimeout` trong `projects` bị bỏ qua · §21 `--selectProjects` nuốt đường dẫn test
 - Integration test: §22 các file dùng chung DB, thông báo gửi mọi tài khoản CENTER lọt vào test khác
 - Drizzle, migration: §6 migration có mốc thời gian cũ bị bỏ qua · §7 hàm dùng chung nhiều bảng: khai kiểu cụ thể · §12 `FOR UPDATE OF` sinh tên có schema
 - pgvector: §24 index HNSW lọc sau khi quét, hàng cũ chiếm chỗ ứng viên
 - Ranh giới module: §5 `exclude: node_modules` làm dependency-cruiser bỏ sót
-- Thư viện API, web: §8 CLI shadcn 4.21 · §10 Zod 4 bỏ qua `refine` khi trường khác lỗi · §13 multer đọc tên file theo latin1 · §25 form gửi `row_version` của query mới nhất, bỏ qua khóa lạc quan · §26 lỗi tổng của form không mất khi sửa ô khác của tổng
+- Thư viện API, web: §8 CLI shadcn 4.21 · §10 Zod 4 bỏ qua `refine` khi trường khác lỗi · §13 multer đọc tên file theo latin1 · §25 form gửi `row_version` của query mới nhất, bỏ qua khóa lạc quan · §26 lỗi tổng của form không mất khi sửa ô khác của tổng · §28 react-pdf 11 mặc định Suspense, PDF lỗi làm sập route
 - RabbitMQ, job AI: §16 `RabbitMQModule` giữ connection static · §17 mặc định sai của thư viện message
 - ai-service (Python): §19 chặn mạng trong pytest trên Windows · §20 PyMuPDF cắt chữ ngoài trang, màu nền theo thứ tự vẽ · §23 `HF_HUB_OFFLINE` đọc lúc import, bge-m3 tải 4,5 GB
 
@@ -395,3 +395,29 @@ See [US-2.6](sprints/stories/US-2.6-student-profile-confirmation.md), [CONTEXT D
 - Thêm ràng buộc chéo mới vào schema form thì kiểm cả hai chiều: lỗi hiện khi sai, và mất khi sửa ở ô *khác*.
 
 See [US-3.1](sprints/stories/US-3.1-hard-filters-and-scv-formula.md), §10.
+
+## 27. nginx trả file `.mjs` là `application/octet-stream`, trình duyệt không nạp worker của pdf.js
+
+**What happened (0.13.0)**: Trên bản compose (`:8080`), màn Hồ sơ của SV (US-2.6) báo "Setting up fake worker failed: Failed to fetch dynamically imported module: …/assets/pdf.worker.min-….mjs". `curl -I` cho thấy file trả `200` nhưng `Content-Type: application/octet-stream`. Vite dev (`:5173`) không bị.
+
+**Why**: `/etc/nginx/mime.types` của `nginx:1.30-alpine` chỉ khai `application/javascript js;`, không có `mjs`, nên đuôi này rơi vào `default_type application/octet-stream`. Trình duyệt chỉ nạp module script (kể cả `import()` động và module worker) khi MIME là JavaScript. pdf.js đóng gói worker dạng `.mjs`, và Vite giữ nguyên đuôi khi import bằng `?url`.
+
+**How to avoid**:
+- `deploy/nginx.conf` khai `types { application/javascript mjs; }` ở cấp `server`, sau `include /etc/nginx/mime.types;`. Khối `types` ở một cấp **thay** cả bảng kế thừa từ `http`; thiếu `include` thì mọi file khác (CSS, font, ảnh) thành `octet-stream`.
+- Thêm thư viện tải file tĩnh qua `?url` hoặc `new URL(…, import.meta.url)` thì kiểm trên compose: `curl -sI http://localhost:8080/assets/<tên file> | grep -i content-type`.
+- File trong `/assets/` có cache `immutable` một năm. Tên file không đổi thì trình duyệt giữ cả response lỗi, nên sau khi sửa header phải xóa dữ liệu trang hoặc bật *Disable cache* rồi mới kiểm.
+
+See [US-2.6](sprints/stories/US-2.6-student-profile-confirmation.md), §28.
+
+## 28. react-pdf 11 mặc định dùng Suspense: PDF lỗi làm sập cả route
+
+**What happened (0.13.0)**: Cùng lần với §27. Worker không nạp được, nhưng `CvViewer` không hiện thẻ "Không hiển thị được file CV" như thiết kế; cả màn chuyển sang "Unexpected Application Error!" của React Router. Code truyền `loading` và `onLoadError` theo cách dùng của các bản react-pdf trước 11.
+
+**Why**: Từ bản 11, `Document`, `Page`, `Thumbnail`, `Outline` có prop `suspense` mặc định `true`: khi tải thì suspend, khi lỗi thì ném lên error boundary gần nhất. Không có boundary riêng thì đó là `errorElement` của route. `onLoadError` vẫn được gọi, nhưng lỗi bị ném ngay trong cùng lượt commit, nên `setFailed(true)` không kịp có tác dụng. `loading` và `error` chỉ được dùng khi `suspense={false}`.
+
+**How to avoid**:
+- Dùng `loading` / `error` / `onLoadError` thì đặt `suspense={false}` trên `Document`; `Page` con kế thừa. Mẫu: `features/student/profile/cv-viewer.tsx`.
+- Muốn giữ Suspense thì bọc viewer trong `Suspense` và một error boundary riêng, theo README của react-pdf.
+- Thư viện giao diện mới thêm hoặc vừa lên major: đọc phần giá trị mặc định trong README, và thử cả đường lỗi (URL hỏng, worker hỏng), không chỉ đường đúng.
+
+See [US-2.6](sprints/stories/US-2.6-student-profile-confirmation.md), §27.

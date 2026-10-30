@@ -6,6 +6,24 @@ Lịch sử phát hành của Smart Recruit Match. Mỗi commit ship code tăng 
 
 ---
 
+## [0.13.1] — 2026-10-30 — Sửa xem file CV dạng PDF qua nginx — v0.13.1
+
+US-2.6. Trên bản Docker Compose (`:8080`), màn Hồ sơ của SV báo "Unexpected Application Error!" thay vì hiện file CV. Hai lỗi chồng lên nhau: nginx trả worker của pdf.js với MIME sai nên trình duyệt không nạp, và lỗi tải PDF làm sập cả route thay vì hiện nút mở file. Bản Vite dev (`:5173`) không bị.
+
+### Fixed
+- **nginx trả `.mjs` là `application/javascript`** (`deploy/nginx.conf`). `mime.types` của `nginx:1.30-alpine` không có đuôi `.mjs`, nên `pdf.worker.min-*.mjs` ra `application/octet-stream` và trình duyệt chặn module này (LESSONS §27).
+- **PDF không tải được thì hiện thẻ "Không hiển thị được file CV"** kèm nút mở file, không làm sập trang. `CvViewer` đặt `suspense={false}` cho `Document`: react-pdf 11 mặc định dùng Suspense và ném lỗi lên error boundary gần nhất, ở đây là của route. Hai prop `loading` và `onLoadError` chỉ có tác dụng khi tắt Suspense (LESSONS §28).
+
+### Changed
+- **Tài liệu:** LESSONS §27, §28.
+
+### Upgrade notes
+- Build lại image `nginx`. Trình duyệt đã tải worker lỗi sẽ giữ bản cũ, vì tên file không đổi và có cache `immutable` một năm: xóa dữ liệu trang của `localhost:8080`, hoặc tải lại khi DevTools bật *Disable cache*.
+
+**Commit**:
+
+---
+
 ## [0.13.0] — 2026-10-28 — Lọc điều kiện cứng và công thức S_cv — v0.13.0
 
 US-3.1. Phần tất định của GĐ3, dạng hàm TypeScript thuần trong `apps/api/src/modules/matching/domain/`: lọc điều kiện cứng trước khi gọi LLM, tính S_cv từ verdict từng tiêu chí của Matching Agent, và lập shortlist. LLM chỉ trả verdict kèm bằng chứng; code tính điểm, nên đổi trọng số không phải gọi lại LLM (FR-14, AD-2, BR-13). US-3.2 nối các hàm này vào lô chấm; chưa có bảng hay endpoint mới ([CONTEXT D41](CONTEXT.md)).

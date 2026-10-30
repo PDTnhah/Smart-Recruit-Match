@@ -77,7 +77,11 @@ export function CvViewer({ cvId, fileName }: { cvId: number; fileName: string })
     <div className="flex min-w-0 flex-col gap-4">
       <div ref={ref} className="flex min-w-0 flex-col gap-4">
         {url.data && width > 0 ? (
+          // react-pdf 11 suspends and throws to the nearest error boundary by default, which is the
+          // route's: a PDF that fails to load would take the whole page down. Without Suspense, the
+          // loading and onLoadError props below apply, and Pages inherit the setting.
           <Document
+            suspense={false}
             file={url.data}
             onLoadSuccess={({ numPages }) => setPages(numPages)}
             onLoadError={() => setFailed(true)}

@@ -1,6 +1,6 @@
 {
   "name": "@srm/shared",
-  "version": "0.13.0",
+  "version": "0.13.1",
   "private": true,
   "description": "Zod schemas, state types and message contracts shared by apps/web and apps/api",
   "main": "./dist/index.js",

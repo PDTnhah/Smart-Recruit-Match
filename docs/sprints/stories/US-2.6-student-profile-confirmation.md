@@ -145,8 +145,10 @@ GĐ2 bước 4 (PRD), FR-12, UC-11: SV xem lại, sửa chỗ trích xuất sai 
 - koni-qc: AC-2…AC-9, AC-12 có ca dương và âm; ca biên: 3000 ký tự, 10 ngoại ngữ, ô vượt giới hạn sau khi che, quá `intake_end` cho cả ba thao tác. Bảo mật: 401/403 mọi endpoint, IDOR (404 cho CV và URL file của SV khác), audit không chứa PII, `cvId` + `rowVersion` chặn ghi đè bản mới. Không có phát hiện mới.
 - **Còn lại, cần người kiểm** (AC-1, AC-10, AC-11, phần giao diện của AC-6, AC-8): checklist 360 px, 768 và 1024 px; PDF qua nginx của compose, DOCX; gợi ý kỹ năng; 409 khi mở hai tab; đợt hết hạn; "Đang phân tích CV…" chuyển sang form qua SSE.
 - **Đã xong (2026-10-28).** Người dùng xác nhận đã kiểm hết các mục còn lại ở trên; story chuyển `done`.
+- **Sửa sau khi ship (0.13.1, 2026-10-30).** Trên compose, màn Hồ sơ sập với "Unexpected Application Error!". nginx trả worker `.mjs` của pdf.js là `application/octet-stream` (§27), và react-pdf 11 mặc định Suspense nên lỗi tải PDF lên tới error boundary của route (§28). `deploy/nginx.conf` khai kiểu cho `.mjs`; `CvViewer` đặt `suspense={false}`.
+- **Design applied**: DESIGN §7 (đang tải: `Skeleton` qua prop `loading`; lỗi: `Empty` kèm nút mở file, như thiết kế ban đầu của AC-1), áp dụng lại cho bản sửa 0.13.1.
 
-Lessons: §25 mới (form gửi `row_version` của query mới nhất).
+Lessons: §25 mới (form gửi `row_version` của query mới nhất). Bản sửa 0.13.1: §27, §28 mới.
 
 ## Files modified
 
