@@ -20,7 +20,7 @@ US-2.6. Trên bản Docker Compose (`:8080`), màn Hồ sơ của SV báo "Unexp
 ### Upgrade notes
 - Build lại image `nginx`. Trình duyệt đã tải worker lỗi sẽ giữ bản cũ, vì tên file không đổi và có cache `immutable` một năm: xóa dữ liệu trang của `localhost:8080`, hoặc tải lại khi DevTools bật *Disable cache*.
 
-**Commit**:
+**Commit**: 53def83
 
 ---
 
