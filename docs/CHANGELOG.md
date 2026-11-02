@@ -47,7 +47,7 @@ US-2.7. Danh mục kỹ năng biết thêm kỹ năng thuộc vùng công việc
 ### Upgrade notes
 - Chạy migration `0020`–`0022`, rồi build lại image `api` và `web`.
 
-**Commit**:
+**Commit**: 0d88d96
 
 ---
 

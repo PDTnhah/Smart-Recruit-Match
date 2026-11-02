@@ -11,7 +11,7 @@ prd_ref: [FR-39, FR-13]
 arch_ref: [AD-15]
 depends_on: [US-2.5]
 assignee: PDTnhah
-commit:
+commit: 0d88d96a47a5759c61d1958666d6c53b80ff8e80
 created: 2026-11-02
 updated: 2026-11-02
 ---
@@ -114,7 +114,7 @@ Vùng của kỹ năng suy ra từ họ. Kỹ năng mềm có mỗi họ là m�
 
 Mục `[0.14.0]` trong [CHANGELOG](../../CHANGELOG.md): vùng, họ, kéo theo (migration `0020`–`0022`), `PATCH …/taxonomy`, `taxonomy()`, giao diện `/admin/skills`; sửa phím của `SkillInput`.
 
-**Commit**:
+**Commit**: 0d88d96
 
 ## Implementation notes
 
