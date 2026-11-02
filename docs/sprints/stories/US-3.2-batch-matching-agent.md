@@ -8,13 +8,33 @@ points: 8
 sprint:
 version_shipped:
 prd_ref: [FR-14, NFR-4, NFR-7]
-arch_ref: [AD-2, AD-12]
-depends_on: [US-2.2, US-2.5, US-2.6, US-3.1]
+arch_ref: [AD-2, AD-12, AD-15]
+depends_on: [US-2.2, US-2.5, US-2.6, US-3.1, US-3.5, US-3.6]
 assignee:
 commit:
 created: 2026-10-07
-updated: 2026-10-07
+updated: 2026-11-02
 ---
+
+## Story refresh — 2026-11-02 (CONTEXT D42)
+
+Người dùng chốt: code chấm kỹ năng, ngoại ngữ và ngành ([US-3.5](US-3.5-skill-evidence-code-matching.md), [US-3.6](US-3.6-language-cefr-major-match.md)). Matching Agent **chỉ** chấm tiêu chí dự án/kinh nghiệm và viết nhận xét. Phần dưới đây thay các AC và task tương ứng ở spec gốc. Khi bắt đầu story, viết lại AC theo khối này.
+
+- **Luồng hai bước.** Backend lọc điều kiện cứng, gọi các hàm của US-3.5 và US-3.6 cho mọi cặp đạt, rồi lưu `match_results`:
+  - lưu `criteria` (phần code), `skill_fit`, `rules_version`; `s_cv` để null;
+  - xếp top-M JD cho mỗi CV theo `skill_fit` (sửa AC-6: không dùng cosine bge-m3); cặp ngoài top-M có `skipped_by_prefilter = true`;
+  - phát `ai.match.run` với ID các cặp top-M.
+
+  Khi `ai.results` về, backend ghép `project_relevance` rồi gọi `computeScv` (sửa AC-10).
+- **Schema LLM `MatchAssessment`** thay `MatchResult` (sửa AC-7, AC-12):
+  - `project_relevance { score_0_4, reason, evidence }`, `strengths`, `suggestions`, `summary` (tiếng Việt);
+  - `gaps` do code lập từ verdict `NOT_MET`/`PARTIAL`;
+  - tin nhắn `user` có thêm bảng verdict kỹ năng của code, đọc qua view, để nhận xét khớp với điểm. Thiết kế view chốt khi bắt đầu.
+- **Kiểm trích dẫn** (sửa AC-8): chỉ áp dụng cho `project_relevance.evidence`. Trích dẫn không khớp (RapidFuzz < 85) thì hạ điểm; mức hạ (về 0 hay giảm 1) hỏi khi bắt đầu. Verdict kỹ năng do code tính đã có bằng chứng thật, không cần kiểm.
+- **Cache theo phiên bản** (sửa AC-4): phần code luôn tính lại được, vì rẻ và tất định. Unique key đề xuất là (`cv_id`, `jd_id`, `cv_version`, `jd_version`, `rules_version`, `prompt_version`) `NULLS NOT DISTINCT`. Chỉ cặp chưa có kết quả LLM cho `prompt_version` hiện hành mới được gửi.
+- **AC-15:** bộ dữ liệu nhỏ có thêm một cặp khớp nhờ kéo theo và một cặp khớp cùng họ; S_cv đúng theo US-3.1 và US-3.5.
+- **Chi phí:** đầu ra ngắn hơn (không còn verdict từng kỹ năng), nên ~115 USD cho 500 SV là cận trên. Đo lại như *Performance budget*.
+- Story giữ 8 điểm: phần agent nhỏ đi, phần backend thêm luồng hai bước.
 
 ## Goal
 

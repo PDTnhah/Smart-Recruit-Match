@@ -8,7 +8,7 @@
 **Mục lục**
 
 - D1 · Tách phần tất định khỏi phần xác suất
-- D2 · LLM không ra quyết định và không tính điểm tổng
+- D2 · LLM không ra quyết định và không tính điểm tổng → sửa một phần bởi D42 (tiêu chí nào do code chấm)
 - D3 · Modular monolith NestJS + AI Service Python
 - D4 · PostgreSQL + pgvector là nguồn sự thật duy nhất
 - D5 · Tác vụ AI chạy bất đồng bộ qua RabbitMQ
@@ -17,7 +17,7 @@
 - D8 · Bảng chuyển trạng thái tự viết
 - D9 · Drizzle ORM thay Prisma
 - D10 · Một model Claude Opus 5.5 cho mọi agent → sửa bởi D34
-- D11 · Embedding `bge-m3` tự host
+- D11 · Embedding `bge-m3` tự host → sửa một phần bởi D42 (lọc sơ bộ GĐ3 theo `skill_fit`)
 - D12 · Message Batches, prompt caching, prompt có phiên bản
 - D13 · Server-Sent Events cho cập nhật thời gian thực
 - D14 · shadcn/ui + Tailwind CSS thay Ant Design
@@ -47,7 +47,8 @@
 - D38 · Giới hạn chi phí context của agent: ba phiên mỗi story, mục lục, AGENTS.md không giữ trạng thái
 - D39 · Danh mục kỹ năng và embedding: module `skills`, `EMBEDDING_PROVIDER`, hợp đồng kỹ năng, HNSW một phần (US-2.5)
 - D40 · SV xác nhận hồ sơ: che PII lại bằng TS, "Sửa lại" tạo phiên bản mới, kỹ năng SV nhập vào hàng chờ duyệt (US-2.6)
-- D41 · Trọng số S_cv trong cấu hình đợt, tiêu chí rỗng chia lại trọng số, GPA thang 4, đọc chứng chỉ ngoại ngữ bằng code (US-3.1)
+- D41 · Trọng số S_cv trong cấu hình đợt, tiêu chí rỗng chia lại trọng số, GPA thang 4, đọc chứng chỉ ngoại ngữ bằng code (US-3.1) → sửa một phần bởi D42 (quy đổi CEFR)
+- D42 · Khớp kỹ năng, ngoại ngữ, ngành bằng code theo taxonomy vùng/họ/kéo theo; LLM chỉ chấm dự án và viết nhận xét (US-2.7, US-3.5, US-3.6)
 
 ---
 
@@ -1436,3 +1437,102 @@ Ngoài ra còn phải giải quyết:
 
 **Date**: 2026-10-28
 **Version**: 0.13.0
+
+### D42. Khớp kỹ năng, ngoại ngữ và ngành bằng code theo taxonomy vùng/họ/kéo theo; LLM chỉ chấm dự án và viết nhận xét (revision of D2, D11, D41)
+
+**Context**: Theo PRD › *S_cv* và US-3.2 (chưa làm), Matching Agent trả verdict cho từng kỹ năng, ngoại ngữ, mức khớp ngành và điểm dự án; code chỉ cộng S_cv (D2, US-3.1). Ngày 2026-11-02 người dùng yêu cầu:
+
+1. Parse kỹ từng kỹ năng ở CV và JD, rồi khớp kỹ năng giữa hai bên bằng code, không dùng LLM.
+2. Kỹ năng mềm và ngoại ngữ có cách quy đổi chuẩn để kết luận chắc chắn CV có phù hợp JD hay không.
+3. Có "vùng kỹ năng" hỗ trợ matching.
+
+Code hiện có chưa đủ cho việc này:
+
+- Danh mục kỹ năng (D39) chỉ chuẩn hóa tên. Danh mục không biết kỹ năng nào thay được cho nhau (MySQL ↔ PostgreSQL) hay kéo theo nhau (Spring Boot ⇒ Java).
+- Embedding không thay được quan hệ đó. D39 đo với bge-m3: React ~ React Native đạt 0,807, "Học máy" ~ "Machine Learning" chỉ 0,664.
+- Hồ sơ CV có `skills[]`, `projects[].technologies`, `description` và mốc thời gian, nhưng chưa nơi nào quy ra mức độ để so với mức Cơ bản / Khá / Thành thạo mà JD yêu cầu.
+- Ngoại ngữ chỉ so chứng chỉ cùng loại (D41). Yêu cầu "TOEIC 550" loại SV có IELTS 6.5.
+
+**Decision** (người dùng chốt bốn điểm ngày 2026-11-02):
+
+- **Ai chấm tiêu chí nào** (sửa D2 ở phần tiêu chí):
+
+  | Tiêu chí S_cv | Ai chấm |
+  |---|---|
+  | Kỹ năng bắt buộc, kỹ năng bổ trợ (gồm kỹ năng mềm) | Code |
+  | Ngoại ngữ | Code |
+  | Mức khớp ngành | Code |
+  | Dự án / kinh nghiệm (rubric 0–4) | LLM |
+  | Nhận xét, điểm mạnh, gợi ý cải thiện | LLM |
+
+  Nguyên tắc của D2 giữ nguyên: LLM không ra quyết định và không tính điểm tổng. Công thức `computeScv` và trọng số của D41 không đổi.
+- **Taxonomy ba tầng, lưu trong DB cùng danh mục** (không để trong file code, theo lựa chọn của người dùng):
+  - `group` (D39) giữ nghĩa *loại* kỹ năng: ngôn ngữ, framework, CSDL…
+  - **Vùng** (`SKILL_ZONES`, enum ở `packages/shared`) là *lĩnh vực công việc*: `FOUNDATION`, `BACKEND`, `FRONTEND`, `MOBILE`, `DATABASE`, `DATA_AI`, `DEVOPS_CLOUD`, `TESTING_QA`, `BUSINESS_ANALYSIS`, `PROCESS`, `SOFT_SKILL`. Ngoại ngữ không nằm trong danh mục.
+  - **Họ** (`SKILL_FAMILIES`, enum, mỗi họ thuộc đúng một vùng) là nhóm kỹ năng *thay thế được cho nhau*, ví dụ `RELATIONAL_DB` {MySQL, PostgreSQL, SQL Server, Oracle}, `SPA_FRAMEWORK` {React, Vue, Angular}. Cột `core.skills.family` nullable, vì có kỹ năng không có kỹ năng thay thế.
+  - **Kéo theo**: bảng `core.skill_implications(skill_id, implied_skill_id)`, khóa ngoại hai đầu, khóa chính là cặp, CHECK hai đầu khác nhau. Ví dụ Spring Boot ⇒ Java, Next.js ⇒ React ⇒ JavaScript.
+  - Đồ thị kéo theo không được có chu trình. TypeScript kiểm điều này dưới khóa advisory `SKILL_CATALOGUE` (D39).
+  - ADMIN chọn họ và kéo theo khi duyệt kỹ năng mới, và sửa được cho kỹ năng đã duyệt. Module `skills` export `SkillCatalogService.taxonomy()` cho `matching`.
+  - Kỹ năng mềm: mỗi họ của vùng `SOFT_SKILL` là một **năng lực chuẩn** (COMMUNICATION, TEAMWORK, LEADERSHIP…). Tên tự do ở CV và JD được quy về năng lực chuẩn qua alias và các bước chuẩn hóa của D39.
+- **Bậc bằng chứng** (`matching-rules/v1`, hàm TS thuần trong `matching/domain/`, chỉ đọc `profile_masked`):
+
+  | Bậc | Điều kiện (ngưỡng là đề xuất) | Đáp ứng mức JD |
+  |---|---|---|
+  | T0 | Không có | – |
+  | T1 Đã nêu | Chỉ có ở mục kỹ năng | Chưa đáp ứng mức nào |
+  | T2 Đã dùng | 1 dự án, kinh nghiệm hoặc chứng chỉ | `BASIC` |
+  | T3 Dùng nhiều | ≥ 2 dự án/kinh nghiệm, hoặc tổng ≥ 6 tháng | `INTERMEDIATE` |
+  | T4 Thành thạo | Kinh nghiệm làm việc/thực tập dùng kỹ năng đó ≥ 6 tháng, hoặc ≥ 3 nguồn và ≥ 12 tháng | `ADVANCED` |
+
+  Kỹ năng mềm lấy bậc từ một bộ tín hiệu có phiên bản theo năng lực, ví dụ "trưởng nhóm" cho LEADERSHIP, "hackathon" cho PROBLEM_SOLVING: chỉ tự khai là T1; 1, 2 hoặc ≥ 3 tín hiệu từ các mục khác nhau là T2, T3, T4. Thời lượng đọc từ mốc thời gian của CV; "hiện tại" tính theo `intake_end` của đợt để kết quả tất định.
+- **Luật khớp**:
+  - Kỹ năng đúng tên hoặc được kéo theo: bậc ≥ mức JD thì `MET`; từ T1 tới dưới mức JD thì `PARTIAL`.
+  - Không có kỹ năng đó nhưng một kỹ năng cùng họ đạt ≥ T2 thì `PARTIAL`.
+  - Còn lại là `NOT_MET`.
+
+  Luật này khớp định nghĩa "Một phần" của PRD (nêu mà không có minh chứng, hoặc thấp hơn mức yêu cầu). Mỗi verdict lưu `match_kind` (`EXACT`, `IMPLIED`, `FAMILY`, `NONE`), bậc, kỹ năng trung gian (`via`) và các nguồn. `evidence` là chuỗi chép từ trường của CV, nên luôn có thật.
+- **Vùng** không thành tiêu chí S_cv mới. Code tính độ phủ theo vùng (JD cần gì, CV có gì) để giải thích và gợi ý.
+- **Ngoại ngữ, bảng `language-cefr/v1`** theo ngưỡng chính thức của tổ chức thi (ETS cho TOEIC và TOEFL, IELTS, VSTEP bậc 1–6). Số cụ thể chốt ở US-3.6 sau khi đối chiếu nguồn.
+  - Hai chứng chỉ cùng loại thì so điểm gốc như D41. Khác loại nhưng cùng ngôn ngữ thì quy cả hai về CEFR rồi so. Luật này áp dụng cho cả điều kiện cứng lẫn điểm (sửa D41).
+  - JLPT, TOPIK, HSK vẫn chỉ so cùng loại.
+  - JD có thêm `preferred_languages[]`: ngoại ngữ ưu tiên, không phải điều kiện cứng.
+  - Tiêu chí ngoại ngữ do code tính trên các mục `required` ∪ `preferred`. Mục bắt buộc mà SV đạt hoặc vượt là `MET`. Mục ưu tiên: thiếu một bậc CEFR hoặc có ngôn ngữ mà không có chứng chỉ là `PARTIAL`.
+- **Mức khớp ngành**: JD có `majors` thì cặp đã qua điều kiện cứng là `EXACT`. JD không nêu ngành thì tra bảng nhóm ngành × `position_group`. Ngành không nhận ra thì `OTHER`, kèm cờ `major_unrecognized`.
+- **Lọc sơ bộ top-M** xếp theo `skill_fit` thay cho cosine của bge-m3 (sửa D11 ở GĐ3). `skill_fit` là điểm hai nhóm kỹ năng do code tính. Embedding vẫn dùng để chuẩn hóa tên kỹ năng (D39) và cho ngân hàng câu hỏi.
+- **Lưu kết quả**:
+  - Backend tính phần của code cho mọi cặp đạt điều kiện cứng, rồi lưu `match_results` với `criteria` phần code, `skill_fit`, `rules_version`; `s_cv` để null.
+  - Backend chỉ gửi các cặp top-M sang Matching Agent. Cặp ngoài top-M có `skipped_by_prefilter`.
+  - Agent trả `MatchAssessment` (`project_relevance` có `evidence` được kiểm RapidFuzz ≥ 85, cùng `strengths`, `suggestions`, `summary`). Backend ghép vào rồi gọi `computeScv`.
+  - `rules_version` cho luật code đóng vai trò như `prompt_version` cho LLM (Nguyên tắc 12).
+
+**Rationale**:
+
+- Verdict kỹ năng do code tính thì tất định, cùng đầu vào cho cùng kết quả. Khi SV phúc khảo, hệ thống chỉ ra được bằng chứng nằm ở dự án nào, khớp kiểu nào và bậc mấy. Kết quả không phụ thuộc phiên bản model.
+- Mọi bằng chứng là trường có thật của CV. Rủi ro "ảo giác" chỉ còn ở tiêu chí dự án, nơi trích dẫn vẫn được kiểm.
+- Khung bậc cho JD, form HR và code một thang chung. "Một phần" được định nghĩa bằng dữ liệu, không bằng cảm nhận của model.
+- Họ và quan hệ kéo theo do người duyệt nên giải thích được trước hội đồng. Đổi một quan hệ không phải sửa code hay gọi lại LLM.
+- Quy đổi về CEFR theo bảng chính thức thì một SV có IELTS không bị loại khỏi JD yêu cầu TOEIC.
+- Xếp top-M bằng `skill_fit` dùng cùng thước đo với S_cv và không phụ thuộc chế độ `hashing` của embedding trên máy dev.
+- Phần cần hiểu ngôn ngữ (mức liên quan và độ phức tạp của dự án, nhận xét tiếng Việt) vẫn để LLM.
+
+**Alternatives considered**:
+- **Code chấm cả 5 tiêu chí, LLM chỉ viết lời:** người dùng không chọn. Rubric dự án cần đọc mô tả dự án.
+- **Bỏ hẳn LLM ở GĐ3:** người dùng không chọn.
+- **Dùng cosine embedding làm độ gần giữa hai kỹ năng:** loại vì số đo của D39 ở trên, và vì chế độ `hashing` cho cosine vô nghĩa.
+- **Taxonomy trong file code có phiên bản:** người dùng không chọn. Kỹ năng ADMIN mới duyệt sẽ không có họ cho tới khi sửa code.
+- **Bảng quy đổi ngoại ngữ của Bộ GD&ĐT, hoặc cho Trung tâm chọn bảng theo đợt:** người dùng chọn bảng của tổ chức thi.
+- **Biến vùng thành tiêu chí S_cv thứ sáu:** loại vì phải đổi trọng số đã chốt ở D41, trong khi họ và kéo theo đã đưa phần liên quan vào verdict.
+
+**Impact**:
+- Story mới: US-2.7 (taxonomy, EPIC-2), US-3.5 (bậc bằng chứng và khớp kỹ năng, EPIC-3), US-3.6 (CEFR và mức khớp ngành, EPIC-3). Ba story nằm ở T5–T6, trước US-3.2. Lộ trình thành 40 story, khoảng 233 điểm.
+- Story refresh: US-3.2 (LLM chỉ chấm dự án, `MatchAssessment`, top-M theo `skill_fit`, lưu hai bước), US-3.3 (giải thích theo kiểu khớp, bậc và vùng), US-6.3 (so verdict code với nhãn chuyên gia). US-3.1 giữ nguyên; phần ngoại ngữ của nó được sửa ở US-3.6.
+- PRD: GĐ1, GĐ3, *S_cv* (cột "Ai chấm", khung bậc, vùng và họ, kỹ năng mềm, CEFR, ngành, đầu ra mẫu), *Kiến trúc AI Agent*, guardrails, FR-14, FR-39, FR-40, Glossary, *Epics & User Stories*.
+- ARCH:
+  - *Các module*, *Pipeline từng agent* › Matching, *Bản đồ sử dụng LLM*, *Những chỗ cố ý KHÔNG dùng LLM*;
+  - *Các bảng chính* (`skills.family`, `skill_implications`, `match_results`);
+  - *Luồng chấm phù hợp hàng loạt*, *Tối ưu chi phí*, *Ước tính chi phí*;
+  - AD-2 (ghi chú), AD-15 mới.
+- AGENTS: Nguyên tắc 2 và 5, số story.
+
+**Date**: 2026-11-02
+**Version**: 0.13.1

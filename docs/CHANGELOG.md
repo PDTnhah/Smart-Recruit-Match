@@ -4,6 +4,15 @@ Lịch sử phát hành của Smart Recruit Match. Mỗi commit ship code tăng 
 
 ## [Unreleased]
 
+### Changed
+- **Thiết kế khớp kỹ năng CV–JD bằng code** ([CONTEXT D42](CONTEXT.md)), chỉ có tài liệu, chưa có code:
+  - code chấm kỹ năng (cả kỹ năng mềm), ngoại ngữ và mức khớp ngành; Matching Agent chỉ chấm tiêu chí dự án và viết nhận xét;
+  - danh mục kỹ năng có vùng, họ và quan hệ kéo theo; bậc bằng chứng T0–T4;
+  - chứng chỉ ngoại ngữ khác loại quy về CEFR theo bảng của tổ chức thi;
+  - lọc top-M theo `skill_fit`.
+- Tài liệu cập nhật: PRD (GĐ1, GĐ3, *S_cv*, FR-39, FR-40, Glossary), ARCHITECTURE (pipeline Matching, bảng, AD-15), EPIC-2, EPIC-3, lộ trình, AGENTS (Nguyên tắc 2, 5).
+- Story mới: US-2.7, US-3.5, US-3.6. *Story refresh* cho US-3.2, US-3.3, US-6.3.
+
 ---
 
 ## [0.13.1] — 2026-10-30 — Sửa xem file CV dạng PDF qua nginx — v0.13.1

@@ -8,13 +8,23 @@ points: 8
 sprint:
 version_shipped:
 prd_ref: [FR-35]
-depends_on: [US-2.3, US-2.4, US-3.2, US-4.2, US-4.4]
+depends_on: [US-2.3, US-2.4, US-3.2, US-3.5, US-4.2, US-4.4]
 assignee:
 commit:
 created: 2026-10-07
-updated: 2026-10-07
+updated: 2026-11-02
 external_deps: [labeled_dataset, anthropic_api]
 ---
+
+## Story refresh — 2026-11-02 (CONTEXT D42)
+
+Verdict kỹ năng, ngoại ngữ và ngành giờ do code tính ([US-3.5](US-3.5-skill-evidence-code-matching.md), [US-3.6](US-3.6-language-cefr-major-match.md)); Matching Agent chỉ chấm tiêu chí dự án. Bộ đánh giá Matching đổi như sau:
+
+- **Verdict kỹ năng của code** so với nhãn chuyên gia theo từng kỹ năng (accuracy, Cohen's kappa ba mức), tách theo kiểu khớp (`EXACT`, `IMPLIED`, `FAMILY`). Kết quả này cho biết họ và quan hệ kéo theo của US-2.7 có giúp hay làm sai.
+- **Điểm dự án của LLM** so với nhãn 0–4 (MAE, kappa có trọng số).
+- **Xếp hạng S_cv** (Spearman, NDCG@k) như spec gốc.
+- **Gợi ý thực nghiệm cho báo cáo (tùy chọn):** ablation trên tập mẫu, so verdict kỹ năng do code với verdict do LLM (chạy `matching/v1` cũ trong `ai-service/evals/`, có chi phí API). Hỏi người dùng trước khi chạy.
+- Đổi `matching-rules/v1` hay `language-cefr/v1` cũng phải chạy lại bộ đánh giá, như khi đổi prompt.
 
 ## Goal
 

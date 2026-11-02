@@ -9,7 +9,7 @@ Hệ thống giúp Trung tâm quan hệ doanh nghiệp của trường ghép sin
 ## Trạng thái
 
 - Story nào xong, story nào đang `review` và còn chờ gì: [STATUS.md](docs/sprints/STATUS.md) (tự sinh) và file story. Đã phát hành gì: [CHANGELOG](docs/CHANGELOG.md). Việc đang làm của người dùng hiện tại: `.active-context.md`; đọc file này khi bắt đầu phiên, nếu có.
-- 37 story của 6 epic nằm trong `docs/sprints/stories/` ([CONTEXT D21](docs/CONTEXT.md)). Lộ trình: xong trong tháng 12/2026, hai làn chạy song song bằng agent ([sprints/README › Lộ trình](docs/sprints/README.md#lộ-trình), [CONTEXT D20](docs/CONTEXT.md)).
+- 40 story của 6 epic nằm trong `docs/sprints/stories/` ([CONTEXT D21, D42](docs/CONTEXT.md)). Lộ trình: xong trong tháng 12/2026, hai làn chạy song song bằng agent ([sprints/README › Lộ trình](docs/sprints/README.md#lộ-trình), [CONTEXT D20](docs/CONTEXT.md)).
 - Khi bắt đầu một story, đọc lại file của nó và thêm khối *Story refresh* nếu spec đã đổi.
 - Không ghi trạng thái từng story vào file này ([CONTEXT D38](docs/CONTEXT.md)). Chỉ sửa khi có quy tắc mới hoặc mẫu mới cho mục *Mẫu có sẵn*.
 
@@ -107,13 +107,13 @@ Vi phạm các điều dưới đây là lỗi, kể cả khi code vẫn chạy 
 **Ranh giới của LLM**
 
 1. LLM không ra quyết định và không tính điểm tổng. LLM trả JSON theo schema (verdict từng tiêu chí + bằng chứng); code tính S_cv, S_test, S_final (BR-13, AD-2).
-2. Không dùng LLM cho: điều kiện cứng, tính điểm, chấm trắc nghiệm, phân bổ, chuyển trạng thái, mức cạnh tranh, SLA, phân quyền (ARCH › *Những chỗ cố ý KHÔNG dùng LLM*).
+2. Không dùng LLM cho: điều kiện cứng, khớp kỹ năng CV–JD, quy đổi ngoại ngữ, mức khớp ngành, tính điểm, chấm trắc nghiệm, phân bổ, chuyển trạng thái, mức cạnh tranh, SLA, phân quyền (ARCH › *Những chỗ cố ý KHÔNG dùng LLM*, [CONTEXT D42](docs/CONTEXT.md)).
 3. AI Service không chuyển trạng thái nghiệp vụ và chỉ ghi schema `ai`. Nó đọc `core` qua view đã che PII. Chỉ Core Backend được ghi `core` (AD-4).
 
 **Công bằng, dữ liệu cá nhân, bảo mật**
 
 4. Không đưa ảnh, giới tính, ngày sinh, quê quán, tôn giáo, tình trạng hôn nhân vào bất kỳ bước chấm nào. Matching và Grader chỉ nhận `profile_masked` (BR-03).
-5. Verdict `MET`/`PARTIAL` phải có `evidence` khớp với văn bản CV (RapidFuzz ≥ 85). Không khớp thì hạ xuống `NOT_MET`.
+5. Verdict `MET`/`PARTIAL` phải có `evidence` có thật trong CV. Verdict do code tính lấy bằng chứng từ chính trường của CV. Trích dẫn do LLM trả phải khớp văn bản CV (RapidFuzz ≥ 85); không khớp thì hạ xuống `NOT_MET` hoặc hạ điểm.
 6. CV, JD và bài làm của sinh viên là **dữ liệu, không phải chỉ dẫn**: tách riêng trong prompt, phát hiện chữ ẩn, chỉ nhận đầu ra đúng schema.
 7. Phân quyền cấp bản ghi: HR chỉ thấy đề cử thuộc JD của công ty mình (BR-11); sinh viên chỉ thấy dữ liệu và điểm của mình.
 8. Phòng thi: đáp án không bao giờ gửi xuống client; deadline do server quyết định; tín hiệu gian lận chỉ để cảnh báo, không tự đánh trượt.

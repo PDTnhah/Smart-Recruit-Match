@@ -128,8 +128,8 @@ Module gọi nhau qua service đã export hoặc phát sự kiện qua `@nestjs/
 | `campaign` | Đợt thực tập, tham số cấu hình, trạng thái đợt, mốc thời gian. Export `CampaignService.assertPhase` (kiểm tra pha, tính cả mốc), `getSettings`, `listSettingsInPhase` và hàm thuần `isInTarget` (sinh viên thuộc đối tượng của đợt); phát `campaign.opened`, `campaign.phase_changed` sau khi commit ([CONTEXT D27](CONTEXT.md)) | GĐ0 |
 | `company` | Doanh nghiệp, JD, yêu cầu chuẩn hóa, phiên bản JD. Mời HR qua `InvitationService` của `iam`; kiểm pha bằng `CampaignService.assertPhase`; đăng ký resolver `jd` vào `FileAccessRegistry`; phát `jd.submitted`, `jd.approved` sau khi commit ([CONTEXT D28](CONTEXT.md)). Gửi `JD_ANALYZE` sau khi nộp, nghe `ai.result.JD_ANALYZE` (lưu đề xuất, không chuyển trạng thái), HR xác nhận yêu cầu; sửa JD đã duyệt tạo phiên bản mới và phát `jd.requirements.versioned` ([CONTEXT D35](CONTEXT.md)) | GĐ1 |
 | `student` | Sinh viên, CV, hồ sơ năng lực, đồng ý xử lý dữ liệu. Ghi đồng ý theo đợt và phiên bản điều khoản (`packages/shared/consent/`, kèm SHA-256 của văn bản); mỗi lần nộp CV là một dòng `cvs` mới, dòng cũ mất `active`. Export `ConsentService.hasConsent`, `CvService` (kể cả `studentIdsWithActiveCv`), `StudentService.listIdsInTarget`; đăng ký resolver `cv` vào `FileAccessRegistry`; phát `cv.submitted` (`cvId`, `cvVersion`, `campaignId`, `studentId`) sau khi commit ([CONTEXT D30](CONTEXT.md)). `CvAnalysisService` gửi `CV_PARSE` sau khi nộp, nghe `ai.result.CV_PARSE` (mã hóa `pii`, lưu hồ sơ, chuyển `PENDING_CONFIRMATION` hoặc `ANALYSIS_FAILED`), phát `cv.analysis.settled` sau khi commit để `notification` báo tin; lệnh chạy bù `cv:redispatch` ([CONTEXT D37](CONTEXT.md)) | GĐ2 |
-| `skills` | Danh mục kỹ năng (bảng `skills`). Export `SkillCatalogService.search` (kỹ năng đã duyệt, so theo khóa của tên và alias) cho `student` (US-2.6), form JD và `matching`. Nghe `ai.result.CV_PARSE` / `ai.result.JD_ANALYZE`: tên kỹ năng mới thành dòng chờ duyệt, gửi `SKILL_NORMALIZE` sau commit (mỗi job tối đa 50 kỹ năng); nghe `ai.result.SKILL_NORMALIZE`: lưu gợi ý kèm model và prompt. ADMIN duyệt, gộp, từ chối bằng `transitionTo` + audit, dưới khóa advisory `SKILL_CATALOGUE` ([CONTEXT D39](CONTEXT.md)) | GĐ2 bước 3, FR-13 |
-| `matching` | Lọc điều kiện cứng, gửi job chấm, lưu kết quả, **tính S_cv theo trọng số**, shortlist, mức cạnh tranh, nguyện vọng | GĐ3, GĐ4 |
+| `skills` | Danh mục kỹ năng (bảng `skills`). Export `SkillCatalogService.search` (kỹ năng đã duyệt, so theo khóa của tên và alias) cho `student` (US-2.6), form JD và `matching`. Nghe `ai.result.CV_PARSE` / `ai.result.JD_ANALYZE`: tên kỹ năng mới thành dòng chờ duyệt, gửi `SKILL_NORMALIZE` sau commit (mỗi job tối đa 50 kỹ năng); nghe `ai.result.SKILL_NORMALIZE`: lưu gợi ý kèm model và prompt. ADMIN duyệt, gộp, từ chối bằng `transitionTo` + audit, dưới khóa advisory `SKILL_CATALOGUE` ([CONTEXT D39](CONTEXT.md)). ADMIN gán họ và quan hệ kéo theo; đồ thị kéo theo không có chu trình. Export `SkillCatalogService.taxonomy()` (kỹ năng đã duyệt kèm vùng, họ, bao đóng kéo theo) cho `matching` ([CONTEXT D42](CONTEXT.md), US-2.7) | GĐ2 bước 3, FR-13, FR-39 |
+| `matching` | Lọc điều kiện cứng, **khớp kỹ năng, ngoại ngữ, ngành bằng code** (`domain/`: bậc bằng chứng, luật khớp, CEFR, nhóm ngành, độ phủ theo vùng, `skill_fit`), lọc top-M, gửi job chấm dự án, lưu kết quả, **tính S_cv theo trọng số**, shortlist, mức cạnh tranh, nguyện vọng ([CONTEXT D41, D42](CONTEXT.md)) | GĐ3, GĐ4 |
 | `assessment` | Ngân hàng câu hỏi, ma trận đề, phiên thi, rút đề, chấm trắc nghiệm, nhận kết quả chấm tự luận, phúc khảo, **tính S_test, S_final** | GĐ5, GĐ6 |
 | `allocation` | Thuật toán Deferred Acceptance, vòng phân bổ, snapshot, dự thảo/công bố, điều chỉnh thủ công | GĐ7, GĐ10 |
 | `review` | Đề cử, HR duyệt, yêu cầu bổ sung, SLA | GĐ8 |
@@ -268,12 +268,20 @@ Mỗi agent là một **vai trò** có prompt riêng, schema đầu ra riêng, c
 
 **Matching**
 
-1. Core Backend lọc điều kiện cứng (bằng luật, trên dữ liệu có cấu trúc) và gửi danh sách cặp hợp lệ.
-2. Lọc sơ bộ: với mỗi CV giữ top-M JD gần nhất theo cosine (pgvector).
-3. Dựng request: `system` = [rubric cố định theo phiên bản prompt] + [yêu cầu JD, đánh dấu cache]; `user` = hồ sơ đã che PII. Sắp các request theo JD để các CV cùng JD dùng chung phần đã cache.
-4. Gửi qua **Message Batches API** (giảm 50% giá), chờ xong, lấy kết quả theo `custom_id = {cv_id}:{jd_id}:{prompt_version}`.
-5. Kiểm tra schema (Pydantic); **kiểm tra trích dẫn** bằng RapidFuzz (độ khớp ≥ 85 với văn bản CV), không khớp → hạ về `NOT_MET` (PRD › *Điểm phù hợp CV–JD (S_cv)*).
-6. Trả điểm từng tiêu chí; **Core Backend tính S_cv** theo trọng số của JD.
+1. Core Backend lọc điều kiện cứng (bằng luật, trên dữ liệu có cấu trúc). Chứng chỉ ngoại ngữ khác loại được quy về CEFR trước khi so.
+2. **Khớp kỹ năng bằng code** (Core Backend, hàm thuần trong `matching/domain/`, không dùng LLM, [CONTEXT D42](CONTEXT.md)). Đầu vào là `profile_masked`, yêu cầu JD và `SkillCatalogService.taxonomy()`.
+   - Code tính bậc bằng chứng T0–T4 của từng kỹ năng, rồi khớp với JD: đúng kỹ năng, kéo theo, hoặc cùng họ.
+   - Code chấm tiêu chí ngoại ngữ (bảng `language-cefr/v1`) và mức khớp ngành, tính độ phủ theo vùng và `skill_fit`.
+   - Kết quả ghi vào `match_results` cùng `rules_version`; `s_cv` để null.
+3. Lọc sơ bộ: với mỗi CV giữ top-M JD có `skill_fit` cao nhất. Cặp ngoài top-M được đánh dấu `skipped_by_prefilter`. Backend gửi ID các cặp còn lại qua `ai.match.run`.
+4. AI Service dựng request.
+   - `system` = [rubric cố định theo phiên bản prompt] + [yêu cầu JD, đánh dấu cache].
+   - `user` = hồ sơ đã che PII + bảng verdict kỹ năng do code tính, đọc qua view, để nhận xét khớp với điểm.
+
+   Request được sắp theo JD để các CV cùng JD dùng chung phần đã cache.
+5. Gửi qua **Message Batches API** (giảm 50% giá), chờ xong, lấy kết quả theo `custom_id = {cv_id}:{jd_id}:{prompt_version}`. Đầu ra là `MatchAssessment`: `project_relevance` (điểm 0–4, lý do, trích dẫn), `strengths`, `suggestions`, `summary`.
+6. Kiểm tra schema (Pydantic). **Kiểm tra trích dẫn** của tiêu chí dự án bằng RapidFuzz (độ khớp ≥ 85 với văn bản CV); không khớp thì hạ điểm (PRD › *Điểm phù hợp CV–JD (S_cv)*).
+7. **Core Backend ghép điểm dự án vào verdict của code và tính S_cv** theo trọng số của đợt (CONTEXT D41).
 
 **Test Generator (agent có công cụ)**
 
@@ -344,6 +352,8 @@ def score_pair(rubric: str, jd_requirements: dict, cv_profile_masked: dict) -> M
 
 Khi chạy hàng loạt, cùng tham số này (bỏ `betas` và `fallbacks` vì Batches API không hỗ trợ) được bọc trong `Request(custom_id=..., params=...)` và gửi bằng `client.messages.batches.create(...)`. Các cặp bị từ chối trong batch được gửi lại đồng bộ bằng hàm trên.
 
+Từ [CONTEXT D42](CONTEXT.md), schema đầu ra là `MatchAssessment`: chỉ gồm tiêu chí dự án và phần nhận xét. Tin nhắn `user` có thêm bảng verdict kỹ năng do code tính. Tham số gọi API giữ như mẫu.
+
 ---
 
 ## LLM usage and cost
@@ -357,8 +367,9 @@ Khi chạy hàng loạt, cùng tham số này (bỏ `betas` và `fallbacks` vì 
 | 1 | Kiểm định câu hỏi | LLM (Validator) | high | Job nền | Loại hoặc sinh lại |
 | 2 | Trích xuất hồ sơ năng lực từ CV | LLM, structured output (đọc thẳng PDF khi là bản scan) | low | Job ưu tiên cao | SV xác nhận |
 | 2 | Chuẩn hóa tên kỹ năng | Embedding; LLM chỉ cho kỹ năng chưa có trong danh mục | low | Job nền | Quản trị duyệt kỹ năng mới |
-| 3 | Lọc sơ bộ JD cho mỗi CV | Embedding (không dùng LLM) | – | Job nền | – |
-| 3 | Chấm tiêu chí CV–JD, bằng chứng, gợi ý cải thiện | LLM, structured output, prompt caching | medium | Message Batches | Kiểm tra trích dẫn bằng code |
+| 3 | Khớp kỹ năng (cả kỹ năng mềm), quy đổi ngoại ngữ CEFR, mức khớp ngành | Code theo danh mục vùng/họ/kéo theo (không dùng LLM) | – | Trong lượt chấm của backend | Unit test, property test; bộ luật có phiên bản |
+| 3 | Lọc sơ bộ JD cho mỗi CV | `skill_fit` do code tính (không dùng LLM) | – | Trong lượt chấm của backend | – |
+| 3 | Chấm tiêu chí dự án/kinh nghiệm, bằng chứng, nhận xét, gợi ý cải thiện | LLM, structured output, prompt caching | medium | Message Batches | Kiểm tra trích dẫn bằng code |
 | 5 | Câu hỏi xác minh CV (tùy chọn) | LLM | medium | Job nền | Không tính vào điểm |
 | 6 | Chấm tự luận | LLM, 2 lần độc lập | high | Message Batches sau khi đóng thi | Lệch nhiều / độ tự tin thấp → người chấm |
 | 6 | Phát hiện bài tự luận giống nhau | Embedding (không dùng LLM) | – | Job nền | Chỉ cảnh báo |
@@ -368,7 +379,7 @@ Khi chạy hàng loạt, cùng tham số này (bỏ `betas` và `fallbacks` vì 
 
 ### Những chỗ cố ý KHÔNG dùng LLM
 
-Lọc điều kiện cứng · tính S_cv, S_test, S_final · chấm trắc nghiệm · thuật toán phân bổ · chuyển trạng thái · tính mức cạnh tranh · SLA, nhắc hạn · tín hiệu gian lận · phân quyền.
+Lọc điều kiện cứng · khớp kỹ năng CV–JD, quy đổi ngoại ngữ, mức khớp ngành ([CONTEXT D42](CONTEXT.md)) · tính S_cv, S_test, S_final · chấm trắc nghiệm · thuật toán phân bổ · chuyển trạng thái · tính mức cạnh tranh · SLA, nhắc hạn · tín hiệu gian lận · phân quyền.
 
 Đây là các bước ảnh hưởng trực tiếp đến quyền lợi sinh viên hoặc có lời giải chính xác bằng code. Dùng LLM ở đây chỉ làm hệ thống đắt hơn, chậm hơn và khó giải thích hơn — một luận điểm nên trình bày rõ khi bảo vệ.
 
@@ -397,7 +408,7 @@ Lọc điều kiện cứng · tính S_cv, S_test, S_final · chấm trắc nghi
 |---|---|
 | Prompt caching: rubric + yêu cầu JD là phần đầu cố định, CV là phần thay đổi | Matching (cache đọc chỉ ~5% giá token vào) |
 | Message Batches API (−50%) | Matching, chấm tự luận — các việc không cần kết quả tức thì |
-| Lọc sơ bộ bằng embedding, chỉ chấm top-M JD mỗi CV | Matching |
+| Khớp kỹ năng, ngoại ngữ, ngành bằng code; LLM chỉ chấm dự án cho top-M JD mỗi CV theo `skill_fit` (CONTEXT D42) | Matching |
 | Sinh ngân hàng câu hỏi một lần cho mỗi JD (hoặc mỗi nhóm vị trí), không sinh riêng cho từng SV | Test Generator |
 | Cache kết quả theo (phiên bản CV, phiên bản JD, phiên bản prompt) — không chấm lại khi không có gì thay đổi | Mọi agent |
 | Ghi `usage` của mỗi lần gọi vào `ai.llm_calls` để đo chi phí thật | Mọi agent |
@@ -414,7 +425,7 @@ Với Gemini 3.8 Flash (nhà cung cấp mặc định, [CONTEXT D34](CONTEXT.md)
 | Phân tích CV | 500 | vào 4K, ra 2K | ~28 USD |
 | Phân tích JD | 50 | vào 3K, ra 2K | ~3 USD |
 | Sinh + kiểm định ngân hàng câu hỏi | 50 ngân hàng | vào ~170K, ra ~110K mỗi ngân hàng | ~145 USD (giảm mạnh nếu dùng chung theo nhóm vị trí) |
-| Chấm phù hợp (top-10 JD mỗi SV) | 5.000 | vào 1,5K + 3K từ cache, ra 2K; Batches | ~115 USD |
+| Chấm phù hợp (top-10 JD mỗi SV) | 5.000 | vào 1,5K + 3K từ cache, ra 2K; Batches. Từ D42 đầu ra chỉ còn tiêu chí dự án và nhận xét, nên số token ra dự kiến giảm; đo lại ở US-3.2 | ~115 USD (cận trên) |
 | Chấm tự luận (2 lần mỗi câu) | 7.500 | vào 1,5K, ra 1,5K; Batches | ~135 USD |
 | Tóm tắt hồ sơ cho HR | ~600 | vào 3K, ra 0,6K | ~14 USD |
 | **Tổng một đợt thật** | | | **~440 USD (~0,9 USD/SV)** |
@@ -454,11 +465,12 @@ Nên đặt giới hạn chi tiêu trên trang quản lý của nhà cung cấp 
 | `companies` | DOANH_NGHIEP | id, name, field, address, contact | – |
 | `users` | TAI_KHOAN_HR + tài khoản khác | id, email, password_hash, invitation_nonce, full_name, role, company_id, student_id, is_active (sso_subject thêm khi làm SSO). HR được mời có `password_hash` rỗng tới khi nhận lời mời; `invitation_nonce` là nonce của lần mời mới nhất (CONTEXT D29) | unique(email); unique(student_id); CHECK(role); chỉ HR có company_id, chỉ STUDENT có student_id (CHECK) |
 | `students` | SINH_VIEN | id, student_code, full_name, major, cohort, gpa | unique(student_code) |
-| `skills` | Danh mục kỹ năng | id, canonical_name, name_key (`skillMatchKey` của tên), aliases TEXT[], alias_keys TEXT[], group, status (`PENDING` → `APPROVED`/`MERGED`/`REJECTED`), merged_into_id, suggestion JSONB, suggestion_model, suggestion_prompt_version, row_version | unique(canonical_name), unique(name_key); CHECK `group` theo `SKILL_GROUPS`, CHECK(status); `APPROVED` có `group`; `MERGED` có `merged_into_id`; gợi ý, model, prompt cùng có hoặc cùng rỗng; `alias_keys` cùng số phần tử với `aliases`, index GIN; trigger `skills_keys_distinct` (chạy lúc commit) giữ mỗi key cho một kỹ năng. AI Service đọc qua view `core.v_ai_skills` (đã duyệt) và `core.v_ai_skill_candidates` (chờ duyệt). Seed 174 kỹ năng IT ([CONTEXT D39](CONTEXT.md)) |
+| `skills` | Danh mục kỹ năng | id, canonical_name, name_key (`skillMatchKey` của tên), aliases TEXT[], alias_keys TEXT[], group, status (`PENDING` → `APPROVED`/`MERGED`/`REJECTED`), merged_into_id, suggestion JSONB, suggestion_model, suggestion_prompt_version, row_version | unique(canonical_name), unique(name_key); CHECK `group` theo `SKILL_GROUPS`, CHECK(status); `APPROVED` có `group`; `MERGED` có `merged_into_id`; gợi ý, model, prompt cùng có hoặc cùng rỗng; `alias_keys` cùng số phần tử với `aliases`, index GIN; trigger `skills_keys_distinct` (chạy lúc commit) giữ mỗi key cho một kỹ năng. AI Service đọc qua view `core.v_ai_skills` (đã duyệt) và `core.v_ai_skill_candidates` (chờ duyệt). Seed 174 kỹ năng IT ([CONTEXT D39](CONTEXT.md)). Cột `family` (CHECK theo `SKILL_FAMILIES`, nullable; vùng suy ra từ họ) ([CONTEXT D42](CONTEXT.md)) |
+| `skill_implications` | Quan hệ kéo theo giữa kỹ năng | skill_id, implied_skill_id | PK(skill_id, implied_skill_id); FK hai đầu tới `skills`; CHECK hai đầu khác nhau; không có chu trình (kiểm bằng TS dưới khóa `SKILL_CATALOGUE`) ([CONTEXT D42](CONTEXT.md)) |
 | `job_descriptions` | JD | id, campaign_id, company_id, title, position_group, location, work_mode, internship_period, allowance, raw_text, file_key, file_name, requirements JSONB, analysis_status, analysis_model, analysis_prompt_version, hidden_text_flag, quota, exam_blueprint JSONB, version, status, row_version | index(campaign_id, status); CHECK(work_mode ∈ ONSITE/HYBRID/REMOTE); `file_key` và `file_name` cùng có hoặc cùng rỗng (CONTEXT D28); CHECK `position_group` theo `POSITION_GROUPS`, `analysis_status` ∈ PENDING/SUCCEEDED/FAILED, `analysis_model` và `analysis_prompt_version` cùng có hoặc cùng rỗng (CONTEXT D35). `requirements` theo hợp đồng `JdRequirements` (`packages/shared/contracts/jd.ts`) |
 | `cvs` | CV | id, student_id, campaign_id, file_key, file_name, profile JSONB (`CvProfile`), pii BYTEA (`pgp_sym_encrypt` của JSON `CvPii`), profile_masked JSONB, masked_text, analysis_source, analysis_model, analysis_prompt_version, analysis_error_code, version, status, active, hidden_text_flag, row_version. Mỗi phiên bản một dòng ([CONTEXT D30, D37](CONTEXT.md)) | unique một CV hiệu lực: partial unique(student_id, campaign_id) WHERE active; unique(student_id, campaign_id, version); CHECK(status), CHECK(version > 0); CHECK `analysis_source` ∈ TEXT_PDF/SCANNED_PDF/DOCX; `analysis_model` và `analysis_prompt_version` cùng có hoặc cùng rỗng; CV ở `PENDING_CONFIRMATION`/`CONFIRMED` có `profile`, `profile_masked`, `pii`, model và nguồn; CV ở `ANALYSIS_FAILED` có mã lỗi |
 | `consents` | – | id, student_id, campaign_id, terms_version, terms_sha256, accepted_at | unique(student_id, campaign_id, terms_version); CHECK(terms_version > 0), CHECK(terms_sha256 là hex 64 ký tự) |
-| `match_results` | KET_QUA_PHU_HOP | cv_id, jd_id, cv_version, jd_version, eligible, ineligible_reasons JSONB, criteria JSONB, s_cv, prompt_version, model | unique(cv_id, jd_id, cv_version, jd_version, prompt_version); index(jd_id, s_cv DESC) |
+| `match_results` | KET_QUA_PHU_HOP | cv_id, jd_id, cv_version, jd_version, eligible, ineligible_reasons JSONB, criteria JSONB (verdict kỹ năng kèm `match_kind`, bậc, nguồn; ngoại ngữ; ngành; độ phủ theo vùng; điểm dự án), skill_fit, skipped_by_prefilter, rules_version, s_cv (null tới khi có điểm dự án), prompt_version, model | unique(cv_id, jd_id, cv_version, jd_version, rules_version, prompt_version) NULLS NOT DISTINCT (chốt ở US-3.2); index(jd_id, s_cv DESC) ([CONTEXT D42](CONTEXT.md)) |
 | `preferences` | NGUYEN_VONG | id, campaign_id, student_id, jd_id, rank, status | unique(student_id, jd_id); unique(campaign_id, student_id, rank) |
 | `question_banks` | – | id, jd_id / position_group, blueprint JSONB, version, locked_at | – |
 | `questions` | CAU_HOI | id, bank_id, type, skill, difficulty, content JSONB, answer_key JSONB, rubric JSONB, status, version | index(bank_id, skill, difficulty, status) |
@@ -600,11 +612,13 @@ sequenceDiagram
     participant PG as PostgreSQL
     participant LLM as LLM API
     Note over BE: Hết hạn nộp CV hoặc Trung tâm bấm Chấm phù hợp
-    BE->>BE: Lọc điều kiện cứng, lập danh sách cặp hợp lệ
-    BE->>MQ: ai.match.run
+    BE->>BE: Lọc điều kiện cứng (CEFR), lập danh sách cặp hợp lệ
+    BE->>BE: Khớp kỹ năng, ngoại ngữ, ngành bằng code; tính skill_fit
+    BE->>PG: Lưu match_results phần code (s_cv null)
+    BE->>BE: Giữ top-M JD mỗi CV theo skill_fit
+    BE->>MQ: ai.match.run (ID cặp top-M)
     MQ->>AI: Nhận job
-    AI->>PG: Đọc hồ sơ đã che PII và yêu cầu JD qua view chỉ đọc
-    AI->>PG: Lấy top-M JD cho mỗi CV bằng pgvector
+    AI->>PG: Đọc hồ sơ đã che PII, yêu cầu JD và verdict kỹ năng qua view chỉ đọc
     AI->>LLM: Tạo Message Batch, sắp request theo JD
     loop Đến khi batch hoàn tất
         AI->>LLM: Kiểm tra trạng thái batch
@@ -613,7 +627,7 @@ sequenceDiagram
     AI->>AI: Kiểm tra schema và trích dẫn
     AI->>MQ: ai.results
     MQ->>BE: Kết quả
-    BE->>BE: Tính S_cv theo trọng số, lập shortlist
+    BE->>BE: Ghép điểm dự án, tính S_cv theo trọng số, lập shortlist
 ```
 
 ### Luồng làm và chấm bài test
@@ -783,8 +797,8 @@ Bám theo PRD › Product Scope. Mỗi giai đoạn là một epic trong PRD ›
 | Giai đoạn | Epic | Nội dung | Kết quả kiểm chứng được |
 |---|---|---|---|
 | 1. Nền tảng (2 tuần) | EPIC-1 | Monorepo pnpm, `packages/shared`; Docker Compose; `iam`, `campaign`, `company`, `student`; tải file lên MinIO; schema và migration Drizzle; DESIGN.md + `shadcn init` | Tạo đợt, HR đăng JD, SV nộp CV |
-| 2. AI cơ bản (2–3 tuần) | EPIC-2 | AI Service, RabbitMQ, `aigateway`; CV Parser, JD Analyzer; màn xác nhận; embedding | SV và HR xác nhận dữ liệu do AI trích xuất |
-| 3. Matching (2 tuần) | EPIC-3 | Matching Agent qua Batches, kiểm tra trích dẫn, tính S_cv, shortlist, chọn nguyện vọng, mức cạnh tranh | SV thấy shortlist có giải thích và chọn NV |
+| 2. AI cơ bản (2–3 tuần) | EPIC-2 | AI Service, RabbitMQ, `aigateway`; CV Parser, JD Analyzer; màn xác nhận; embedding; danh mục kỹ năng có vùng, họ, kéo theo | SV và HR xác nhận dữ liệu do AI trích xuất |
+| 3. Matching (2 tuần) | EPIC-3 | Khớp kỹ năng, ngoại ngữ (CEFR), ngành bằng code; Matching Agent chấm dự án qua Batches, kiểm tra trích dẫn, tính S_cv, shortlist, chọn nguyện vọng, mức cạnh tranh | SV thấy shortlist có giải thích và chọn NV |
 | 4. Thi (3 tuần) | EPIC-4 | Test Generator + Validator, ngân hàng câu hỏi, phòng thi, Grader, phúc khảo | Có S_test, S_final |
 | 5. Phân bổ và HR (2 tuần) | EPIC-5 | Allocation Engine + test, dự thảo/công bố, HR duyệt, phỏng vấn, lời mời, vòng bổ sung | Chạy trọn luồng từ đầu đến cuối |
 | 6. Đánh giá và hoàn thiện (2 tuần) | EPIC-6 | Tập dữ liệu gán nhãn, chạy đánh giá, mô phỏng so sánh, dashboard, báo cáo | Số liệu cho chương thực nghiệm |
@@ -800,7 +814,7 @@ Mỗi quyết định có một mã AD-N; lý do đầy đủ ở mục D tươn
 | ID | Topic | Summary | Version | CONTEXT Ref |
 |----|-------|---------|---------|-------------|
 | AD-1 | Tách tất định khỏi xác suất | Nghiệp vụ (trạng thái, điểm, phân bổ, phân quyền) ở Core Backend; LLM chỉ ở AI Service | pre-0.1.0 | [D1](CONTEXT.md) |
-| AD-2 | LLM không ra quyết định | LLM trả đánh giá từng tiêu chí kèm bằng chứng theo JSON schema; code tính điểm tổng; con người quyết định | pre-0.1.0 | [D2](CONTEXT.md) |
+| AD-2 | LLM không ra quyết định | LLM trả đánh giá tiêu chí kèm bằng chứng theo JSON schema; code tính điểm tổng; con người quyết định. Từ D42, ở GĐ3 LLM chỉ đánh giá tiêu chí dự án | pre-0.1.0, sửa ở 0.13.1 | [D2](CONTEXT.md), [D42](CONTEXT.md) |
 | AD-3 | Modular monolith + AI Service | Core Backend NestJS (TS) + AI Service Python trong monorepo pnpm (phương án A) | pre-0.1.0 | [D3](CONTEXT.md) |
 | AD-4 | Một nguồn sự thật | PostgreSQL + pgvector; schema `core` do Core Backend ghi, schema `ai` do AI Service ghi; AI Service đọc `core` qua view đã che PII | pre-0.1.0 | [D4](CONTEXT.md) |
 | AD-5 | Job AI bất đồng bộ | RabbitMQ; payload chỉ chứa ID; xử lý idempotent theo `job_id`; dead-letter queue | pre-0.1.0 | [D5](CONTEXT.md) |
@@ -813,6 +827,7 @@ Mỗi quyết định có một mã AD-N; lý do đầy đủ ở mục D tươn
 | AD-12 | Tối ưu chi phí LLM | Message Batches + prompt caching cho tác vụ hàng loạt; prompt là file có phiên bản | pre-0.1.0 | [D12](CONTEXT.md) |
 | AD-13 | Cập nhật thời gian thực | Server-Sent Events thay cho WebSocket | pre-0.1.0 | [D13](CONTEXT.md) |
 | AD-14 | Thư viện UI | shadcn/ui + Tailwind CSS thay cho Ant Design | pre-0.1.0 | [D14](CONTEXT.md) |
+| AD-15 | Khớp kỹ năng tất định | Code khớp kỹ năng CV–JD theo danh mục có vùng, họ, quan hệ kéo theo và bậc bằng chứng T0–T4; ngoại ngữ quy về CEFR; ngành theo bảng nhóm ngành; top-M theo `skill_fit`; không dùng LLM hay embedding cho bước này | 0.13.1 (thiết kế; code ở US-2.7, US-3.5, US-3.6) | [D42](CONTEXT.md) |
 
 ---
 

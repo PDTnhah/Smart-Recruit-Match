@@ -8,12 +8,24 @@ points: 8
 sprint:
 version_shipped:
 prd_ref: [FR-15, FR-16]
-depends_on: [US-3.2, US-1.4]
+depends_on: [US-3.2, US-1.4, US-3.5]
 assignee:
 commit:
 created: 2026-10-07
-updated: 2026-10-07
+updated: 2026-11-02
 ---
+
+## Story refresh — 2026-11-02 (CONTEXT D42)
+
+Verdict kỹ năng giờ do code tính ([US-3.5](US-3.5-skill-evidence-code-matching.md), [US-3.6](US-3.6-language-cefr-major-match.md)) và có thêm dữ liệu giải thích. Phần giải thích của shortlist phải hiển thị, trên điện thoại vẫn đọc được:
+
+- **Từng kỹ năng:** kiểu khớp (Đúng kỹ năng / Kéo theo từ *X* / Cùng họ với *X*), bậc bằng chứng (Đã nêu, Đã dùng, Dùng nhiều, Thành thạo) và nguồn trong CV (dự án, kinh nghiệm, chứng chỉ).
+- **Độ phủ theo vùng** của JD, ví dụ Backend 80 %, DevOps 0 %. Hiển thị bằng danh sách thanh ngang, không thêm thư viện biểu đồ.
+- **Ngoại ngữ:** yêu cầu và chứng chỉ của SV kèm bậc CEFR; lý do `LANGUAGE_NOT_MET` hiện bậc CEFR đọc được.
+- **Gợi ý cải thiện:** lấy `suggestions` của Matching Agent; `gaps` là kỹ năng `NOT_MET`/`PARTIAL` do code lập.
+- Nhãn tiếng Việt của kiểu khớp, bậc và vùng dùng chung với US-2.7 (`labels.ts`).
+
+Khi bắt đầu story, thêm AC cho các mục trên và kiểm tay ở 360 / 768 / 1024 px.
 
 ## Goal
 

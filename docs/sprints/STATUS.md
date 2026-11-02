@@ -1,20 +1,23 @@
 # Sprint Status
 
 > **AUTO-GENERATED** by `koni-docs status`. Do not hand-edit (RULE-5).
-> Last generated: 2026-10-30 01:13:29 UTC
-> Total stories: 37
+> Last generated: 2026-11-02 04:30:11 UTC
+> Total stories: 40
 
 ## ⏰ Deadlines (0)
 
 _No stories carry an explicit deadline._
 
-## 📋 Backlog (23)
+## 📋 Backlog (26)
 
 | ID | Title | Epic | Pri | Points | Sprint | Assignee |
 |---|---|---|---|---|---|---|
+| US-2.7 | Vùng, họ và quan hệ kéo theo của kỹ năng | EPIC-2 | P0 | 8 | — | — |
 | US-3.2 | Matching Agent chạy hàng loạt | EPIC-3 | P0 | 8 | — | — |
 | US-3.3 | Shortlist và chọn nguyện vọng | EPIC-3 | P0 | 8 | — | — |
 | US-3.4 | Mức cạnh tranh và gợi ý ít cạnh tranh | EPIC-3 | P1 | 3 | — | — |
+| US-3.5 | Hồ sơ kỹ năng chi tiết và khớp kỹ năng bằng code | EPIC-3 | P0 | 8 | — | — |
+| US-3.6 | Quy đổi ngoại ngữ CEFR và mức khớp ngành bằng code | EPIC-3 | P0 | 5 | — | — |
 | US-4.1 | Ma trận đề và Test Generator | EPIC-4 | P0 | 8 | — | — |
 | US-4.2 | Validator và khóa ngân hàng câu hỏi | EPIC-4 | P0 | 5 | — | — |
 | US-4.3 | Phòng thi | EPIC-4 | P0 | 8 | — | — |
@@ -80,7 +83,7 @@ _No stories_
 
 ## Summary
 
-- 📋 **Backlog**: 23
+- 📋 **Backlog**: 26
 - 🟢 **Ready**: 0
 - 🟡 **In Progress**: 0
 - 👀 **Review**: 1

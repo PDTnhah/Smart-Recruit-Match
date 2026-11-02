@@ -29,14 +29,14 @@ backlog → ready → in-progress → review → done
 
 ## Lộ trình
 
-Theo [CONTEXT D20](../CONTEXT.md): 1 người code, có agent chạy song song; xong trong tháng 12/2026; đủ 37 story phủ FR-1 – FR-37, không cắt. Tổng khoảng 212 điểm, tức khoảng 18 điểm/tuần. Sprint dài 1 tuần (`sprint-YYYY-WNN`).
+Theo [CONTEXT D20](../CONTEXT.md): 1 người code, có agent chạy song song; xong trong tháng 12/2026; đủ 37 story phủ FR-1 – FR-37, không cắt. Tổng khoảng 212 điểm, tức khoảng 18 điểm/tuần. [CONTEXT D42](../CONTEXT.md) thêm US-2.7, US-3.5, US-3.6 (FR-39, FR-40, 21 điểm), thành 40 story, khoảng 233 điểm. Ba story này xếp vào T5–T6, vì dự án đang đi trước lộ trình. Sprint dài 1 tuần (`sprint-YYYY-WNN`).
 
 ### Giai đoạn và mốc
 
 | Giai đoạn | Tuần (ngày) | Story | Điểm | Mốc kiểm chứng | Version |
 |---|---|---|---|---|---|
 | 1. Nền tảng + hạ tầng AI + lõi phân bổ | T1–T4 (05/10–01/11) | US-1.1…US-1.7, US-2.1, US-2.2, US-5.1, US-6.4 | 64 | **M1**: `docker compose up`; tạo đợt, HR đăng JD được duyệt, SV nộp CV; thông báo/SSE; job AI đi qua RabbitMQ; engine phân bổ qua property test; mô phỏng có số liệu đầu tiên | 0.1.x |
-| 2. AI trích xuất CV/JD | T5–T6 (02/11–15/11) | US-2.3…US-2.6, US-3.1, US-6.2 | 32 | **M2**: SV và HR sửa, xác nhận dữ liệu AI trích xuất; xem được chi phí LLM | 0.2.x |
+| 2. AI trích xuất CV/JD | T5–T6 (02/11–15/11) | US-2.3…US-2.7, US-3.1, US-3.5, US-3.6, US-6.2 | 53 | **M2**: SV và HR sửa, xác nhận dữ liệu AI trích xuất; xem được chi phí LLM; khớp kỹ năng, ngoại ngữ, ngành bằng code qua unit test | 0.2.x |
 | 3. Matching, NV, sinh đề | T7–T8 (16/11–29/11) | US-3.2…US-3.4, US-4.1, US-4.2 | 32 | **M3**: SV thấy shortlist có giải thích, chọn NV; ngân hàng câu hỏi đã kiểm định và khóa | 0.3.x |
 | 4. Thi, chấm, đánh giá AI | T9–T10 (30/11–13/12) | US-4.3…US-4.5, US-4.7…US-4.9, US-6.3 | 37 | **M4**: mỗi NV có S_test, S_final; có số liệu đánh giá các agent | 0.4.x |
 | 5. Phân bổ, HR, phỏng vấn, báo cáo | T11–T12 (14/12–27/12) | US-5.2…US-5.5, US-4.6, US-6.1, US-6.5 | 42 | **M5**: chạy trọn luồng từ tạo đợt đến lúc SV nhận thực tập, có vòng bổ sung, phúc khảo, dashboard, xuất báo cáo | 0.5.x |
@@ -52,8 +52,8 @@ Làn A gồm backend và web (TypeScript). Làn B gồm AI Service (Python), hà
 | T2 · W42 · 12–18/10 | US-1.2, US-1.3 | US-5.1 | 18 |
 | T3 · W43 · 19–25/10 | US-1.4, US-1.5 | US-2.1 | 21 |
 | T4 · W44 · 26/10–01/11 | US-1.6, US-1.7 | US-2.2, US-6.4 | 20 |
-| T5 · W45 · 02–08/11 | US-2.3, US-3.1 | US-2.4 | 19 |
-| T6 · W46 · 09–15/11 | US-2.6, US-6.2 | US-2.5 | 13 (tuần đệm) |
+| T5 · W45 · 02–08/11 | US-2.3, US-3.1, US-2.7 | US-2.4, US-3.6 (bắt đầu) | 32 |
+| T6 · W46 · 09–15/11 | US-2.6, US-6.2, US-3.5 | US-2.5, US-3.6 (xong) | 21 |
 | T7 · W47 · 16–22/11 | US-3.2 (phần backend) | US-3.2 (agent), US-4.1 | 16 |
 | T8 · W48 · 23–29/11 | US-3.3, US-3.4 | US-4.2 | 16 |
 | T9 · W49 · 30/11–06/12 | US-4.3, US-4.9 | US-4.8, US-6.3 (bắt đầu) | 23 |
@@ -92,4 +92,4 @@ Theo koni-harness `parallel-orchestration.md` (Tier A):
 
 ## Trạng thái hiện tại
 
-Đã tách 37 story cho 6 epic (`epics/EPIC-1.md` … `EPIC-6.md`). Cả 37 file story đã có trong `stories/` ([CONTEXT D21](../CONTEXT.md)). Khi bắt đầu một story, đọc lại file của nó và thêm khối *Story refresh* nếu spec đã đổi. `sprint-2026-W41` và `sprint-2026-W42` đã đóng. Sprint đang mở: [`sprint-2026-W43`](sprint-2026-W43.md), gồm US-2.1 và sáu story EPIC-1 đang `review` chuyển từ W41, W42.
+Đã tách 40 story cho 6 epic (`epics/EPIC-1.md` … `EPIC-6.md`). Cả 40 file story đã có trong `stories/` ([CONTEXT D21](../CONTEXT.md); US-2.7, US-3.5, US-3.6 thêm theo [CONTEXT D42](../CONTEXT.md)). Khi bắt đầu một story, đọc lại file của nó và thêm khối *Story refresh* nếu spec đã đổi. `sprint-2026-W41` và `sprint-2026-W42` đã đóng. Sprint đang mở: [`sprint-2026-W43`](sprint-2026-W43.md), gồm US-2.1 và sáu story EPIC-1 đang `review` chuyển từ W41, W42.

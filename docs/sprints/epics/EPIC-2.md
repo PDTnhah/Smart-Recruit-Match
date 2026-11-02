@@ -8,6 +8,7 @@ prd_ref:
   - FR-11
   - FR-12
   - FR-13
+  - FR-39
 arch_ref:
   - AD-1
   - AD-4
@@ -16,8 +17,9 @@ arch_ref:
   - AD-10
   - AD-11
   - AD-12
+  - AD-15
 created: 2026-10-07
-updated: 2026-10-07
+updated: 2026-11-02
 ---
 
 ## Goal
@@ -41,6 +43,7 @@ Ranh giới kiến trúc mà epic này giữ (AD-1, AD-4): AI Service không chu
 | 3 | **Trích xuất JD** | US-2.3 | JD Analyzer + màn HR sửa và xác nhận yêu cầu chuẩn hóa, phiên bản yêu cầu |
 | 4 | **Trích xuất CV** | US-2.4, US-2.6 | CV Parser có phát hiện chữ ẩn và tách PII; màn SV sửa và xác nhận hồ sơ |
 | 5 | **Embedding và danh mục kỹ năng** | US-2.5 | bge-m3, `ai.embeddings`, chuẩn hóa tên kỹ năng, quản trị duyệt kỹ năng mới |
+| 6 | **Taxonomy kỹ năng** | US-2.7 | Vùng, họ (kỹ năng thay thế được), quan hệ kéo theo, năng lực chuẩn của kỹ năng mềm; nền cho khớp kỹ năng bằng code ở EPIC-3 ([CONTEXT D42](../../CONTEXT.md)) |
 
 ### Schedule and dependencies
 
@@ -52,10 +55,11 @@ Ranh giới kiến trúc mà epic này giữ (AD-1, AD-4): AI Service không chu
 | US-2.4 | 8 | T5 (W45), làm sớm ở W44 | B | US-1.6, US-2.2 |
 | US-2.5 | 8 | T6 (W46), làm sớm ở W44 | B | US-2.1, US-2.4 |
 | US-2.6 | 5 | T6 (W46) | A | US-2.4 |
+| US-2.7 | 8 | T5 (W45) | A | US-2.5 |
 
 ### Out of scope
 
-- **Chấm phù hợp CV–JD, shortlist** — thuộc [EPIC-3](EPIC-3.md). EPIC-2 chỉ tạo embedding để EPIC-3 lọc sơ bộ.
+- **Chấm phù hợp CV–JD, shortlist** — thuộc [EPIC-3](EPIC-3.md). EPIC-2 tạo danh mục kỹ năng có taxonomy để EPIC-3 khớp kỹ năng bằng code; lọc sơ bộ dùng `skill_fit`, không dùng embedding ([CONTEXT D42](../../CONTEXT.md)).
 - **Sinh ngân hàng câu hỏi** — thuộc [EPIC-4](EPIC-4.md) (US-4.1), dù job này chạy ngay sau khi JD được duyệt.
 - **Dashboard chi phí LLM** — thuộc [EPIC-6](EPIC-6.md) (US-6.2). EPIC-2 chỉ ghi `ai.llm_calls`.
 - **Bộ đánh giá chất lượng trích xuất (P/R/F1)** — thuộc [EPIC-6](EPIC-6.md) (US-6.3).
@@ -70,6 +74,7 @@ Ranh giới kiến trúc mà epic này giữ (AD-1, AD-4): AI Service không chu
 | FR-11 | US-2.4 | ✅ done |
 | FR-12 | US-2.6 | ✅ done |
 | FR-13 | US-2.5 | ✅ done |
+| FR-39 | US-2.7 | 📋 backlog |
 
 > NFR-3 (không gửi PII không cần thiết cho LLM), NFR-6 (< 30 giây/CV), NFR-10 (job có retry) và NFR-12 (thay được mô hình) được thực thi trong epic này.
 
@@ -84,6 +89,7 @@ Ranh giới kiến trúc mà epic này giữ (AD-1, AD-4): AI Service không chu
 | AD-10 | Một model cho mỗi nhà cung cấp (Gemini mặc định, Claude thay thế, D34), mọi lượt gọi qua `LLMClient` | US-2.2 |
 | AD-11 | Embedding `bge-m3` tự host | US-2.5 |
 | AD-12 | Prompt có phiên bản (phần Batches/caching dùng ở EPIC-3, EPIC-4) | US-2.2 |
+| AD-15 | Khớp kỹ năng tất định: taxonomy vùng, họ, kéo theo do người duyệt | US-2.7 |
 
 ## Stories
 
@@ -95,6 +101,7 @@ Ranh giới kiến trúc mà epic này giữ (AD-1, AD-4): AI Service không chu
 | US-2.4 | CV Parser: chữ ẩn, tách PII | CV thành hồ sơ năng lực có `profile_masked`, chặn chữ ẩn | ✅ done | 0.10.0 |
 | US-2.5 | Embedding và danh mục kỹ năng | Tên kỹ năng được chuẩn hóa; quản trị duyệt kỹ năng mới | ✅ done | 0.11.0 |
 | US-2.6 | SV xác nhận hồ sơ năng lực | SV xem CV bên cạnh hồ sơ, sửa và xác nhận | ✅ done | 0.12.0 |
+| US-2.7 | Vùng, họ và quan hệ kéo theo của kỹ năng | ADMIN gán vùng, họ, kéo theo; `matching` đọc taxonomy | 📋 backlog | — |
 
 ## Object map & user-story interactions
 
@@ -108,6 +115,7 @@ Ranh giới kiến trúc mà epic này giữ (AD-1, AD-4): AI Service không chu
 | US-2.4 | agent `cv_parser`; `ai-service/app/parsing/` (`pii.py`); `cvs.profile`, `cvs.pii`, `cvs.profile_masked`, `cvs.masked_text`, `analysis_*`, `hidden_text_flag`; trạng thái `ANALYSIS_FAILED` | FR-11 |
 | US-2.5 | `ai-service/app/embedding/`; `ai.embeddings`; `skills` | FR-13 |
 | US-2.6 | `apps/web/src/features/student/`; vòng đời CV | FR-12 |
+| US-2.7 | `skills.family`, `skill_implications`; `SkillCatalogService.taxonomy()`; `apps/web/src/features/center/skills/` | FR-39 |
 
 ## Cross-cutting invariants
 
@@ -147,3 +155,4 @@ Ranh giới kiến trúc mà epic này giữ (AD-1, AD-4): AI Service không chu
 - [ ] CV có chữ ẩn bị gắn cờ và chữ ẩn bị loại; `profile_masked` không chứa PII (US-2.4)
 - [ ] Kỹ năng "ReactJS", "React.js" được chuẩn hóa thành `React`; kỹ năng mới chờ quản trị duyệt (US-2.5)
 - [ ] SV xem CV bên cạnh hồ sơ năng lực, sửa và xác nhận; hồ sơ chưa xác nhận không được chấm (US-2.6)
+- [ ] Danh mục kỹ năng có vùng, họ, quan hệ kéo theo; quan hệ tạo chu trình bị chặn; `matching` đọc được bao đóng kéo theo (US-2.7)
