@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { CAMPAIGN_STATES, type CampaignStatus } from '../states/campaign.js';
-import { RowVersionSchema } from './common.js';
+import { RowVersionSchema, whenValid } from './common.js';
 
 // Campaign setup (FR-2, PRD GĐ0, CONTEXT D27). The web form and the API validate with these
 // schemas. Keys inside `phaseDeadlines` and `config` are snake_case: they are stored as-is in
@@ -108,14 +108,6 @@ export type ScvWeightKey = (typeof SCV_WEIGHT_KEYS)[number];
 const WEIGHTS_MESSAGE = 'α + β phải bằng 1';
 
 const SCV_WEIGHTS_MESSAGE = 'Tổng 5 trọng số S_cv phải bằng 1';
-
-/**
- * Runs a cross-field check as long as the fields it reads are valid, even when other fields are
- * not, so the form shows every error at once (Zod skips object refinements after any issue).
- */
-const whenValid = (fields: readonly string[]) => ({
-  when: (payload: z.core.ParsePayload) => payload.issues.every((issue) => !fields.includes(String(issue.path?.[0]))),
-});
 
 function checkWeights(
   config: { alpha?: number | undefined; beta?: number | undefined },

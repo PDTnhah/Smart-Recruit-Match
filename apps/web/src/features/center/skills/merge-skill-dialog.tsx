@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { type AdminSkill, type CatalogSkill, type MergeSkillRequest, MergeSkillRequestSchema } from '@srm/shared';
 import { CircleAlert, Merge, SearchX } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Controller, type DefaultValues, useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import type { z } from 'zod';
@@ -33,6 +33,7 @@ import { Input } from '@/components/ui/input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Spinner } from '@/components/ui/spinner';
+import { useDebounced } from '@/hooks/use-debounced';
 import { apiErrorMessage } from '@/shared/api/errors';
 import { useCatalogSkills, useMergeSkill } from './api';
 import { SKILL_GROUP_LABELS, skillReviewErrorMessage } from './labels';
@@ -42,15 +43,6 @@ type FormInput = z.input<typeof MergeSkillRequestSchema>;
 /** Few enough options to fit the dialog without scrolling; typing narrows them. */
 const PICKER_LIMIT = 6;
 const SEARCH_DELAY_MS = 250;
-
-function useDebounced(value: string, delayMs: number): string {
-  const [debounced, setDebounced] = useState(value);
-  useEffect(() => {
-    const timer = setTimeout(() => setDebounced(value), delayMs);
-    return () => clearTimeout(timer);
-  }, [value, delayMs]);
-  return debounced;
-}
 
 /** No target yet: the schema asks for one. */
 function defaultsOf(skill: AdminSkill): DefaultValues<FormInput> {

@@ -6,25 +6,28 @@ import {
   CatalogSkillListSchema,
   type MergeSkillRequest,
   type SkillStatus,
+  type SkillZone,
+  type UpdateSkillTaxonomyRequest,
 } from '@srm/shared';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, unwrap } from '@/shared/api/client';
 
-// API hooks of "Danh mục kỹ năng" in the admin portal (US-2.5 AC-7, CONTEXT D39). Responses are
-// parsed with the shared schemas, so the screen uses the same types as the API.
+// API hooks of "Danh mục kỹ năng" in the admin portal (US-2.5 AC-7, US-2.7, CONTEXT D39, D43).
+// Responses are parsed with the shared schemas, so the screen uses the same types as the API.
 
 export const skillKeys = {
   admin: ['skills', 'admin'] as const,
-  adminList: (status: SkillStatus) => ['skills', 'admin', status] as const,
+  adminList: (status: SkillStatus, zone: SkillZone | undefined) => ['skills', 'admin', status, zone ?? null] as const,
   catalog: (query: string, limit: number) => ['skills', 'catalog', query, limit] as const,
 };
 
-/** Skills by review status, oldest first (the API returns at most 500). */
-export function useAdminSkills(status: SkillStatus) {
+/** Skills by review status, oldest first (the API returns at most 500); with `zone`, only its skills. */
+export function useAdminSkills(status: SkillStatus, zone?: SkillZone) {
   return useQuery({
-    queryKey: skillKeys.adminList(status),
+    queryKey: skillKeys.adminList(status, zone),
     queryFn: async () =>
-      AdminSkillListSchema.parse(unwrap(await api.GET('/api/admin/skills', { params: { query: { status } } }))).items,
+      AdminSkillListSchema.parse(unwrap(await api.GET('/api/admin/skills', { params: { query: { status, zone } } })))
+        .items,
   });
 }
 
@@ -64,6 +67,18 @@ export function useMergeSkill(id: number) {
   return useMutation({
     mutationFn: async (body: MergeSkillRequest): Promise<AdminSkill> =>
       AdminSkillSchema.parse(unwrap(await api.POST('/api/admin/skills/{id}/merge', { params: { path: { id } }, body }))),
+    onSuccess: refresh,
+  });
+}
+
+/** Replaces the family and the implied skills of an approved skill: send both (US-2.7 AC-6). */
+export function useUpdateSkillTaxonomy(id: number) {
+  const refresh = useRefreshSkills();
+  return useMutation({
+    mutationFn: async (body: UpdateSkillTaxonomyRequest): Promise<AdminSkill> =>
+      AdminSkillSchema.parse(
+        unwrap(await api.PATCH('/api/admin/skills/{id}/taxonomy', { params: { path: { id } }, body })),
+      ),
     onSuccess: refresh,
   });
 }

@@ -89,3 +89,232 @@ export const SkillSuggestionsSchema = z
   .meta({ title: 'SkillSuggestions', description: 'Structured output of the skill normalizer' });
 
 export type SkillSuggestions = z.output<typeof SkillSuggestionsSchema>;
+
+// Skill taxonomy (FR-39, US-2.7, CONTEXT D42, D43). Code matches CV skills to JD skills by three
+// facts ADMIN keeps on the catalogue: the zone (field of work) of a skill, its family (skills that
+// can stand in for each other) and the skills it implies. No LLM or embedding decides them (AD-15).
+
+/** Field of work of a skill; a skill's zone follows from its family. */
+export const SKILL_ZONES = [
+  'FOUNDATION',
+  'BACKEND',
+  'FRONTEND',
+  'MOBILE',
+  'DATABASE',
+  'DATA_AI',
+  'DEVOPS_CLOUD',
+  'TESTING_QA',
+  'BUSINESS_ANALYSIS',
+  'PROCESS',
+  'SECURITY_NETWORK',
+  'EMBEDDED_IOT',
+  'GAME_DEV',
+  'BLOCKCHAIN',
+  'SOFT_SKILL',
+] as const;
+
+export type SkillZone = (typeof SKILL_ZONES)[number];
+
+/**
+ * Family of skills that can stand in for each other, e.g. PostgreSQL and MySQL. A family may have
+ * one skill, so a skill without a substitute still has a zone. The families of the SOFT_SKILL zone
+ * are the standard soft-skill competencies (PRD › Kỹ năng mềm).
+ */
+export const SKILL_FAMILIES = [
+  // FOUNDATION
+  'SYSTEMS_LANGUAGE',
+  'MANAGED_LANGUAGE',
+  'SCRIPTING_LANGUAGE',
+  'SOFTWARE_DESIGN',
+  'ALGORITHMS',
+  'VERSION_CONTROL',
+  'IDE',
+  'FOREIGN_LANGUAGE',
+  // BACKEND
+  'BACKEND_FRAMEWORK',
+  'ORM',
+  'WEB_API',
+  'MESSAGE_BROKER',
+  'SOFTWARE_ARCHITECTURE',
+  'JVM_BUILD_TOOL',
+  // FRONTEND
+  'JS_TS',
+  'WEB_MARKUP_STYLING',
+  'SPA_FRAMEWORK',
+  'META_FRAMEWORK',
+  'DOM_LIBRARY',
+  'STATE_MANAGEMENT',
+  'FRONTEND_BUILD',
+  'UI_DESIGN',
+  // MOBILE
+  'NATIVE_MOBILE_PLATFORM',
+  'NATIVE_UI_TOOLKIT',
+  'MOBILE_LANGUAGE',
+  'CROSS_PLATFORM_MOBILE',
+  // DATABASE
+  'SQL',
+  'RELATIONAL_DB',
+  'NOSQL_DB',
+  // DATA_AI
+  'AI_FIELD',
+  'ML_FRAMEWORK',
+  'PYTHON_DATA_TOOL',
+  'DATA_ANALYTICS',
+  'NUMERIC_LANGUAGE',
+  'BI_TOOL',
+  'DATA_ENGINEERING',
+  'BIG_DATA',
+  // DEVOPS_CLOUD
+  'CONTAINERIZATION',
+  'CLOUD_PROVIDER',
+  'CI_CD',
+  'IAC',
+  'LINUX_SHELL',
+  'WEB_SERVER',
+  'MONITORING',
+  // TESTING_QA
+  'MANUAL_QA',
+  'TEST_AUTOMATION',
+  'UNIT_TESTING',
+  'API_TESTING',
+  'PERFORMANCE_TESTING',
+  // BUSINESS_ANALYSIS
+  'REQUIREMENTS',
+  'MODELING_NOTATION',
+  // PROCESS
+  'SOFTWARE_PROCESS',
+  'PROJECT_TOOL',
+  // SECURITY_NETWORK
+  'NETWORKING',
+  'INFORMATION_SECURITY',
+  // EMBEDDED_IOT, GAME_DEV, BLOCKCHAIN
+  'EMBEDDED_SYSTEMS',
+  'GAME_ENGINE',
+  'BLOCKCHAIN_PLATFORM',
+  // SOFT_SKILL: the standard competencies
+  'COMMUNICATION',
+  'TEAMWORK',
+  'LEADERSHIP',
+  'PROBLEM_SOLVING',
+  'PRESENTATION',
+  'CRITICAL_THINKING',
+  'SELF_LEARNING',
+  'TIME_MANAGEMENT',
+  'PROACTIVENESS',
+  'RESPONSIBILITY',
+  'ADAPTABILITY',
+  'ATTENTION_TO_DETAIL',
+] as const;
+
+export type SkillFamily = (typeof SKILL_FAMILIES)[number];
+
+/** The zone of each family. The Record type makes a family without a zone a compile error. */
+export const FAMILY_ZONE: Readonly<Record<SkillFamily, SkillZone>> = {
+  SYSTEMS_LANGUAGE: 'FOUNDATION',
+  MANAGED_LANGUAGE: 'FOUNDATION',
+  SCRIPTING_LANGUAGE: 'FOUNDATION',
+  SOFTWARE_DESIGN: 'FOUNDATION',
+  ALGORITHMS: 'FOUNDATION',
+  VERSION_CONTROL: 'FOUNDATION',
+  IDE: 'FOUNDATION',
+  FOREIGN_LANGUAGE: 'FOUNDATION',
+  BACKEND_FRAMEWORK: 'BACKEND',
+  ORM: 'BACKEND',
+  WEB_API: 'BACKEND',
+  MESSAGE_BROKER: 'BACKEND',
+  SOFTWARE_ARCHITECTURE: 'BACKEND',
+  JVM_BUILD_TOOL: 'BACKEND',
+  JS_TS: 'FRONTEND',
+  WEB_MARKUP_STYLING: 'FRONTEND',
+  SPA_FRAMEWORK: 'FRONTEND',
+  META_FRAMEWORK: 'FRONTEND',
+  DOM_LIBRARY: 'FRONTEND',
+  STATE_MANAGEMENT: 'FRONTEND',
+  FRONTEND_BUILD: 'FRONTEND',
+  UI_DESIGN: 'FRONTEND',
+  NATIVE_MOBILE_PLATFORM: 'MOBILE',
+  NATIVE_UI_TOOLKIT: 'MOBILE',
+  MOBILE_LANGUAGE: 'MOBILE',
+  CROSS_PLATFORM_MOBILE: 'MOBILE',
+  SQL: 'DATABASE',
+  RELATIONAL_DB: 'DATABASE',
+  NOSQL_DB: 'DATABASE',
+  AI_FIELD: 'DATA_AI',
+  ML_FRAMEWORK: 'DATA_AI',
+  PYTHON_DATA_TOOL: 'DATA_AI',
+  DATA_ANALYTICS: 'DATA_AI',
+  NUMERIC_LANGUAGE: 'DATA_AI',
+  BI_TOOL: 'DATA_AI',
+  DATA_ENGINEERING: 'DATA_AI',
+  BIG_DATA: 'DATA_AI',
+  CONTAINERIZATION: 'DEVOPS_CLOUD',
+  CLOUD_PROVIDER: 'DEVOPS_CLOUD',
+  CI_CD: 'DEVOPS_CLOUD',
+  IAC: 'DEVOPS_CLOUD',
+  LINUX_SHELL: 'DEVOPS_CLOUD',
+  WEB_SERVER: 'DEVOPS_CLOUD',
+  MONITORING: 'DEVOPS_CLOUD',
+  MANUAL_QA: 'TESTING_QA',
+  TEST_AUTOMATION: 'TESTING_QA',
+  UNIT_TESTING: 'TESTING_QA',
+  API_TESTING: 'TESTING_QA',
+  PERFORMANCE_TESTING: 'TESTING_QA',
+  REQUIREMENTS: 'BUSINESS_ANALYSIS',
+  MODELING_NOTATION: 'BUSINESS_ANALYSIS',
+  SOFTWARE_PROCESS: 'PROCESS',
+  PROJECT_TOOL: 'PROCESS',
+  NETWORKING: 'SECURITY_NETWORK',
+  INFORMATION_SECURITY: 'SECURITY_NETWORK',
+  EMBEDDED_SYSTEMS: 'EMBEDDED_IOT',
+  GAME_ENGINE: 'GAME_DEV',
+  BLOCKCHAIN_PLATFORM: 'BLOCKCHAIN',
+  COMMUNICATION: 'SOFT_SKILL',
+  TEAMWORK: 'SOFT_SKILL',
+  LEADERSHIP: 'SOFT_SKILL',
+  PROBLEM_SOLVING: 'SOFT_SKILL',
+  PRESENTATION: 'SOFT_SKILL',
+  CRITICAL_THINKING: 'SOFT_SKILL',
+  SELF_LEARNING: 'SOFT_SKILL',
+  TIME_MANAGEMENT: 'SOFT_SKILL',
+  PROACTIVENESS: 'SOFT_SKILL',
+  RESPONSIBILITY: 'SOFT_SKILL',
+  ADAPTABILITY: 'SOFT_SKILL',
+  ATTENTION_TO_DETAIL: 'SOFT_SKILL',
+};
+
+/** The zone of a skill: that of its family; none without one. */
+export function zoneOf(family: SkillFamily | null): SkillZone | null {
+  return family === null ? null : FAMILY_ZONE[family];
+}
+
+/** Families of `zone`, in SKILL_FAMILIES order. */
+export function familiesOfZone(zone: SkillZone): SkillFamily[] {
+  return SKILL_FAMILIES.filter((family) => FAMILY_ZONE[family] === zone);
+}
+
+/** The standard soft-skill competencies. Only SOFT_SKILL skills take them (core.skills CHECK). */
+export const SOFT_SKILL_FAMILIES: readonly SkillFamily[] = familiesOfZone('SOFT_SKILL');
+
+/** Whether a skill of `group` may belong to `family`: soft skills ⇔ soft-skill families. */
+export function familyFitsGroup(group: SkillGroup, family: SkillFamily): boolean {
+  return (group === 'SOFT_SKILL') === (FAMILY_ZONE[family] === 'SOFT_SKILL');
+}
+
+/** Most skills one skill implies directly (CONTEXT D43). */
+export const MAX_IMPLIED_SKILLS = 5;
+
+/**
+ * One approved skill as the `matching` module reads it (`SkillCatalogService.taxonomy()`, AC-8).
+ * `impliedSkillIds` is the closure: every skill this one implies, directly or through others.
+ */
+export interface SkillTaxonomyEntry {
+  skillId: number;
+  canonicalName: string;
+  nameKey: string;
+  aliasKeys: string[];
+  group: SkillGroup;
+  family: SkillFamily | null;
+  zone: SkillZone | null;
+  /** Ascending. */
+  impliedSkillIds: number[];
+}

@@ -41,15 +41,21 @@ describe('AD-4: database roles of the AI Service and the API', () => {
   let owner: Client;
   let ai: Client;
   let coreTables: string[];
+  /** A column of each core table to name in UPDATE: not every table has `id` (skill_implications). */
+  let firstColumns: Map<string, string>;
 
   beforeAll(async () => {
     owner = await connect(ownerDatabaseUrl());
     ai = await connect(aiDatabaseUrl());
-    const { rows } = await owner.query<{ table_name: string }>(
-      `SELECT table_name FROM information_schema.tables
-       WHERE table_schema = 'core' AND table_type = 'BASE TABLE' ORDER BY table_name`,
+    const { rows } = await owner.query<{ table_name: string; column_name: string }>(
+      `SELECT DISTINCT ON (c.table_name) c.table_name, c.column_name
+       FROM information_schema.columns c
+       JOIN information_schema.tables t ON t.table_schema = c.table_schema AND t.table_name = c.table_name
+       WHERE c.table_schema = 'core' AND t.table_type = 'BASE TABLE'
+       ORDER BY c.table_name, c.ordinal_position`,
     );
     coreTables = rows.map((r) => r.table_name);
+    firstColumns = new Map(rows.map((r) => [r.table_name, r.column_name]));
   });
 
   afterAll(async () => {
@@ -61,7 +67,7 @@ describe('AD-4: database roles of the AI Service and the API', () => {
     expect(coreTables).toContain('cvs');
     for (const table of coreTables) {
       await expectDenied(ai.query(`INSERT INTO core.${table} DEFAULT VALUES`));
-      await expectDenied(ai.query(`UPDATE core.${table} SET id = DEFAULT WHERE false`));
+      await expectDenied(ai.query(`UPDATE core.${table} SET ${firstColumns.get(table)} = DEFAULT WHERE false`));
       await expectDenied(ai.query(`DELETE FROM core.${table} WHERE false`));
       await expectDenied(ai.query(`TRUNCATE core.${table}`));
       await expectDenied(ai.query(`SELECT 1 FROM core.${table} LIMIT 1`));

@@ -3,6 +3,7 @@ import { useEffect, useId, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { useCatalogSkills } from '@/features/center/skills/api';
+import { useListboxActive } from '@/hooks/use-listbox-active';
 import { cn } from '@/lib/utils';
 
 /** Suggestions under the input; enough to pick from on a phone without scrolling. */
@@ -40,7 +41,6 @@ interface SkillInputProps {
 export function SkillInput({ id, value, onChange, onBlur, invalid }: SkillInputProps) {
   const listId = useId();
   const [open, setOpen] = useState(false);
-  const [active, setActive] = useState(-1);
   const [query, setQuery] = useState(value.name.trim());
   useEffect(() => {
     const timer = setTimeout(() => setQuery(value.name.trim()), DEBOUNCE_MS);
@@ -49,6 +49,7 @@ export function SkillInput({ id, value, onChange, onBlur, invalid }: SkillInputP
   const catalogue = useCatalogSkills(query, SUGGESTION_LIMIT, { enabled: query !== '' });
   const suggestions = query === '' ? [] : (catalogue.data ?? []);
   const shown = open && suggestions.length > 0;
+  const { active, move, reset } = useListboxActive(suggestions.map((skill) => skill.id));
   const matched = value.match === 'NEW' ? catalogueMatch(suggestions, value.name) : undefined;
   // Only once the suggestions are for what is typed: the query trails the input by DEBOUNCE_MS.
   const settled = query === value.name.trim() && !catalogue.isFetching;
@@ -58,7 +59,7 @@ export function SkillInput({ id, value, onChange, onBlur, invalid }: SkillInputP
   function pick(skill: CatalogSkill) {
     onChange({ name: skill.canonicalName, canonical_name: skill.canonicalName, match: 'ALIAS' });
     setOpen(false);
-    setActive(-1);
+    reset();
   }
 
   return (
@@ -77,7 +78,7 @@ export function SkillInput({ id, value, onChange, onBlur, invalid }: SkillInputP
         onChange={(event) => {
           onChange({ name: event.target.value, canonical_name: null, match: 'NEW' });
           setOpen(true);
-          setActive(-1);
+          reset();
         }}
         onFocus={() => setOpen(true)}
         onBlur={() => {
@@ -88,8 +89,7 @@ export function SkillInput({ id, value, onChange, onBlur, invalid }: SkillInputP
           if (!shown) return;
           if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
             event.preventDefault();
-            const step = event.key === 'ArrowDown' ? 1 : -1;
-            setActive((current) => (current + step + suggestions.length) % suggestions.length);
+            move(event.key === 'ArrowDown' ? 1 : -1);
           } else if (event.key === 'Enter' && active >= 0) {
             event.preventDefault();
             pick(suggestions[active]!);

@@ -302,3 +302,33 @@ export class SkillNameTakenError extends DomainError {
     });
   }
 }
+
+// Skill taxonomy (US-2.7, CONTEXT D43).
+
+/**
+ * The implications asked for would close a cycle, or a skill would imply itself. `details.path`
+ * runs from the skill being edited back to it (`[A, B, A]`; `[A, A]` for itself).
+ */
+export class SkillImplicationCycleError extends DomainError {
+  readonly code = 'SKILL_IMPLICATION_CYCLE';
+  readonly httpStatus = 422;
+
+  constructor(path: ReadonlyArray<{ id: number; canonicalName: string }>) {
+    super(`implications would form a cycle: ${path.map((skill) => skill.canonicalName).join(' => ')}`, {
+      path: path.map(({ id, canonicalName }) => ({ id, canonicalName })),
+    });
+  }
+}
+
+/**
+ * Only approved skills carry a taxonomy and only they may be implied: `skillIds` are the skills
+ * named that are not approved (or do not exist).
+ */
+export class SkillNotApprovedError extends DomainError {
+  readonly code = 'SKILL_NOT_APPROVED';
+  readonly httpStatus = 422;
+
+  constructor(skillIds: readonly number[]) {
+    super(`skills ${skillIds.join(', ')} are not approved skills`, { skillIds: [...skillIds] });
+  }
+}

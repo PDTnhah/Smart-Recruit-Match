@@ -1,18 +1,17 @@
 # Sprint Status
 
 > **AUTO-GENERATED** by `koni-docs status`. Do not hand-edit (RULE-5).
-> Last generated: 2026-11-02 04:30:11 UTC
+> Last generated: 2026-11-02 13:20:48 UTC
 > Total stories: 40
 
 ## ⏰ Deadlines (0)
 
 _No stories carry an explicit deadline._
 
-## 📋 Backlog (26)
+## 📋 Backlog (25)
 
 | ID | Title | Epic | Pri | Points | Sprint | Assignee |
 |---|---|---|---|---|---|---|
-| US-2.7 | Vùng, họ và quan hệ kéo theo của kỹ năng | EPIC-2 | P0 | 8 | — | — |
 | US-3.2 | Matching Agent chạy hàng loạt | EPIC-3 | P0 | 8 | — | — |
 | US-3.3 | Shortlist và chọn nguyện vọng | EPIC-3 | P0 | 8 | — | — |
 | US-3.4 | Mức cạnh tranh và gợi ý ít cạnh tranh | EPIC-3 | P1 | 3 | — | — |
@@ -47,10 +46,11 @@ _No stories_
 
 _No stories_
 
-## 👀 Review (1)
+## 👀 Review (2)
 
 | ID | Title | Epic | Pri | Points | Sprint | Assignee |
 |---|---|---|---|---|---|---|
+| US-2.7 | Vùng, họ và quan hệ kéo theo của kỹ năng | EPIC-2 | P0 | 8 | sprint-2026-W45 | PDTnhah |
 | US-3.1 | Lọc điều kiện cứng và công thức S_cv | EPIC-3 | P0 | 5 | sprint-2026-W44 | PDTnhah |
 
 ## ✅ Done (13)
@@ -83,10 +83,10 @@ _No stories_
 
 ## Summary
 
-- 📋 **Backlog**: 26
+- 📋 **Backlog**: 25
 - 🟢 **Ready**: 0
 - 🟡 **In Progress**: 0
-- 👀 **Review**: 1
+- 👀 **Review**: 2
 - ✅ **Done**: 13
 - 🚫 **Blocked**: 0
 - 🗑️ **Deprecated**: 0

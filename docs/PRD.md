@@ -893,7 +893,7 @@ Mọi thông báo đều hiện trong ứng dụng (chuông ở ba cổng, cập
 | FR-36 | Mô phỏng so sánh Deferred Acceptance với các phương án đối chứng | P1 | 📋 backlog | EPIC-6 |
 | FR-37 | Theo dõi token và chi phí LLM theo agent và theo đợt | P1 | 📋 backlog | EPIC-6 |
 | FR-38 | Cán bộ Trung tâm xem kết quả chấm phù hợp theo JD: CV phù hợp sắp theo S_cv, tỷ lệ CV phù hợp / chỉ tiêu, số cặp bị lọc sơ bộ; ngay sau GĐ3 hệ thống báo các JD có tỷ lệ < 1. HR không xem được (UC-09, BR-11, GĐ3) | P1 | 📋 backlog | EPIC-3 |
-| FR-39 | Danh mục kỹ năng có vùng, họ (nhóm kỹ năng thay thế được cho nhau) và quan hệ kéo theo; kỹ năng mềm quy về bộ năng lực chuẩn; Quản trị gán và sửa khi duyệt kỹ năng (GĐ2, FR-13, [CONTEXT D42](CONTEXT.md)) | P0 | 📋 backlog | EPIC-2 |
+| FR-39 | Danh mục kỹ năng có vùng, họ (nhóm kỹ năng thay thế được cho nhau) và quan hệ kéo theo; kỹ năng mềm quy về bộ năng lực chuẩn; Quản trị gán và sửa khi duyệt kỹ năng (GĐ2, FR-13, [CONTEXT D42](CONTEXT.md)) | P0 | 🚧 In progress | EPIC-2 |
 | FR-40 | Khớp kỹ năng CV–JD bằng code, không dùng LLM: bậc bằng chứng của từng kỹ năng (cả kỹ năng mềm), khớp đúng / kéo theo / cùng họ, quy đổi ngoại ngữ theo CEFR (cả điều kiện cứng), ngoại ngữ ưu tiên của JD, mức khớp ngành, độ phủ theo vùng; mọi verdict kèm nguồn trong CV (GĐ3, NFR-4, [CONTEXT D42](CONTEXT.md)) | P0 | 📋 backlog | EPIC-3 |
 
 Priority: `P0` = bắt buộc cho MVP, `P1` = nên có, `P2` = tùy chọn, `P3` = mở rộng. Status: `✅ shipped (vX.Y.Z)` / `🚧 in-progress` / `📋 backlog` / `⏪ reverted in vX.Y.Z` / `🗑️ deprecated vX.Y.Z`.

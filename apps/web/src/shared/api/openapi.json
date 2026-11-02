@@ -1043,6 +1043,31 @@
                 "MERGED"
               ]
             }
+          },
+          {
+            "name": "zone",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "FOUNDATION",
+                "BACKEND",
+                "FRONTEND",
+                "MOBILE",
+                "DATABASE",
+                "DATA_AI",
+                "DEVOPS_CLOUD",
+                "TESTING_QA",
+                "BUSINESS_ANALYSIS",
+                "PROCESS",
+                "SECURITY_NETWORK",
+                "EMBEDDED_IOT",
+                "GAME_DEV",
+                "BLOCKCHAIN",
+                "SOFT_SKILL"
+              ]
+            }
           }
         ],
         "responses": {
@@ -1185,6 +1210,54 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/RejectSkillRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminSkillDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/skills/{id}/taxonomy": {
+      "patch": {
+        "operationId": "AdminSkillsController_updateTaxonomy",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "maximum": 9007199254740991,
+              "exclusiveMinimum": true,
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSkillTaxonomyRequestDto"
               }
             }
           }
@@ -4372,6 +4445,126 @@
                   ],
                   "nullable": true
                 },
+                "family": {
+                  "type": "string",
+                  "enum": [
+                    "SYSTEMS_LANGUAGE",
+                    "MANAGED_LANGUAGE",
+                    "SCRIPTING_LANGUAGE",
+                    "SOFTWARE_DESIGN",
+                    "ALGORITHMS",
+                    "VERSION_CONTROL",
+                    "IDE",
+                    "FOREIGN_LANGUAGE",
+                    "BACKEND_FRAMEWORK",
+                    "ORM",
+                    "WEB_API",
+                    "MESSAGE_BROKER",
+                    "SOFTWARE_ARCHITECTURE",
+                    "JVM_BUILD_TOOL",
+                    "JS_TS",
+                    "WEB_MARKUP_STYLING",
+                    "SPA_FRAMEWORK",
+                    "META_FRAMEWORK",
+                    "DOM_LIBRARY",
+                    "STATE_MANAGEMENT",
+                    "FRONTEND_BUILD",
+                    "UI_DESIGN",
+                    "NATIVE_MOBILE_PLATFORM",
+                    "NATIVE_UI_TOOLKIT",
+                    "MOBILE_LANGUAGE",
+                    "CROSS_PLATFORM_MOBILE",
+                    "SQL",
+                    "RELATIONAL_DB",
+                    "NOSQL_DB",
+                    "AI_FIELD",
+                    "ML_FRAMEWORK",
+                    "PYTHON_DATA_TOOL",
+                    "DATA_ANALYTICS",
+                    "NUMERIC_LANGUAGE",
+                    "BI_TOOL",
+                    "DATA_ENGINEERING",
+                    "BIG_DATA",
+                    "CONTAINERIZATION",
+                    "CLOUD_PROVIDER",
+                    "CI_CD",
+                    "IAC",
+                    "LINUX_SHELL",
+                    "WEB_SERVER",
+                    "MONITORING",
+                    "MANUAL_QA",
+                    "TEST_AUTOMATION",
+                    "UNIT_TESTING",
+                    "API_TESTING",
+                    "PERFORMANCE_TESTING",
+                    "REQUIREMENTS",
+                    "MODELING_NOTATION",
+                    "SOFTWARE_PROCESS",
+                    "PROJECT_TOOL",
+                    "NETWORKING",
+                    "INFORMATION_SECURITY",
+                    "EMBEDDED_SYSTEMS",
+                    "GAME_ENGINE",
+                    "BLOCKCHAIN_PLATFORM",
+                    "COMMUNICATION",
+                    "TEAMWORK",
+                    "LEADERSHIP",
+                    "PROBLEM_SOLVING",
+                    "PRESENTATION",
+                    "CRITICAL_THINKING",
+                    "SELF_LEARNING",
+                    "TIME_MANAGEMENT",
+                    "PROACTIVENESS",
+                    "RESPONSIBILITY",
+                    "ADAPTABILITY",
+                    "ATTENTION_TO_DETAIL",
+                    null
+                  ],
+                  "nullable": true
+                },
+                "zone": {
+                  "type": "string",
+                  "enum": [
+                    "FOUNDATION",
+                    "BACKEND",
+                    "FRONTEND",
+                    "MOBILE",
+                    "DATABASE",
+                    "DATA_AI",
+                    "DEVOPS_CLOUD",
+                    "TESTING_QA",
+                    "BUSINESS_ANALYSIS",
+                    "PROCESS",
+                    "SECURITY_NETWORK",
+                    "EMBEDDED_IOT",
+                    "GAME_DEV",
+                    "BLOCKCHAIN",
+                    "SOFT_SKILL",
+                    null
+                  ],
+                  "nullable": true
+                },
+                "implies": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "canonicalName": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "canonicalName"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
                 "status": {
                   "type": "string",
                   "enum": [
@@ -4465,6 +4658,9 @@
                 "canonicalName",
                 "aliases",
                 "group",
+                "family",
+                "zone",
+                "implies",
                 "status",
                 "mergedInto",
                 "suggestion",
@@ -4508,6 +4704,95 @@
               "SOFT_SKILL",
               "OTHER"
             ]
+          },
+          "family": {
+            "type": "string",
+            "enum": [
+              "SYSTEMS_LANGUAGE",
+              "MANAGED_LANGUAGE",
+              "SCRIPTING_LANGUAGE",
+              "SOFTWARE_DESIGN",
+              "ALGORITHMS",
+              "VERSION_CONTROL",
+              "IDE",
+              "FOREIGN_LANGUAGE",
+              "BACKEND_FRAMEWORK",
+              "ORM",
+              "WEB_API",
+              "MESSAGE_BROKER",
+              "SOFTWARE_ARCHITECTURE",
+              "JVM_BUILD_TOOL",
+              "JS_TS",
+              "WEB_MARKUP_STYLING",
+              "SPA_FRAMEWORK",
+              "META_FRAMEWORK",
+              "DOM_LIBRARY",
+              "STATE_MANAGEMENT",
+              "FRONTEND_BUILD",
+              "UI_DESIGN",
+              "NATIVE_MOBILE_PLATFORM",
+              "NATIVE_UI_TOOLKIT",
+              "MOBILE_LANGUAGE",
+              "CROSS_PLATFORM_MOBILE",
+              "SQL",
+              "RELATIONAL_DB",
+              "NOSQL_DB",
+              "AI_FIELD",
+              "ML_FRAMEWORK",
+              "PYTHON_DATA_TOOL",
+              "DATA_ANALYTICS",
+              "NUMERIC_LANGUAGE",
+              "BI_TOOL",
+              "DATA_ENGINEERING",
+              "BIG_DATA",
+              "CONTAINERIZATION",
+              "CLOUD_PROVIDER",
+              "CI_CD",
+              "IAC",
+              "LINUX_SHELL",
+              "WEB_SERVER",
+              "MONITORING",
+              "MANUAL_QA",
+              "TEST_AUTOMATION",
+              "UNIT_TESTING",
+              "API_TESTING",
+              "PERFORMANCE_TESTING",
+              "REQUIREMENTS",
+              "MODELING_NOTATION",
+              "SOFTWARE_PROCESS",
+              "PROJECT_TOOL",
+              "NETWORKING",
+              "INFORMATION_SECURITY",
+              "EMBEDDED_SYSTEMS",
+              "GAME_ENGINE",
+              "BLOCKCHAIN_PLATFORM",
+              "COMMUNICATION",
+              "TEAMWORK",
+              "LEADERSHIP",
+              "PROBLEM_SOLVING",
+              "PRESENTATION",
+              "CRITICAL_THINKING",
+              "SELF_LEARNING",
+              "TIME_MANAGEMENT",
+              "PROACTIVENESS",
+              "RESPONSIBILITY",
+              "ADAPTABILITY",
+              "ATTENTION_TO_DETAIL",
+              null
+            ],
+            "default": null,
+            "nullable": true
+          },
+          "impliesSkillIds": {
+            "default": [],
+            "maxItems": 5,
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "exclusiveMinimum": true,
+              "maximum": 9007199254740991,
+              "minimum": 0
+            }
           }
         },
         "required": [
@@ -4549,6 +4834,126 @@
               null
             ],
             "nullable": true
+          },
+          "family": {
+            "type": "string",
+            "enum": [
+              "SYSTEMS_LANGUAGE",
+              "MANAGED_LANGUAGE",
+              "SCRIPTING_LANGUAGE",
+              "SOFTWARE_DESIGN",
+              "ALGORITHMS",
+              "VERSION_CONTROL",
+              "IDE",
+              "FOREIGN_LANGUAGE",
+              "BACKEND_FRAMEWORK",
+              "ORM",
+              "WEB_API",
+              "MESSAGE_BROKER",
+              "SOFTWARE_ARCHITECTURE",
+              "JVM_BUILD_TOOL",
+              "JS_TS",
+              "WEB_MARKUP_STYLING",
+              "SPA_FRAMEWORK",
+              "META_FRAMEWORK",
+              "DOM_LIBRARY",
+              "STATE_MANAGEMENT",
+              "FRONTEND_BUILD",
+              "UI_DESIGN",
+              "NATIVE_MOBILE_PLATFORM",
+              "NATIVE_UI_TOOLKIT",
+              "MOBILE_LANGUAGE",
+              "CROSS_PLATFORM_MOBILE",
+              "SQL",
+              "RELATIONAL_DB",
+              "NOSQL_DB",
+              "AI_FIELD",
+              "ML_FRAMEWORK",
+              "PYTHON_DATA_TOOL",
+              "DATA_ANALYTICS",
+              "NUMERIC_LANGUAGE",
+              "BI_TOOL",
+              "DATA_ENGINEERING",
+              "BIG_DATA",
+              "CONTAINERIZATION",
+              "CLOUD_PROVIDER",
+              "CI_CD",
+              "IAC",
+              "LINUX_SHELL",
+              "WEB_SERVER",
+              "MONITORING",
+              "MANUAL_QA",
+              "TEST_AUTOMATION",
+              "UNIT_TESTING",
+              "API_TESTING",
+              "PERFORMANCE_TESTING",
+              "REQUIREMENTS",
+              "MODELING_NOTATION",
+              "SOFTWARE_PROCESS",
+              "PROJECT_TOOL",
+              "NETWORKING",
+              "INFORMATION_SECURITY",
+              "EMBEDDED_SYSTEMS",
+              "GAME_ENGINE",
+              "BLOCKCHAIN_PLATFORM",
+              "COMMUNICATION",
+              "TEAMWORK",
+              "LEADERSHIP",
+              "PROBLEM_SOLVING",
+              "PRESENTATION",
+              "CRITICAL_THINKING",
+              "SELF_LEARNING",
+              "TIME_MANAGEMENT",
+              "PROACTIVENESS",
+              "RESPONSIBILITY",
+              "ADAPTABILITY",
+              "ATTENTION_TO_DETAIL",
+              null
+            ],
+            "nullable": true
+          },
+          "zone": {
+            "type": "string",
+            "enum": [
+              "FOUNDATION",
+              "BACKEND",
+              "FRONTEND",
+              "MOBILE",
+              "DATABASE",
+              "DATA_AI",
+              "DEVOPS_CLOUD",
+              "TESTING_QA",
+              "BUSINESS_ANALYSIS",
+              "PROCESS",
+              "SECURITY_NETWORK",
+              "EMBEDDED_IOT",
+              "GAME_DEV",
+              "BLOCKCHAIN",
+              "SOFT_SKILL",
+              null
+            ],
+            "nullable": true
+          },
+          "implies": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "canonicalName": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "canonicalName"
+              ],
+              "additionalProperties": false
+            }
           },
           "status": {
             "type": "string",
@@ -4643,6 +5048,9 @@
           "canonicalName",
           "aliases",
           "group",
+          "family",
+          "zone",
+          "implies",
           "status",
           "mergedInto",
           "suggestion",
@@ -4683,6 +5091,108 @@
         },
         "required": [
           "rowVersion"
+        ]
+      },
+      "UpdateSkillTaxonomyRequestDto": {
+        "type": "object",
+        "properties": {
+          "rowVersion": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "family": {
+            "type": "string",
+            "enum": [
+              "SYSTEMS_LANGUAGE",
+              "MANAGED_LANGUAGE",
+              "SCRIPTING_LANGUAGE",
+              "SOFTWARE_DESIGN",
+              "ALGORITHMS",
+              "VERSION_CONTROL",
+              "IDE",
+              "FOREIGN_LANGUAGE",
+              "BACKEND_FRAMEWORK",
+              "ORM",
+              "WEB_API",
+              "MESSAGE_BROKER",
+              "SOFTWARE_ARCHITECTURE",
+              "JVM_BUILD_TOOL",
+              "JS_TS",
+              "WEB_MARKUP_STYLING",
+              "SPA_FRAMEWORK",
+              "META_FRAMEWORK",
+              "DOM_LIBRARY",
+              "STATE_MANAGEMENT",
+              "FRONTEND_BUILD",
+              "UI_DESIGN",
+              "NATIVE_MOBILE_PLATFORM",
+              "NATIVE_UI_TOOLKIT",
+              "MOBILE_LANGUAGE",
+              "CROSS_PLATFORM_MOBILE",
+              "SQL",
+              "RELATIONAL_DB",
+              "NOSQL_DB",
+              "AI_FIELD",
+              "ML_FRAMEWORK",
+              "PYTHON_DATA_TOOL",
+              "DATA_ANALYTICS",
+              "NUMERIC_LANGUAGE",
+              "BI_TOOL",
+              "DATA_ENGINEERING",
+              "BIG_DATA",
+              "CONTAINERIZATION",
+              "CLOUD_PROVIDER",
+              "CI_CD",
+              "IAC",
+              "LINUX_SHELL",
+              "WEB_SERVER",
+              "MONITORING",
+              "MANUAL_QA",
+              "TEST_AUTOMATION",
+              "UNIT_TESTING",
+              "API_TESTING",
+              "PERFORMANCE_TESTING",
+              "REQUIREMENTS",
+              "MODELING_NOTATION",
+              "SOFTWARE_PROCESS",
+              "PROJECT_TOOL",
+              "NETWORKING",
+              "INFORMATION_SECURITY",
+              "EMBEDDED_SYSTEMS",
+              "GAME_ENGINE",
+              "BLOCKCHAIN_PLATFORM",
+              "COMMUNICATION",
+              "TEAMWORK",
+              "LEADERSHIP",
+              "PROBLEM_SOLVING",
+              "PRESENTATION",
+              "CRITICAL_THINKING",
+              "SELF_LEARNING",
+              "TIME_MANAGEMENT",
+              "PROACTIVENESS",
+              "RESPONSIBILITY",
+              "ADAPTABILITY",
+              "ATTENTION_TO_DETAIL",
+              null
+            ],
+            "nullable": true
+          },
+          "impliesSkillIds": {
+            "maxItems": 5,
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "exclusiveMinimum": true,
+              "maximum": 9007199254740991,
+              "minimum": 0
+            }
+          }
+        },
+        "required": [
+          "rowVersion",
+          "family",
+          "impliesSkillIds"
         ]
       },
       "CreateCompanyRequestDto": {

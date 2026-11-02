@@ -1,8 +1,15 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { type AdminSkill, type ApproveSkillRequest, ApproveSkillRequestSchema, SKILL_GROUPS } from '@srm/shared';
+import {
+  type AdminSkill,
+  type ApproveSkillRequest,
+  ApproveSkillRequestSchema,
+  familyFitsGroup,
+  SKILL_GROUPS,
+  type SkillGroup,
+} from '@srm/shared';
 import { CircleAlert, CircleCheck, Merge } from 'lucide-react';
 import { useState } from 'react';
-import { Controller, type DefaultValues, useForm } from 'react-hook-form';
+import { Controller, type DefaultValues, useForm, useWatch } from 'react-hook-form';
 import { toast } from 'sonner';
 import type { z } from 'zod';
 import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -21,27 +28,35 @@ import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/c
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
+import { keepOpenOnListboxEscape } from '@/hooks/use-listbox-active';
 import { applyServerFieldErrors } from '@/shared/forms/server-errors';
 import { useApproveSkill, useMergeSkill } from './api';
 import { type NameOwner, nameOwnerOf, SKILL_GROUP_LABELS, skillReviewErrorMessage } from './labels';
+import { FamilyField, ImpliedSkillsField } from './taxonomy-fields';
 
 type FormInput = z.input<typeof ApproveSkillRequestSchema>;
 
-const FIELDS = ['canonicalName', 'group'];
+const FIELDS = ['canonicalName', 'group', 'family', 'impliesSkillIds'];
 
-/** The AI's suggestion fills the form; ADMIN decides (AD-2). Without one, the schema asks for a group. */
+/**
+ * The AI's suggestion fills the name and group; ADMIN decides (AD-2). Without one, the schema asks
+ * for a group. The AI suggests no family or implied skill (CONTEXT D43).
+ */
 function defaultsOf(skill: AdminSkill): DefaultValues<FormInput> {
   return {
     rowVersion: skill.rowVersion,
     canonicalName: skill.suggestion?.canonicalName ?? skill.canonicalName,
     group: skill.suggestion?.group ?? skill.group ?? undefined,
+    family: null,
+    impliesSkillIds: [],
   };
 }
 
 /**
- * "Duyệt" a new skill into the catalogue (US-2.5 AC-7), with the catalogue name and group. A new
- * name keeps the one the CV or JD wrote as an alias. When the name is taken by an approved skill
- * (409 SKILL_NAME_TAKEN), the dialog offers to merge into that skill instead.
+ * "Duyệt" a new skill into the catalogue (US-2.5 AC-7), with the catalogue name and group, and
+ * optionally its family and implied skills (US-2.7 AC-5). A new name keeps the one the CV or JD
+ * wrote as an alias. When the name is taken by an approved skill (409 SKILL_NAME_TAKEN), the
+ * dialog offers to merge into that skill instead.
  */
 export function ApproveSkillDialog({ skill }: { skill: AdminSkill }) {
   const [open, setOpen] = useState(false);
@@ -55,6 +70,13 @@ export function ApproveSkillDialog({ skill }: { skill: AdminSkill }) {
   });
   const pending = form.formState.isSubmitting || merge.isPending;
   const owner: NameOwner | null = nameOwnerOf(error);
+  const group = useWatch({ control: form.control, name: 'group' });
+
+  /** The family list only offers families that fit the group (CHECK skills_soft_skill_family_check). */
+  function dropUnfitFamily(next: SkillGroup) {
+    const family = form.getValues('family');
+    if (family && !familyFitsGroup(next, family)) form.setValue('family', null, { shouldDirty: true });
+  }
 
   async function onSubmit(values: ApproveSkillRequest) {
     setError(null);
@@ -98,7 +120,11 @@ export function ApproveSkillDialog({ skill }: { skill: AdminSkill }) {
           Duyệt
         </Button>
       </AlertDialogTrigger>
-      <AlertDialogContent>
+      {/* Scrolls on short screens: the implied-skill search lists results under its input. */}
+      <AlertDialogContent
+        className="max-h-[calc(100svh-2rem)] overflow-y-auto"
+        onEscapeKeyDown={keepOpenOnListboxEscape}
+      >
         <form noValidate onSubmit={(event) => void form.handleSubmit(onSubmit)(event)} className="flex flex-col gap-6">
           <AlertDialogHeader>
             <AlertDialogTitle>Duyệt kỹ năng “{skill.canonicalName}”</AlertDialogTitle>
@@ -148,10 +174,20 @@ export function ApproveSkillDialog({ skill }: { skill: AdminSkill }) {
             <Controller
               name="group"
               control={form.control}
+              // A family error follows the group (LESSONS §26).
+              rules={{ deps: ['family'] }}
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
                   <FieldLabel htmlFor={`skill-${skill.id}-group`}>Nhóm</FieldLabel>
-                  <Select value={field.value ?? ''} onValueChange={field.onChange} disabled={pending}>
+                  <Select
+                    value={field.value ?? ''}
+                    onValueChange={(next) => {
+                      // Before onChange, so the check it runs sees the new family too.
+                      dropUnfitFamily(next as SkillGroup);
+                      field.onChange(next);
+                    }}
+                    disabled={pending}
+                  >
                     <SelectTrigger
                       id={`skill-${skill.id}-group`}
                       className="w-full"
@@ -172,6 +208,39 @@ export function ApproveSkillDialog({ skill }: { skill: AdminSkill }) {
                   </Select>
                   {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
                 </Field>
+              )}
+            />
+            <Controller
+              name="family"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <FamilyField
+                  id={`skill-${skill.id}-family`}
+                  group={group}
+                  value={field.value ?? null}
+                  onChange={field.onChange}
+                  onBlur={field.onBlur}
+                  invalid={fieldState.invalid}
+                  error={fieldState.error}
+                  disabled={pending}
+                />
+              )}
+            />
+            <Controller
+              name="impliesSkillIds"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <ImpliedSkillsField
+                  id={`skill-${skill.id}-implies`}
+                  skillId={skill.id}
+                  initial={[]}
+                  value={field.value ?? []}
+                  onChange={field.onChange}
+                  onBlur={field.onBlur}
+                  invalid={fieldState.invalid}
+                  error={fieldState.error}
+                  disabled={pending}
+                />
               )}
             />
           </FieldGroup>

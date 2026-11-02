@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { type CatalogSkill, skillMatchKey } from '@srm/shared';
+import { type CatalogSkill, type SkillTaxonomyEntry, skillMatchKey, zoneOf } from '@srm/shared';
+import { implicationClosure } from '../domain/implications.js';
 import { SkillRepository } from '../infrastructure/skill.repository.js';
 
 /**
@@ -30,5 +31,28 @@ export class SkillCatalogService {
       }
     }
     return byKey;
+  }
+
+  /**
+   * Every approved skill by `skillId`, with its family, its zone and every skill it implies,
+   * directly or through others (FR-39, US-2.7 AC-8, CONTEXT D43). For the code that matches CV
+   * skills against a JD (US-3.5); the same catalogue always gives the same list.
+   */
+  async taxonomy(): Promise<SkillTaxonomyEntry[]> {
+    const { skills, implications } = await this.repository.taxonomy();
+    const closure = implicationClosure(
+      implications,
+      skills.map((skill) => skill.id),
+    );
+    return skills.map((skill) => ({
+      skillId: skill.id,
+      canonicalName: skill.canonicalName,
+      nameKey: skill.nameKey,
+      aliasKeys: skill.aliasKeys,
+      group: skill.group,
+      family: skill.family,
+      zone: zoneOf(skill.family),
+      impliedSkillIds: closure.get(skill.id) ?? [],
+    }));
   }
 }

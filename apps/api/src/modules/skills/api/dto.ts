@@ -7,6 +7,7 @@ import {
   MergeSkillRequestSchema,
   RejectSkillRequestSchema,
   SkillSearchQuerySchema,
+  UpdateSkillTaxonomyRequestSchema,
 } from '@srm/shared';
 import { createZodDto } from 'nestjs-zod';
 
@@ -21,3 +22,4 @@ export class AdminSkillListDto extends createZodDto(AdminSkillListSchema) {}
 export class ApproveSkillRequestDto extends createZodDto(ApproveSkillRequestSchema) {}
 export class MergeSkillRequestDto extends createZodDto(MergeSkillRequestSchema) {}
 export class RejectSkillRequestDto extends createZodDto(RejectSkillRequestSchema) {}
+export class UpdateSkillTaxonomyRequestDto extends createZodDto(UpdateSkillTaxonomyRequestSchema) {}

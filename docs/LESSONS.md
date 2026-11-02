@@ -9,11 +9,11 @@
 - Claude Code, skill, hook, koni-docs: §1 skill phải nằm ở `.claude/skills` · §2 `docs:sync` định dạng lại PRD, đổi ngày · §3 snippet hook của koni-harness không chặn commit
 - Docker, compose, image: §4 `minio/minio` không còn trên Docker Hub · §14 compose truyền biến chưa đặt thành `""` · §15 hết RAM khi chạy test (compose, số worker Jest, commit memory của Windows) · §18 testcontainers build image không cache, Jest treo · §27 nginx trả `.mjs` là `octet-stream`, worker pdf.js không nạp
 - Jest, ESM: §9 gói chỉ có ESM (`@nestjs/schedule`, `file-type`, `promise-breaker`…) · §11 `testTimeout` trong `projects` bị bỏ qua · §21 `--selectProjects` nuốt đường dẫn test
-- Integration test: §22 các file dùng chung DB, thông báo gửi mọi tài khoản CENTER lọt vào test khác
+- Integration test: §22 các file dùng chung DB, thông báo gửi mọi tài khoản CENTER lọt vào test khác · §30 bảng mới trong `core` làm đỏ `core-schema` và `ai-service-role`
 - Drizzle, migration: §6 migration có mốc thời gian cũ bị bỏ qua · §7 hàm dùng chung nhiều bảng: khai kiểu cụ thể · §12 `FOR UPDATE OF` sinh tên có schema
 - pgvector: §24 index HNSW lọc sau khi quét, hàng cũ chiếm chỗ ứng viên
 - Ranh giới module: §5 `exclude: node_modules` làm dependency-cruiser bỏ sót
-- Thư viện API, web: §8 CLI shadcn 4.21 · §10 Zod 4 bỏ qua `refine` khi trường khác lỗi · §13 multer đọc tên file theo latin1 · §25 form gửi `row_version` của query mới nhất, bỏ qua khóa lạc quan · §26 lỗi tổng của form không mất khi sửa ô khác của tổng · §28 react-pdf 11 mặc định Suspense, PDF lỗi làm sập route
+- Thư viện API, web: §8 CLI shadcn 4.21 · §10 Zod 4 bỏ qua `refine` khi trường khác lỗi · §13 multer đọc tên file theo latin1 · §25 form gửi `row_version` của query mới nhất, bỏ qua khóa lạc quan · §26 lỗi tổng của form không mất khi sửa ô khác của tổng · §28 react-pdf 11 mặc định Suspense, PDF lỗi làm sập route · §29 Esc trong combobox tự viết đóng cả dialog Radix
 - RabbitMQ, job AI: §16 `RabbitMQModule` giữ connection static · §17 mặc định sai của thư viện message
 - ai-service (Python): §19 chặn mạng trong pytest trên Windows · §20 PyMuPDF cắt chữ ngoài trang, màu nền theo thứ tự vẽ · §23 `HF_HUB_OFFLINE` đọc lúc import, bge-m3 tải 4,5 GB
 
@@ -156,10 +156,11 @@ See [US-1.4](sprints/stories/US-1.4-campaign-setup-and-config.md) › Implementa
 **Why**: Zod 4 chỉ chạy kiểm tra của object khi chưa có lỗi nào trước đó. Truyền `{ when }` thì kiểm tra chạy theo điều kiện riêng. Nhưng nếu một trường gặp lỗi chặn (ví dụ `.int()` với 1,5, mã `invalid_type`), Zod bỏ qua cả `when` và không chạy kiểm tra.
 
 **How to avoid**:
-- Kiểm tra chéo trường trong form dùng `superRefine(fn, { when })`, với `when` chỉ xét lỗi của các trường mà nó đọc. Xem `whenValid` trong `packages/shared/schemas/campaign.ts`.
+- Kiểm tra chéo trường trong form dùng `superRefine(fn, { when })`, với `when` chỉ xét lỗi của các trường mà nó đọc. Xem `whenValid` trong `packages/shared/schemas/common.ts`.
 - Test schema có ca gửi lỗi chéo cùng lỗi của trường khác, để chắc lỗi chéo vẫn hiện.
 - Không trông đợi lỗi chéo khi một trường nó đọc đang sai kiểu.
 - (0.9.0) Ngược lại, `when` **có** chạy khi chính object sai kiểu (thiếu hẳn, `undefined`): lỗi đó có `path` rỗng nên không khớp tên trường nào, và hàm kiểm tra nhận `undefined`. `JdRequirementsSchema` lồng trong `JdAnalyzeOutput` đã ném `TypeError` khi `requirements` vắng mặt (US-2.3). `when` phải trả `false` khi có lỗi `path.length === 0`, và hàm kiểm tra không giả định kiểu của dữ liệu. Xem `whenSkillListsParsed` trong `packages/shared/contracts/jd.ts`; test bằng `safeParse(undefined)`.
+- (0.14.0) Một lỗi có `abort: true` ở **bất kỳ** trường nào cũng làm Zod 4.6 bỏ qua `superRefine(fn, { when })`, kể cả khi `when` không đọc trường đó. US-2.7: tên kỹ năng rỗng (`skillName()` có `abort`) làm mất lỗi "họ không hợp nhóm". Trường nằm trong object có kiểm tra chéo thì không dùng `abort`; `skillName()` đã bỏ.
 
 See [US-1.4](sprints/stories/US-1.4-campaign-setup-and-config.md) › Implementation notes.
 
@@ -421,3 +422,29 @@ See [US-2.6](sprints/stories/US-2.6-student-profile-confirmation.md), §28.
 - Thư viện giao diện mới thêm hoặc vừa lên major: đọc phần giá trị mặc định trong README, và thử cả đường lỗi (URL hỏng, worker hỏng), không chỉ đường đúng.
 
 See [US-2.6](sprints/stories/US-2.6-student-profile-confirmation.md), §27.
+
+## 29. Phím Esc trong combobox tự viết đóng cả dialog Radix chứa nó
+
+**What happened (0.14.0)**: Ô "Kéo theo" của US-2.7 là combobox tự viết (`role="combobox"`, danh sách gợi ý ngay dưới ô) nằm trong `AlertDialog` duyệt kỹ năng và `Sheet` sửa taxonomy. Bấm Esc để đóng danh sách gợi ý thì cả dialog đóng; mở lại thì form nạp lại từ đầu, mất mọi thứ đã nhập. Handler `onKeyDown` của ô có `preventDefault()` cho Esc nhưng không có tác dụng. `/code-review` bắt được; không test nào bắt.
+
+**Why**: `useEscapeKeydown` của Radix (dùng trong Dialog, AlertDialog, Sheet, Popover) nghe `keydown` trên `document` ở pha capture. Pha capture chạy trước khi sự kiện tới ô nhập, nên dialog đã đóng trước khi handler của ô chạy.
+
+**How to avoid**:
+- Dialog hoặc sheet chứa combobox tự viết: truyền `onEscapeKeyDown={keepOpenOnListboxEscape}` (`apps/web/src/hooks/use-listbox-active.ts`). Hàm này `preventDefault()` khi Esc đến từ một `role="combobox"` đang `aria-expanded="true"`; handler của ô vẫn chạy và đóng danh sách.
+- Phím mũi tên trong danh sách gợi ý dùng `useListboxActive` cùng file: mục đang chọn bỏ đi khi danh sách đổi, nên Enter không chọn nhầm kỹ năng của kết quả tìm cũ.
+- Ô nhập nằm trong dialog: kiểm tay cả Esc, Enter và phím mũi tên, không chỉ chuột.
+
+See [US-2.7](sprints/stories/US-2.7-skill-zones-families-implications.md).
+
+## 30. Bảng mới trong schema `core` làm đỏ hai integration test cũ
+
+**What happened (0.14.0)**: US-2.7 thêm bảng `core.skill_implications`. `pnpm test` đầy đủ đỏ ở hai file không liên quan tới story: `core-schema.int-spec.ts` (danh sách bảng `core` viết cứng) và `ai-service-role.int-spec.ts`, với lỗi `42703 column "id" does not exist` thay vì `42501 permission denied`.
+
+**Why**: `ai-service-role` thử `UPDATE core.<bảng> SET id = …` trên mọi bảng `core` để chắc role `ai_service` không ghi được. Bảng mới không có cột `id` (khóa chính là cặp), và PostgreSQL báo cột không tồn tại trước khi xét quyền.
+
+**How to avoid**:
+- Thêm bảng `core`: thêm tên bảng vào `CORE_TABLES` trong `core-schema.int-spec.ts`.
+- `ai-service-role` nay lấy cột đầu tiên của từng bảng từ `information_schema.columns`, nên bảng không có `id` vẫn qua. Test quét mọi bảng thì đừng giả định tên cột.
+- Story sinh migration: chạy hai file này cùng integration test của story, đừng chờ tới `pnpm test` đầy đủ.
+
+See [US-2.7](sprints/stories/US-2.7-skill-zones-families-implications.md).

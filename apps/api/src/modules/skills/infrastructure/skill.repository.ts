@@ -1,20 +1,25 @@
 import { Inject, Injectable } from '@nestjs/common';
 import {
   type CatalogSkill,
+  familiesOfZone,
+  type SkillFamily,
   type SkillGroup,
   skillMachine,
   skillMatchKey,
+  type SkillRef,
   type SkillStatus,
   type SkillSuggestion,
+  type SkillZone,
 } from '@srm/shared';
-import { and, arrayOverlaps, asc, desc, eq, inArray, isNull, or, type SQL, sql } from 'drizzle-orm';
+import { and, arrayOverlaps, asc, desc, eq, inArray, isNull, notInArray, or, type SQL, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { RowVersionConflictError } from '../../../common/errors/index.js';
 import { ADVISORY_LOCK_KEYS } from '../../../common/scheduling/advisory-lock.js';
-import { skills } from '../../../db/schema/index.js';
+import { skillImplications, skills } from '../../../db/schema/index.js';
 import { DRIZZLE } from '../../../db/tokens.js';
 import type { Database, DbTx } from '../../../db/types.js';
 import type { KeyedName, KeyedSkill } from '../domain/catalogue-keys.js';
+import type { Implication } from '../domain/implications.js';
 
 /**
  * Most rows one admin listing returns. Pending names come oldest first, as a queue; reviewed ones
@@ -24,7 +29,10 @@ export const ADMIN_LIST_LIMIT = 500;
 
 export interface SkillRecord extends KeyedSkill {
   group: SkillGroup | null;
-  mergedInto: { id: number; canonicalName: string } | null;
+  family: SkillFamily | null;
+  /** The skills this one implies directly, by name. */
+  implies: SkillRef[];
+  mergedInto: SkillRef | null;
   suggestion: SkillSuggestion | null;
   suggestionModel: string | null;
   suggestionPromptVersion: string | null;
@@ -34,7 +42,19 @@ export interface SkillRecord extends KeyedSkill {
 }
 
 export interface LockedSkill extends KeyedSkill {
+  group: SkillGroup | null;
+  family: SkillFamily | null;
   rowVersion: number;
+}
+
+/** An approved skill as the matching module reads the catalogue (US-2.7 AC-8). */
+export interface TaxonomyRow {
+  id: number;
+  canonicalName: string;
+  nameKey: string;
+  aliasKeys: string[];
+  group: SkillGroup;
+  family: SkillFamily | null;
 }
 
 /** Columns ADMIN review writes besides `status`, which only transitionTo writes (AD-8). */
@@ -43,10 +63,12 @@ export interface SkillChanges {
   nameKey?: string;
   aliases?: string[];
   group?: SkillGroup;
+  family?: SkillFamily | null;
   mergedIntoId?: number;
 }
 
 const mergedInto = alias(skills, 'merged_into');
+const implied = alias(skills, 'implied');
 
 const RECORD_COLUMNS = {
   id: skills.id,
@@ -54,6 +76,7 @@ const RECORD_COLUMNS = {
   nameKey: skills.nameKey,
   aliases: skills.aliases,
   group: skills.group,
+  family: skills.family,
   status: skills.status,
   mergedIntoId: skills.mergedIntoId,
   mergedIntoName: mergedInto.canonicalName,
@@ -74,26 +97,31 @@ const KEYED_COLUMNS = {
   rowVersion: skills.rowVersion,
 };
 
-/** core.skills, owned by the skills module (FR-13, CONTEXT D39). */
+const LOCKED_COLUMNS = { ...KEYED_COLUMNS, group: skills.group, family: skills.family };
+
+/** core.skills and core.skill_implications, owned by the skills module (FR-13, FR-39, CONTEXT D39). */
 @Injectable()
 export class SkillRepository {
   constructor(@Inject(DRIZZLE) private readonly db: Database) {}
 
   async findById(id: number, options: { tx?: DbTx } = {}): Promise<SkillRecord | undefined> {
-    const [row] = await this.selectRecords(options.tx ?? this.db).where(eq(skills.id, id));
-    return row && toRecord(row);
+    const db = options.tx ?? this.db;
+    const rows = await this.selectRecords(db).where(eq(skills.id, id));
+    const [record] = await this.withImplications(db, rows);
+    return record;
   }
 
-  async list(status: SkillStatus): Promise<SkillRecord[]> {
+  /** Skills of `status`; with `zone`, only those whose family is in it (US-2.7 AC-10). */
+  async list(status: SkillStatus, zone?: SkillZone): Promise<SkillRecord[]> {
     const rows = await this.selectRecords(this.db)
-      .where(eq(skills.status, status))
+      .where(and(eq(skills.status, status), zone ? inArray(skills.family, familiesOfZone(zone)) : undefined))
       .orderBy(
         ...(status === 'PENDING'
           ? [asc(skills.createdAt), asc(skills.id)]
           : [desc(skills.updatedAt), desc(skills.id)]),
       )
       .limit(ADMIN_LIST_LIMIT);
-    return rows.map(toRecord);
+    return this.withImplications(this.db, rows);
   }
 
   /**
@@ -140,7 +168,7 @@ export class SkillRepository {
   /** Locks the rows in id order, so two transactions locking the same pair cannot deadlock. */
   async lock(tx: DbTx, ids: readonly number[]): Promise<LockedSkill[]> {
     return tx
-      .select(KEYED_COLUMNS)
+      .select(LOCKED_COLUMNS)
       .from(skills)
       .where(inArray(skills.id, [...ids]))
       .orderBy(asc(skills.id))
@@ -211,19 +239,98 @@ export class SkillRepository {
     if (updated.length === 0) throw new RowVersionConflictError(skillMachine.name, id, expectedRowVersion);
   }
 
+  /** Every implication of the catalogue. */
+  async implications(tx: DbTx): Promise<Implication[]> {
+    return tx
+      .select({ skillId: skillImplications.skillId, impliedSkillId: skillImplications.impliedSkillId })
+      .from(skillImplications);
+  }
+
+  /** The skills of `ids` that exist, with their name and status. */
+  async refs(tx: DbTx, ids: readonly number[]): Promise<Array<SkillRef & { status: SkillStatus }>> {
+    if (ids.length === 0) return [];
+    return tx
+      .select({ id: skills.id, canonicalName: skills.canonicalName, status: skills.status })
+      .from(skills)
+      .where(inArray(skills.id, [...ids]));
+  }
+
+  /** `skillId` implies exactly `impliedIds` from now on; implications kept keep their created_at. */
+  async replaceImplications(tx: DbTx, skillId: number, impliedIds: readonly number[]): Promise<void> {
+    await tx
+      .delete(skillImplications)
+      .where(
+        and(
+          eq(skillImplications.skillId, skillId),
+          impliedIds.length > 0 ? notInArray(skillImplications.impliedSkillId, [...impliedIds]) : undefined,
+        ),
+      );
+    if (impliedIds.length === 0) return;
+    await tx
+      .insert(skillImplications)
+      .values(impliedIds.map((impliedSkillId) => ({ skillId, impliedSkillId })))
+      .onConflictDoNothing();
+  }
+
+  /**
+   * Every approved skill by id, with every implication, read from one snapshot so a skill approved
+   * meanwhile shows up in both or in neither (US-2.7 AC-8).
+   */
+  async taxonomy(): Promise<{ skills: TaxonomyRow[]; implications: Implication[] }> {
+    return this.db.transaction(
+      async (tx) => {
+        const rows = await tx
+          .select({
+            id: skills.id,
+            canonicalName: skills.canonicalName,
+            nameKey: skills.nameKey,
+            aliasKeys: skills.aliasKeys,
+            group: skills.group,
+            family: skills.family,
+          })
+          .from(skills)
+          .where(eq(skills.status, 'APPROVED'))
+          .orderBy(asc(skills.id));
+        // CHECK skills_approved_group_check: an approved skill always has a group.
+        return { skills: rows.map((row) => ({ ...row, group: row.group! })), implications: await this.implications(tx) };
+      },
+      { isolationLevel: 'repeatable read', accessMode: 'read only' },
+    );
+  }
+
   private selectRecords(db: Database | DbTx) {
     return db.select(RECORD_COLUMNS).from(skills).leftJoin(mergedInto, eq(mergedInto.id, skills.mergedIntoId));
   }
+
+  /** `rows` as records, each with the skills it implies directly, by name. */
+  private async withImplications(db: Database | DbTx, rows: RecordRow[]): Promise<SkillRecord[]> {
+    const ids = rows.map((row) => row.id);
+    const edges =
+      ids.length === 0
+        ? []
+        : await db
+            .select({ skillId: skillImplications.skillId, id: implied.id, canonicalName: implied.canonicalName })
+            .from(skillImplications)
+            .innerJoin(implied, eq(implied.id, skillImplications.impliedSkillId))
+            .where(inArray(skillImplications.skillId, ids))
+            .orderBy(asc(implied.canonicalName));
+    const implies = new Map<number, SkillRef[]>();
+    for (const { skillId, id, canonicalName } of edges) {
+      implies.set(skillId, [...(implies.get(skillId) ?? []), { id, canonicalName }]);
+    }
+    return rows.map((row) => toRecord(row, implies.get(row.id) ?? []));
+  }
 }
 
-interface RecordRow extends Omit<SkillRecord, 'mergedInto'> {
+interface RecordRow extends Omit<SkillRecord, 'mergedInto' | 'implies'> {
   mergedIntoId: number | null;
   mergedIntoName: string | null;
 }
 
-function toRecord({ mergedIntoId, mergedIntoName, ...row }: RecordRow): SkillRecord {
+function toRecord({ mergedIntoId, mergedIntoName, ...row }: RecordRow, implies: SkillRef[]): SkillRecord {
   return {
     ...row,
+    implies,
     mergedInto: mergedIntoId !== null && mergedIntoName !== null ? { id: mergedIntoId, canonicalName: mergedIntoName } : null,
   };
 }

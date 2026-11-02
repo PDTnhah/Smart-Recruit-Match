@@ -15,6 +15,42 @@ Lịch sử phát hành của Smart Recruit Match. Mỗi commit ship code tăng 
 
 ---
 
+## [0.14.0] — 2026-11-02 — Vùng, họ và quan hệ kéo theo của kỹ năng — v0.14.0
+
+US-2.7. Danh mục kỹ năng biết thêm kỹ năng thuộc vùng công việc nào, kỹ năng nào thay được cho nhau (cùng họ) và kỹ năng nào kéo theo kỹ năng nào. ADMIN gán khi duyệt và sửa cho kỹ năng đã duyệt. Module `matching` đọc qua `SkillCatalogService.taxonomy()`, để US-3.5 khớp kỹ năng CV–JD bằng code (FR-39, AD-15, [CONTEXT D42, D43](CONTEXT.md)).
+
+### Added
+- **Taxonomy** (`packages/shared/contracts/skills.ts`): 15 vùng, 70 họ (58 họ kỹ thuật, 12 năng lực chuẩn của kỹ năng mềm), bảng `FAMILY_ZONE`, `zoneOf`, `familyFitsGroup`; mỗi kỹ năng kéo theo trực tiếp tối đa 5 kỹ năng.
+- **DB:**
+  - cột `core.skills.family`, CHECK theo danh sách họ và CHECK kỹ năng mềm ⇔ họ mềm; bảng `core.skill_implications` (migration `0020`);
+  - trigger `skill_implications_valid`, chạy lúc commit, chặn cạnh có đầu chưa duyệt và cạnh tạo chu trình (`0022`).
+- **Seed** (`0021`): họ cho 174 kỹ năng có sẵn; 5 kỹ năng mềm mới (Proactiveness, Responsibility, Adaptability, Stress Tolerance, Attention to Detail) kèm alias tiếng Việt; alias "Ham học hỏi" cho Self-learning; 81 cạnh kéo theo.
+- **API:**
+  - `POST /api/admin/skills/{id}/approve` nhận thêm `family`, `impliesSkillIds`;
+  - `PATCH /api/admin/skills/{id}/taxonomy` sửa họ và kéo theo của kỹ năng đã duyệt, phải gửi cả hai trường; audit `SKILL_TAXONOMY_UPDATED`;
+  - `GET /api/admin/skills` trả thêm `family`, `zone`, `implies` và lọc được bằng `?zone=`;
+  - mã lỗi `SKILL_IMPLICATION_CYCLE` (422, `details.path` là đường đi của chu trình) và `SKILL_NOT_APPROVED` (422).
+- **`SkillCatalogService.taxonomy()`** cho module `matching`: mọi kỹ năng đã duyệt kèm bao đóng kéo theo (hàm thuần `implicationClosure`), sắp theo `skillId`.
+- **Web `/admin/skills`:**
+  - dialog duyệt có ô Họ (gom theo vùng) và Kéo theo (tìm trong danh mục);
+  - nút "Sửa họ, kéo theo" mở sheet bên phải từ 768 px, từ dưới lên trên điện thoại;
+  - bảng kỹ năng đã duyệt có cột Vùng, Họ, Kéo theo và bộ lọc vùng;
+  - lỗi chu trình hiện cả đường đi, ví dụ "Java ⇒ Spring Boot ⇒ Spring Framework ⇒ Java".
+- **Test:** unit và property-based test (`fast-check`) cho `findCycle`, `implicationClosure`; integration test cho seed, duyệt, PATCH, chu trình, ràng buộc DB và phân quyền.
+
+### Fixed
+- **Ô tìm kỹ năng trong hồ sơ SV** (`SkillInput`): ArrowUp khi chưa chọn gợi ý nào đi tới gợi ý cuối, không phải gợi ý áp cuối; gợi ý đang chọn bỏ đi khi kết quả tìm đổi, nên Enter không chọn nhầm.
+
+### Changed
+- **Tài liệu:** CONTEXT D43; LESSONS §10 (lỗi `abort`), §29, §30; DESIGN.md §6 (`sheet`, `select` gom nhóm, chọn nhiều kỹ năng); ARCHITECTURE (API, bảng `skill_implications`); AGENTS › *Mẫu có sẵn*.
+
+### Upgrade notes
+- Chạy migration `0020`–`0022`, rồi build lại image `api` và `web`.
+
+**Commit**:
+
+---
+
 ## [0.13.1] — 2026-10-30 — Sửa xem file CV dạng PDF qua nginx — v0.13.1
 
 US-2.6. Trên bản Docker Compose (`:8080`), màn Hồ sơ của SV báo "Unexpected Application Error!" thay vì hiện file CV. Hai lỗi chồng lên nhau: nginx trả worker của pdf.js với MIME sai nên trình duyệt không nạp, và lỗi tải PDF làm sập cả route thay vì hiện nút mở file. Bản Vite dev (`:5173`) không bị.
