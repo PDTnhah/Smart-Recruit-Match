@@ -9,10 +9,12 @@ import {
   skillKey,
   toHundredths,
 } from '@srm/shared';
+import { add, over, type Ratio, roundHalfUp, times, ZERO } from './ratio.js';
 
-// S_cv = Σ wᵢ·sᵢ, computed by code from the Matching Agent's per-criterion verdicts (PRD › S_cv,
-// AD-2, US-3.1, CONTEXT D41). Exact fractions in bigint, rounded half-up once at the end, so the
-// result never depends on float rounding and changing the weights never needs the LLM again.
+// S_cv = Σ wᵢ·sᵢ, computed by code from the per-criterion verdicts: skills judged by code (US-3.5),
+// the project rubric by the Matching Agent (PRD › S_cv, AD-2, US-3.1, CONTEXT D41, D42). Exact
+// fractions in bigint, rounded half-up once at the end, so the result never depends on float
+// rounding and changing the weights never needs the LLM again.
 
 export const SCV_CRITERIA = ['must_have', 'nice_to_have', 'project', 'education', 'language'] as const;
 
@@ -43,22 +45,8 @@ const TO_100_SCALE = 25n;
 /** Criterion weights are compared in basis points (AC-9). */
 const BASIS_POINTS = 10_000;
 
-/** A non-negative fraction; `den` > 0. Not reduced: bigint does not overflow. */
-interface Ratio {
-  num: bigint;
-  den: bigint;
-}
-
-const ZERO: Ratio = { num: 0n, den: 1n };
-
-const add = (a: Ratio, b: Ratio): Ratio => ({ num: a.num * b.den + b.num * a.den, den: a.den * b.den });
-
-const times = (a: Ratio, k: bigint): Ratio => ({ num: a.num * k, den: a.den });
-
-const over = (a: Ratio, k: bigint): Ratio => ({ num: a.num, den: a.den * k });
-
-/** Half-up rounding of a non-negative fraction to an integer. */
-const roundHalfUp = (a: Ratio): number => Number((2n * a.num + a.den) / (2n * a.den));
+/** A weight of the campaign config in basis points, as every score of the matching module reads it. */
+export const toBasisPoints = (weight: number): number => Math.round(weight * BASIS_POINTS);
 
 /** A verdict without evidence counts as NOT_MET (AGENTS › Invariant 5). */
 function halvesOf(verdict: { verdict: MatchVerdict; evidence: string | null } | null | undefined): bigint {
@@ -68,11 +56,14 @@ function halvesOf(verdict: { verdict: MatchVerdict; evidence: string | null } | 
 
 /**
  * Skill-weighted average of one group on the 0–100 scale, or null when the group is empty. Each JD
- * skill takes the verdict the LLM gave it under either group; a skill it left out counts NOT_MET,
- * a skill it named twice its lower verdict, and skills the JD does not list are ignored, so the
- * LLM can change neither the skills nor their weights.
+ * skill takes the verdict it got under either group; a skill without one counts NOT_MET, a skill
+ * judged twice its lower verdict, and skills the JD does not list are ignored, so the verdicts can
+ * change neither the skills nor their weights.
  */
-function skillGroupScore(skills: readonly JdSkillRequirement[], halvesByKey: ReadonlyMap<string, bigint>): Ratio | null {
+export function skillGroupScore(
+  skills: readonly JdSkillRequirement[],
+  halvesByKey: ReadonlyMap<string, bigint>,
+): Ratio | null {
   let weighted = 0n;
   let totalWeight = 0n;
   for (const skill of skills) {
@@ -84,7 +75,8 @@ function skillGroupScore(skills: readonly JdSkillRequirement[], halvesByKey: Rea
   return { num: 100n * weighted, den: 2n * totalWeight };
 }
 
-function halvesBySkill(criteria: MatchCriteria): Map<string, bigint> {
+/** Half points of each skill verdict by skill key; a skill judged twice keeps its lower verdict. */
+export function halvesBySkill(criteria: Pick<MatchCriteria, 'must_have' | 'nice_to_have'>): Map<string, bigint> {
   const halves = new Map<string, bigint>();
   for (const verdict of [...criteria.must_have, ...criteria.nice_to_have]) {
     const key = skillKey(verdict.skill);
@@ -94,6 +86,29 @@ function halvesBySkill(criteria: MatchCriteria): Map<string, bigint> {
   }
   return halves;
 }
+
+/**
+ * Σ wᵢ·sᵢ and Σ wᵢ over the parts with a score, weights in basis points; a part without one drops
+ * out of both, so its weight goes to the others (EMPTY_CRITERION_POLICY). S_cv and skill_fit both
+ * average this way.
+ */
+export function weigh(parts: Iterable<readonly [score: Ratio | null, weightBp: number]>): { sum: Ratio; applicableBp: bigint } {
+  let sum = ZERO;
+  let applicableBp = 0n;
+  for (const [score, weightBp] of parts) {
+    if (score === null) continue;
+    sum = add(sum, times(score, BigInt(weightBp)));
+    applicableBp += BigInt(weightBp);
+  }
+  return { sum, applicableBp };
+}
+
+/**
+ * `value` over the applicable weight, × 100, rounded half-up once. Every applicable part has weight
+ * 0: nothing to average, so 0, not a division by 0.
+ */
+export const averageX100 = (value: Ratio, applicableBp: bigint): number =>
+  applicableBp === 0n ? 0 : roundHalfUp(over(times(value, 100n), applicableBp));
 
 function educationScore(majorMatch: MajorMatch, gpa4: number | null): Ratio {
   const major = BigInt(MAJOR_MATCH_SCORE[majorMatch]);
@@ -146,19 +161,10 @@ export function computeScv({ requirements, criteria, education, weights }: ScvIn
         ? { num: 100n * halvesOf(criteria.language), den: 2n }
         : null,
   };
-  const weightBp = (criterion: ScvCriterion): number => Math.round(weights[weightKey(criterion)] * BASIS_POINTS);
+  const weightBp = (criterion: ScvCriterion): number => toBasisPoints(weights[weightKey(criterion)]);
 
-  let weightedSum = ZERO;
-  let applicableBp = 0n;
-  for (const criterion of SCV_CRITERIA) {
-    const score = scores[criterion];
-    if (score === null) continue;
-    const bp = BigInt(weightBp(criterion));
-    weightedSum = add(weightedSum, times(score, bp));
-    applicableBp += bp;
-  }
-  // Every applicable criterion has weight 0: nothing to average, so no division by 0.
-  const share = (value: Ratio): number => (applicableBp === 0n ? 0 : roundHalfUp(over(times(value, 100n), applicableBp)));
+  const { sum, applicableBp } = weigh(SCV_CRITERIA.map((criterion) => [scores[criterion], weightBp(criterion)] as const));
+  const share = (value: Ratio): number => averageX100(value, applicableBp);
 
   const breakdown = SCV_CRITERIA.map((criterion): ScvBreakdownRow => {
     const score = scores[criterion];
@@ -177,5 +183,5 @@ export function computeScv({ requirements, criteria, education, weights }: ScvIn
     };
   });
 
-  return { scvX100: share(weightedSum), breakdown };
+  return { scvX100: share(sum), breakdown };
 }

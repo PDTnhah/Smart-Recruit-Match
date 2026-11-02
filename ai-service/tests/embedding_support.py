@@ -136,8 +136,8 @@ CATALOGUE = [
 class CatalogueHarness:
     """A SkillNormalizer over CATALOGUE with the hashing vectors, and its in-memory parts."""
 
-    def __init__(self) -> None:
-        self.catalog = MemoryCatalog(CATALOGUE)
+    def __init__(self, catalogue: Sequence[CatalogSkill] = CATALOGUE) -> None:
+        self.catalog = MemoryCatalog(catalogue)
         self.store = MemoryEmbeddingStore(self.catalog)
         self.embedder = TableEmbedder(model="hashing-v1")
         self.normalizer = SkillNormalizer(

@@ -27,15 +27,49 @@
         }
       ],
       "description": "Quote copied from the CV that supports the verdict; null when NOT_MET"
+    },
+    "match_kind": {
+      "$ref": "./match_kind.json"
+    },
+    "tier": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 4,
+      "description": "Evidence tier of the matched skill: 0 none, 1 listed, 2 used, 3 used often, 4 proficient (CONTEXT D44)"
+    },
+    "via": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Catalogue skill of the CV the match goes through for IMPLIED and FAMILY; null for EXACT and NONE"
+    },
+    "sources": {
+      "maxItems": 10,
+      "type": "array",
+      "items": {
+        "$ref": "./match_skill_source.json"
+      },
+      "description": "CV entries the tier rests on: experience, projects, certificates, then the skills list"
     }
   },
   "required": [
     "skill",
     "level_required",
     "verdict",
-    "evidence"
+    "evidence",
+    "match_kind",
+    "tier",
+    "via",
+    "sources"
   ],
   "additionalProperties": false,
   "title": "MatchSkillVerdict",
-  "description": "Verdict on one skill of the JD, with evidence from the CV"
+  "description": "Verdict on one skill of the JD, computed by code, with the CV entries it rests on"
 }

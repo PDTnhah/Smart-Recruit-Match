@@ -7,6 +7,7 @@ import {
   CampaignConfigSchema,
 } from '@srm/shared';
 import { computeScv, EMPTY_CRITERION_POLICY, type ScvInput } from '../scv.js';
+import { skillVerdict } from './fixtures/verdicts.js';
 
 const requirements = (change: Partial<JdRequirements> = {}): JdRequirements => ({
   must_have: [
@@ -22,11 +23,11 @@ const requirements = (change: Partial<JdRequirements> = {}): JdRequirements => (
 /** The PRD › S_cv sample output of the Matching Agent, without `education.gpa_4` (CONTEXT D41). */
 const criteria = (change: Partial<MatchCriteria> = {}): MatchCriteria => ({
   must_have: [
-    { skill: 'Java', level_required: 'INTERMEDIATE', verdict: 'MET', evidence: "Dự án 'Quản lý thư viện'" },
-    { skill: 'SQL', level_required: 'BASIC', verdict: 'PARTIAL', evidence: "Chỉ liệt kê 'MySQL'" },
-    { skill: 'Docker', level_required: 'BASIC', verdict: 'NOT_MET', evidence: null },
+    skillVerdict('Java', 'INTERMEDIATE', 'MET', "Dự án 'Quản lý thư viện'"),
+    skillVerdict('SQL', 'BASIC', 'PARTIAL', "Chỉ liệt kê 'MySQL'"),
+    skillVerdict('Docker', 'BASIC', 'NOT_MET', null),
   ],
-  nice_to_have: [{ skill: 'Redis', level_required: 'BASIC', verdict: 'NOT_MET', evidence: null }],
+  nice_to_have: [skillVerdict('Redis', 'BASIC', 'NOT_MET', null)],
   project_relevance: { score_0_4: 3, reason: '...' },
   education: { major_match: 'EXACT' },
   language: { verdict: 'MET', evidence: 'TOEIC 650' },
@@ -151,14 +152,14 @@ describe('GĐ3 S_cv computed by code from per-criterion verdicts (AD-2, US-3.1, 
         { skill: 'Linux', level: 'BASIC', weight: 1 },
       ],
     });
-    const onlyJava = criteria({ must_have: [{ skill: 'Java', level_required: 'BASIC', verdict: 'MET', evidence: 'x' }] });
+    const onlyJava = criteria({ must_have: [skillVerdict('Java', 'BASIC', 'MET', 'x')] });
     expect(computeScv(input({ requirements: halfway, criteria: onlyJava, weights: weights(1, 0, 0, 0, 0) })).scvX100).toBe(313);
 
     // 2/3 of the must-have weight: 66.666… rounds up once, at the end.
     const twoOfThree = criteria({
       must_have: [
-        { skill: 'Java', level_required: 'BASIC', verdict: 'MET', evidence: 'x' },
-        { skill: 'SQL', level_required: 'BASIC', verdict: 'MET', evidence: 'x' },
+        skillVerdict('Java', 'BASIC', 'MET', 'x'),
+        skillVerdict('SQL', 'BASIC', 'MET', 'x'),
       ],
     });
     expect(computeScv(input({ criteria: twoOfThree, weights: weights(1, 0, 0, 0, 0) })).scvX100).toBe(6667);
@@ -172,7 +173,7 @@ describe('GĐ3 S_cv computed by code from per-criterion verdicts (AD-2, US-3.1, 
     expect(computeScv(input({ criteria: withoutDocker })).scvX100).toBe(base);
     // A skill the JD does not list is ignored; names match by the catalogue key.
     const extra = criteria();
-    extra.must_have.push({ skill: 'Kubernetes', level_required: 'ADVANCED', verdict: 'MET', evidence: 'x' });
+    extra.must_have.push(skillVerdict('Kubernetes', 'ADVANCED', 'MET', 'x'));
     extra.must_have[0]!.skill = ' java ';
     expect(computeScv(input({ criteria: extra })).scvX100).toBe(base);
     // A JD skill under the other group still counts; a skill named twice takes its lower verdict.
@@ -180,7 +181,7 @@ describe('GĐ3 S_cv computed by code from per-criterion verdicts (AD-2, US-3.1, 
     moved.nice_to_have.push(moved.must_have.splice(1, 1)[0]!);
     expect(computeScv(input({ criteria: moved })).scvX100).toBe(base);
     const twice = criteria();
-    twice.nice_to_have.push({ skill: 'SQL', level_required: 'BASIC', verdict: 'MET', evidence: 'x' });
+    twice.nice_to_have.push(skillVerdict('SQL', 'BASIC', 'MET', 'x'));
     expect(computeScv(input({ criteria: twice })).scvX100).toBe(base);
     // MET without evidence (Invariant 5).
     const unsupported = criteria({ language: { verdict: 'MET', evidence: null } });

@@ -452,15 +452,15 @@ Không bên nào trực tiếp cho một con số tổng. Code chấm verdict c�
 - vị trí và mô tả của kinh nghiệm;
 - tên chứng chỉ.
 
-Thời lượng tính từ mốc thời gian của CV. "Hiện tại" tính theo hạn nộp CV của đợt, để kết quả lặp lại được. Bậc của kỹ năng:
+Một mục CV (một dự án, một kinh nghiệm, một chứng chỉ) là một nguồn. Thời lượng chỉ tính ở mục kinh nghiệm, theo mốc thời gian CV ghi; các khoảng chồng nhau tính một lần. Dự án chỉ được đếm là nguồn, không góp thời gian. "Hiện tại" tính theo hạn nộp CV của đợt, để kết quả lặp lại được ([CONTEXT D44](CONTEXT.md)). Bậc của kỹ năng:
 
 | Bậc | Điều kiện | Đáp ứng mức yêu cầu của JD |
 |---|---|---|
 | T0 | Không có | – |
 | T1 Đã nêu | Chỉ có ở mục kỹ năng | Chưa đáp ứng mức nào |
-| T2 Đã dùng | 1 dự án, kinh nghiệm hoặc chứng chỉ | Cơ bản |
-| T3 Dùng nhiều | ≥ 2 dự án/kinh nghiệm, hoặc tổng ≥ 6 tháng | Khá |
-| T4 Thành thạo | Kinh nghiệm làm việc/thực tập dùng kỹ năng đó ≥ 6 tháng, hoặc ≥ 3 nguồn và ≥ 12 tháng | Thành thạo |
+| T2 Đã dùng | ≥ 1 dự án, kinh nghiệm hoặc chứng chỉ | Cơ bản |
+| T3 Dùng nhiều | ≥ 2 dự án/kinh nghiệm (chứng chỉ không tính) | Khá |
+| T4 Thành thạo | Các mục kinh nghiệm (làm việc, thực tập) dùng kỹ năng đó, tổng ≥ 6 tháng | Thành thạo |
 
 Ngưỡng là tham số của bộ luật có phiên bản (`matching-rules/v1`). Kết quả lưu kèm phiên bản luật. JD Analyzer, form HR và code dùng cùng định nghĩa ba mức này.
 
@@ -473,7 +473,7 @@ Vùng không phải tiêu chí chấm. Vùng dùng để hiển thị độ ph�
 
 **Luật khớp kỹ năng** (code, theo thứ tự):
 1. Đúng kỹ năng, hoặc kỹ năng được kéo theo từ một kỹ năng trong CV: bậc đạt mức yêu cầu thì *Đáp ứng*; có nêu (từ T1) nhưng dưới mức thì *Một phần*.
-2. Không có kỹ năng đó, nhưng một kỹ năng cùng họ đạt ≥ T2: *Một phần*.
+2. Không có kỹ năng đó, nhưng một kỹ năng cùng họ đạt ≥ T2: *Một phần*. Ngoại ngữ không thay được cho nhau: tiếng Anh không thay tiếng Nhật.
 3. Còn lại: *Không có bằng chứng*.
 
 Mỗi verdict lưu kiểu khớp, bậc, kỹ năng trung gian và nguồn. Bằng chứng là đoạn chép từ trường của CV (tên dự án, công nghệ như CV viết), nên luôn có thật.
@@ -894,7 +894,7 @@ Mọi thông báo đều hiện trong ứng dụng (chuông ở ba cổng, cập
 | FR-37 | Theo dõi token và chi phí LLM theo agent và theo đợt | P1 | 📋 backlog | EPIC-6 |
 | FR-38 | Cán bộ Trung tâm xem kết quả chấm phù hợp theo JD: CV phù hợp sắp theo S_cv, tỷ lệ CV phù hợp / chỉ tiêu, số cặp bị lọc sơ bộ; ngay sau GĐ3 hệ thống báo các JD có tỷ lệ < 1. HR không xem được (UC-09, BR-11, GĐ3) | P1 | 📋 backlog | EPIC-3 |
 | FR-39 | Danh mục kỹ năng có vùng, họ (nhóm kỹ năng thay thế được cho nhau) và quan hệ kéo theo; kỹ năng mềm quy về bộ năng lực chuẩn; Quản trị gán và sửa khi duyệt kỹ năng (GĐ2, FR-13, [CONTEXT D42](CONTEXT.md)) | P0 | 🚧 In progress | EPIC-2 |
-| FR-40 | Khớp kỹ năng CV–JD bằng code, không dùng LLM: bậc bằng chứng của từng kỹ năng (cả kỹ năng mềm), khớp đúng / kéo theo / cùng họ, quy đổi ngoại ngữ theo CEFR (cả điều kiện cứng), ngoại ngữ ưu tiên của JD, mức khớp ngành, độ phủ theo vùng; mọi verdict kèm nguồn trong CV (GĐ3, NFR-4, [CONTEXT D42](CONTEXT.md)) | P0 | 📋 backlog | EPIC-3 |
+| FR-40 | Khớp kỹ năng CV–JD bằng code, không dùng LLM: bậc bằng chứng của từng kỹ năng (cả kỹ năng mềm), khớp đúng / kéo theo / cùng họ, quy đổi ngoại ngữ theo CEFR (cả điều kiện cứng), ngoại ngữ ưu tiên của JD, mức khớp ngành, độ phủ theo vùng; mọi verdict kèm nguồn trong CV (GĐ3, NFR-4, [CONTEXT D42](CONTEXT.md)) | P0 | 🚧 In progress | EPIC-3 |
 
 Priority: `P0` = bắt buộc cho MVP, `P1` = nên có, `P2` = tùy chọn, `P3` = mở rộng. Status: `✅ shipped (vX.Y.Z)` / `🚧 in-progress` / `📋 backlog` / `⏪ reverted in vX.Y.Z` / `🗑️ deprecated vX.Y.Z`.
 

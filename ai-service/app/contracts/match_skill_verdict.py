@@ -6,7 +6,8 @@ from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field, RootModel
 
-from . import match_verdict, skill_level
+from . import match_kind as match_kind_1
+from . import match_skill_source, match_verdict, skill_level
 
 
 class Evidence(RootModel[str]):
@@ -16,9 +17,16 @@ class Evidence(RootModel[str]):
     """
 
 
+class Via(RootModel[str]):
+    root: Annotated[str, Field(max_length=100, min_length=1)]
+    """
+    Catalogue skill of the CV the match goes through for IMPLIED and FAMILY; null for EXACT and NONE
+    """
+
+
 class MatchSkillVerdict(BaseModel):
     """
-    Verdict on one skill of the JD, with evidence from the CV
+    Verdict on one skill of the JD, computed by code, with the CV entries it rests on
     """
 
     model_config = ConfigDict(
@@ -33,4 +41,17 @@ class MatchSkillVerdict(BaseModel):
     evidence: Evidence | None
     """
     Quote copied from the CV that supports the verdict; null when NOT_MET
+    """
+    match_kind: match_kind_1.MatchKind
+    tier: Annotated[int, Field(ge=0, le=4)]
+    """
+    Evidence tier of the matched skill: 0 none, 1 listed, 2 used, 3 used often, 4 proficient (CONTEXT D44)
+    """
+    via: Via | None
+    """
+    Catalogue skill of the CV the match goes through for IMPLIED and FAMILY; null for EXACT and NONE
+    """
+    sources: Annotated[list[match_skill_source.MatchSkillSource], Field(max_length=10)]
+    """
+    CV entries the tier rests on: experience, projects, certificates, then the skills list
     """

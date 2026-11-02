@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./match_kind.json",
+  "type": "string",
+  "enum": [
+    "EXACT",
+    "IMPLIED",
+    "FAMILY",
+    "NONE"
+  ],
+  "title": "MatchKind",
+  "description": "EXACT = the CV shows the skill itself; IMPLIED = only skills that imply it; FAMILY = a skill of the same family; NONE = no match"
+}

@@ -15,6 +15,35 @@ Lịch sử phát hành của Smart Recruit Match. Mỗi commit ship code tăng 
 
 ---
 
+## [0.15.0] — 2026-11-02 — Hồ sơ kỹ năng chi tiết và khớp kỹ năng bằng code — v0.15.0
+
+US-3.5. Code (không dùng LLM) ra verdict cho từng kỹ năng bắt buộc và bổ trợ của JD, kể cả kỹ năng mềm. Mỗi verdict kèm kiểu khớp, bậc bằng chứng T0–T4 và các mục CV làm nguồn, nên bằng chứng luôn chép từ CV. Đây là các hàm thuần trong `matching/domain/`; US-3.2 sẽ gọi chúng để lưu kết quả và lọc top-M (FR-40, AD-15, [CONTEXT D42, D44](CONTEXT.md)).
+
+### Added
+- **Bậc bằng chứng** (`skill-evidence.ts`, bộ luật `matching-rules/v1`):
+  - nguồn lấy từ mục kỹ năng, công nghệ, tên, vai trò và mô tả của dự án, vị trí và mô tả của kinh nghiệm, tên chứng chỉ; một mục CV là một nguồn;
+  - T1 chỉ có ở mục kỹ năng; T2 ≥ 1 dự án, kinh nghiệm hoặc chứng chỉ; T3 ≥ 2 dự án/kinh nghiệm; T4 các mục kinh nghiệm dùng kỹ năng, tổng ≥ 6 tháng;
+  - bậc tính trên hợp nguồn của kỹ năng và mọi kỹ năng kéo theo nó (Spring Boot ⇒ Java);
+  - quét văn bản tự do bằng n-gram 1–8 từ, cụm dài nhất trước, không vượt qua dấu hết câu; key ngắn và từ thông dụng ("Go", "Spring", "Excel", "Thống kê", "Oracle") chỉ khớp qua mục kỹ năng và công nghệ.
+- **Mốc thời gian** (`period.ts`): đọc "09/2022", "T9/2022", "tháng 9 2022", "09/22", "2022-09-15", "2022" (tháng 6), "hiện tại", "đến nay"…; chỉ đọc ở mục kinh nghiệm; "hiện tại" là tháng của hạn nộp CV; các khoảng chồng nhau tính một lần.
+- **Khớp kỹ năng** (`skill-match.ts`): EXACT hoặc IMPLIED theo bậc so với mức JD (Cơ bản T2, Khá T3, Thành thạo T4); không có thì kỹ năng cùng họ ≥ T2 cho *Một phần* (FAMILY), trừ ngoại ngữ; còn lại NOT_MET. Kỹ năng JD ngoài danh mục chỉ so theo key.
+- **Kỹ năng mềm** (`soft-skill-signals.ts`, `soft-skill-signals/v1`): tín hiệu theo 12 năng lực chuẩn ("trưởng nhóm", "hackathon", "thuyết trình"…), đọc ở vai trò, vị trí, mô tả và chứng chỉ, bỏ qua câu nói về người khác ("làm việc với trưởng nhóm"); tự khai là T1; tín hiệu ở 1, 2, ≥ 3 mục là T2, T3, T4.
+- **Độ phủ theo vùng** (`zone-profile.ts`) và **`skill_fit`** (`skill-fit.ts`) để xếp top-M, cùng cách tính và làm tròn với S_cv; hòa thì `jdId` tăng dần.
+- **Prompt `cv_parser/v2`**: liệt kê đủ công nghệ của từng dự án (cả công nghệ chỉ có trong mô tả), ghi vai trò khi CV có, giữ kỹ năng mềm như CV viết. `v1` giữ nguyên; hồ sơ phân tích bằng v1 vẫn chấm được.
+- **Test**: unit test, property-based test (`fast-check`: thêm nguồn không làm verdict giảm, bỏ cạnh kéo theo hoặc họ không làm verdict tăng, tất định, 0 ≤ `skill_fit` ≤ 10 000); ví dụ ở PRD vẫn ra S_cv 58,80; test quét mã nguồn để chắc domain chỉ nhận `CvProfileMasked`; pytest cho prompt v2 và fixture mới.
+
+### Changed
+- `MatchSkillVerdict` có thêm `match_kind` (`EXACT`, `IMPLIED`, `FAMILY`, `NONE`), `tier` (0–4), `via`, `sources` (tối đa 10). Refine: `NOT_MET` ⇔ `NONE` ⇔ bậc 0; FAMILY chỉ cho `PARTIAL`; `MET`/`PARTIAL` có ít nhất một nguồn. JSON Schema và Pydantic sinh lại.
+- PRD › *Khung quy đổi mức bằng chứng*: thời lượng chỉ tính ở mục kinh nghiệm; T3, T4 theo D44. FR-40 chuyển *In progress* (phần ngoại ngữ, ngành ở US-3.6).
+- `scv.ts` tách `ratio.ts` và hàm cộng có trọng số dùng chung với `skill_fit`; kết quả không đổi.
+
+### Upgrade notes
+- Không có migration. Build lại image `api` và `ai-worker`, để worker dùng `cv_parser/v2`. CV đã phân tích bằng v1 không cần phân tích lại.
+
+**Commit**:
+
+---
+
 ## [0.14.0] — 2026-11-02 — Vùng, họ và quan hệ kéo theo của kỹ năng — v0.14.0
 
 US-2.7. Danh mục kỹ năng biết thêm kỹ năng thuộc vùng công việc nào, kỹ năng nào thay được cho nhau (cùng họ) và kỹ năng nào kéo theo kỹ năng nào. ADMIN gán khi duyệt và sửa cho kỹ năng đã duyệt. Module `matching` đọc qua `SkillCatalogService.taxonomy()`, để US-3.5 khớp kỹ năng CV–JD bằng code (FR-39, AD-15, [CONTEXT D42, D43](CONTEXT.md)).

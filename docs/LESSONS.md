@@ -15,7 +15,7 @@
 - Ranh giới module: §5 `exclude: node_modules` làm dependency-cruiser bỏ sót
 - Thư viện API, web: §8 CLI shadcn 4.21 · §10 Zod 4 bỏ qua `refine` khi trường khác lỗi · §13 multer đọc tên file theo latin1 · §25 form gửi `row_version` của query mới nhất, bỏ qua khóa lạc quan · §26 lỗi tổng của form không mất khi sửa ô khác của tổng · §28 react-pdf 11 mặc định Suspense, PDF lỗi làm sập route · §29 Esc trong combobox tự viết đóng cả dialog Radix
 - RabbitMQ, job AI: §16 `RabbitMQModule` giữ connection static · §17 mặc định sai của thư viện message
-- ai-service (Python): §19 chặn mạng trong pytest trên Windows · §20 PyMuPDF cắt chữ ngoài trang, màu nền theo thứ tự vẽ · §23 `HF_HUB_OFFLINE` đọc lúc import, bge-m3 tải 4,5 GB
+- ai-service (Python): §19 chặn mạng trong pytest trên Windows · §20 PyMuPDF cắt chữ ngoài trang, màu nền theo thứ tự vẽ · §23 `HF_HUB_OFFLINE` đọc lúc import, bge-m3 tải 4,5 GB · §31 fixture LLM mất khóa khi nâng prompt hoặc sửa dữ liệu test nằm trong prompt
 
 ---
 
@@ -448,3 +448,16 @@ See [US-2.7](sprints/stories/US-2.7-skill-zones-families-implications.md).
 - Story sinh migration: chạy hai file này cùng integration test của story, đừng chờ tới `pnpm test` đầy đủ.
 
 See [US-2.7](sprints/stories/US-2.7-skill-zones-families-implications.md).
+
+## 31. Fixture LLM mất khóa khi nâng phiên bản prompt hoặc sửa dữ liệu test nằm trong prompt
+
+**What happened (0.15.0)**: US-3.5 thêm prompt `cv_parser/v2`. Mọi test của CV Parser báo `FixtureMissingError`, vì 8 fixture cũ khóa theo request của v1. Sau đó, thêm kỹ năng Teamwork vào `CATALOGUE` dùng chung trong `tests/embedding_support.py` làm 3 test của `skill_normalizer` cũng báo `FixtureMissingError`, dù agent này không đổi.
+
+**Why**: `fixture_key` là sha256 của cả request: `agent`, `prompt_version`, `system`, `user`, `output_schema`, `effort` (`app/llm/providers/fixture_provider.py`, `KEY_FIELDS`). Prompt của `skill_normalizer` có cả danh mục kỹ năng, nên đổi danh mục test là đổi `user` của mọi request.
+
+**How to avoid**:
+- Nâng `<agent>/v<N+1>`: viết script tạm (không commit) đổi `prompt_version` và `system` trong `request` của từng fixture cũ, tính lại `fixture_key`, ghi file mới, xóa file cũ, giữ nguyên `responses`. Script nên kiểm file cũ đúng khóa và đúng system của v<N> trước khi ghi. Fixture trong repo dùng CRLF; ghi lại đúng kiểu xuống dòng của file cũ.
+- Fixture giữ `responses` cũ không chứng minh được prompt mới. Hành vi mới cần ít nhất một fixture mới, và nên chạy `ai-service/evals` với key thật trước khi phát hành.
+- Cần dữ liệu test khác cho một test: truyền vào harness (`CatalogueHarness(catalogue)`, `Harness(catalogue=...)`), đừng sửa `CATALOGUE` dùng chung.
+
+See [US-3.5](sprints/stories/US-3.5-skill-evidence-code-matching.md).
