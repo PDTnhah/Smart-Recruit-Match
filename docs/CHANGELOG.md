@@ -40,7 +40,7 @@ US-3.5. Code (không dùng LLM) ra verdict cho từng kỹ năng bắt buộc v�
 ### Upgrade notes
 - Không có migration. Build lại image `api` và `ai-worker`, để worker dùng `cv_parser/v2`. CV đã phân tích bằng v1 không cần phân tích lại.
 
-**Commit**:
+**Commit**: 2a5d8b8
 
 ---
 

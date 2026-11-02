@@ -11,7 +11,7 @@ prd_ref: [FR-40, FR-14, NFR-4]
 arch_ref: [AD-15, AD-2]
 depends_on: [US-2.7, US-3.1]
 assignee: PDTnhah
-commit:
+commit: 2a5d8b8818bb663cfff716ef461f31c673a203c1
 created: 2026-11-02
 updated: 2026-11-02
 ---
@@ -161,7 +161,7 @@ Code chỉ đọc `profile_masked` (BR-03). Taxonomy lấy từ `SkillCatalogSer
 - `MatchSkillVerdict` có `match_kind`, `tier`, `via`, `sources`.
 - PRD › *Khung quy đổi mức bằng chứng*: thời lượng chỉ tính ở mục kinh nghiệm; T3, T4 theo D44.
 
-**Commit**:
+**Commit**: 2a5d8b8
 
 ## Implementation notes
 
