@@ -1,6 +1,6 @@
 ---
 id: sprint-2026-W44
-status: in-progress
+status: closed
 start: 2026-10-26T00:00:00.000Z
 end: 2026-11-01T00:00:00.000Z
 goal: 'Ship US-2.4: CV sinh viên được AI phân tích thành hồ sơ năng lực, chữ ẩn bị loại và gắn cờ, thông tin cá nhân tách riêng và mã hóa, điều khoản v2 ghi tên Google (v0.10.0); bắt đầu US-5.1, US-6.4 để kịp mốc M1; đóng các story đang review'
@@ -69,16 +69,42 @@ Ngày 2026-10-28 kéo thêm US-3.1 sớm từ W45 (5 điểm, v0.13.0, [CONTEXT 
 
 ## Per-Epic Retrospective
 
-| Epic   | Retro Status | Notes                                |
-| ------ | ------------ | ------------------------------------ |
-| EPIC-1 | optional     | Code xong; chờ kiểm tay để đóng epic |
-| EPIC-2 | optional     | Epic còn chạy tới W46                |
-| EPIC-5 | optional     | Bắt đầu với US-5.1                   |
-| EPIC-6 | optional     | Bắt đầu với US-6.4                   |
+| Epic   | Retro Status | Notes                                                                              |
+| ------ | ------------ | ---------------------------------------------------------------------------------- |
+| EPIC-1 | done         | US-1.1…US-1.7 chuyển `done` ngày 2026-10-28, người dùng đã kiểm tay hết AC còn lại |
+| EPIC-2 | optional     | US-2.1…US-2.6 `done`; D42 thêm US-2.7, epic còn chạy tới W46                       |
+| EPIC-5 | optional     | US-5.1 chưa bắt đầu                                                                |
+| EPIC-6 | optional     | US-6.4 chưa bắt đầu                                                                |
 
 ## Retrospective
 
-*Điền khi đóng sprint.*
+Đóng ngày 2026-11-02. Sprint ship bốn story và một bản sửa: 0.10.0 (US-2.4), 0.11.0 (US-2.5), 0.12.0 (US-2.6), 0.13.0 (US-3.1), 0.13.1 (sửa xem CV dạng PDF của US-2.6). Tổng 26 điểm; kế hoạch ban đầu là 18 điểm (US-2.4, US-5.1, US-6.4). Ngày 2026-10-28 người dùng kiểm tay xong, EPIC-1 và US-2.1…US-2.6 chuyển `done`.
+
+### What went well
+
+- Làn A đi trước lộ trình: US-2.5, US-2.6 kéo sớm từ W46, US-3.1 kéo sớm từ W45.
+- Migration không đụng số thứ tự: US-2.4 sinh `0011`–`0012`, US-2.5 `0013`–`0018`, US-3.1 `0019`, mỗi story sinh sau khi story trước merge.
+- Chín story `review` từ W41–W43 được kiểm tay và đóng trong tuần.
+
+### What didn't
+
+- US-5.1 và US-6.4 vẫn chưa bắt đầu, nên mốc M1 còn thiếu engine phân bổ và mô phỏng.
+- Lỗi xem file CV chỉ lộ ra khi chạy qua nginx trong compose, sau khi đã ship 0.12.0 ([LESSONS §27, §28](../LESSONS.md)).
+- Jest vẫn hết bộ nhớ khi compose đang chạy ([LESSONS §15](../LESSONS.md)).
+
+### Followups
+
+- Người dùng kiểm tay form đợt của US-3.1 (AC-13) ở 360 / 768 / 1024 px.
+- W45: US-2.7 ở làn A, US-3.6 ở làn B theo [CONTEXT D42](../CONTEXT.md); US-5.1, US-6.4 chuyển tiếp.
+- Kiểm giao diện qua compose (:8080) trước khi ship story có xem file.
+
+## Carry-overs to W45
+
+| US     | Lý do                                              | Từ sprint |
+| ------ | -------------------------------------------------- | --------- |
+| US-3.1 | `review`: chờ kiểm tay AC-13 ở 360 / 768 / 1024 px | W44       |
+| US-5.1 | Chưa bắt đầu; làn A và B dồn cho EPIC-2 và US-3.1  | W42       |
+| US-6.4 | Chưa bắt đầu; phụ thuộc US-5.1                     | W44       |
 
 ## Cross-references
 

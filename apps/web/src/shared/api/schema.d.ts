@@ -356,6 +356,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/skills/{id}/taxonomy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["AdminSkillsController_updateTaxonomy"];
+        trace?: never;
+    };
     "/api/companies": {
         parameters: {
             query?: never;
@@ -1134,6 +1150,14 @@ export interface components {
                 aliases: string[];
                 /** @enum {string|null} */
                 group: "LANGUAGE" | "FRAMEWORK" | "DATABASE" | "CLOUD_DEVOPS" | "TOOL" | "TESTING" | "DATA_AI" | "METHODOLOGY" | "SOFT_SKILL" | "OTHER" | null;
+                /** @enum {string|null} */
+                family: "SYSTEMS_LANGUAGE" | "MANAGED_LANGUAGE" | "SCRIPTING_LANGUAGE" | "SOFTWARE_DESIGN" | "ALGORITHMS" | "VERSION_CONTROL" | "IDE" | "FOREIGN_LANGUAGE" | "BACKEND_FRAMEWORK" | "ORM" | "WEB_API" | "MESSAGE_BROKER" | "SOFTWARE_ARCHITECTURE" | "JVM_BUILD_TOOL" | "JS_TS" | "WEB_MARKUP_STYLING" | "SPA_FRAMEWORK" | "META_FRAMEWORK" | "DOM_LIBRARY" | "STATE_MANAGEMENT" | "FRONTEND_BUILD" | "UI_DESIGN" | "NATIVE_MOBILE_PLATFORM" | "NATIVE_UI_TOOLKIT" | "MOBILE_LANGUAGE" | "CROSS_PLATFORM_MOBILE" | "SQL" | "RELATIONAL_DB" | "NOSQL_DB" | "AI_FIELD" | "ML_FRAMEWORK" | "PYTHON_DATA_TOOL" | "DATA_ANALYTICS" | "NUMERIC_LANGUAGE" | "BI_TOOL" | "DATA_ENGINEERING" | "BIG_DATA" | "CONTAINERIZATION" | "CLOUD_PROVIDER" | "CI_CD" | "IAC" | "LINUX_SHELL" | "WEB_SERVER" | "MONITORING" | "MANUAL_QA" | "TEST_AUTOMATION" | "UNIT_TESTING" | "API_TESTING" | "PERFORMANCE_TESTING" | "REQUIREMENTS" | "MODELING_NOTATION" | "SOFTWARE_PROCESS" | "PROJECT_TOOL" | "NETWORKING" | "INFORMATION_SECURITY" | "EMBEDDED_SYSTEMS" | "GAME_ENGINE" | "BLOCKCHAIN_PLATFORM" | "COMMUNICATION" | "TEAMWORK" | "LEADERSHIP" | "PROBLEM_SOLVING" | "PRESENTATION" | "CRITICAL_THINKING" | "SELF_LEARNING" | "TIME_MANAGEMENT" | "PROACTIVENESS" | "RESPONSIBILITY" | "ADAPTABILITY" | "ATTENTION_TO_DETAIL" | null;
+                /** @enum {string|null} */
+                zone: "FOUNDATION" | "BACKEND" | "FRONTEND" | "MOBILE" | "DATABASE" | "DATA_AI" | "DEVOPS_CLOUD" | "TESTING_QA" | "BUSINESS_ANALYSIS" | "PROCESS" | "SECURITY_NETWORK" | "EMBEDDED_IOT" | "GAME_DEV" | "BLOCKCHAIN" | "SOFT_SKILL" | null;
+                implies: {
+                    id: number;
+                    canonicalName: string;
+                }[];
                 /** @enum {string} */
                 status: "PENDING" | "APPROVED" | "REJECTED" | "MERGED";
                 mergedInto: {
@@ -1160,6 +1184,13 @@ export interface components {
             canonicalName: string;
             /** @enum {string} */
             group: "LANGUAGE" | "FRAMEWORK" | "DATABASE" | "CLOUD_DEVOPS" | "TOOL" | "TESTING" | "DATA_AI" | "METHODOLOGY" | "SOFT_SKILL" | "OTHER";
+            /**
+             * @default null
+             * @enum {string|null}
+             */
+            family: "SYSTEMS_LANGUAGE" | "MANAGED_LANGUAGE" | "SCRIPTING_LANGUAGE" | "SOFTWARE_DESIGN" | "ALGORITHMS" | "VERSION_CONTROL" | "IDE" | "FOREIGN_LANGUAGE" | "BACKEND_FRAMEWORK" | "ORM" | "WEB_API" | "MESSAGE_BROKER" | "SOFTWARE_ARCHITECTURE" | "JVM_BUILD_TOOL" | "JS_TS" | "WEB_MARKUP_STYLING" | "SPA_FRAMEWORK" | "META_FRAMEWORK" | "DOM_LIBRARY" | "STATE_MANAGEMENT" | "FRONTEND_BUILD" | "UI_DESIGN" | "NATIVE_MOBILE_PLATFORM" | "NATIVE_UI_TOOLKIT" | "MOBILE_LANGUAGE" | "CROSS_PLATFORM_MOBILE" | "SQL" | "RELATIONAL_DB" | "NOSQL_DB" | "AI_FIELD" | "ML_FRAMEWORK" | "PYTHON_DATA_TOOL" | "DATA_ANALYTICS" | "NUMERIC_LANGUAGE" | "BI_TOOL" | "DATA_ENGINEERING" | "BIG_DATA" | "CONTAINERIZATION" | "CLOUD_PROVIDER" | "CI_CD" | "IAC" | "LINUX_SHELL" | "WEB_SERVER" | "MONITORING" | "MANUAL_QA" | "TEST_AUTOMATION" | "UNIT_TESTING" | "API_TESTING" | "PERFORMANCE_TESTING" | "REQUIREMENTS" | "MODELING_NOTATION" | "SOFTWARE_PROCESS" | "PROJECT_TOOL" | "NETWORKING" | "INFORMATION_SECURITY" | "EMBEDDED_SYSTEMS" | "GAME_ENGINE" | "BLOCKCHAIN_PLATFORM" | "COMMUNICATION" | "TEAMWORK" | "LEADERSHIP" | "PROBLEM_SOLVING" | "PRESENTATION" | "CRITICAL_THINKING" | "SELF_LEARNING" | "TIME_MANAGEMENT" | "PROACTIVENESS" | "RESPONSIBILITY" | "ADAPTABILITY" | "ATTENTION_TO_DETAIL" | null;
+            /** @default [] */
+            impliesSkillIds: number[];
         };
         AdminSkillDto_Output: {
             id: number;
@@ -1167,6 +1198,14 @@ export interface components {
             aliases: string[];
             /** @enum {string|null} */
             group: "LANGUAGE" | "FRAMEWORK" | "DATABASE" | "CLOUD_DEVOPS" | "TOOL" | "TESTING" | "DATA_AI" | "METHODOLOGY" | "SOFT_SKILL" | "OTHER" | null;
+            /** @enum {string|null} */
+            family: "SYSTEMS_LANGUAGE" | "MANAGED_LANGUAGE" | "SCRIPTING_LANGUAGE" | "SOFTWARE_DESIGN" | "ALGORITHMS" | "VERSION_CONTROL" | "IDE" | "FOREIGN_LANGUAGE" | "BACKEND_FRAMEWORK" | "ORM" | "WEB_API" | "MESSAGE_BROKER" | "SOFTWARE_ARCHITECTURE" | "JVM_BUILD_TOOL" | "JS_TS" | "WEB_MARKUP_STYLING" | "SPA_FRAMEWORK" | "META_FRAMEWORK" | "DOM_LIBRARY" | "STATE_MANAGEMENT" | "FRONTEND_BUILD" | "UI_DESIGN" | "NATIVE_MOBILE_PLATFORM" | "NATIVE_UI_TOOLKIT" | "MOBILE_LANGUAGE" | "CROSS_PLATFORM_MOBILE" | "SQL" | "RELATIONAL_DB" | "NOSQL_DB" | "AI_FIELD" | "ML_FRAMEWORK" | "PYTHON_DATA_TOOL" | "DATA_ANALYTICS" | "NUMERIC_LANGUAGE" | "BI_TOOL" | "DATA_ENGINEERING" | "BIG_DATA" | "CONTAINERIZATION" | "CLOUD_PROVIDER" | "CI_CD" | "IAC" | "LINUX_SHELL" | "WEB_SERVER" | "MONITORING" | "MANUAL_QA" | "TEST_AUTOMATION" | "UNIT_TESTING" | "API_TESTING" | "PERFORMANCE_TESTING" | "REQUIREMENTS" | "MODELING_NOTATION" | "SOFTWARE_PROCESS" | "PROJECT_TOOL" | "NETWORKING" | "INFORMATION_SECURITY" | "EMBEDDED_SYSTEMS" | "GAME_ENGINE" | "BLOCKCHAIN_PLATFORM" | "COMMUNICATION" | "TEAMWORK" | "LEADERSHIP" | "PROBLEM_SOLVING" | "PRESENTATION" | "CRITICAL_THINKING" | "SELF_LEARNING" | "TIME_MANAGEMENT" | "PROACTIVENESS" | "RESPONSIBILITY" | "ADAPTABILITY" | "ATTENTION_TO_DETAIL" | null;
+            /** @enum {string|null} */
+            zone: "FOUNDATION" | "BACKEND" | "FRONTEND" | "MOBILE" | "DATABASE" | "DATA_AI" | "DEVOPS_CLOUD" | "TESTING_QA" | "BUSINESS_ANALYSIS" | "PROCESS" | "SECURITY_NETWORK" | "EMBEDDED_IOT" | "GAME_DEV" | "BLOCKCHAIN" | "SOFT_SKILL" | null;
+            implies: {
+                id: number;
+                canonicalName: string;
+            }[];
             /** @enum {string} */
             status: "PENDING" | "APPROVED" | "REJECTED" | "MERGED";
             mergedInto: {
@@ -1193,6 +1232,12 @@ export interface components {
         };
         RejectSkillRequestDto: {
             rowVersion: number;
+        };
+        UpdateSkillTaxonomyRequestDto: {
+            rowVersion: number;
+            /** @enum {string|null} */
+            family: "SYSTEMS_LANGUAGE" | "MANAGED_LANGUAGE" | "SCRIPTING_LANGUAGE" | "SOFTWARE_DESIGN" | "ALGORITHMS" | "VERSION_CONTROL" | "IDE" | "FOREIGN_LANGUAGE" | "BACKEND_FRAMEWORK" | "ORM" | "WEB_API" | "MESSAGE_BROKER" | "SOFTWARE_ARCHITECTURE" | "JVM_BUILD_TOOL" | "JS_TS" | "WEB_MARKUP_STYLING" | "SPA_FRAMEWORK" | "META_FRAMEWORK" | "DOM_LIBRARY" | "STATE_MANAGEMENT" | "FRONTEND_BUILD" | "UI_DESIGN" | "NATIVE_MOBILE_PLATFORM" | "NATIVE_UI_TOOLKIT" | "MOBILE_LANGUAGE" | "CROSS_PLATFORM_MOBILE" | "SQL" | "RELATIONAL_DB" | "NOSQL_DB" | "AI_FIELD" | "ML_FRAMEWORK" | "PYTHON_DATA_TOOL" | "DATA_ANALYTICS" | "NUMERIC_LANGUAGE" | "BI_TOOL" | "DATA_ENGINEERING" | "BIG_DATA" | "CONTAINERIZATION" | "CLOUD_PROVIDER" | "CI_CD" | "IAC" | "LINUX_SHELL" | "WEB_SERVER" | "MONITORING" | "MANUAL_QA" | "TEST_AUTOMATION" | "UNIT_TESTING" | "API_TESTING" | "PERFORMANCE_TESTING" | "REQUIREMENTS" | "MODELING_NOTATION" | "SOFTWARE_PROCESS" | "PROJECT_TOOL" | "NETWORKING" | "INFORMATION_SECURITY" | "EMBEDDED_SYSTEMS" | "GAME_ENGINE" | "BLOCKCHAIN_PLATFORM" | "COMMUNICATION" | "TEAMWORK" | "LEADERSHIP" | "PROBLEM_SOLVING" | "PRESENTATION" | "CRITICAL_THINKING" | "SELF_LEARNING" | "TIME_MANAGEMENT" | "PROACTIVENESS" | "RESPONSIBILITY" | "ADAPTABILITY" | "ATTENTION_TO_DETAIL" | null;
+            impliesSkillIds: number[];
         };
         CreateCompanyRequestDto: {
             name: string;
@@ -2255,6 +2300,7 @@ export interface operations {
         parameters: {
             query?: {
                 status?: "PENDING" | "APPROVED" | "REJECTED" | "MERGED";
+                zone?: "FOUNDATION" | "BACKEND" | "FRONTEND" | "MOBILE" | "DATABASE" | "DATA_AI" | "DEVOPS_CLOUD" | "TESTING_QA" | "BUSINESS_ANALYSIS" | "PROCESS" | "SECURITY_NETWORK" | "EMBEDDED_IOT" | "GAME_DEV" | "BLOCKCHAIN" | "SOFT_SKILL";
             };
             header?: never;
             path?: never;
@@ -2334,6 +2380,31 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["RejectSkillRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSkillDto_Output"];
+                };
+            };
+        };
+    };
+    AdminSkillsController_updateTaxonomy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateSkillTaxonomyRequestDto"];
             };
         };
         responses: {

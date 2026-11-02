@@ -12,6 +12,7 @@ const CORE_TABLES = [
   'cvs',
   'job_descriptions',
   'notifications',
+  'skill_implications',
   'skills',
   'students',
   'users',
@@ -54,7 +55,7 @@ describe('AD-9: migrations apply on empty DB and create core tables with constra
     await admin?.end();
   });
 
-  it('creates exactly the ten core tables', async () => {
+  it('creates exactly the eleven core tables', async () => {
     const { rows } = await client.query<{ table_name: string }>(
       "SELECT table_name FROM information_schema.tables WHERE table_schema = 'core' AND table_type = 'BASE TABLE' ORDER BY table_name",
     );

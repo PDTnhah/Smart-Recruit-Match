@@ -4,18 +4,25 @@ import {
   type AdminSkillList,
   type AdminSkillListQuery,
   type ApproveSkillRequest,
+  familyGroupError,
   type MergeSkillRequest,
   type RejectSkillRequest,
   skillMachine,
+  type SkillRef,
   type SkillStatus,
+  type UpdateSkillTaxonomyRequest,
+  zoneOf,
 } from '@srm/shared';
 import type { AuthUser } from '../../../common/auth/index.js';
 import {
   EntityNotFoundError,
   InvalidTransitionError,
   RowVersionConflictError,
+  SkillImplicationCycleError,
   SkillNameTakenError,
+  SkillNotApprovedError,
   TransitionConditionFailedError,
+  ValidationFailedError,
 } from '../../../common/errors/index.js';
 import { StateTransitionService } from '../../../common/state/index.js';
 import { skillLifecycle } from '../../../db/lifecycles.js';
@@ -24,15 +31,20 @@ import type { Database, DbTx } from '../../../db/types.js';
 import { AuditService, userActor } from '../../audit/index.js';
 import { MERGE_TARGET_NOT_APPROVED, SKILL_REVIEW_REASONS, SKILLS_AUDIT_ACTIONS } from '../domain/audit-actions.js';
 import { approvalOf, type KeyedName, keyOwner, mergeOf } from '../domain/catalogue-keys.js';
+import { findCycle, type Implication, withOutgoing } from '../domain/implications.js';
 import { type LockedSkill, SkillRepository, type SkillRecord } from '../infrastructure/skill.repository.js';
 
 const ENTITY = skillMachine.name;
+
+const ascending = (ids: readonly number[]) => [...ids].sort((a, b) => a - b);
 
 /**
  * ADMIN review of the skills the AI found outside the catalogue (FR-13, US-2.5 AC-7, CONTEXT D39):
  * approve (name and group may change), merge into an approved skill as an alias, or reject. Every
  * decision goes through `transitionTo` with its audit entries in one transaction (AD-8), and no two
  * skills ever match one spelling: a name or alias whose key another skill holds is a 409.
+ * ADMIN also keeps the family and the implied skills of approved skills (FR-39, US-2.7, CONTEXT
+ * D43); implications only join approved skills and never close a cycle.
  */
 @Injectable()
 export class SkillReviewService {
@@ -44,11 +56,15 @@ export class SkillReviewService {
   ) {}
 
   async list(query: AdminSkillListQuery): Promise<AdminSkillList> {
-    const records = await this.repository.list(query.status);
+    const records = await this.repository.list(query.status, query.zone);
     return { items: records.map(toAdminSkill) };
   }
 
-  /** The approved skill takes the new name and group; a renamed spelling stays as an alias (AC-10). */
+  /**
+   * The approved skill takes the new name, group, family and implied skills; a renamed spelling
+   * stays as an alias (US-2.5 AC-10, US-2.7 AC-5). The schema has checked the family against the
+   * group.
+   */
   async approve(user: AuthUser, id: number, body: ApproveSkillRequest): Promise<AdminSkill> {
     await this.db.transaction(async (tx) => {
       await this.repository.lockCatalogue(tx, 'exclusive');
@@ -56,14 +72,26 @@ export class SkillReviewService {
       const approval = approvalOf(skill, body.canonicalName, body.group);
       await this.assertKeysFree(tx, approval.names, [id]);
       const { canonicalName, nameKey, aliases, group } = approval;
-      await this.repository.updateVersioned(tx, id, skill.rowVersion, { canonicalName, nameKey, aliases, group });
+      const { family, impliesSkillIds } = body;
+      // A pending skill is in no implication: only approved skills imply or are implied. Implying
+      // itself is then the one cycle it can close, so the rest of the graph is not read.
+      await this.assertImplications(tx, { id, canonicalName }, impliesSkillIds, []);
+      await this.repository.updateVersioned(tx, id, skill.rowVersion, { canonicalName, nameKey, aliases, group, family });
+      await this.repository.replaceImplications(tx, id, impliesSkillIds);
       await this.audit.record(tx, {
         actor: userActor(user),
         action: SKILLS_AUDIT_ACTIONS.SKILL_APPROVED,
         entity: ENTITY,
         entityId: id,
         before: { canonicalName: skill.canonicalName, aliases: skill.aliases, rowVersion: skill.rowVersion },
-        after: { canonicalName, aliases, group, rowVersion: skill.rowVersion + 1 },
+        after: {
+          canonicalName,
+          aliases,
+          group,
+          family,
+          impliesSkillIds: ascending(impliesSkillIds),
+          rowVersion: skill.rowVersion + 1,
+        },
       });
       await this.transitions.transitionTo<SkillStatus>({
         lifecycle: skillLifecycle,
@@ -152,6 +180,51 @@ export class SkillReviewService {
     return this.get(id);
   }
 
+  /**
+   * The family and the implied skills of an approved skill (US-2.7 AC-6). Checks run in the order
+   * of transitionTo: 404, row_version (409), then the skill must be approved (422), the family must
+   * fit its group (400), and the implied skills must be approved and close no cycle (422). Saving
+   * what is stored writes nothing, so row_version stays and no other open form gets a 409.
+   */
+  async updateTaxonomy(user: AuthUser, id: number, body: UpdateSkillTaxonomyRequest): Promise<AdminSkill> {
+    await this.db.transaction(async (tx) => {
+      await this.repository.lockCatalogue(tx, 'exclusive');
+      const [skill] = await this.repository.lock(tx, [id]);
+      if (!skill) throw new EntityNotFoundError(ENTITY, id);
+      if (skill.rowVersion !== body.rowVersion) {
+        throw new RowVersionConflictError(ENTITY, id, body.rowVersion, skill.rowVersion);
+      }
+      if (skill.status !== 'APPROVED') throw new SkillNotApprovedError([id]);
+      // CHECK skills_approved_group_check: an approved skill always has a group.
+      const familyError = familyGroupError(skill.group!, body.family);
+      if (familyError !== null) throw new ValidationFailedError([{ path: 'family', message: familyError }]);
+      const implications = await this.repository.implications(tx);
+      const implied = ascending(implications.filter((edge) => edge.skillId === id).map((edge) => edge.impliedSkillId));
+      const impliesSkillIds = ascending(body.impliesSkillIds);
+      if (skill.family === body.family && implied.join() === impliesSkillIds.join()) return;
+      await this.assertImplications(tx, skill, body.impliesSkillIds, implications);
+      await this.repository.updateVersioned(tx, id, skill.rowVersion, { family: body.family });
+      await this.repository.replaceImplications(tx, id, body.impliesSkillIds);
+      await this.audit.record(tx, {
+        actor: userActor(user),
+        action: SKILLS_AUDIT_ACTIONS.SKILL_TAXONOMY_UPDATED,
+        entity: ENTITY,
+        entityId: id,
+        before: {
+          family: skill.family,
+          impliesSkillIds: implied,
+          rowVersion: skill.rowVersion,
+        },
+        after: {
+          family: body.family,
+          impliesSkillIds,
+          rowVersion: skill.rowVersion + 1,
+        },
+      });
+    });
+    return this.get(id);
+  }
+
   private async get(id: number): Promise<AdminSkill> {
     const record = await this.repository.findById(id);
     if (!record) throw new EntityNotFoundError(ENTITY, id);
@@ -175,6 +248,33 @@ export class SkillReviewService {
       if (owner) throw new SkillNameTakenError(name, owner);
     }
   }
+
+  /**
+   * 422 unless every skill of `impliedIds` is approved and `skill` implying exactly them, in place
+   * of what it implies in `implications`, closes no cycle (AC-4, AC-6). Runs under the exclusive
+   * catalogue lock, which every write of implications takes, so the graph checked is the one written.
+   */
+  private async assertImplications(
+    tx: DbTx,
+    skill: SkillRef,
+    impliedIds: readonly number[],
+    implications: readonly Implication[],
+  ): Promise<void> {
+    // Before the status check: on approval the skill itself is not approved yet.
+    if (impliedIds.includes(skill.id)) throw new SkillImplicationCycleError([skill, skill]);
+    const approved = new Set(
+      (await this.repository.refs(tx, impliedIds)).filter((ref) => ref.status === 'APPROVED').map((ref) => ref.id),
+    );
+    const notApproved = impliedIds.filter((impliedId) => !approved.has(impliedId));
+    if (notApproved.length > 0) throw new SkillNotApprovedError(notApproved);
+
+    const cycle = findCycle(withOutgoing(implications, skill.id, impliedIds), skill.id);
+    if (cycle === null) return;
+    const names = new Map((await this.repository.refs(tx, cycle)).map((ref) => [ref.id, ref.canonicalName]));
+    // On approval the new name, not yet written.
+    names.set(skill.id, skill.canonicalName);
+    throw new SkillImplicationCycleError(cycle.map((cycleId) => ({ id: cycleId, canonicalName: names.get(cycleId)! })));
+  }
 }
 
 /** Same order of checks as transitionTo: 404, then row_version (409), then the state (422). */
@@ -197,6 +297,9 @@ function toAdminSkill(record: SkillRecord): AdminSkill {
     canonicalName: record.canonicalName,
     aliases: [...record.aliases],
     group: record.group,
+    family: record.family,
+    zone: zoneOf(record.family),
+    implies: record.implies,
     status: record.status,
     mergedInto: record.mergedInto,
     suggestion:

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import type { AdminSkill, AdminSkillList } from '@srm/shared';
 import { ZodResponse } from 'nestjs-zod';
@@ -12,11 +12,13 @@ import {
   ApproveSkillRequestDto,
   MergeSkillRequestDto,
   RejectSkillRequestDto,
+  UpdateSkillTaxonomyRequestDto,
 } from './dto.js';
 
 /**
- * Review of the skills the AI found outside the catalogue (FR-13, US-2.5 AC-7, AC-8). Personas:
- * only ADMIN manages the catalogue; other roles get 403.
+ * Review of the skills the AI found outside the catalogue (FR-13, US-2.5 AC-7, AC-8), and the
+ * family and implied skills of approved ones (FR-39, US-2.7 AC-6). Personas: only ADMIN manages the
+ * catalogue; other roles get 403.
  */
 @ApiTags('admin')
 @Roles('ADMIN')
@@ -61,5 +63,15 @@ export class AdminSkillsController {
     @Body() body: RejectSkillRequestDto,
   ): Promise<AdminSkill> {
     return this.review.reject(user, id, body);
+  }
+
+  @Patch(':id/taxonomy')
+  @ZodResponse({ status: 200, type: AdminSkillDto })
+  updateTaxonomy(
+    @CurrentUser() user: AuthUser,
+    @Param() { id }: IdParamDto,
+    @Body() body: UpdateSkillTaxonomyRequestDto,
+  ): Promise<AdminSkill> {
+    return this.review.updateTaxonomy(user, id, body);
   }
 }

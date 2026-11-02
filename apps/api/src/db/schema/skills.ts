@@ -1,7 +1,16 @@
-import { SKILL_GROUPS, SKILL_STATES, type SkillGroup, type SkillStatus, type SkillSuggestion } from '@srm/shared';
+import {
+  SKILL_FAMILIES,
+  SKILL_GROUPS,
+  SKILL_STATES,
+  SOFT_SKILL_FAMILIES,
+  type SkillFamily,
+  type SkillGroup,
+  type SkillStatus,
+  type SkillSuggestion,
+} from '@srm/shared';
 import { sql } from 'drizzle-orm';
-import { type AnyPgColumn, check, index, jsonb, text } from 'drizzle-orm/pg-core';
-import { id, oneOf, ref, rowVersion, timestamps } from './columns.js';
+import { type AnyPgColumn, check, index, jsonb, primaryKey, text } from 'drizzle-orm/pg-core';
+import { id, inList, oneOf, ref, rowVersion, timestamps, timestamptz } from './columns.js';
 import { core } from './core.js';
 
 // Skill catalogue (FR-13, US-2.5, CONTEXT D39). APPROVED rows are the catalogue, which the AI
@@ -27,6 +36,9 @@ export const skills = core.table(
       .notNull()
       .default(sql`'{}'::text[]`),
     group: text('group').$type<SkillGroup>(),
+    // Skills of one family can stand in for each other; the zone follows from the family (FR-39,
+    // US-2.7, CONTEXT D43). Null until ADMIN places the skill.
+    family: text('family').$type<SkillFamily>(),
     status: text('status').$type<SkillStatus>().notNull().default('PENDING'),
     mergedIntoId: ref('merged_into_id').references((): AnyPgColumn => skills.id),
     // What the skill normalizer suggested (AC-6), with the model and prompt (Invariant 12).
@@ -39,6 +51,12 @@ export const skills = core.table(
   (t) => [
     oneOf('skills_status_check', t.status, SKILL_STATES),
     oneOf('skills_group_check', t.group, SKILL_GROUPS),
+    oneOf('skills_family_check', t.family, SKILL_FAMILIES),
+    // Soft skills take the standard soft-skill competencies, and only they do (CONTEXT D43).
+    check(
+      'skills_soft_skill_family_check',
+      sql`${t.family} is null or (${t.group} is not null and (${t.group} = 'SOFT_SKILL') = (${t.family} in (${inList(SOFT_SKILL_FAMILIES)})))`,
+    ),
     check('skills_canonical_name_check', sql`length(btrim(${t.canonicalName})) between 1 and 100`),
     check('skills_name_key_check', sql`${t.nameKey} <> ''`),
     check('skills_alias_keys_check', sql`cardinality(${t.aliasKeys}) = cardinality(${t.aliases})`),
@@ -53,5 +71,26 @@ export const skills = core.table(
       'skills_suggestion_check',
       sql`(${t.suggestion} is null) = (${t.suggestionModel} is null) and (${t.suggestion} is null) = (${t.suggestionPromptVersion} is null)`,
     ),
+  ],
+);
+
+// Implications between catalogue skills (FR-39, US-2.7): a CV that uses `skill_id` uses
+// `implied_skill_id` too (Spring Boot ⇒ Java). Both ends are APPROVED and the graph has no cycle;
+// no CHECK can see either, so SkillReviewService checks them under the SKILL_CATALOGUE lock (D39).
+export const skillImplications = core.table(
+  'skill_implications',
+  {
+    skillId: ref('skill_id')
+      .notNull()
+      .references(() => skills.id),
+    impliedSkillId: ref('implied_skill_id')
+      .notNull()
+      .references(() => skills.id),
+    createdAt: timestamptz('created_at').notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.skillId, t.impliedSkillId] }),
+    check('skill_implications_not_self_check', sql`${t.skillId} <> ${t.impliedSkillId}`),
+    index('skill_implications_implied_skill_id_idx').on(t.impliedSkillId),
   ],
 );

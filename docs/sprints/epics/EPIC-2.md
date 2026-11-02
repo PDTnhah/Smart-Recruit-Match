@@ -74,7 +74,7 @@ Ranh giới kiến trúc mà epic này giữ (AD-1, AD-4): AI Service không chu
 | FR-11 | US-2.4 | ✅ done |
 | FR-12 | US-2.6 | ✅ done |
 | FR-13 | US-2.5 | ✅ done |
-| FR-39 | US-2.7 | 📋 backlog |
+| FR-39 | US-2.7 | 🚧 in-progress |
 
 > NFR-3 (không gửi PII không cần thiết cho LLM), NFR-6 (< 30 giây/CV), NFR-10 (job có retry) và NFR-12 (thay được mô hình) được thực thi trong epic này.
 
@@ -101,7 +101,7 @@ Ranh giới kiến trúc mà epic này giữ (AD-1, AD-4): AI Service không chu
 | US-2.4 | CV Parser: chữ ẩn, tách PII | CV thành hồ sơ năng lực có `profile_masked`, chặn chữ ẩn | ✅ done | 0.10.0 |
 | US-2.5 | Embedding và danh mục kỹ năng | Tên kỹ năng được chuẩn hóa; quản trị duyệt kỹ năng mới | ✅ done | 0.11.0 |
 | US-2.6 | SV xác nhận hồ sơ năng lực | SV xem CV bên cạnh hồ sơ, sửa và xác nhận | ✅ done | 0.12.0 |
-| US-2.7 | Vùng, họ và quan hệ kéo theo của kỹ năng | ADMIN gán vùng, họ, kéo theo; `matching` đọc taxonomy | 📋 backlog | — |
+| US-2.7 | Vùng, họ và quan hệ kéo theo của kỹ năng | ADMIN gán vùng, họ, kéo theo; `matching` đọc taxonomy | 👀 review | — |
 
 ## Object map & user-story interactions
 

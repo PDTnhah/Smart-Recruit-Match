@@ -4,12 +4,17 @@ export const SKILLS_AUDIT_ACTIONS = {
   SKILL_PROPOSED: 'SKILL_PROPOSED',
   /** The skill normalizer suggested a name and group (system actor; model and prompt in `after`). */
   SKILL_SUGGESTED: 'SKILL_SUGGESTED',
-  /** ADMIN set the catalogue name, group and aliases; the TRANSITION entry to APPROVED follows. */
+  /**
+   * ADMIN set the catalogue name, group, aliases, family and implied skills; the TRANSITION entry
+   * to APPROVED follows.
+   */
   SKILL_APPROVED: 'SKILL_APPROVED',
   /** ADMIN merged the skill into an approved one; the TRANSITION entry to MERGED follows. */
   SKILL_MERGED: 'SKILL_MERGED',
   /** A merge added spellings to the aliases of the target skill. */
   SKILL_ALIASES_ADDED: 'SKILL_ALIASES_ADDED',
+  /** ADMIN changed the family or the implied skills of an approved skill (US-2.7 AC-6). */
+  SKILL_TAXONOMY_UPDATED: 'SKILL_TAXONOMY_UPDATED',
 } as const;
 
 /** Why `transitionTo` moved a skill, stored in audit_logs.reason. */

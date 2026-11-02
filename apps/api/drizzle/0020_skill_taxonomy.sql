@@ -1,0 +1,14 @@
+CREATE TABLE "core"."skill_implications" (
+	"skill_id" bigint NOT NULL,
+	"implied_skill_id" bigint NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "skill_implications_skill_id_implied_skill_id_pk" PRIMARY KEY("skill_id","implied_skill_id"),
+	CONSTRAINT "skill_implications_not_self_check" CHECK ("core"."skill_implications"."skill_id" <> "core"."skill_implications"."implied_skill_id")
+);
+--> statement-breakpoint
+ALTER TABLE "core"."skills" ADD COLUMN "family" text;--> statement-breakpoint
+ALTER TABLE "core"."skill_implications" ADD CONSTRAINT "skill_implications_skill_id_skills_id_fk" FOREIGN KEY ("skill_id") REFERENCES "core"."skills"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "core"."skill_implications" ADD CONSTRAINT "skill_implications_implied_skill_id_skills_id_fk" FOREIGN KEY ("implied_skill_id") REFERENCES "core"."skills"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "skill_implications_implied_skill_id_idx" ON "core"."skill_implications" USING btree ("implied_skill_id");--> statement-breakpoint
+ALTER TABLE "core"."skills" ADD CONSTRAINT "skills_family_check" CHECK ("core"."skills"."family" in ('SYSTEMS_LANGUAGE', 'MANAGED_LANGUAGE', 'SCRIPTING_LANGUAGE', 'SOFTWARE_DESIGN', 'ALGORITHMS', 'VERSION_CONTROL', 'IDE', 'FOREIGN_LANGUAGE', 'BACKEND_FRAMEWORK', 'ORM', 'WEB_API', 'MESSAGE_BROKER', 'SOFTWARE_ARCHITECTURE', 'JVM_BUILD_TOOL', 'JS_TS', 'WEB_MARKUP_STYLING', 'SPA_FRAMEWORK', 'META_FRAMEWORK', 'DOM_LIBRARY', 'STATE_MANAGEMENT', 'FRONTEND_BUILD', 'UI_DESIGN', 'NATIVE_MOBILE_PLATFORM', 'NATIVE_UI_TOOLKIT', 'MOBILE_LANGUAGE', 'CROSS_PLATFORM_MOBILE', 'SQL', 'RELATIONAL_DB', 'NOSQL_DB', 'AI_FIELD', 'ML_FRAMEWORK', 'PYTHON_DATA_TOOL', 'DATA_ANALYTICS', 'NUMERIC_LANGUAGE', 'BI_TOOL', 'DATA_ENGINEERING', 'BIG_DATA', 'CONTAINERIZATION', 'CLOUD_PROVIDER', 'CI_CD', 'IAC', 'LINUX_SHELL', 'WEB_SERVER', 'MONITORING', 'MANUAL_QA', 'TEST_AUTOMATION', 'UNIT_TESTING', 'API_TESTING', 'PERFORMANCE_TESTING', 'REQUIREMENTS', 'MODELING_NOTATION', 'SOFTWARE_PROCESS', 'PROJECT_TOOL', 'NETWORKING', 'INFORMATION_SECURITY', 'EMBEDDED_SYSTEMS', 'GAME_ENGINE', 'BLOCKCHAIN_PLATFORM', 'COMMUNICATION', 'TEAMWORK', 'LEADERSHIP', 'PROBLEM_SOLVING', 'PRESENTATION', 'CRITICAL_THINKING', 'SELF_LEARNING', 'TIME_MANAGEMENT', 'PROACTIVENESS', 'RESPONSIBILITY', 'ADAPTABILITY', 'ATTENTION_TO_DETAIL'));--> statement-breakpoint
+ALTER TABLE "core"."skills" ADD CONSTRAINT "skills_soft_skill_family_check" CHECK ("core"."skills"."family" is null or ("core"."skills"."group" is not null and ("core"."skills"."group" = 'SOFT_SKILL') = ("core"."skills"."family" in ('COMMUNICATION', 'TEAMWORK', 'LEADERSHIP', 'PROBLEM_SOLVING', 'PRESENTATION', 'CRITICAL_THINKING', 'SELF_LEARNING', 'TIME_MANAGEMENT', 'PROACTIVENESS', 'RESPONSIBILITY', 'ADAPTABILITY', 'ATTENTION_TO_DETAIL'))));

@@ -48,7 +48,8 @@
 - D39 · Danh mục kỹ năng và embedding: module `skills`, `EMBEDDING_PROVIDER`, hợp đồng kỹ năng, HNSW một phần (US-2.5)
 - D40 · SV xác nhận hồ sơ: che PII lại bằng TS, "Sửa lại" tạo phiên bản mới, kỹ năng SV nhập vào hàng chờ duyệt (US-2.6)
 - D41 · Trọng số S_cv trong cấu hình đợt, tiêu chí rỗng chia lại trọng số, GPA thang 4, đọc chứng chỉ ngoại ngữ bằng code (US-3.1) → sửa một phần bởi D42 (quy đổi CEFR)
-- D42 · Khớp kỹ năng, ngoại ngữ, ngành bằng code theo taxonomy vùng/họ/kéo theo; LLM chỉ chấm dự án và viết nhận xét (US-2.7, US-3.5, US-3.6)
+- D42 · Khớp kỹ năng, ngoại ngữ, ngành bằng code theo taxonomy vùng/họ/kéo theo; LLM chỉ chấm dự án và viết nhận xét (US-2.7, US-3.5, US-3.6) → sửa một phần bởi D43 (danh sách vùng)
+- D43 · Taxonomy kỹ năng: 15 vùng, 70 họ, họ `FOREIGN_LANGUAGE`, bỏ chuyển cạnh khi gộp, mã lỗi và giới hạn kéo theo (US-2.7)
 
 ---
 
@@ -1533,6 +1534,52 @@ Code hiện có chưa đủ cho việc này:
   - *Luồng chấm phù hợp hàng loạt*, *Tối ưu chi phí*, *Ước tính chi phí*;
   - AD-2 (ghi chú), AD-15 mới.
 - AGENTS: Nguyên tắc 2 và 5, số story.
+
+**Date**: 2026-11-02
+**Version**: 0.13.1
+
+### D43. Taxonomy kỹ năng: 15 vùng, 70 họ, họ `FOREIGN_LANGUAGE`, bỏ chuyển cạnh khi gộp, mã lỗi và giới hạn kéo theo (US-2.7) (revision of D42)
+
+**Context**: Phiên Plan của US-2.7 xếp 174 kỹ năng seed của D39 vào taxonomy của D42 và gặp bốn chỗ spec chưa khớp:
+
+- Có kỹ năng không thuộc vùng nào trong 11 vùng của D42: Computer Networks, Information Security, Embedded Systems, IoT, Unity, Blockchain.
+- English và Japanese nằm trong danh mục (nhóm `OTHER`), trong khi D42 ghi "ngoại ngữ không nằm trong danh mục".
+- Story ước khoảng 40 họ. Nếu giữ đúng nghĩa "thay được cho nhau" thì số họ lớn hơn.
+- AC-7 đòi chuyển cạnh kéo theo khi gộp kỹ năng X vào Y. Theo D39, chỉ kỹ năng `PENDING` gộp được (`APPROVED` là trạng thái cuối), và kỹ năng `PENDING` không có cạnh.
+
+**Decision** (người dùng chốt ngày 2026-11-02):
+
+- **15 vùng** (sửa D42): thêm `SECURITY_NETWORK`, `EMBEDDED_IOT`, `GAME_DEV`, `BLOCKCHAIN`. Thứ tự enum: `FOUNDATION`, `BACKEND`, `FRONTEND`, `MOBILE`, `DATABASE`, `DATA_AI`, `DEVOPS_CLOUD`, `TESTING_QA`, `BUSINESS_ANALYSIS`, `PROCESS`, `SECURITY_NETWORK`, `EMBEDDED_IOT`, `GAME_DEV`, `BLOCKCHAIN`, `SOFT_SKILL`.
+- **English, Japanese** vào họ `FOREIGN_LANGUAGE` (vùng `FOUNDATION`). Hệ quả cho US-3.5, US-3.6: theo luật khớp của D42, hai ngoại ngữ này thay được cho nhau ở bước khớp kỹ năng. Story nào làm luật khớp thì quyết có loại họ này ra hay không, vì ngoại ngữ đã có tiêu chí riêng.
+- **Họ rộng vừa**: 70 họ, gồm 58 họ kỹ thuật và 12 năng lực mềm. Một họ chỉ gồm các kỹ năng thay được cho nhau, nên có họ một phần tử (`ALGORITHMS`, `ORM`, `WEB_SERVER`…).
+- **Seed** (migration `0021_skill_taxonomy_seed`): gán họ cho 174 kỹ năng có sẵn; thêm 5 kỹ năng mềm (Proactiveness, Responsibility, Adaptability, Stress Tolerance, Attention to Detail) kèm alias tiếng Việt và alias "Ham học hỏi" cho Self-learning; 81 cạnh kéo theo. Chỉ thêm cạnh chắc chắn đúng: không có React Native ⇒ React, LLM ⇒ NLP, Gradle ⇒ Java. Migration `RAISE` khi số dòng khác 174 hoặc 81.
+- **Bỏ AC-7**: gộp kỹ năng không chuyển cạnh. Story nào sau này cho gộp kỹ năng `APPROVED` thì story đó lo chuyển cạnh.
+- **Lỗi và giới hạn**:
+  - `SKILL_IMPLICATION_CYCLE` (422): `details.path` là danh sách `{id, canonicalName}` đi từ A về lại A. Kéo theo chính mình cũng là chu trình, đường đi `[A, A]`.
+  - `SKILL_NOT_APPROVED` (422, `details.skillIds`): sửa taxonomy của kỹ năng chưa duyệt, hoặc kéo theo trỏ tới kỹ năng chưa duyệt.
+  - Mỗi kỹ năng kéo theo trực tiếp tối đa 5 kỹ năng (`MAX_IMPLIED_SKILLS`), áp cho cả duyệt lẫn sửa.
+  - Họ không hợp nhóm (nhóm `SOFT_SKILL` ⇔ họ thuộc vùng `SOFT_SKILL`) trả `400 VALIDATION_FAILED` ở trường `family`. DB có CHECK tương ứng.
+- Sửa taxonomy làm tăng `row_version` của kỹ năng; lưu lại đúng họ và kéo theo đang có thì không ghi gì. PATCH thay cả hai trường nên phải gửi cả hai. `SkillTaxonomyEntry` đặt ở `packages/shared/contracts/skills.ts`, để `matching/domain` dùng mà không import module `skills`.
+- **Ràng buộc DB** (Nguyên tắc 11, chốt ở phiên Review): trigger `skill_implications_valid` (migration `0022`, chạy lúc commit) chặn cạnh có đầu chưa `APPROVED` và cạnh tạo chu trình. API kiểm trước, dưới khóa `SKILL_CATALOGUE`; trigger chặn mọi đường ghi khác, như `skills_keys_distinct` của D39.
+
+**Rationale**:
+
+- Không có vùng riêng thì sáu kỹ năng trên phải nhét vào vùng sai, làm sai độ phủ theo vùng của US-3.3.
+- Xóa English, Japanese khỏi danh mục sẽ làm hỏng hồ sơ CV đã chuẩn hóa theo D39. Để họ riêng thì vẫn tách được khỏi kỹ năng kỹ thuật khi khớp.
+- Họ hẹp giữ đúng nghĩa "thay được": PostgreSQL thay MySQL được, nhưng SQL không thay MongoDB.
+- Code xử lý một trường hợp không thể xảy ra (gộp kỹ năng có cạnh) chỉ thêm đường chạy không có test thật.
+- Giới hạn 5 kéo theo giữ cạnh ở mức "chắc chắn"; seed lớn nhất là 2.
+
+**Alternatives considered**:
+- **Dồn sáu kỹ năng vào `FOUNDATION`:** người dùng không chọn.
+- **Bỏ English, Japanese khỏi taxonomy (họ null):** người dùng không chọn; kỹ năng không có họ thì không có vùng.
+- **Họ rộng (~40 họ, ví dụ gộp SQL với RDBMS):** người dùng không chọn.
+- **Giữ AC-7 và cho gộp kỹ năng `APPROVED`:** phải sửa máy trạng thái của D39, ngoài phạm vi story.
+
+**Impact**:
+- US-2.7: *Story refresh* (AC-1, AC-3, bỏ AC-7).
+- `packages/shared`: `SKILL_ZONES`, `SKILL_FAMILIES`, `FAMILY_ZONE`, hai mã lỗi mới.
+- PRD › *Vùng và họ kỹ năng* và ARCH › *Các bảng chính* cập nhật danh sách vùng ở phiên Doc gate của US-2.7.
 
 **Date**: 2026-11-02
 **Version**: 0.13.1

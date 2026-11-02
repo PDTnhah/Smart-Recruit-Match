@@ -2,9 +2,15 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   AiResultMessageSchema,
+  FAMILY_ZONE,
   MAX_SIMILAR_SKILLS,
+  SKILL_FAMILIES,
+  SKILL_ZONES,
+  SOFT_SKILL_FAMILIES,
   SkillNormalizeOutputSchema,
   SkillSuggestionsSchema,
+  familiesOfZone,
+  familyFitsGroup,
   skillMatchKey,
 } from '../index.js';
 
@@ -64,5 +70,48 @@ describe('US-2.5 SKILL_NORMALIZE suggestions (AC-6)', () => {
       error: null,
     };
     expect(AiResultMessageSchema.safeParse(message).success).toBe(true);
+  });
+});
+
+describe('US-2.7 skill zones and families (AC-1, CONTEXT D43)', () => {
+  it('FR-39 every family belongs to exactly one zone', () => {
+    expect(new Set(SKILL_FAMILIES).size).toBe(SKILL_FAMILIES.length);
+    expect(Object.keys(FAMILY_ZONE).sort()).toEqual([...SKILL_FAMILIES].sort());
+    for (const family of SKILL_FAMILIES) expect(SKILL_ZONES).toContain(FAMILY_ZONE[family]);
+  });
+
+  it('FR-39 15 zones and 70 families; every zone has a family, listed in zone order', () => {
+    expect(SKILL_ZONES).toHaveLength(15);
+    expect(SKILL_FAMILIES).toHaveLength(70);
+    for (const zone of SKILL_ZONES) expect(familiesOfZone(zone).length).toBeGreaterThan(0);
+    expect(SKILL_ZONES.flatMap(familiesOfZone)).toEqual(SKILL_FAMILIES);
+  });
+
+  it('FR-39 the SOFT_SKILL zone holds the 12 standard competencies', () => {
+    expect(SOFT_SKILL_FAMILIES).toEqual([
+      'COMMUNICATION',
+      'TEAMWORK',
+      'LEADERSHIP',
+      'PROBLEM_SOLVING',
+      'PRESENTATION',
+      'CRITICAL_THINKING',
+      'SELF_LEARNING',
+      'TIME_MANAGEMENT',
+      'PROACTIVENESS',
+      'RESPONSIBILITY',
+      'ADAPTABILITY',
+      'ATTENTION_TO_DETAIL',
+    ]);
+    expect(FAMILY_ZONE.FOREIGN_LANGUAGE).toBe('FOUNDATION');
+  });
+
+  it.each([
+    ['SOFT_SKILL', 'TEAMWORK', true],
+    ['SOFT_SKILL', 'RELATIONAL_DB', false],
+    ['DATABASE', 'RELATIONAL_DB', true],
+    ['DATABASE', 'TEAMWORK', false],
+    ['OTHER', 'FOREIGN_LANGUAGE', true],
+  ] as const)('FR-39 a %s skill fits family %s: %s', (group, family, fits) => {
+    expect(familyFitsGroup(group, family)).toBe(fits);
   });
 });
