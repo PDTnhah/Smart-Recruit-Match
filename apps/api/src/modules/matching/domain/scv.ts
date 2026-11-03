@@ -25,12 +25,13 @@ const weightKey = (criterion: ScvCriterion): ScvWeightKey => `scv_weight_${crite
 
 /**
  * A criterion with nothing to score (no skill in the group, skill weights that round to 0, no
- * required language) drops out of both sums, so its weight goes to the others in proportion.
+ * required or preferred language) drops out of both sums, so its weight goes to the others in
+ * proportion.
  */
 export const EMPTY_CRITERION_POLICY = 'REDISTRIBUTE';
 
-/** Verdicts in half points: MET = 1, PARTIAL = 0.5, NOT_MET = 0 (PRD › S_cv). */
-const VERDICT_HALVES: Readonly<Record<MatchVerdict, bigint>> = { MET: 2n, PARTIAL: 1n, NOT_MET: 0n };
+/** Verdicts in half points: MET = 1, PARTIAL = 0.5, NOT_MET = 0 (PRD › S_cv); also their order. */
+export const VERDICT_HALVES: Readonly<Record<MatchVerdict, number>> = { MET: 2, PARTIAL: 1, NOT_MET: 0 };
 
 /** Major đúng / gần / khác on the 0–100 scale (PRD › S_cv, học vấn). */
 export const MAJOR_MATCH_SCORE: Readonly<Record<MajorMatch, number>> = { EXACT: 100, RELATED: 60, OTHER: 20 };
@@ -51,7 +52,7 @@ export const toBasisPoints = (weight: number): number => Math.round(weight * BAS
 /** A verdict without evidence counts as NOT_MET (AGENTS › Invariant 5). */
 function halvesOf(verdict: { verdict: MatchVerdict; evidence: string | null } | null | undefined): bigint {
   if (!verdict || verdict.evidence === null) return 0n;
-  return VERDICT_HALVES[verdict.verdict];
+  return BigInt(VERDICT_HALVES[verdict.verdict]);
 }
 
 /**
@@ -118,7 +119,7 @@ function educationScore(majorMatch: MajorMatch, gpa4: number | null): Ratio {
 }
 
 export interface ScvInput {
-  /** The JD's confirmed requirements: skills with their weights, and the required languages. */
+  /** The JD's confirmed requirements: skills with their weights, the required and preferred languages. */
   requirements: JdRequirements;
   criteria: MatchCriteria;
   /** `students.gpa` on the 4-point scale (CONTEXT D41). */
@@ -156,8 +157,9 @@ export function computeScv({ requirements, criteria, education, weights }: ScvIn
     nice_to_have: skillGroupScore(requirements.nice_to_have, halves),
     project: { num: TO_100_SCALE * BigInt(criteria.project_relevance.score_0_4), den: 1n },
     education: educationScore(criteria.education.major_match, education.gpa4),
+    // Code scores the languages (US-3.6): empty when the JD neither requires nor prefers one.
     language:
-      requirements.hard_conditions.required_languages.length > 0
+      requirements.hard_conditions.required_languages.length + requirements.preferred_languages.length > 0
         ? { num: 100n * halvesOf(criteria.language), den: 2n }
         : null,
   };

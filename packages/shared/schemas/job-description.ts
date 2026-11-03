@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { JdRequirementsSchema, PositionGroupSchema } from '../contracts/jd.js';
+import { HrJdRequirementsSchema, JdRequirementsSchema, PositionGroupSchema } from '../contracts/jd.js';
 import { JOB_DESCRIPTION_STATES } from '../states/job-description.js';
 import { optionalText, RowVersionFieldSchema, RowVersionSchema } from './common.js';
 
@@ -140,7 +140,7 @@ export type JdRequirementsView = z.output<typeof JdRequirementsViewSchema>;
 /** Body of `PUT /api/jds/{id}/requirements` and `PUT /api/jds/{id}/requirements/confirm`. */
 export const SaveJdRequirementsRequestSchema = z.object({
   rowVersion: RowVersionSchema,
-  requirements: JdRequirementsSchema,
+  requirements: HrJdRequirementsSchema,
   positionGroup: PositionGroupSchema,
 });
 

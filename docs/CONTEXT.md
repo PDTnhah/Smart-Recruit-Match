@@ -48,9 +48,10 @@
 - D39 · Danh mục kỹ năng và embedding: module `skills`, `EMBEDDING_PROVIDER`, hợp đồng kỹ năng, HNSW một phần (US-2.5)
 - D40 · SV xác nhận hồ sơ: che PII lại bằng TS, "Sửa lại" tạo phiên bản mới, kỹ năng SV nhập vào hàng chờ duyệt (US-2.6)
 - D41 · Trọng số S_cv trong cấu hình đợt, tiêu chí rỗng chia lại trọng số, GPA thang 4, đọc chứng chỉ ngoại ngữ bằng code (US-3.1) → sửa một phần bởi D42 (quy đổi CEFR)
-- D42 · Khớp kỹ năng, ngoại ngữ, ngành bằng code theo taxonomy vùng/họ/kéo theo; LLM chỉ chấm dự án và viết nhận xét (US-2.7, US-3.5, US-3.6) → sửa một phần bởi D43 (danh sách vùng), D44 (khung bậc)
+- D42 · Khớp kỹ năng, ngoại ngữ, ngành bằng code theo taxonomy vùng/họ/kéo theo; LLM chỉ chấm dự án và viết nhận xét (US-2.7, US-3.5, US-3.6) → sửa một phần bởi D43 (danh sách vùng), D44 (khung bậc), D45 (bảng CEFR, nhóm ngành)
 - D43 · Taxonomy kỹ năng: 15 vùng, 70 họ, họ `FOREIGN_LANGUAGE`, bỏ chuyển cạnh khi gộp, mã lỗi và giới hạn kéo theo (US-2.7)
 - D44 · Khung bậc `matching-rules/v1`: thời gian chỉ đọc ở mục kinh nghiệm, luật khớp, quét văn bản tự do (US-3.5)
+- D45 · Bảng `language-cefr/v1`, hai thang TOEFL iBT, điểm tiêu chí ngoại ngữ, 7 nhóm ngành, bộ đọc ngôn ngữ ở `packages/shared` (US-3.6)
 
 ---
 
@@ -1637,3 +1638,84 @@ Code hiện có chưa đủ cho việc này:
 
 **Date**: 2026-11-02
 **Version**: 0.15.0
+
+### D45. Bảng `language-cefr/v1`, hai thang TOEFL iBT, điểm tiêu chí ngoại ngữ, 7 nhóm ngành, bộ đọc ngôn ngữ ở `packages/shared` (US-3.6) (revision of D42)
+
+**Context**: US-3.6 để mở bốn điểm cần hỏi khi bắt đầu: số ngưỡng CEFR sau khi đối chiếu nguồn, cách quy các mục ngoại ngữ ra verdict, danh sách nhóm ngành, và Cambridge. Khi đối chiếu nguồn ngày 2026-11-03, phiên Plan gặp thêm hai chỗ lệch:
+
+- ETS đổi TOEFL iBT sang thang band 1–6 (bước 0,5) từ 21/01/2026. Thang 0–120 chỉ còn trên phiếu điểm trong hai năm chuyển tiếp.
+- Tài liệu TOEFL ITP mới của ETS cho số khác đề xuất của story. Ngưỡng B1 của TOEFL iBT theo báo cáo ETS 04/2026 cũng khác (44 thay vì 42).
+
+AC-4 đòi một ngôn ngữ không nằm ở cả `required_languages` lẫn `preferred_languages`. "Tiếng Anh (TOEIC 550)" và "IELTS 7.0" là cùng ngôn ngữ, nên phải so theo ngôn ngữ. Nhưng bộ đọc ngôn ngữ đang nằm ở `apps/api`, còn schema JD và form HR dùng `packages/shared`.
+
+**Decision** (người dùng chốt bốn điểm ngày 2026-11-03):
+
+- **Bảng `language-cefr/v1`** theo nguồn mới nhất, đọc ngày 2026-11-03:
+
+  | Chứng chỉ | A1 | A2 | B1 | B2 | C1 | C2 | Nguồn |
+  |---|---|---|---|---|---|---|---|
+  | TOEIC L&R (tổng) | 120 | 225 | 550 | 785 | 945 | – | ETS, *Mapping the TOEIC tests on the CEFR* (2025, #10823) |
+  | IELTS | – | – | 4.0 | 5.5 | 7.0 | 8.5 | ielts.org, *IELTS and the CEFR* |
+  | TOEFL iBT 0–120 | 0 | 24 | 44 | 72 | 95 | 114 | ETS, *A banded score scale for the TOEFL iBT test* (04/2026), Table 6, 7 |
+  | TOEFL iBT band 1–6 | 1 | 2 | 3 | 4 | 5 | 6 | như trên, Table 7 |
+  | TOEFL ITP | – | 343 | 433 | 543 | 627 | – | ETS, *Mapping the TOEFL ITP tests onto the CEFR* (2023, MAR211) |
+  | VSTEP / CEFR | bậc 1 | bậc 2 | bậc 3 | bậc 4 | bậc 5 | bậc 6 | – |
+
+  - TOEIC: ETS chỉ công bố ngưỡng từng phần (Listening 60/110/275/400/490, Reading 60/115/275/385/455). Bảng dùng tổng hai phần vì CV chỉ ghi tổng.
+  - IELTS: ielts.org ghi 8.5 trở lên là C2, ngưỡng C1 nằm giữa 6.5 và 7 (nơi cần chắc chắn thì lấy 7), band 5 lưng chừng B1/B2. Dưới 4.0 là "dưới bậc thấp nhất của bảng".
+  - TOEFL ITP: tài liệu ghi C1 620 ở bảng nhưng 627 ở lời văn; lấy 627 vì chặt hơn.
+  - **Kind mới `TOEFL_IBT_BAND`**, `level` = band × 10. Điểm TOEFL không có chữ "ITP" mà ≤ 6 thì đọc là band. Thang cũ và thang mới so với nhau như hai loại khác nhau, tức qua CEFR.
+  - `cefrOf` trả 1–6 (A1–C2), 0 khi điểm dưới bậc thấp nhất của bảng, null khi loại chứng chỉ không có bảng (JLPT, TOPIK, HSK).
+  - Chứng chỉ khác loại chỉ so qua CEFR khi cả hai phía nêu cùng một ngôn ngữ (TOEIC, IELTS, TOEFL, VSTEP tự mang tiếng Anh), nên "Giấy phép lái xe B2" hay "DELF B2" không đạt "TOEIC 550". Chứng chỉ cùng loại vẫn so được khi một phía không nêu ngôn ngữ.
+  - Bậc CEFR ghi sau điểm của một chứng chỉ ("TOEIC 650 (B1)", "IELTS 6.5 tương đương B2") là chú thích của điểm đó, không phải chứng chỉ riêng: bậc của điểm lấy từ bảng. Tên kỳ thi khác, tên ngôn ngữ, "hoặc" hay "và" kết thúc chú thích. Bậc CEFR đứng riêng ("Tiếng Anh B2") vẫn là chứng chỉ CEFR/VSTEP, vì văn bản không cho biết đó là chứng chỉ hay SV tự đánh giá.
+  - Cambridge (B1 Preliminary, B2 First…) để `language-cefr/v2`.
+- **Điểm tiêu chí ngoại ngữ** (`scoreLanguage`): mỗi mục bắt buộc hoặc ưu tiên có một verdict, MET = 1, PARTIAL = 0,5. Trung bình ≥ 0,75 là `MET`, ≥ 0,25 là `PARTIAL`, còn lại `NOT_MET`; so bằng số nguyên. `computeScv` vẫn đọc verdict như cũ. Ngưỡng nằm trong `matching-rules.ts`; chưa có kết quả nào được lưu (US-3.2 chưa làm) nên vẫn là `matching-rules/v1`.
+  - Mục ưu tiên chưa đạt nhưng CEFR của SV ≥ CEFR yêu cầu − 1 là `PARTIAL`. Như vậy chứng chỉ cùng loại, cùng bậc mà thiếu điểm (TOEIC 600 so với yêu cầu TOEIC 700, cả hai B1) cũng là `PARTIAL`.
+  - JLPT, TOPIK, HSK không có CEFR: "thiếu một bậc" tính trên thang của chính chứng chỉ (yêu cầu N3, có N4 thì `PARTIAL`).
+  - Mục ưu tiên cũng là `PARTIAL` khi một mục CV nêu ngôn ngữ đó mà không kèm chứng chỉ ("Tiếng Anh giao tiếp"). Xét theo từng mục CV, nên ghi thêm một chứng chỉ thấp không bao giờ làm verdict giảm.
+  - Mục có nhiều phần nối bằng "và" lấy verdict thấp nhất của các phần.
+  - `MatchLanguageVerdict` thêm `required` và `held`, là chuỗi hiển thị có bậc CEFR ("TOEIC 550 (B1)"); nhiều mục thì nối bằng "; ".
+- **7 nhóm ngành** (`packages/shared/schemas/majors.ts`; alias gồm tên tiếng Việt, viết tắt và tên tiếng Anh, so bằng `normalizeAudienceValue`): `SOFTWARE` (CNTT, KHMT, KT phần mềm, CN phần mềm, KT máy tính), `INFO_SYS` (HTTT, HTTT quản lý, Thương mại điện tử), `NET_SEC` (Mạng máy tính và truyền thông dữ liệu, An toàn thông tin, An ninh mạng), `DATA_AI` (Khoa học dữ liệu, Trí tuệ nhân tạo), `MATH` (Toán tin, Toán ứng dụng, Thống kê), `ELEC` (Điện tử viễn thông, Điều khiển và tự động hóa), `BUSINESS` (QTKD, Kinh tế, Kế toán, TCNH, Marketing).
+
+  | `position_group` | `EXACT` | `RELATED` |
+  |---|---|---|
+  | BACKEND, FRONTEND, MOBILE | SOFTWARE | INFO_SYS, NET_SEC, DATA_AI, MATH, ELEC |
+  | DATA_AI | DATA_AI, SOFTWARE | MATH, INFO_SYS |
+  | TESTER_QA | SOFTWARE, INFO_SYS | NET_SEC, DATA_AI, MATH, ELEC |
+  | BA | INFO_SYS | SOFTWARE, BUSINESS |
+  | DEVOPS | SOFTWARE, NET_SEC | INFO_SYS, ELEC |
+  | OTHER | – | mọi nhóm trừ BUSINESS |
+
+  Nhóm không có trong dòng của vị trí là `OTHER`. Ngành không nhận ra (kể cả SV chưa có ngành) là `OTHER` kèm `major_unrecognized: true`. JD có `majors` thì cặp đã qua điều kiện cứng là `EXACT` (D42).
+- **Bộ đọc ngôn ngữ chuyển sang `packages/shared/contracts/languages.ts`** (tên ngôn ngữ, loại chứng chỉ, `parseLanguageText`). `matching/domain` chỉ giữ phần so sánh, quy đổi CEFR và chấm điểm.
+  - Kiểm theo ngôn ngữ ở `HrJdRequirementsSchema` (`JdRequirementsSchema` thêm phần kiểm này), dùng cho `SaveJdRequirementsRequestSchema`, tức cả form HR lẫn API: lỗi gắn ở `preferred_languages[i]`. `JdRequirementsSchema` không kiểm, vì consumer `ai.results` parse kết quả JD_ANALYZE bằng schema này: kiểm ở đó thì một mục trùng làm cả message vào DLQ trước khi backend kịp bỏ mục trùng.
+  - Đề xuất của JD Analyzer có mục ưu tiên trùng ngôn ngữ với mục bắt buộc thì backend bỏ mục ưu tiên đó trước khi kiểm (ghi log), để một mục trùng không làm hỏng cả lần phân tích. Prompt `jd_analyzer/v2` cũng dặn không lặp.
+  - `normalizeAudienceValue` chuyển xuống module mà `contracts` import được, vì `contracts` không import `schemas`. `schemas` re-export, nên API công khai không đổi.
+- **Trợ giúp mức độ trên form HR** lấy từ một hằng số ở `packages/shared`, theo khung bậc D44: Cơ bản là đã dùng trong ≥ 1 dự án, kinh nghiệm hoặc chứng chỉ; Khá là ≥ 2 dự án hoặc kinh nghiệm; Thành thạo là ≥ 6 tháng kinh nghiệm làm việc hoặc thực tập. Ví dụ ở AC-9 của story ("≥ 6 tháng" cho Khá) viết trước D44 nên không dùng. `TIER_RULES` đọc số ngưỡng từ cùng hằng số, để chuỗi trợ giúp và luật không lệch nhau.
+
+**Rationale**:
+
+- Lấy bảng mới nhất của tổ chức thi thì quy đổi giải thích được trước hội đồng và khớp phiếu điểm SV đang cầm. Không đọc thang band thì SV thi TOEFL iBT từ 2026 không được nhận.
+- Lấy số chặt hơn khi nguồn tự mâu thuẫn (ITP C1, IELTS C1) để không xếp SV lên bậc cao hơn thực tế.
+- Ngưỡng ra verdict giữ `computeScv` và hợp đồng gần như nguyên. Mục bắt buộc luôn `MET` với cặp đã qua điều kiện cứng, nên mục ưu tiên là phần tạo khác biệt.
+- Bảng 7 nhóm phân biệt được đúng ngành và ngành gần theo vị trí, và khớp hai ví dụ của PRD (Kỹ thuật phần mềm đúng ngành với Backend, Toán tin gần với Data/AI).
+- Đặt bộ đọc ở `packages/shared` thì form HR, API và chấm điểm dùng cùng một định nghĩa "cùng ngôn ngữ" (AD-6).
+
+**Alternatives considered**:
+- **Giữ số đề xuất của story** (TOEFL iBT B1 42, chỉ thang 0–120; ITP A2 337, B1 460): người dùng không chọn.
+- **Đưa thẳng trung bình các mục vào S_cv** (hợp đồng thêm `items[]`): người dùng không chọn; mịn hơn nhưng phải đổi `computeScv` và hợp đồng.
+- **3 nhóm ngành thô** (IT_CORE, IT_ADJACENT, BUSINESS): người dùng không chọn; mọi ngành CNTT sẽ đúng ngành với mọi vị trí kỹ thuật.
+- **Chỉ so chuỗi chuẩn hóa** cho mục trùng: người dùng không chọn; "TOEIC 550" và "IELTS 7.0" vẫn lọt.
+
+**Impact**:
+- `packages/shared`: `contracts/languages.ts`; `JdRequirementsSchema.preferred_languages`, kiểm trùng ở `HrJdRequirementsSchema`; `MatchEducation.major_unrecognized`; `MatchLanguageVerdict.required`/`held`; `schemas/majors.ts`; hằng số mức độ kỹ năng. Sinh lại JSON Schema và Pydantic.
+- `apps/api`:
+  - `matching/domain`: `language-cefr.ts`, `language-score.ts`, `major-match.ts`, `language-requirement.ts` so khác loại qua CEFR, `scv.ts` coi tiêu chí rỗng khi cả hai danh sách rỗng;
+  - `company`: bỏ mục ưu tiên trùng trong kết quả JD_ANALYZE;
+  - migration `0023` điền `preferred_languages: []` cho JD đã có.
+- `apps/web`: ô "Ngoại ngữ ưu tiên" và trợ giúp mức độ trên form HR; sinh lại `openapi.json`, `schema.d.ts`.
+- `ai-service`: prompt `jd_analyzer/v2`, fixture mới.
+- PRD › *Quy đổi ngoại ngữ (CEFR)*, *Mức khớp ngành*; ARCH AD-15: cập nhật ở phiên Doc gate của US-3.6.
+
+**Date**: 2026-11-03
+**Version**: 0.16.0

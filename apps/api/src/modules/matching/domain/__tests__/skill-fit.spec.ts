@@ -36,8 +36,17 @@ const scvOfSkillsOnly = (fitWeights: SkillFitWeights): number => {
     scv_weight_language: 0,
   };
   return computeScv({
-    requirements: { ...requirements, hard_conditions: { majors: [], min_study_year: null, min_gpa: null, required_languages: [] } },
-    criteria: { ...verdicts, project_relevance: { score_0_4: 4, reason: '...' }, education: { major_match: 'EXACT' }, language: null },
+    requirements: {
+      ...requirements,
+      hard_conditions: { majors: [], min_study_year: null, min_gpa: null, required_languages: [] },
+      preferred_languages: [],
+    },
+    criteria: {
+      ...verdicts,
+      project_relevance: { score_0_4: 4, reason: '...' },
+      education: { major_match: 'EXACT', major_unrecognized: false },
+      language: null,
+    },
     education: { gpa4: 4 },
     weights: scvWeights,
   }).scvX100;

@@ -1,57 +1,16 @@
-import { meetsLanguageRequirement, parseLanguageText } from '../language-requirement.js';
+import type { JdHardConditions } from '@srm/shared';
+import { checkHardFilters } from '../hard-filter.js';
+import { meetsLanguageRequirement } from '../language-requirement.js';
 
-describe('GĐ3 language requirement read by code (US-3.1 AC-12, CONTEXT D41)', () => {
-  it.each([
-    ['Tiếng Anh (TOEIC 500)', ['EN'], [{ kind: 'TOEIC', level: 500 }]],
-    ['English - IELTS 6,5', ['EN'], [{ kind: 'IELTS', level: 65 }]],
-    ['IELTS 7.0', ['EN'], [{ kind: 'IELTS', level: 70 }]],
-    ['TOEFL iBT 80', ['EN'], [{ kind: 'TOEFL_IBT', level: 80 }]],
-    ['TOEIC Listening & Reading 785', ['EN'], [{ kind: 'TOEIC', level: 785 }]],
-    ['Tiếng Nhật JLPT N3', ['JA'], [{ kind: 'JLPT', level: 3 }]],
-    ['N1', ['JA'], [{ kind: 'JLPT', level: 5 }]],
-    ['Tiếng Hàn TOPIK II cấp 4', ['KO'], [{ kind: 'TOPIK', level: 4 }]],
-    ['HSK 5', ['ZH'], [{ kind: 'HSK', level: 5 }]],
-    ['VSTEP B1', ['EN'], [{ kind: 'CEFR', level: 3 }]],
-    ['Tiếng Anh bậc 4/6', ['EN'], [{ kind: 'CEFR', level: 4 }]],
-    ['Tiếng Pháp C1', ['FR'], [{ kind: 'CEFR', level: 5 }]],
-    ['Anh - giao tiếp tốt', ['EN'], []],
-    ['Tiếng Anh hoặc tiếng Nhật', ['EN', 'JA'], []],
-    // Glued, out-of-range numbers skipped, a keyword without a score still tells the language.
-    ['HSK5', ['ZH'], [{ kind: 'HSK', level: 5 }]],
-    ['TOEIC650đ', ['EN'], [{ kind: 'TOEIC', level: 650 }]],
-    ['IELTS6.5', ['EN'], [{ kind: 'IELTS', level: 65 }]],
-    ['TOEIC 4 kỹ năng 600', ['EN'], [{ kind: 'TOEIC', level: 600 }]],
-    ['TOEIC (2023) 650', ['EN'], [{ kind: 'TOEIC', level: 650 }]],
-    ['TOEFL ITP 500', ['EN'], [{ kind: 'TOEFL_ITP', level: 500 }]],
-    ['TOEIC 4 kỹ năng', ['EN'], []],
-    ['TOEIC hoặc TOEFL 80', ['EN'], [{ kind: 'TOEFL_IBT', level: 80 }]],
-    // Languages outside the original six.
-    ['Russian B2', ['RU'], [{ kind: 'CEFR', level: 4 }]],
-    ['Tiếng Tây Ban Nha (B2)', ['ES'], [{ kind: 'CEFR', level: 4 }]],
-    ['Tiếng Lào cơ bản', ['other:lào'], []],
-  ])('GĐ3 reads %s', (text, languages, certificates) => {
-    expect(parseLanguageText(text)).toEqual({ languages, certificates });
-  });
-
-  it('GĐ3 numbers out of a certificate scale are not scores', () => {
-    // A year after the keyword, a TOEFL ITP score read as iBT, an IELTS quarter band.
-    expect(parseLanguageText('TOEIC 2023').certificates).toEqual([]);
-    expect(parseLanguageText('TOEFL 550').certificates).toEqual([]);
-    expect(parseLanguageText('IELTS 6.25').certificates).toEqual([]);
-  });
-
-  it('GĐ3 "trung cấp" is a level, not Chinese', () => {
-    expect(parseLanguageText('Trung cấp').languages).toEqual([]);
-    expect(parseLanguageText('Tiếng Anh trung cấp').languages).toEqual(['EN']);
-  });
-
-  it('GĐ3 language requirement: same certificate type only, language name, unparsed text', () => {
+// The reader's own cases are in packages/shared/contracts/__tests__/languages.spec.ts.
+describe('GĐ3 language requirement compared by code (US-3.1 AC-12, US-3.6, CONTEXT D41, D45)', () => {
+  it('GĐ3 language requirement: certificate, language name, unparsed text', () => {
     const toeic500 = 'Tiếng Anh (TOEIC 500)';
     expect(meetsLanguageRequirement(toeic500, ['Tiếng Anh TOEIC 650'])).toBe(true);
     expect(meetsLanguageRequirement(toeic500, ['Chứng chỉ TOEIC 500 - IIG'])).toBe(true);
     expect(meetsLanguageRequirement(toeic500, ['Tiếng Anh TOEIC 495'])).toBe(false);
-    // No conversion between kinds (D41): a high IELTS does not meet a TOEIC requirement.
-    expect(meetsLanguageRequirement(toeic500, ['IELTS 7.5'])).toBe(false);
+    // Another kind of the same language through CEFR (D45): IELTS 7.5 is C1, TOEIC 500 is A2.
+    expect(meetsLanguageRequirement(toeic500, ['IELTS 7.5'])).toBe(true);
     expect(meetsLanguageRequirement(toeic500, ['Tiếng Anh'])).toBe(false);
 
     // Several certificates in one requirement are alternatives.
@@ -101,5 +60,52 @@ describe('GĐ3 language requirement read by code (US-3.1 AC-12, CONTEXT D41)', (
 
   it('GĐ3 decomposed Unicode (NFD) reads like NFC', () => {
     expect(meetsLanguageRequirement('Tiếng Nhật'.normalize('NFD'), ['tiếng nhật N3'])).toBe(true);
+  });
+
+  it('GĐ3 language requirement: cross-kind via CEFR, same kind by raw score (US-3.6 AC-2, AC-3)', () => {
+    // The two examples of AC-2: IELTS 6.0 is B2 ≥ B1; TOEIC 600 is B1 < B2 (IELTS 6.5).
+    expect(meetsLanguageRequirement('TOEIC 550', ['IELTS 6.0'])).toBe(true);
+    expect(meetsLanguageRequirement('IELTS 6.5', ['TOEIC 600'])).toBe(false);
+    // The same kind keeps its own score, even within one CEFR level (both B1).
+    expect(meetsLanguageRequirement('TOEIC 700', ['TOEIC 650'])).toBe(false);
+    // TOEFL iBT: the 1–6 band and the 0–120 scale compare as two kinds, through CEFR.
+    expect(meetsLanguageRequirement('TOEFL iBT 80', ['TOEFL iBT 4.5'])).toBe(true);
+    expect(meetsLanguageRequirement('TOEFL iBT 4', ['TOEFL iBT 72'])).toBe(true);
+    expect(meetsLanguageRequirement('TOEFL iBT 100', ['TOEFL 4.5'])).toBe(false);
+    expect(meetsLanguageRequirement('TOEFL ITP 543', ['IELTS 5.5'])).toBe(true);
+    // VSTEP and CEFR levels are CEFR already.
+    expect(meetsLanguageRequirement('Tiếng Anh bậc 3', ['TOEIC 550'])).toBe(true);
+    expect(meetsLanguageRequirement('TOEIC 785', ['VSTEP B1'])).toBe(false);
+    // Below the table of its kind: IELTS 3.5 has no level, TOEIC 300 is A2.
+    expect(meetsLanguageRequirement('TOEIC 300', ['IELTS 3.5'])).toBe(false);
+    // JLPT, TOPIK and HSK have no CEFR table: their own kind only.
+    expect(meetsLanguageRequirement('JLPT N3', ['Tiếng Nhật B2'])).toBe(false);
+    expect(meetsLanguageRequirement('Tiếng Nhật B1', ['JLPT N1'])).toBe(false);
+    expect(meetsLanguageRequirement('TOPIK 3', ['Tiếng Hàn C1'])).toBe(false);
+    // CEFR never crosses languages.
+    expect(meetsLanguageRequirement('TOEIC 550', ['Tiếng Pháp C1'])).toBe(false);
+
+    // AC-3: the hard filter keeps LANGUAGE_NOT_MET with what was required and what the student has.
+    const conditions: JdHardConditions = { majors: [], min_study_year: null, min_gpa: null, required_languages: ['IELTS 6.5'] };
+    const facts = { major: null, yearOfStudy: null, gpa4: null };
+    expect(checkHardFilters({ ...facts, languageCertificates: ['TOEIC 600'] }, conditions)).toEqual({
+      eligible: false,
+      ineligibleReasons: [{ code: 'LANGUAGE_NOT_MET', required: 'IELTS 6.5', actual: ['TOEIC 600'] }],
+    });
+    expect(checkHardFilters({ ...facts, languageCertificates: ['TOEIC 800'] }, conditions).eligible).toBe(true);
+  });
+
+  it('GĐ3 another kind counts only when both sides name the language; a CEFR note on a score is no certificate (US-3.6 AC-2)', () => {
+    // Entries that name no language: a driving licence class, a French test the reader does not know.
+    expect(meetsLanguageRequirement('TOEIC 550', ['Giấy phép lái xe B2'])).toBe(false);
+    expect(meetsLanguageRequirement('IELTS 6.0', ['DELF B2'])).toBe(false);
+    // The same kind still compares when a side names no language; a named language crosses kinds.
+    expect(meetsLanguageRequirement('CEFR B1', ['B2'])).toBe(true);
+    expect(meetsLanguageRequirement('TOEIC 550', ['Tiếng Anh B2'])).toBe(true);
+    // The table, not the note next to a score, gives its level, on either side.
+    expect(meetsLanguageRequirement('TOEIC 700', ['TOEIC 650 (B1)'])).toBe(false);
+    expect(meetsLanguageRequirement('IELTS 6.5 (tương đương B2)', ['IELTS 6.0'])).toBe(false);
+    expect(meetsLanguageRequirement('IELTS 6.5 (B2)', ['TOEIC 800'])).toBe(true);
+    expect(meetsLanguageRequirement('TOEIC 550 hoặc B2', ['Tiếng Anh B2'])).toBe(true);
   });
 });

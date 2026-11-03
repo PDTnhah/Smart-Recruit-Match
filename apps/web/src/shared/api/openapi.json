@@ -6092,7 +6092,7 @@
                         "ADVANCED"
                       ],
                       "title": "SkillLevel",
-                      "description": "BASIC = basic, INTERMEDIATE = working knowledge, ADVANCED = proficient"
+                      "description": "BASIC = basic: used in at least 1 project, experience or certificate; INTERMEDIATE = working knowledge: used in at least 2 projects or experience entries; ADVANCED = proficient: at least 6 months of work or internship experience using it"
                     },
                     "weight": {
                       "type": "number",
@@ -6133,7 +6133,7 @@
                         "ADVANCED"
                       ],
                       "title": "SkillLevel",
-                      "description": "BASIC = basic, INTERMEDIATE = working knowledge, ADVANCED = proficient"
+                      "description": "BASIC = basic: used in at least 1 project, experience or certificate; INTERMEDIATE = working knowledge: used in at least 2 projects or experience entries; ADVANCED = proficient: at least 6 months of work or internship experience using it"
                     },
                     "weight": {
                       "type": "number",
@@ -6201,12 +6201,23 @@
                 "additionalProperties": false,
                 "title": "JdHardConditions",
                 "description": "Eligibility conditions checked by code, not scored (US-3.1)"
+              },
+              "preferred_languages": {
+                "maxItems": 10,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100
+                },
+                "description": "Foreign languages the JD prefers but does not require, with any stated level; a language is either required or preferred, never both"
               }
             },
             "required": [
               "must_have",
               "nice_to_have",
-              "hard_conditions"
+              "hard_conditions",
+              "preferred_languages"
             ],
             "additionalProperties": false,
             "title": "JdRequirements",
@@ -6288,7 +6299,7 @@
                         "ADVANCED"
                       ],
                       "title": "SkillLevel",
-                      "description": "BASIC = basic, INTERMEDIATE = working knowledge, ADVANCED = proficient"
+                      "description": "BASIC = basic: used in at least 1 project, experience or certificate; INTERMEDIATE = working knowledge: used in at least 2 projects or experience entries; ADVANCED = proficient: at least 6 months of work or internship experience using it"
                     },
                     "weight": {
                       "type": "number",
@@ -6329,7 +6340,7 @@
                         "ADVANCED"
                       ],
                       "title": "SkillLevel",
-                      "description": "BASIC = basic, INTERMEDIATE = working knowledge, ADVANCED = proficient"
+                      "description": "BASIC = basic: used in at least 1 project, experience or certificate; INTERMEDIATE = working knowledge: used in at least 2 projects or experience entries; ADVANCED = proficient: at least 6 months of work or internship experience using it"
                     },
                     "weight": {
                       "type": "number",
@@ -6397,12 +6408,23 @@
                 "additionalProperties": false,
                 "title": "JdHardConditions",
                 "description": "Eligibility conditions checked by code, not scored (US-3.1)"
+              },
+              "preferred_languages": {
+                "maxItems": 10,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100
+                },
+                "description": "Foreign languages the JD prefers but does not require, with any stated level; a language is either required or preferred, never both"
               }
             },
             "required": [
               "must_have",
               "nice_to_have",
-              "hard_conditions"
+              "hard_conditions",
+              "preferred_languages"
             ],
             "additionalProperties": false,
             "title": "JdRequirements",

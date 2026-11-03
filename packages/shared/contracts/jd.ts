@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { type LanguageId, parseLanguageText } from './languages.js';
 import { skillMatchKey } from './skills.js';
 
 // Normalised requirements of a JD (PRD GĐ1 step 2, FR-9, US-2.3, CONTEXT D35). One definition for
@@ -10,6 +11,25 @@ import { skillMatchKey } from './skills.js';
 export const SKILL_LEVELS = ['BASIC', 'INTERMEDIATE', 'ADVANCED'] as const;
 
 export type SkillLevel = (typeof SKILL_LEVELS)[number];
+
+/**
+ * Evidence a CV needs to meet each level (PRD › Khung quy đổi mức bằng chứng, CONTEXT D44): BASIC
+ * one project, experience or certificate using the skill; INTERMEDIATE this many projects or
+ * experience entries; ADVANCED work or internship experience covering this many months. The Core
+ * Backend's tier rules read these numbers and the HR form shows them, so the two never disagree.
+ * A change of either number is a new `MATCHING_RULES_VERSION` (`apps/api` › `matching-rules.ts`).
+ */
+export const SKILL_LEVEL_EVIDENCE = {
+  intermediateMinProjectOrExperience: 2,
+  advancedMinExperienceMonths: 6,
+} as const;
+
+/** What each level asks of a CV, as the HR form shows it (US-3.6 AC-9). */
+export const SKILL_LEVEL_HINTS: Readonly<Record<SkillLevel, string>> = {
+  BASIC: 'Đã dùng trong ít nhất 1 dự án, kinh nghiệm hoặc chứng chỉ',
+  INTERMEDIATE: `Đã dùng trong ít nhất ${SKILL_LEVEL_EVIDENCE.intermediateMinProjectOrExperience} dự án hoặc kinh nghiệm`,
+  ADVANCED: `Ít nhất ${SKILL_LEVEL_EVIDENCE.advancedMinExperienceMonths} tháng kinh nghiệm làm việc hoặc thực tập dùng kỹ năng này`,
+};
 
 /** Position groups of PRD GĐ1; `OTHER` stands for the "…" at the end of the PRD list. */
 export const POSITION_GROUPS = ['BACKEND', 'FRONTEND', 'MOBILE', 'DATA_AI', 'TESTER_QA', 'BA', 'DEVOPS', 'OTHER'] as const;
@@ -24,9 +44,19 @@ export const GPA_SCALE_MAX = 4;
 
 export const MAX_SKILLS_PER_GROUP = 30;
 
+/** Most entries of each foreign-language list. */
+export const MAX_LANGUAGES_PER_LIST = 10;
+
 export const SkillLevelSchema = z
   .enum(SKILL_LEVELS, { error: 'Chọn mức độ' })
-  .meta({ title: 'SkillLevel', description: 'BASIC = basic, INTERMEDIATE = working knowledge, ADVANCED = proficient' });
+  .meta({
+    title: 'SkillLevel',
+    // The evidence each level asks of a CV (CONTEXT D44); the JD Analyzer's prompt states the same.
+    description:
+      'BASIC = basic: used in at least 1 project, experience or certificate; ' +
+      `INTERMEDIATE = working knowledge: used in at least ${SKILL_LEVEL_EVIDENCE.intermediateMinProjectOrExperience} projects or experience entries; ` +
+      `ADVANCED = proficient: at least ${SKILL_LEVEL_EVIDENCE.advancedMinExperienceMonths} months of work or internship experience using it`,
+  });
 
 export const PositionGroupSchema = z
   .enum(POSITION_GROUPS, { error: 'Chọn nhóm vị trí' })
@@ -38,6 +68,11 @@ const text = (empty: string, label: string, max: number) =>
     .trim()
     .min(1, { error: empty })
     .max(max, { error: `${label} tối đa ${max} ký tự` });
+
+const languageList = () =>
+  z
+    .array(text('Ngoại ngữ không được để trống', 'Ngoại ngữ', 100))
+    .max(MAX_LANGUAGES_PER_LIST, { error: `Tối đa ${MAX_LANGUAGES_PER_LIST} ngoại ngữ` });
 
 export const JdSkillRequirementSchema = z
   .strictObject({
@@ -71,10 +106,9 @@ export const JdHardConditionsSchema = z
       .max(GPA_SCALE_MAX, { error: `GPA từ 0 đến ${GPA_SCALE_MAX}` })
       .nullable()
       .describe(`Minimum GPA on a ${GPA_SCALE_MAX}-point scale; null when the JD states none`),
-    required_languages: z
-      .array(text('Ngoại ngữ không được để trống', 'Ngoại ngữ', 100))
-      .max(10, { error: 'Tối đa 10 ngoại ngữ' })
-      .describe('Mandatory foreign languages with any stated level, e.g. "English (TOEIC 550)"'),
+    required_languages: languageList().describe(
+      'Mandatory foreign languages with any stated level, e.g. "English (TOEIC 550)"',
+    ),
   })
   .meta({ title: 'JdHardConditions', description: 'Eligibility conditions checked by code, not scored (US-3.1)' });
 
@@ -135,11 +169,79 @@ export const JdRequirementsSchema = z
       .max(MAX_SKILLS_PER_GROUP, { error: `Tối đa ${MAX_SKILLS_PER_GROUP} kỹ năng mỗi nhóm` })
       .describe('Nice-to-have skills; never repeats a must-have skill'),
     hard_conditions: JdHardConditionsSchema,
+    // Not a hard condition: it only raises the language criterion of S_cv (US-3.6 AC-4).
+    preferred_languages: languageList().describe(
+      'Foreign languages the JD prefers but does not require, with any stated level; a language is either required or preferred, never both',
+    ),
   })
   .superRefine(checkDistinctSkills, whenSkillListsParsed)
   .meta({ title: 'JdRequirements', description: 'Normalised requirements of a JD (FR-9)' });
 
 export type JdRequirements = z.output<typeof JdRequirementsSchema>;
+
+/** The text entries of a list that may still be malformed; anything else stands as null. */
+const textsOf = (list: unknown): (string | null)[] =>
+  Array.isArray(list) ? list.map((item: unknown) => (typeof item === 'string' ? item : null)) : [];
+
+const fieldOf = (value: unknown, key: string): unknown =>
+  typeof value === 'object' && value !== null ? (value as Record<string, unknown>)[key] : undefined;
+
+/**
+ * A language is either required or preferred (US-3.6 AC-4, CONTEXT D45): the positions of the
+ * preferred entries that name a language a required entry names ("IELTS 7.0" next to "Tiếng Anh
+ * (TOEIC 550)"). Entries that name no language ("Ngoại ngữ thứ hai") never clash. Reads the input
+ * defensively, since a refinement also sees requirements with other fields invalid (LESSONS §10).
+ */
+export function overlappingPreferredLanguages(requirements: unknown): number[] {
+  const languagesOf = (text: string | null): LanguageId[] => (text === null ? [] : parseLanguageText(text).languages);
+  const required = new Set(
+    textsOf(fieldOf(fieldOf(requirements, 'hard_conditions'), 'required_languages')).flatMap(languagesOf),
+  );
+  return textsOf(fieldOf(requirements, 'preferred_languages')).flatMap((text, index) =>
+    languagesOf(text).some((language) => required.has(language)) ? [index] : [],
+  );
+}
+
+/**
+ * The requirements without the preferred entries that repeat a required language, and those
+ * entries. The JD Analyzer's proposal is cleaned with it before it is stored: one repeated
+ * language should not fail the whole analysis, and HR cannot fix a proposal before it is stored.
+ */
+export function withoutOverlappingPreferred(requirements: JdRequirements): {
+  requirements: JdRequirements;
+  dropped: string[];
+} {
+  const overlapping = new Set(overlappingPreferredLanguages(requirements));
+  if (overlapping.size === 0) return { requirements, dropped: [] };
+  const keep = (_: string, index: number) => !overlapping.has(index);
+  return {
+    requirements: { ...requirements, preferred_languages: requirements.preferred_languages.filter(keep) },
+    dropped: requirements.preferred_languages.filter((text, index) => !keep(text, index)),
+  };
+}
+
+function checkDistinctLanguages(requirements: unknown, ctx: z.RefinementCtx): void {
+  for (const index of overlappingPreferredLanguages(requirements)) {
+    ctx.addIssue({ code: 'custom', path: ['preferred_languages', index], message: 'Ngoại ngữ này đã có ở mục bắt buộc' });
+  }
+}
+
+// Runs while other fields are invalid too (LESSONS §10): it only waits for the object itself and
+// reads the two lists defensively.
+const whenRequirementsObjectParsed = {
+  when: (payload: z.core.ParsePayload) => payload.issues.every((issue) => (issue.path ?? []).length > 0),
+};
+
+/**
+ * The requirements as HR saves them, on the form and through the API: a language is also in one
+ * list only. The JD Analyzer's result is not held to it on the queue, where one repeated language
+ * would reject the whole message; the Core Backend drops the repeated entries instead
+ * (`withoutOverlappingPreferred`, CONTEXT D45).
+ */
+export const HrJdRequirementsSchema = JdRequirementsSchema.superRefine(
+  checkDistinctLanguages,
+  whenRequirementsObjectParsed,
+);
 
 /** What the JD Analyzer asks the LLM for: the requirements and the position group (US-2.3). */
 export const JdAnalysisSchema = z

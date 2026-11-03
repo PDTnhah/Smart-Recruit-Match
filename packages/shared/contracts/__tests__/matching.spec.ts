@@ -30,8 +30,8 @@ const criteria = (): MatchCriteria => ({
   ],
   nice_to_have: [none('Redis')],
   project_relevance: { score_0_4: 3, reason: 'Hai dự án web có backend Java' },
-  education: { major_match: 'EXACT' },
-  language: { verdict: 'MET', evidence: 'TOEIC 650' },
+  education: { major_match: 'EXACT', major_unrecognized: false },
+  language: { verdict: 'MET', evidence: 'TOEIC 650', required: 'TOEIC 550 (B1)', held: 'TOEIC 650 (B1)' },
 });
 
 function none(skill: string): MatchSkillVerdict {
@@ -58,7 +58,7 @@ describe('GĐ3 AD-2 MatchCriteria: per-criterion verdicts, code computes S_cv (U
     const input = criteria();
     input.must_have[0]!.evidence = null;
     input.must_have[1]!.evidence = null;
-    input.language = { verdict: 'PARTIAL', evidence: null };
+    input.language = { verdict: 'PARTIAL', evidence: null, required: 'IELTS 6.5 (B2)', held: null };
     expect(issuePaths(input)).toEqual(['must_have.0.evidence', 'must_have.1.evidence', 'language.evidence']);
   });
 
@@ -69,7 +69,9 @@ describe('GĐ3 AD-2 MatchCriteria: per-criterion verdicts, code computes S_cv (U
   });
 
   it('D41 education carries no GPA and unknown fields are rejected', () => {
-    expect(issuePaths({ ...criteria(), education: { major_match: 'EXACT', gpa_4: 3.2 } })).toEqual(['education']);
+    expect(
+      issuePaths({ ...criteria(), education: { major_match: 'EXACT', major_unrecognized: false, gpa_4: 3.2 } }),
+    ).toEqual(['education']);
     expect(issuePaths({ ...criteria(), total_score: 80 })).toEqual(['']);
   });
 
@@ -80,8 +82,29 @@ describe('GĐ3 AD-2 MatchCriteria: per-criterion verdicts, code computes S_cv (U
     expect(issuePaths({ ...criteria(), project_relevance: { score_0_4: 2.5, reason: 'x' } })).toEqual([
       'project_relevance.score_0_4',
     ]);
-    expect(issuePaths({ ...criteria(), language: { verdict: 'met', evidence: 'TOEIC 650' } })).toEqual([
+    expect(issuePaths({ ...criteria(), language: { ...criteria().language, verdict: 'met' } })).toEqual([
       'language.verdict',
+    ]);
+  });
+});
+
+describe('FR-40 education and language verdicts computed by code (US-3.6 AC-7)', () => {
+  it('FR-40 education flags a major in no group; the flag is required', () => {
+    const unrecognized = { ...criteria(), education: { major_match: 'OTHER', major_unrecognized: true } };
+    expect(issuePaths(unrecognized)).toEqual([]);
+    expect(issuePaths({ ...criteria(), education: { major_match: 'OTHER' } })).toEqual(['education.major_unrecognized']);
+  });
+
+  it('FR-40 language lists what the JD asks and what the student holds, with CEFR levels', () => {
+    const language = criteria().language!;
+    expect(issuePaths({ ...criteria(), language: { ...language, held: null, verdict: 'NOT_MET', evidence: null } })).toEqual(
+      [],
+    );
+    expect(issuePaths({ ...criteria(), language: { ...language, required: '  ' } })).toEqual(['language.required']);
+    expect(issuePaths({ ...criteria(), language: { ...language, held: 'x'.repeat(2001) } })).toEqual(['language.held']);
+    expect(issuePaths({ ...criteria(), language: { verdict: 'MET', evidence: 'TOEIC 650' } }).sort()).toEqual([
+      'language.held',
+      'language.required',
     ]);
   });
 });

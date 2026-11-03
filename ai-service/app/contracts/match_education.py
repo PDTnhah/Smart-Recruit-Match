@@ -9,10 +9,14 @@ from . import major_match as major_match_1
 
 class MatchEducation(BaseModel):
     """
-    Major against the JD; the GPA comes from the school record, not from the CV (CONTEXT D41)
+    Major against the JD, computed by code (CONTEXT D42, D45); the GPA comes from the school record, not from the CV (CONTEXT D41)
     """
 
     model_config = ConfigDict(
         extra='forbid',
     )
     major_match: major_match_1.MajorMatch
+    major_unrecognized: bool
+    """
+    The major is in no major group, or the student has none, so it counts as OTHER
+    """

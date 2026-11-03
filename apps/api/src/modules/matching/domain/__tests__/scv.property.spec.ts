@@ -48,8 +48,16 @@ function toInput(s: Scenario): ScvInput {
     must_have: judged.filter((v) => s.names.indexOf(v.skill) < s.mustCount),
     nice_to_have: judged.filter((v) => s.names.indexOf(v.skill) >= s.mustCount),
     project_relevance: { score_0_4: s.project, reason: '...' },
-    education: { major_match: s.major },
-    language: s.language === null ? null : { verdict: s.language, evidence: s.language === 'NOT_MET' ? null : 'TOEIC 650' },
+    education: { major_match: s.major, major_unrecognized: false },
+    language:
+      s.language === null
+        ? null
+        : {
+            verdict: s.language,
+            evidence: s.language === 'NOT_MET' ? null : 'TOEIC 650',
+            required: 'Tiếng Anh',
+            held: 'TOEIC 650 (B1)',
+          },
   };
   return {
     requirements: {
@@ -61,6 +69,7 @@ function toInput(s: Scenario): ScvInput {
         min_gpa: null,
         required_languages: s.requiresLanguage ? ['Tiếng Anh'] : [],
       },
+      preferred_languages: [],
     },
     criteria,
     education: { gpa4: s.gpaX100 === null ? null : s.gpaX100 / 100 },

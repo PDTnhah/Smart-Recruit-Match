@@ -15,6 +15,35 @@ Lịch sử phát hành của Smart Recruit Match. Mỗi commit ship code tăng 
 
 ---
 
+## [0.16.0] — 2026-11-03 — Quy đổi ngoại ngữ CEFR và mức khớp ngành bằng code — v0.16.0
+
+US-3.6. Chứng chỉ ngoại ngữ khác loại được so theo bậc CEFR, nên SV có IELTS không còn bị loại khỏi JD yêu cầu TOEIC. JD có thêm ngoại ngữ ưu tiên. Code chấm tiêu chí ngoại ngữ và mức khớp ngành; US-3.2 sẽ gọi các hàm này khi lưu kết quả (FR-40, AD-15, [CONTEXT D45](CONTEXT.md)).
+
+### Added
+- **Bảng `language-cefr/v1`** (`language-cefr.ts`): TOEIC (tổng hai phần), IELTS, TOEFL iBT cả thang 0–120 lẫn thang band 1–6 dùng từ 21/01/2026, TOEFL ITP, VSTEP/CEFR; nguồn ETS và ielts.org đọc ngày 03/11/2026. JLPT, TOPIK, HSK không có bảng.
+- **So chứng chỉ khác loại qua CEFR** khi yêu cầu và mục của SV nêu cùng một ngôn ngữ, ở cả điều kiện cứng lẫn điểm; cùng loại vẫn so điểm gốc. Bậc CEFR ghi kèm điểm ("TOEIC 650 (B1)") chỉ là chú thích.
+- **Ngoại ngữ ưu tiên** (`preferred_languages`) trong yêu cầu JD: ô riêng trên form HR, dòng riêng trong bản tóm tắt. Một ngôn ngữ không được nằm ở cả hai danh sách ("Tiếng Anh (TOEIC 550)" và "IELTS 7.0" là cùng ngôn ngữ); form và API báo lỗi ở mục ưu tiên.
+- **Tiêu chí ngoại ngữ** (`scoreLanguage`): từng mục bắt buộc và ưu tiên có verdict; mục ưu tiên thiếu không quá một bậc, hoặc CV nêu ngôn ngữ mà không kèm chứng chỉ, là *Một phần*; trung bình từ 0,75 là *Đáp ứng*, từ 0,25 là *Một phần*. Kết quả kèm chuỗi yêu cầu và chứng chỉ của SV có bậc CEFR.
+- **Mức khớp ngành** (`majorMatch`): 7 nhóm ngành với tên tiếng Việt, viết tắt và tên tiếng Anh (`packages/shared/schemas/majors.ts`), bảng đúng/gần theo nhóm vị trí; ngành không nhận ra là *khác* kèm cờ `major_unrecognized`.
+- **Trợ giúp mức độ kỹ năng** trên form HR (Cơ bản / Khá / Thành thạo), lấy từ cùng hằng số với luật chấm bậc.
+- **Prompt `jd_analyzer/v2`**: trích ngoại ngữ ưu tiên, định nghĩa ba mức theo khung bậc, ghi kỹ năng mềm bằng tên năng lực chuẩn của danh mục. `v1` giữ nguyên.
+- **Test**: unit test ở mọi ngưỡng; property-based test (`fast-check`: `cefrOf` không giảm theo điểm, chứng chỉ cao hơn không trượt khi thấp hơn đã đạt, thêm một mục CV không làm verdict giảm, tất định); integration test cho lưu ngoại ngữ ưu tiên và bỏ mục trùng trong đề xuất AI; pytest cho prompt v2.
+
+### Changed
+- Bộ đọc ngôn ngữ và chứng chỉ chuyển từ `apps/api` sang `packages/shared/contracts/languages.ts`. Điểm IELTS và band TOEFL phải theo bước 0,5.
+- `MatchEducation` thêm `major_unrecognized`; `MatchLanguageVerdict` thêm `required`, `held`. JSON Schema và Pydantic sinh lại.
+- Tiêu chí ngoại ngữ của S_cv là rỗng khi JD không có ngoại ngữ bắt buộc lẫn ưu tiên.
+- Đề xuất của JD Analyzer có mục ưu tiên trùng ngôn ngữ với mục bắt buộc: backend bỏ mục ưu tiên đó và ghi log, thay vì làm hỏng cả lần phân tích.
+- Form HR hiện lỗi của từng mục trong ô danh sách (ngành, ngoại ngữ).
+- PRD › *Quy đổi ngoại ngữ (CEFR)*, *Mức khớp ngành*; ARCH AD-15.
+
+### Upgrade notes
+- Migration `0023_jd_preferred_languages` điền `preferred_languages: []` cho yêu cầu JD đã có: chạy `pnpm --filter @srm/api db:migrate`. Build lại image `api`, `web` và `ai-worker`, để worker dùng `jd_analyzer/v2`.
+
+**Commit**: ebe8c18
+
+---
+
 ## [0.15.0] — 2026-11-02 — Hồ sơ kỹ năng chi tiết và khớp kỹ năng bằng code — v0.15.0
 
 US-3.5. Code (không dùng LLM) ra verdict cho từng kỹ năng bắt buộc và bổ trợ của JD, kể cả kỹ năng mềm. Mỗi verdict kèm kiểu khớp, bậc bằng chứng T0–T4 và các mục CV làm nguồn, nên bằng chứng luôn chép từ CV. Đây là các hàm thuần trong `matching/domain/`; US-3.2 sẽ gọi chúng để lưu kết quả và lọc top-M (FR-40, AD-15, [CONTEXT D42, D44](CONTEXT.md)).

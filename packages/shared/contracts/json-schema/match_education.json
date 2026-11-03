@@ -5,12 +5,17 @@
   "properties": {
     "major_match": {
       "$ref": "./major_match.json"
+    },
+    "major_unrecognized": {
+      "type": "boolean",
+      "description": "The major is in no major group, or the student has none, so it counts as OTHER"
     }
   },
   "required": [
-    "major_match"
+    "major_match",
+    "major_unrecognized"
   ],
   "additionalProperties": false,
   "title": "MatchEducation",
-  "description": "Major against the JD; the GPA comes from the school record, not from the CV (CONTEXT D41)"
+  "description": "Major against the JD, computed by code (CONTEXT D42, D45); the GPA comes from the school record, not from the CV (CONTEXT D41)"
 }

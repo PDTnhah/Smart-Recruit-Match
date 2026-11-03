@@ -1,7 +1,8 @@
-import type { EvidenceSection, SkillFamily, SkillLevel } from '@srm/shared';
+import { type EvidenceSection, SKILL_LEVEL_EVIDENCE, type SkillFamily, type SkillLevel } from '@srm/shared';
 
-// The rules by which code reads skill evidence from a CV and matches it to a JD (FR-40, US-3.5,
-// CONTEXT D42, D44). Stored with every match result; a change of any value here is a new version.
+// The rules by which code reads skill evidence from a CV and matches it to a JD, and scores the
+// language criterion (FR-40, US-3.5, US-3.6, CONTEXT D42, D44, D45). Stored with every match result;
+// a change of any value here is a new version.
 
 export const MATCHING_RULES_VERSION = 'matching-rules/v1';
 
@@ -12,11 +13,12 @@ export type EvidenceTier = 0 | 1 | 2 | 3 | 4;
  * Thresholds of the tiers (CONTEXT D44). One CV entry is one source; the skills list gives T1 only.
  * T2: one project, experience or certificate. T3: this many project or experience entries.
  * T4: experience entries using the skill that cover this many months together; projects add no
- * months, since a study project is not work.
+ * months, since a study project is not work. The numbers come from `SKILL_LEVEL_EVIDENCE`, which
+ * the HR form shows (US-3.6 AC-9).
  */
 export const TIER_RULES = {
-  t3MinProjectOrExperienceSources: 2,
-  t4MinExperienceMonths: 6,
+  t3MinProjectOrExperienceSources: SKILL_LEVEL_EVIDENCE.intermediateMinProjectOrExperience,
+  t4MinExperienceMonths: SKILL_LEVEL_EVIDENCE.advancedMinExperienceMonths,
 } as const;
 
 /**
@@ -97,3 +99,13 @@ export const MAX_EVIDENCE_CHARS = 1000;
 
 /** Order of the sources of a verdict: the strongest evidence first. */
 export const SECTION_ORDER: readonly EvidenceSection[] = ['EXPERIENCE', 'PROJECT', 'CERTIFICATE', 'SKILLS_LIST'];
+
+/**
+ * The language criterion averages its entries, MET = 1 and PARTIAL = 0.5, and reads the average as
+ * a verdict: at least `met` is MET, at least `partial` PARTIAL, else NOT_MET (CONTEXT D45). Fractions
+ * so that the comparison stays in integers.
+ */
+export const LANGUAGE_SCORE_RULES = {
+  met: { num: 3, den: 4 },
+  partial: { num: 1, den: 4 },
+} as const;

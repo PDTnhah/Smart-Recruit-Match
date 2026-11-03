@@ -38,12 +38,14 @@ const PROPOSED: JdRequirements = {
   ],
   nice_to_have: [{ skill: 'Docker', level: 'BASIC', weight: 2 }],
   hard_conditions: { majors: ['Công nghệ thông tin'], min_study_year: 3, min_gpa: null, required_languages: [] },
+  preferred_languages: ['Tiếng Anh (TOEIC 550)'],
 };
 
 const TYPED_BY_HR: JdRequirements = {
   must_have: [{ skill: 'SQL', level: 'BASIC', weight: 3 }],
   nice_to_have: [],
   hard_conditions: { majors: [], min_study_year: null, min_gpa: 2.5, required_languages: ['Tiếng Anh (TOEIC 500)'] },
+  preferred_languages: ['Tiếng Nhật (JLPT N3)'],
 };
 
 describe('US-2.3: JD analysis and requirement confirmation', () => {
@@ -258,6 +260,20 @@ describe('US-2.3: JD analysis and requirement confirmation', () => {
       expect(await analysisOf(jd.id)).toMatchObject({ analysisStatus: 'FAILED', requirements: null });
     });
 
+    it('US-3.6 AC-4 a preferred language the AI also lists as required is dropped, the proposal kept', async () => {
+      const jd = await awaitingAnalysis();
+      const overlapping = {
+        ...PROPOSED,
+        hard_conditions: { ...PROPOSED.hard_conditions, required_languages: ['Tiếng Anh (TOEIC 550)'] },
+        preferred_languages: ['IELTS 6.5', 'Tiếng Nhật N3'],
+      };
+      await deliver(succeeded(jd.id, 1, overlapping));
+      expect(await analysisOf(jd.id)).toMatchObject({
+        analysisStatus: 'SUCCEEDED',
+        requirements: { ...overlapping, preferred_languages: ['Tiếng Nhật N3'] },
+      });
+    });
+
     it('GĐ1 phân tích lỗi đặt FAILED, HR nhập tay và xác nhận được', async () => {
       const jd = await awaitingAnalysis();
       await deliver(failed(jd.id));
@@ -331,6 +347,32 @@ describe('US-2.3: JD analysis and requirement confirmation', () => {
       const res = await confirm(fx.hrA.agent, jd.id, body).expect(400);
       expect(ApiErrorSchema.parse(res.body).code).toBe('VALIDATION_FAILED');
       expect((await readState(t.db, 'jobDescription', jd.id)).status).toBe('PENDING_HR_CONFIRMATION');
+    });
+
+    it('US-3.6 AC-4 preferred languages are saved and read back; one also required is 400', async () => {
+      const jd = await awaitingAnalysis();
+      const saved = await save(fx.hrA.agent, jd.id, {
+        rowVersion: jd.rowVersion,
+        requirements: TYPED_BY_HR,
+        positionGroup: 'BACKEND',
+      }).expect(200);
+      const view = JdRequirementsViewSchema.parse(saved.body);
+      expect(view.requirements?.preferred_languages).toEqual(['Tiếng Nhật (JLPT N3)']);
+      expect(JdRequirementsViewSchema.parse((await getRequirements(fx.hrA.agent, jd.id).expect(200)).body).requirements).toEqual(
+        TYPED_BY_HR,
+      );
+
+      const overlapping = { ...TYPED_BY_HR, preferred_languages: ['IELTS 6.5'] };
+      const res = await save(fx.hrA.agent, jd.id, {
+        rowVersion: view.rowVersion,
+        requirements: overlapping,
+        positionGroup: 'BACKEND',
+      }).expect(400);
+      const { code, details } = ApiErrorSchema.parse(res.body);
+      expect(code).toBe('VALIDATION_FAILED');
+      expect(details).toEqual({
+        issues: [{ path: 'requirements.preferred_languages.0', message: 'Ngoại ngữ này đã có ở mục bắt buộc' }],
+      });
     });
 
     it('GĐ1 HR không sửa yêu cầu khi đợt đã rời INTAKE', async () => {

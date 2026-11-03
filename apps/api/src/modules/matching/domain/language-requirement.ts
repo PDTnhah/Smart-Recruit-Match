@@ -1,241 +1,125 @@
-import { normalizeAudienceValue } from '@srm/shared';
+import {
+  type Certificate,
+  type LanguageText,
+  languagePartsOf,
+  languageWordsOf,
+  type MatchVerdict,
+  namesLanguage,
+  parseLanguageText,
+} from '@srm/shared';
+import { cefrOf } from './language-cefr.js';
+import { VERDICT_HALVES } from './scv.js';
 
-// Mandatory foreign languages of a JD, read by code, never by the LLM (AGENTS › Invariant 2,
-// US-3.1, CONTEXT D41). The JD's `required_languages` and the student's languages and certificates
-// are both free text. A certificate is compared with one of the same kind only: there is no
-// TOEIC ↔ IELTS conversion table yet.
+// Foreign languages of a JD against the student's, by code, never by the LLM (AGENTS › Invariant
+// 2, US-3.1, US-3.6, CONTEXT D41, D42, D45). `@srm/shared` reads the free text; this file compares
+// what it reads. A certificate meets one of the same kind by its own score and one of another kind
+// in the same language through CEFR (`language-cefr.ts`); JLPT, TOPIK and HSK have no CEFR table,
+// so only their own kind.
 
-export const LANGUAGES = ['EN', 'JA', 'KO', 'ZH', 'FR', 'DE', 'RU', 'ES', 'IT', 'TH'] as const;
+/** A required language must be met; a preferred one also earns PARTIAL when close (CONTEXT D45). */
+export type LanguageRule = 'REQUIRED' | 'PREFERRED';
 
-export type Language = (typeof LANGUAGES)[number];
+/** What one requirement got, and the entries it rests on by position (empty for NOT_MET). */
+export interface LanguageMatch {
+  verdict: MatchVerdict;
+  sources: number[];
+}
+
+const notMet = (): LanguageMatch => ({ verdict: 'NOT_MET', sources: [] });
+
+/** Whether the entry names one of the languages of the part. */
+const namesLanguageOf = (part: LanguageText, entry: LanguageText): boolean =>
+  entry.languages.some((language) => part.languages.includes(language));
 
 /**
- * A language outside the table is named by the word after "tiếng" ("tiếng Lào" → `other:lào`), so
- * that it still differs from every other language instead of matching any.
+ * Whether a certificate of the entry may stand for one of the part: of the same kind when the
+ * languages known on both sides overlap, or when a side names none ("B2" against "CEFR B1"); of
+ * another kind only when both sides name the language, so that "Giấy phép lái xe B2" or "DELF B2"
+ * never meets "TOEIC 550".
  */
-export type LanguageId = Language | `other:${string}`;
-
-/** Names recognised anywhere in the text. */
-const LANGUAGE_NAMES: Readonly<Record<Language, readonly string[]>> = {
-  EN: ['tiếng anh', 'anh văn', 'anh ngữ', 'english'],
-  JA: ['tiếng nhật', 'nhật ngữ', 'japanese'],
-  KO: ['tiếng hàn', 'hàn ngữ', 'korean'],
-  ZH: ['tiếng trung', 'tiếng hoa', 'trung văn', 'hoa văn', 'chinese', 'mandarin'],
-  FR: ['tiếng pháp', 'pháp văn', 'pháp ngữ', 'french'],
-  DE: ['tiếng đức', 'đức văn', 'german'],
-  RU: ['tiếng nga', 'russian'],
-  ES: ['tiếng tây ban nha', 'spanish'],
-  IT: ['tiếng ý', 'tiếng italia', 'italian'],
-  TH: ['tiếng thái', 'thai'],
-};
-
-/** "tiếng <word>" pairs that start a name of the table; any other pair names an unknown language. */
-const KNOWN_TIENG_PAIRS = new Set(
-  Object.values(LANGUAGE_NAMES)
-    .flat()
-    .filter((name) => name.startsWith('tiếng '))
-    .map((name) => name.split(' ').slice(0, 2).join(' ')),
-);
-
-/**
- * Bare names, trusted only as the first word ("Anh - TOEIC 650") and only when nothing else names
- * the language. "Trung" is left out: "trung cấp" means "intermediate".
- */
-const SHORT_NAMES: Readonly<Record<string, Language>> = {
-  anh: 'EN',
-  nhật: 'JA',
-  hàn: 'KO',
-  hoa: 'ZH',
-  pháp: 'FR',
-  đức: 'DE',
-  nga: 'RU',
-};
-
-export const CERTIFICATE_KINDS = ['TOEIC', 'IELTS', 'TOEFL_IBT', 'TOEFL_ITP', 'JLPT', 'TOPIK', 'HSK', 'CEFR'] as const;
-
-export type CertificateKind = (typeof CERTIFICATE_KINDS)[number];
-
-/**
- * `level` is an integer on the certificate's own scale: TOEIC and TOEFL score, IELTS band × 10,
- * JLPT 1 (N5) to 5 (N1), TOPIK and HSK level, CEFR 1 (A1) to 6 (C2). VSTEP "bậc 1–6" is CEFR.
- */
-export interface Certificate {
-  kind: CertificateKind;
-  level: number;
+function comparable(part: LanguageText, entry: LanguageText, held: Certificate, wanted: Certificate): boolean {
+  if (held.kind !== wanted.kind) return namesLanguageOf(part, entry);
+  return part.languages.length === 0 || entry.languages.length === 0 || namesLanguageOf(part, entry);
 }
 
-export interface LanguageText {
-  /** Several when the text names alternatives ("Tiếng Anh hoặc tiếng Nhật"); empty when none. */
-  languages: LanguageId[];
-  certificates: Certificate[];
-}
-
-/** Test names that tell the language even when no score can be read ("TOEIC 4 kỹ năng"). */
-const KEYWORD_LANGUAGE: Readonly<Record<string, Language>> = {
-  toeic: 'EN',
-  ielts: 'EN',
-  toefl: 'EN',
-  vstep: 'EN',
-  jlpt: 'JA',
-  topik: 'KO',
-  hsk: 'ZH',
-};
-
-interface ScoredKind {
-  kind: CertificateKind;
-  keyword: string;
-  /** Word right after the keyword that selects this kind ("TOEFL ITP"). */
-  variant?: string;
-  min: number;
-  max: number;
-  /** Multiplier that makes a valid score an integer (IELTS has half bands). */
-  scale: number;
-}
-
-/** Certificates written as a keyword followed by a score ("TOEIC 650", "TOPIK II cấp 4"). */
-const SCORED_KINDS: readonly ScoredKind[] = [
-  { kind: 'TOEIC', keyword: 'toeic', min: 10, max: 990, scale: 1 },
-  { kind: 'IELTS', keyword: 'ielts', min: 0, max: 9, scale: 10 },
-  { kind: 'TOEFL_ITP', keyword: 'toefl', variant: 'itp', min: 310, max: 677, scale: 1 },
-  { kind: 'TOEFL_IBT', keyword: 'toefl', min: 0, max: 120, scale: 1 },
-  { kind: 'TOPIK', keyword: 'topik', min: 1, max: 6, scale: 1 },
-  { kind: 'HSK', keyword: 'hsk', min: 1, max: 9, scale: 1 },
-];
-
-/** How many words after the keyword the score may come ("TOEIC 4 kỹ năng 650"). */
-const SCORE_WINDOW = 4;
-
-/** Words that join requirements which must all be met ("TOEIC 550 và JLPT N3"). */
-const AND_WORDS = new Set(['và', 'and']);
-
-const NUMBER = /^\d+(?:[.,]\d+)?$/;
-/** Letters and numbers apart, so "HSK5", "TOEIC650đ" and "N2" read as two words. */
-const WORD = /[\p{L}\p{M}]+|\d+(?:[.,]\d+)?/gu;
-const LETTERS = /^\p{L}/u;
-
-/** Lower-case words and numbers; "6,5" and "6.5" stay one token. */
-function tokensOf(text: string): string[] {
-  return normalizeAudienceValue(text).match(WORD) ?? [];
-}
-
-/** The first valid score in the window, which ends at the next test name. */
-function scoreAfter(tokens: readonly string[], index: number, kind: ScoredKind): number | null {
-  for (const token of tokens.slice(index + 1, index + 1 + SCORE_WINDOW)) {
-    if (token in KEYWORD_LANGUAGE) return null;
-    if (!NUMBER.test(token)) continue;
-    const value = Number(token.replace(',', '.')) * kind.scale;
-    const level = Math.round(value);
-    if (Math.abs(value - level) < 1e-9 && level >= kind.min * kind.scale && level <= kind.max * kind.scale) {
-      return level;
-    }
-  }
-  return null;
-}
-
-function certificatesOf(tokens: readonly string[]): Certificate[] {
-  const certificates: Certificate[] = [];
-  tokens.forEach((token, index) => {
-    const next = tokens[index + 1] ?? '';
-    const scored = SCORED_KINDS.find(
-      (kind) => kind.keyword === token && (kind.variant === undefined || kind.variant === next),
-    );
-    if (scored) {
-      const level = scoreAfter(tokens, index, scored);
-      if (level !== null) certificates.push({ kind: scored.kind, level });
-    } else if (token === 'n' && /^[1-5]$/.test(next)) {
-      certificates.push({ kind: 'JLPT', level: 6 - Number(next) });
-    } else if (['a', 'b', 'c'].includes(token) && /^[12]$/.test(next)) {
-      certificates.push({ kind: 'CEFR', level: 'abc'.indexOf(token) * 2 + Number(next) });
-    } else if (token === 'bậc' && /^[1-6]$/.test(next)) {
-      certificates.push({ kind: 'CEFR', level: Number(next) });
-    }
-  });
-  return certificates;
-}
-
-/** "tiếng <word>" outside the table; "nổi tiếng" means "famous". */
-function otherLanguagesOf(tokens: readonly string[]): LanguageId[] {
-  const others = new Set<LanguageId>();
-  tokens.forEach((token, index) => {
-    const next = tokens[index + 1];
-    if (token !== 'tiếng' || next === undefined || !LETTERS.test(next) || tokens[index - 1] === 'nổi') return;
-    if (!KNOWN_TIENG_PAIRS.has(`tiếng ${next}`)) others.add(`other:${next}`);
-  });
-  return [...others];
-}
-
-function languagesOf(tokens: readonly string[], certificates: readonly Certificate[]): LanguageId[] {
-  const padded = ` ${tokens.join(' ')} `;
-  const found = new Set<Language>(
-    LANGUAGES.filter((language) => LANGUAGE_NAMES[language].some((name) => padded.includes(` ${name} `))),
+/** Whether a certificate of the entry passes `test` against one of the part's, comparable as above. */
+const anyCertificate = (part: LanguageText, entry: LanguageText, test: (held: Certificate, wanted: Certificate) => boolean) =>
+  entry.certificates.some((held) =>
+    part.certificates.some((wanted) => comparable(part, entry, held, wanted) && test(held, wanted)),
   );
-  for (const token of tokens) {
-    const language = KEYWORD_LANGUAGE[token];
-    if (language) found.add(language);
-  }
-  // A bare "N3" is a JLPT level.
-  if (certificates.some((certificate) => certificate.kind === 'JLPT')) found.add('JA');
-  const others = otherLanguagesOf(tokens);
-  const short = SHORT_NAMES[tokens[0] ?? ''];
-  if (found.size === 0 && others.length === 0 && short) found.add(short);
-  return [...LANGUAGES.filter((language) => found.has(language)), ...others];
-}
 
-function read(tokens: readonly string[]): LanguageText {
-  const certificates = certificatesOf(tokens);
-  return { languages: languagesOf(tokens, certificates), certificates };
-}
-
-/** Reads the language and the certificates out of a requirement or a profile entry. */
-export function parseLanguageText(text: string): LanguageText {
-  return read(tokensOf(text));
-}
-
-/** Languages known on both sides must overlap; a side that names none does not rule a match out. */
-function sameLanguage(required: LanguageText, held: LanguageText): boolean {
-  if (required.languages.length === 0 || held.languages.length === 0) return true;
-  return held.languages.some((language) => required.languages.includes(language));
-}
-
-function meets(required: LanguageText, held: readonly LanguageText[]): boolean {
-  if (required.certificates.length > 0) {
-    return held.some(
-      (entry) =>
-        sameLanguage(required, entry) &&
-        entry.certificates.some((certificate) =>
-          required.certificates.some((wanted) => wanted.kind === certificate.kind && certificate.level >= wanted.level),
-        ),
-    );
-  }
-  return held.some((entry) => entry.languages.some((language) => required.languages.includes(language)));
-}
-
-const namesSomething = (text: LanguageText): boolean => text.languages.length > 0 || text.certificates.length > 0;
-
-/** Splits at "và" / "and" when every part names a language or a certificate, else one part. */
-function partsOf(tokens: readonly string[]): LanguageText[] {
-  const parts: string[][] = [[]];
-  for (const token of tokens) {
-    if (AND_WORDS.has(token)) parts.push([]);
-    else parts[parts.length - 1]?.push(token);
-  }
-  const readParts = parts.filter((part) => part.length > 0).map(read);
-  return readParts.length > 1 && readParts.every(namesSomething) ? readParts : [read(tokens)];
+/** At or above the wanted certificate: the same kind by its score, another kind by CEFR level. */
+export function certificateMeets(held: Certificate, wanted: Certificate): boolean {
+  if (held.kind === wanted.kind) return held.level >= wanted.level;
+  const heldCefr = cefrOf(held);
+  const wantedCefr = cefrOf(wanted);
+  return heldCefr !== null && wantedCefr !== null && heldCefr >= wantedCefr;
 }
 
 /**
- * Whether the student's languages and certificates (each entry as written) meet one requirement.
- * Parts joined by "và" / "and" must all be met ("Tiếng Anh và tiếng Nhật"); within a part:
- * - with certificates, an entry needs a certificate of one of those kinds at that level or above
- *   (several certificates are alternatives: "TOEIC 550 hoặc IELTS 5.5");
- * - with only a language name, an entry needs that language;
- * - otherwise, an entry must contain the requirement's words in order.
+ * At most one level under the wanted certificate: by CEFR when both have a level, so a lower score
+ * of the same CEFR level counts too; JLPT, TOPIK and HSK by one step of their own scale.
  */
+function withinOneLevel(held: Certificate, wanted: Certificate): boolean {
+  const heldCefr = cefrOf(held);
+  const wantedCefr = cefrOf(wanted);
+  if (heldCefr !== null && wantedCefr !== null) return heldCefr >= wantedCefr - 1;
+  return held.kind === wanted.kind && held.level >= wanted.level - 1;
+}
+
+/**
+ * With certificates, the entry needs one of those kinds (they are alternatives: "TOEIC 550 hoặc
+ * IELTS 5.5") at that level or above; with only a language name, the entry needs that language.
+ */
+function meetsPart(part: LanguageText, entry: LanguageText): boolean {
+  if (part.certificates.length > 0) return anyCertificate(part, entry, certificateMeets);
+  return namesLanguageOf(part, entry);
+}
+
+function matchPart(part: LanguageText, held: readonly LanguageText[], rule: LanguageRule): LanguageMatch {
+  const where = (test: (entry: LanguageText) => boolean): number[] =>
+    held.flatMap((entry, index) => (test(entry) ? [index] : []));
+  const met = where((entry) => meetsPart(part, entry));
+  if (met.length > 0) return { verdict: 'MET', sources: met };
+  if (rule === 'REQUIRED' || part.certificates.length === 0) return notMet();
+
+  // Preferred: a certificate one level short, or an entry naming the language without any
+  // certificate. Per entry, so that listing one more certificate never lowers the verdict.
+  const close = where(
+    (entry) =>
+      anyCertificate(part, entry, withinOneLevel) ||
+      (entry.certificates.length === 0 && namesLanguageOf(part, entry)),
+  );
+  return close.length > 0 ? { verdict: 'PARTIAL', sources: close } : notMet();
+}
+
+/**
+ * The verdict of one requirement against the student's languages and certificates (each entry as
+ * written). Parts joined by "và" / "and" must all be met, so the lowest verdict of the parts
+ * counts; a requirement that names neither a language nor a certificate is met by an entry that
+ * contains its words in order.
+ */
+export function matchLanguageRequirement(
+  requirement: string,
+  entries: readonly string[],
+  rule: LanguageRule = 'REQUIRED',
+): LanguageMatch {
+  const parts = languagePartsOf(requirement);
+  if (parts.every(namesLanguage)) {
+    const held = entries.map(parseLanguageText);
+    const matches = parts.map((part) => matchPart(part, held, rule));
+    const lowest = matches.reduce((low, match) => (VERDICT_HALVES[match.verdict] < VERDICT_HALVES[low.verdict] ? match : low));
+    if (lowest.verdict === 'NOT_MET') return notMet();
+    const sources = [...new Set(matches.flatMap((match) => match.sources))].sort((a, b) => a - b);
+    return { verdict: lowest.verdict, sources };
+  }
+  const words = languageWordsOf(requirement);
+  if (words === '') return notMet();
+  const sources = entries.flatMap((entry, index) => (` ${languageWordsOf(entry)} `.includes(` ${words} `) ? [index] : []));
+  return sources.length > 0 ? { verdict: 'MET', sources } : notMet();
+}
+
+/** Whether the student's languages and certificates meet one required language (hard filter, AC-3). */
 export function meetsLanguageRequirement(requirement: string, entries: readonly string[]): boolean {
-  const tokens = tokensOf(requirement);
-  const held = entries.map(parseLanguageText);
-  const parts = partsOf(tokens);
-  if (parts.every(namesSomething)) return parts.every((part) => meets(part, held));
-  const words = tokens.join(' ');
-  return words !== '' && entries.some((entry) => ` ${tokensOf(entry).join(' ')} `.includes(` ${words} `));
+  return matchLanguageRequirement(requirement, entries).verdict === 'MET';
 }

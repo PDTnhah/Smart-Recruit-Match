@@ -17,8 +17,11 @@ const requirements = (change: Partial<JdRequirements> = {}): JdRequirements => (
   ],
   nice_to_have: [{ skill: 'Redis', level: 'BASIC', weight: 1 }],
   hard_conditions: { majors: [], min_study_year: null, min_gpa: null, required_languages: ['Tiếng Anh (TOEIC 500)'] },
+  preferred_languages: [],
   ...change,
 });
+
+const LANGUAGE_MET = { verdict: 'MET', evidence: 'TOEIC 650', required: 'TOEIC 500 (A2)', held: 'TOEIC 650 (B1)' } as const;
 
 /** The PRD › S_cv sample output of the Matching Agent, without `education.gpa_4` (CONTEXT D41). */
 const criteria = (change: Partial<MatchCriteria> = {}): MatchCriteria => ({
@@ -29,8 +32,8 @@ const criteria = (change: Partial<MatchCriteria> = {}): MatchCriteria => ({
   ],
   nice_to_have: [skillVerdict('Redis', 'BASIC', 'NOT_MET', null)],
   project_relevance: { score_0_4: 3, reason: '...' },
-  education: { major_match: 'EXACT' },
-  language: { verdict: 'MET', evidence: 'TOEIC 650' },
+  education: { major_match: 'EXACT', major_unrecognized: false },
+  language: LANGUAGE_MET,
   ...change,
 });
 
@@ -112,6 +115,14 @@ describe('GĐ3 S_cv computed by code from per-criterion verdicts (AD-2, US-3.1, 
     ]);
     expect(scoreOf(result, 'language')).toBeNull();
 
+    // A JD that only prefers a language still scores the criterion (US-3.6 AC-5).
+    const onlyPreferred = computeScv({
+      ...noExtras,
+      requirements: { ...noExtras.requirements, preferred_languages: ['Tiếng Nhật N3'] },
+      criteria: { ...noExtras.criteria, language: { ...LANGUAGE_MET, verdict: 'PARTIAL' } },
+    });
+    expect(scoreOf(onlyPreferred, 'language')).toBe(5000);
+
     // Skill weights that round to 0 leave the group empty too.
     const tiny = requirements({ nice_to_have: [{ skill: 'Redis', level: 'BASIC', weight: 0.001 }] });
     expect(computeScv(input({ requirements: tiny })).breakdown[1]).toMatchObject({ applicable: false, scoreX100: null });
@@ -125,15 +136,20 @@ describe('GĐ3 S_cv computed by code from per-criterion verdicts (AD-2, US-3.1, 
   it('GĐ3 S_cv: integer x100 arithmetic and conversions', () => {
     const onlyEducation = weights(0, 0, 0, 1, 0);
     const education = (majorMatch: 'EXACT' | 'RELATED' | 'OTHER', gpa4: number | null) =>
-      computeScv(input({ criteria: criteria({ education: { major_match: majorMatch } }), education: { gpa4 }, weights: onlyEducation }))
-        .scvX100;
+      computeScv(
+        input({
+          criteria: criteria({ education: { major_match: majorMatch, major_unrecognized: false } }),
+          education: { gpa4 },
+          weights: onlyEducation,
+        }),
+      ).scvX100;
     // Major 100 / 60 / 20 × 0.6 + GPA × 25 × 0.4; no GPA counts 0 for that part.
     expect(education('EXACT', 4)).toBe(10000);
     expect(education('RELATED', null)).toBe(3600);
     expect(education('OTHER', 3.33)).toBe(4530);
 
     const language = (verdict: 'MET' | 'PARTIAL' | 'NOT_MET') =>
-      computeScv(input({ criteria: criteria({ language: { verdict, evidence: 'TOEIC 650' } }), weights: weights(0, 0, 0, 0, 1) }))
+      computeScv(input({ criteria: criteria({ language: { ...LANGUAGE_MET, verdict } }), weights: weights(0, 0, 0, 0, 1) }))
         .scvX100;
     expect([language('MET'), language('PARTIAL'), language('NOT_MET')]).toEqual([10000, 5000, 0]);
 
@@ -184,7 +200,7 @@ describe('GĐ3 S_cv computed by code from per-criterion verdicts (AD-2, US-3.1, 
     twice.nice_to_have.push(skillVerdict('SQL', 'BASIC', 'MET', 'x'));
     expect(computeScv(input({ criteria: twice })).scvX100).toBe(base);
     // MET without evidence (Invariant 5).
-    const unsupported = criteria({ language: { verdict: 'MET', evidence: null } });
+    const unsupported = criteria({ language: { ...LANGUAGE_MET, evidence: null } });
     expect(scoreOf(computeScv(input({ criteria: unsupported })), 'language')).toBe(0);
   });
 });

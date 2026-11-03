@@ -14,7 +14,7 @@
 - pgvector: §24 index HNSW lọc sau khi quét, hàng cũ chiếm chỗ ứng viên
 - Ranh giới module: §5 `exclude: node_modules` làm dependency-cruiser bỏ sót
 - Thư viện API, web: §8 CLI shadcn 4.21 · §10 Zod 4 bỏ qua `refine` khi trường khác lỗi · §13 multer đọc tên file theo latin1 · §25 form gửi `row_version` của query mới nhất, bỏ qua khóa lạc quan · §26 lỗi tổng của form không mất khi sửa ô khác của tổng · §28 react-pdf 11 mặc định Suspense, PDF lỗi làm sập route · §29 Esc trong combobox tự viết đóng cả dialog Radix
-- RabbitMQ, job AI: §16 `RabbitMQModule` giữ connection static · §17 mặc định sai của thư viện message
+- RabbitMQ, job AI: §16 `RabbitMQModule` giữ connection static · §17 mặc định sai của thư viện message · §32 kiểm chéo trên schema hợp đồng message làm cả kết quả AI vào DLQ
 - ai-service (Python): §19 chặn mạng trong pytest trên Windows · §20 PyMuPDF cắt chữ ngoài trang, màu nền theo thứ tự vẽ · §23 `HF_HUB_OFFLINE` đọc lúc import, bge-m3 tải 4,5 GB · §31 fixture LLM mất khóa khi nâng prompt hoặc sửa dữ liệu test nằm trong prompt
 
 ---
@@ -461,3 +461,16 @@ See [US-2.7](sprints/stories/US-2.7-skill-zones-families-implications.md).
 - Cần dữ liệu test khác cho một test: truyền vào harness (`CatalogueHarness(catalogue)`, `Harness(catalogue=...)`), đừng sửa `CATALOGUE` dùng chung.
 
 See [US-3.5](sprints/stories/US-3.5-skill-evidence-code-matching.md).
+
+## 32. Kiểm chéo trên schema hợp đồng message làm cả kết quả AI vào DLQ
+
+**What happened (0.16.0)**: US-3.6 cần kiểm "một ngôn ngữ không nằm ở cả `required_languages` lẫn `preferred_languages`". Plan đặt `superRefine` này trong `JdRequirementsSchema`, nơi form HR và API cùng dùng. Lúc nối bước bỏ mục trùng vào `jd-analysis.service.ts` mới thấy consumer `ai.results` cũng parse envelope bằng chính schema đó.
+
+**Why**: kết quả AI không qua được schema của envelope thì consumer coi là message hỏng: vào DLQ với `INVALID_MESSAGE`, không ghi `FAILED`, JD kẹt ở trạng thái đang phân tích. Backend định bỏ mục trùng trước khi kiểm, nhưng không kịp chạy vì parse envelope thất bại trước.
+
+**How to avoid**:
+- Schema trong `packages/shared/contracts` mà message dùng chỉ kiểm hình dạng và giới hạn. Luật nghiệp vụ mà đề xuất của AI có thể vi phạm đặt ở schema request của người dùng (`HrJdRequirementsSchema = JdRequirementsSchema.superRefine(...)`) hoặc ở service sau khi parse.
+- Đề xuất AI vi phạm luật thì backend làm sạch (`withoutOverlappingPreferred`) và ghi log, rồi kiểm bằng schema của người dùng; prompt cũng dặn tránh.
+- Có integration test gửi kết quả AI vi phạm luật qua đúng consumer, và test PUT của người dùng nhận 400 cho cùng dữ liệu.
+
+See [US-3.6](sprints/stories/US-3.6-language-cefr-major-match.md), [CONTEXT D45](CONTEXT.md).

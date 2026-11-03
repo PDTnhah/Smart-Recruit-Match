@@ -73,6 +73,9 @@ export function RequirementsSummary({
         <Row label="Ngoại ngữ bắt buộc">
           {conditions.required_languages.length > 0 ? conditions.required_languages.join(', ') : none}
         </Row>
+        <Row label="Ngoại ngữ ưu tiên">
+          {requirements.preferred_languages.length > 0 ? requirements.preferred_languages.join(', ') : none}
+        </Row>
       </dl>
       <SkillTable caption="Kỹ năng bắt buộc" skills={requirements.must_have} />
       <SkillTable caption="Kỹ năng bổ trợ" skills={requirements.nice_to_have} />
