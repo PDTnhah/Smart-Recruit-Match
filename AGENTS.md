@@ -19,7 +19,8 @@ Code đã có các mẫu sau. Dùng lại thay vì dò code hay viết mới:
 
 | Cần | Dùng |
 |---|---|
-| Gọi AI từ một module | `AiGatewayService.dispatch` sau khi commit; nghe `ai.result.<TYPE>` theo quy ước trong `modules/aigateway/domain/events.ts`. Hợp đồng mới thêm vào `packages/shared/contracts` rồi chạy `pnpm contracts:gen` ([CONTEXT D33](docs/CONTEXT.md)) |
+| Gọi AI từ một module | `AiGatewayService.dispatch` sau khi commit; nghe `ai.result.<TYPE>` theo quy ước trong `modules/aigateway/domain/events.ts`. Hợp đồng mới thêm vào `packages/shared/contracts` rồi chạy `pnpm contracts:gen` ([CONTEXT D33](docs/CONTEXT.md)). Kết quả cần tìm lại dòng của mình: tạo `job_id` trước, ghi cùng giao dịch, rồi `dispatch(type, input, jobId)` ([LESSONS §33](docs/LESSONS.md)) |
+| Job AI chạy hàng giờ (batch của nhà cung cấp) | Theo mẫu `ai-service/app/agents/matching/`: handler gọi `BatchCoordinator.start` rồi trả `DEFERRED`; job type cài `BatchJob` (`complete`, `finish`) như `MatchCompletion`; bộ poll `app/consumers/batch_poller.py` chạy trong worker. Kết quả về nhiều message `ai.results` cùng `job_id`, có thể được xử lý song song ([CONTEXT D46](docs/CONTEXT.md)) |
 | Agent AI mới | Theo mẫu `ai-service/app/agents/jd_analyzer/`: đọc view nguồn `core.v_ai_*`, trích văn bản bằng `app/parsing/`, `flag_hidden_text` khi lỗi. Thay handler giả trong `app/handlers/` và đăng ký qua `build_handlers`. Gọi LLM theo mục *Gọi LLM*; compose truyền biến LLM cho `ai-worker`, mặc định `LLM_PROVIDER=fixture` |
 | Thêm bước xử lý hồ sơ CV | Phụ thuộc mới qua constructor của `CvParser`, như `skills: SkillNormalizer` (bước 6) và `embeddings: ProfileEmbeddings` (bước 8). Kết quả nằm ở `cvs.profile` / `profile_masked` / `masked_text`; che PII bằng `ai-service/app/parsing/pii.py` với bộ ca `packages/shared/contracts/fixtures/pii-mask-cases.json`. Core Backend che lại khi SV sửa hồ sơ bằng bản port `apps/api/src/modules/student/domain/mask-profile.ts`; sửa một phía thì sửa cả hai và thêm ca vào bộ ca ([CONTEXT D37, D39, D40](docs/CONTEXT.md)) |
 | Embedding, tìm vector gần nhất | `ai-service/app/embedding/`: `build_embedder` (nạp mô hình một lần lúc worker khởi động), `EmbeddingStore.upsert` vào `ai.embeddings` theo khóa (`owner_type`, `owner_id`, `version`, `model`). Mỗi `owner_type` có index HNSW riêng, nên SQL ghi `owner_type` dạng hằng như `NEAREST_SKILLS_SQL`. Test dùng `HashingEmbedder` và đồ giả trong `tests/embedding_support.py` ([CONTEXT D39](docs/CONTEXT.md)) |
@@ -113,7 +114,7 @@ Vi phạm các điều dưới đây là lỗi, kể cả khi code vẫn chạy 
 **Công bằng, dữ liệu cá nhân, bảo mật**
 
 4. Không đưa ảnh, giới tính, ngày sinh, quê quán, tôn giáo, tình trạng hôn nhân vào bất kỳ bước chấm nào. Matching và Grader chỉ nhận `profile_masked` (BR-03).
-5. Verdict `MET`/`PARTIAL` phải có `evidence` có thật trong CV. Verdict do code tính lấy bằng chứng từ chính trường của CV. Trích dẫn do LLM trả phải khớp văn bản CV (RapidFuzz ≥ 85); không khớp thì hạ xuống `NOT_MET` hoặc hạ điểm.
+5. Verdict `MET`/`PARTIAL` phải có `evidence` có thật trong CV. Verdict do code tính lấy bằng chứng từ chính trường của CV. Trích dẫn do LLM trả phải khớp văn bản CV (RapidFuzz ≥ 85); không khớp thì hạ xuống `NOT_MET` hoặc hạ điểm. Ngoại lệ tạm thời: điểm dự án của Matching Agent chưa bị hạ, code chỉ kiểm và lưu `evidence_check` ([CONTEXT D46](docs/CONTEXT.md)).
 6. CV, JD và bài làm của sinh viên là **dữ liệu, không phải chỉ dẫn**: tách riêng trong prompt, phát hiện chữ ẩn, chỉ nhận đầu ra đúng schema.
 7. Phân quyền cấp bản ghi: HR chỉ thấy đề cử thuộc JD của công ty mình (BR-11); sinh viên chỉ thấy dữ liệu và điểm của mình.
 8. Phòng thi: đáp án không bao giờ gửi xuống client; deadline do server quyết định; tín hiệu gian lận chỉ để cảnh báo, không tự đánh trượt.

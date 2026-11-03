@@ -14,11 +14,22 @@
       "minLength": 1,
       "maxLength": 1000,
       "description": "Why this score, citing the projects it rests on"
+    },
+    "evidence": {
+      "maxItems": 5,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 500
+      },
+      "description": "Sentences copied word for word from the CV that the score rests on; empty when there is none"
     }
   },
   "required": [
     "score_0_4",
-    "reason"
+    "reason",
+    "evidence"
   ],
   "additionalProperties": false,
   "title": "MatchProjectRelevance",

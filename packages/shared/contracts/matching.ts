@@ -155,6 +155,11 @@ export const MatchSkillVerdictSchema = z
 
 export type MatchSkillVerdict = z.output<typeof MatchSkillVerdictSchema>;
 
+/** Most quotes the project score rests on (US-3.2 AC-8). */
+export const PROJECT_EVIDENCE_MAX = 5;
+
+const projectQuote = () => z.string().trim().min(1).max(500);
+
 export const MatchProjectRelevanceSchema = z
   .strictObject({
     score_0_4: z
@@ -163,6 +168,10 @@ export const MatchProjectRelevanceSchema = z
       .max(PROJECT_SCORE_MAX)
       .describe('Relevance, role and complexity of the projects and experience for this JD, 0 to 4'),
     reason: z.string().trim().min(1).max(1000).describe('Why this score, citing the projects it rests on'),
+    evidence: z
+      .array(projectQuote())
+      .max(PROJECT_EVIDENCE_MAX)
+      .describe('Sentences copied word for word from the CV that the score rests on; empty when there is none'),
   })
   .meta({ title: 'MatchProjectRelevance', description: 'Rubric score of the relevant projects and experience' });
 
@@ -229,3 +238,51 @@ export const MatchCriteriaSchema = z
   .meta({ title: 'MatchCriteria', description: 'Per-criterion verdicts of the Matching Agent; code computes S_cv (AD-2)' });
 
 export type MatchCriteria = z.output<typeof MatchCriteriaSchema>;
+
+/** Most strengths and most suggestions the Matching Agent writes for one pair. */
+export const MATCH_COMMENTS_MAX = 5;
+
+const comment = () => z.string().trim().min(1).max(500);
+
+/**
+ * What the Matching Agent returns for one CV × JD pair (US-3.2, CONTEXT D42, D46): the project
+ * score with the quotes it rests on, and comments in Vietnamese. Code judges every other criterion,
+ * lists the gaps and computes S_cv (AD-2), so nothing here is a total.
+ */
+export const MatchAssessmentSchema = z
+  .strictObject({
+    project_relevance: MatchProjectRelevanceSchema,
+    strengths: z
+      .array(comment())
+      .max(MATCH_COMMENTS_MAX)
+      .describe('Strengths of the CV for this JD, one short sentence each, in Vietnamese'),
+    suggestions: z
+      .array(comment())
+      .max(MATCH_COMMENTS_MAX)
+      .describe('What the student could do to fit this JD better, one short sentence each, in Vietnamese'),
+    summary: z.string().trim().min(1).max(1000).describe('Two or three sentences on the fit, in Vietnamese'),
+  })
+  .meta({ title: 'MatchAssessment', description: 'Project score and comments of the Matching Agent for one pair' });
+
+export type MatchAssessment = z.output<typeof MatchAssessmentSchema>;
+
+/** A quote counts as found in the CV from this RapidFuzz `partial_ratio` (AGENTS › Invariant 5). */
+export const EVIDENCE_MATCH_MIN_SCORE = 85;
+
+/**
+ * One quote of `project_relevance.evidence` checked against the masked CV text (US-3.2 AC-8). The
+ * score of the project stays as the LLM gave it (CONTEXT D46): the check is stored and shown.
+ */
+export const EvidenceCheckSchema = z
+  .strictObject({
+    quote: projectQuote().describe('The quote, as the LLM wrote it'),
+    score: z
+      .number()
+      .min(0)
+      .max(100)
+      .describe('rapidfuzz partial_ratio against the CV text, both NFC, lower case, spaces collapsed'),
+    matched: z.boolean().describe('score is at least EVIDENCE_MATCH_MIN_SCORE (85)'),
+  })
+  .meta({ title: 'EvidenceCheck', description: 'Whether one quote of the Matching Agent is found in the CV' });
+
+export type EvidenceCheck = z.output<typeof EvidenceCheckSchema>;

@@ -7,11 +7,25 @@ import {
   type PositionGroup,
   type WorkMode,
 } from '@srm/shared';
-import { and, desc, eq, type SQL, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNotNull, type SQL, sql } from 'drizzle-orm';
 import { RowVersionConflictError } from '../../../common/errors/index.js';
 import { companies, jobDescriptions } from '../../../db/schema/index.js';
 import { DRIZZLE } from '../../../db/tokens.js';
 import type { Database, DbTx } from '../../../db/types.js';
+
+/** A JD version the Matching Agent scores against (US-3.2): approved, requirements confirmed. */
+export interface ApprovedJd {
+  jdId: number;
+  jdVersion: number;
+  positionGroup: PositionGroup;
+  requirements: JdRequirements;
+}
+
+/** Approved by the center and still taking students (BR-02); FILLED and CLOSED have no place left. */
+const MATCHABLE_JD_STATES = ['APPROVED', 'RECRUITING'] as const satisfies readonly JobDescriptionStatus[];
+
+/** Every JD once approved, the ones core.v_ai_jd_requirements shows the AI Service. */
+const SCORED_JD_STATES = [...MATCHABLE_JD_STATES, 'FILLED', 'CLOSED'] as const satisfies readonly JobDescriptionStatus[];
 
 /** The JD fields HR enters (FR-4); `rawText` holds the typed description. */
 export interface JdContent {
@@ -99,6 +113,29 @@ export type JdChanges = Partial<JdContent> & { fileKey?: string; fileName?: stri
 @Injectable()
 export class JdRepository {
   constructor(@Inject(DRIZZLE) private readonly db: Database) {}
+
+  async listApproved(campaignId: number, withEnded: boolean): Promise<ApprovedJd[]> {
+    const rows = await this.db
+      .select({
+        jdId: jobDescriptions.id,
+        jdVersion: jobDescriptions.version,
+        positionGroup: jobDescriptions.positionGroup,
+        requirements: jobDescriptions.requirements,
+      })
+      .from(jobDescriptions)
+      .where(
+        and(
+          eq(jobDescriptions.campaignId, campaignId),
+          inArray(jobDescriptions.status, [...(withEnded ? SCORED_JD_STATES : MATCHABLE_JD_STATES)]),
+          isNotNull(jobDescriptions.requirements),
+        ),
+      )
+      .orderBy(jobDescriptions.id);
+    // A JD without a position group is matched like OTHER: no major group fits it EXACT.
+    return rows.flatMap(({ requirements, positionGroup, ...row }) =>
+      requirements === null ? [] : [{ ...row, positionGroup: positionGroup ?? 'OTHER', requirements }],
+    );
+  }
 
   async insert(tx: DbTx, values: JdInsert): Promise<number> {
     const [row] = await tx.insert(jobDescriptions).values(values).returning({ id: jobDescriptions.id });

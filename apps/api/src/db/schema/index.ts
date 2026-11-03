@@ -10,4 +10,5 @@ export * from './skills.js';
 export * from './consents.js';
 export * from './notifications.js';
 export * from './audit-logs.js';
+export * from './matching.js';
 export * from './ai.js';

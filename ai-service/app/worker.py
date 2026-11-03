@@ -5,10 +5,14 @@ scales to several replicas. Each job type has one subscriber; the JobRunner give
 same claim, retry and DLQ behaviour. The LLMClient, prompt registry and MinIO stores are built once
 at startup, so a missing key or an edited released prompt stops the worker before it takes a job.
 The embedding model loads once, before the first job, and the skill catalogue is embedded then
-(US-2.5 AC-1).
+(US-2.5 AC-1). Every replica also runs the batch poller, which finishes the jobs handed to provider
+batches (US-3.2 AC-17); replicas share the work through leases on ai.llm_batches.
 """
 
+import asyncio
 import logging
+import os
+import socket
 from collections.abc import Mapping
 
 from faststream import FastStream
@@ -17,9 +21,12 @@ from psycopg_pool import AsyncConnectionPool
 
 from app.agents.cv_parser import CvParser
 from app.agents.jd_analyzer import JdAnalyzer, PostgresJdSourceRepo
+from app.agents.matching import MatchCompletion, MatchingAgent, PostgresMatchSourceRepo
 from app.agents.skill_normalizer import SkillNormalizerAgent
 from app.config import load_settings
 from app.consumers.base import Handler, JobRunner
+from app.consumers.batch_poller import BatchCoordinator
+from app.consumers.batches import PostgresBatchStore
 from app.consumers.jobs_repo import JobStore, PostgresJobStore
 from app.consumers.kinds import JOB_KINDS
 from app.consumers.outbox import Outbox, RabbitOutbox
@@ -35,6 +42,7 @@ from app.embedding import (
 )
 from app.handlers import build_handlers
 from app.llm.factory import (
+    build_batch_client,
     build_file_reader,
     build_llm_client,
     build_log_store,
@@ -80,16 +88,25 @@ def create_app() -> FastStream:
     pool = AsyncConnectionPool(
         settings.ai_database_url,
         min_size=1,
-        max_size=4,
+        max_size=6,
         open=False,
         configure=configure_connection,
     )
     llm_settings = load_llm_settings()
     files = build_file_reader(llm_settings)
-    llm = build_llm_client(
-        llm_settings, objects=build_log_store(llm_settings), calls=PostgresLlmCallStore(pool)
-    )
+    log_store = build_log_store(llm_settings)
+    calls = PostgresLlmCallStore(pool)
+    llm = build_llm_client(llm_settings, objects=log_store, calls=calls)
     prompts = build_prompt_registry(llm_settings)
+    outbox = RabbitOutbox(broker)
+    match_sources = PostgresMatchSourceRepo(pool)
+    batches = BatchCoordinator(
+        PostgresBatchStore(pool),
+        build_batch_client(llm_settings, objects=log_store, calls=calls),
+        {"MATCH": MatchCompletion(sources=match_sources, llm=llm, outbox=outbox)},
+        owner=f"{socket.gethostname()}:{os.getpid()}",
+        poll_seconds=settings.batch_poll_seconds,
+    )
     embedder = build_embedder(settings.embedding_provider)
     embeddings = PostgresEmbeddingStore(pool)
     catalog = PostgresSkillCatalog(pool)
@@ -112,10 +129,12 @@ def create_app() -> FastStream:
             sources=PostgresJdSourceRepo(pool), files=files, llm=llm, prompts=prompts, skills=skills
         ),
         skill_normalizer=SkillNormalizerAgent(catalog=catalog, llm=llm, prompts=prompts),
+        matching=MatchingAgent(sources=match_sources, prompts=prompts, batches=batches),
         fake_file_keys=settings.fake_file_keys,
     )
-    subscribe_all(broker, build_runners(PostgresJobStore(pool), RabbitOutbox(broker), handlers))
+    subscribe_all(broker, build_runners(PostgresJobStore(pool), outbox, handlers))
     app = FastStream(broker)
+    poller: list[asyncio.Task[None]] = []
 
     @app.on_startup
     async def prepare() -> None:
@@ -142,6 +161,17 @@ def create_app() -> FastStream:
             logger.warning("EMBEDDING_PROVIDER=hashing: fake embeddings, not for real matching")
         if settings.fake_file_keys:
             logger.warning("AI_FAKE_FILE_KEYS is set: __fake__/ file keys fail on purpose")
+
+    @app.after_startup
+    async def start_poller() -> None:
+        poller.append(asyncio.create_task(batches.run(), name="batch-poller"))
+        logger.info("batch poller started, every %d s", settings.batch_poll_seconds)
+
+    @app.on_shutdown
+    async def stop_poller() -> None:
+        for task in poller:
+            task.cancel()
+        await asyncio.gather(*poller, return_exceptions=True)
 
     @app.after_shutdown
     async def close_pool() -> None:

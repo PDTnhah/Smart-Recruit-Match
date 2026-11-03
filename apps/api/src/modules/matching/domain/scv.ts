@@ -4,6 +4,9 @@ import {
   type MajorMatch,
   type MatchCriteria,
   type MatchVerdict,
+  SCV_CRITERIA,
+  type ScvBreakdownRow,
+  type ScvCriterion,
   type ScvWeightKey,
   type ScvWeights,
   skillKey,
@@ -16,9 +19,8 @@ import { add, over, type Ratio, roundHalfUp, times, ZERO } from './ratio.js';
 // fractions in bigint, rounded half-up once at the end, so the result never depends on float
 // rounding and changing the weights never needs the LLM again.
 
-export const SCV_CRITERIA = ['must_have', 'nice_to_have', 'project', 'education', 'language'] as const;
-
-export type ScvCriterion = (typeof SCV_CRITERIA)[number];
+// The criteria and the breakdown row are shared with the web app, which shows them (US-3.3).
+export { SCV_CRITERIA, type ScvBreakdownRow, type ScvCriterion };
 
 /** The campaign config key of a criterion's weight; fails to compile if the names drift apart. */
 const weightKey = (criterion: ScvCriterion): ScvWeightKey => `scv_weight_${criterion}`;
@@ -125,23 +127,6 @@ export interface ScvInput {
   /** `students.gpa` on the 4-point scale (CONTEXT D41). */
   education: { gpa4: number | null };
   weights: ScvWeights;
-}
-
-/**
- * One row per criterion. Values are rounded one by one for display; `scvX100` comes from the exact
- * fractions, so the contributions may add up to it ± 1.
- */
-export interface ScvBreakdownRow {
-  criterion: ScvCriterion;
-  applicable: boolean;
-  /** sᵢ × 100; null when the criterion is empty. */
-  scoreX100: number | null;
-  /** wᵢ from the campaign config, in basis points. */
-  weightBp: number;
-  /** wᵢ after redistribution: 0 when empty, the applicable ones sum to 10 000 (± rounding). */
-  effectiveWeightBp: number;
-  /** wᵢ·sᵢ × 100 with the effective weight. */
-  contributionX100: number;
 }
 
 export interface ScvResult {

@@ -1,12 +1,19 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { CampaignTarget } from '@srm/shared';
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import { StudentCodeTakenError } from '../../../common/errors/index.js';
 import { uniqueViolation } from '../../../db/errors.js';
 import { students } from '../../../db/schema/index.js';
 import { DRIZZLE } from '../../../db/tokens.js';
 import type { Database, DbTx } from '../../../db/types.js';
 import { isInTarget, type StudentAudience } from '../../campaign/index.js';
+
+/** What the hard filter and S_cv read of the school record (US-3.1, US-3.2, CONTEXT D41). */
+export interface StudentSchoolRecord {
+  major: string | null;
+  /** `students.gpa`, on the 4-point scale. */
+  gpa4: number | null;
+}
 
 export interface NewStudent {
   studentCode: string;
@@ -41,6 +48,16 @@ export class StudentService {
       .from(students)
       .orderBy(students.id);
     return rows.filter((row) => isInTarget(target, row)).map((row) => row.id);
+  }
+
+  /** Major and GPA of each student, by student id; nothing else of the record (BR-03). */
+  async matchingFacts(studentIds: readonly number[]): Promise<Map<number, StudentSchoolRecord>> {
+    if (studentIds.length === 0) return new Map();
+    const rows = await this.db
+      .select({ id: students.id, major: students.major, gpa: students.gpa })
+      .from(students)
+      .where(inArray(students.id, [...new Set(studentIds)]));
+    return new Map(rows.map((row) => [row.id, { major: row.major, gpa4: row.gpa }]));
   }
 
   /** Inserts a student inside the caller's transaction, so the account and the student commit together. */

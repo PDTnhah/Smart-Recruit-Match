@@ -332,3 +332,39 @@ export class SkillNotApprovedError extends DomainError {
     super(`skills ${skillIds.join(', ')} are not approved skills`, { skillIds: [...skillIds] });
   }
 }
+
+/** The campaign has a matching run that has not finished (US-3.2 AC-13); one runs at a time. */
+export class MatchingRunInProgressError extends DomainError {
+  readonly code = 'MATCHING_RUN_IN_PROGRESS';
+  readonly httpStatus = 409;
+
+  constructor(campaignId: number) {
+    super(`campaign ${campaignId} already has a matching run in progress`, { campaignId });
+  }
+}
+
+/**
+ * A matching run would send more pairs than one job carries (MATCH_RUN_MAX_PAIRS, US-3.2): nothing
+ * is stored, and a lower `match_top_m` brings it under the limit.
+ */
+export class MatchingRunTooLargeError extends DomainError {
+  readonly code = 'MATCHING_RUN_TOO_LARGE';
+  readonly httpStatus = 409;
+
+  constructor(campaignId: number, pairs: number, max: number) {
+    super(`campaign ${campaignId}: a matching run would send ${pairs} pairs, more than ${max}`, { campaignId, pairs, max });
+  }
+}
+
+/**
+ * The broker did not take an AI job the caller waits on (US-3.2). Nothing was sent; what the job
+ * was for is marked failed, so the caller may try again.
+ */
+export class AiUnavailableError extends DomainError {
+  readonly code = 'AI_UNAVAILABLE';
+  readonly httpStatus = 503;
+
+  constructor(jobType: string) {
+    super(`the ${jobType} job could not be sent to the AI Service`, { jobType });
+  }
+}

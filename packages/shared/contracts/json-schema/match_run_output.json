@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./match_run_output.json",
+  "type": "object",
+  "properties": {
+    "prompt_version": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Versioned prompt of every assessment of the job, e.g. matching/v1"
+    },
+    "final": {
+      "type": "boolean",
+      "description": "Last message of the job"
+    },
+    "items": {
+      "maxItems": 500,
+      "type": "array",
+      "items": {
+        "$ref": "./match_assessment_item.json"
+      }
+    },
+    "failed_pairs": {
+      "maxItems": 50000,
+      "type": "array",
+      "items": {
+        "$ref": "./match_failed_pair.json"
+      },
+      "description": "Pairs left without an assessment; empty except in the last message"
+    }
+  },
+  "required": [
+    "prompt_version",
+    "final",
+    "items",
+    "failed_pairs"
+  ],
+  "additionalProperties": false,
+  "title": "MatchRunOutput",
+  "description": "One message of the result of MATCH"
+}

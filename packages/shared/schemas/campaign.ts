@@ -69,12 +69,15 @@ const CONFIG_FIELDS = {
   scv_weight_project: weight('Trọng số dự án'),
   scv_weight_education: weight('Trọng số học vấn'),
   scv_weight_language: weight('Trọng số ngoại ngữ'),
+  // How many JDs of each CV, the best skill_fit first, the Matching Agent scores (US-3.2, CONTEXT D46).
+  match_top_m: positiveInt('Số JD AI chấm cho mỗi CV').max(50, { error: 'Số JD AI chấm cho mỗi CV tối đa 50' }),
 };
 
 /**
  * PRD GĐ0 defaults. Q1 (N_NV) and Q3 (k) are still open; these are the PRD proposals.
  * `reminder_hours_before` is not in the PRD table: added by US-1.7 (CONTEXT D31). The `scv_weight_*`
- * defaults are the PRD › S_cv table (US-3.1, CONTEXT D41).
+ * defaults are the PRD › S_cv table (US-3.1, CONTEXT D41). `match_top_m` is not in the PRD table:
+ * added by US-3.2 (CONTEXT D46).
  */
 export const DEFAULT_CAMPAIGN_CONFIG = {
   n_nv: 3,
@@ -93,6 +96,7 @@ export const DEFAULT_CAMPAIGN_CONFIG = {
   scv_weight_project: 0.2,
   scv_weight_education: 0.15,
   scv_weight_language: 0.1,
+  match_top_m: 10,
 } as const;
 
 /** The S_cv criteria in PRD table order; the sum error is reported on the last one. */
@@ -156,6 +160,7 @@ export const CampaignConfigSchema = z
     scv_weight_project: CONFIG_FIELDS.scv_weight_project.default(DEFAULT_CAMPAIGN_CONFIG.scv_weight_project),
     scv_weight_education: CONFIG_FIELDS.scv_weight_education.default(DEFAULT_CAMPAIGN_CONFIG.scv_weight_education),
     scv_weight_language: CONFIG_FIELDS.scv_weight_language.default(DEFAULT_CAMPAIGN_CONFIG.scv_weight_language),
+    match_top_m: CONFIG_FIELDS.match_top_m.default(DEFAULT_CAMPAIGN_CONFIG.match_top_m),
   })
   .superRefine(checkWeights, whenValid(['alpha', 'beta']))
   .superRefine(checkScvWeights, whenValid(SCV_WEIGHT_KEYS));

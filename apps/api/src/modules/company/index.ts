@@ -2,6 +2,7 @@
 export { CompanyModule } from './company.module.js';
 export { CompanyService } from './application/company.service.js';
 export { JdService } from './application/jd.service.js';
+export type { ApprovedJd } from './infrastructure/jd.repository.js';
 export {
   JD_APPROVED,
   JD_REQUIREMENTS_VERSIONED,

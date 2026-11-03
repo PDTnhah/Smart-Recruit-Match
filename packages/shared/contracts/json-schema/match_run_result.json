@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./match_run_result.json",
+  "type": "object",
+  "properties": {
+    "job_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "type": {
+      "type": "string",
+      "const": "MATCH"
+    },
+    "status": {
+      "$ref": "./ai_result_status.json"
+    },
+    "job": {
+      "$ref": "./match_run_job.json"
+    },
+    "result": {
+      "anyOf": [
+        {
+          "$ref": "./match_run_output.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "error": {
+      "anyOf": [
+        {
+          "$ref": "./ai_job_error.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "job_id",
+    "type",
+    "status",
+    "job",
+    "result",
+    "error"
+  ],
+  "additionalProperties": false,
+  "title": "MatchRunResult",
+  "description": "Message on ai.results for a MATCH job"
+}

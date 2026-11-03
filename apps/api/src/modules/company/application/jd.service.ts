@@ -40,7 +40,7 @@ import { CampaignService } from '../../campaign/index.js';
 import { COMPANY_AUDIT_ACTIONS } from '../domain/audit-actions.js';
 import { JD_APPROVED, JD_SUBMITTED, type JdEvent } from '../domain/events.js';
 import { checkApprovable, checkSubmittable } from '../domain/jd-checks.js';
-import { type JdChanges, type JdContent, type JdRecord, JdRepository } from '../infrastructure/jd.repository.js';
+import { type ApprovedJd, type JdChanges, type JdContent, type JdRecord, JdRepository } from '../infrastructure/jd.repository.js';
 
 /** Audit and error entity, shared with transitionTo (the machine name). */
 const ENTITY = jobDescriptionMachine.name;
@@ -72,6 +72,15 @@ export class JdService implements OnModuleInit {
 
   onModuleInit(): void {
     this.files.register('jd', (user, id) => this.fileOf(user, id));
+  }
+
+  /**
+   * BR-02: the JDs of a campaign the Matching Agent scores against (US-3.2 AC-3), approved by the
+   * center, with their confirmed requirements and current version; by JD id. `withEnded` adds
+   * the JDs filled or closed since, whose scores the Matching Agent may still send back.
+   */
+  async listApprovedForMatching(campaignId: number, { withEnded = false } = {}): Promise<ApprovedJd[]> {
+    return this.repository.listApproved(campaignId, withEnded);
   }
 
   /**

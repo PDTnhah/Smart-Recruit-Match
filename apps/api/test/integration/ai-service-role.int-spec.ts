@@ -2,6 +2,7 @@
 // the PII-free views and writes only `ai`; the API's role writes `core` and only reads `ai`.
 // US-2.2 AC-5 (CONTEXT D34): ai.llm_calls takes the row the AI Service writes for each LLM call.
 // US-2.5 AC-5 (CONTEXT D39): the skill catalogue views, and ai.embeddings.
+// US-3.2 AC-5, AC-17 (CONTEXT D46): the pairs awaiting the Matching Agent, and ai.llm_batches.
 import {
   CV_STATES,
   JOB_DESCRIPTION_STATES,
@@ -12,11 +13,13 @@ import {
   skillMachine,
   type CvStatus,
   type JobDescriptionStatus,
+  type MatchCodeCriteria,
   type SkillStatus,
 } from '@srm/shared';
 import { randomUUID } from 'node:crypto';
 import { Client } from 'pg';
 import { aiDatabaseUrl, createTestDb, ownerDatabaseUrl, type TestDb } from '../helpers/db.js';
+import { matchResults } from '../../src/db/schema/index.js';
 import { createCv, createJobDescription, SAMPLE_CV_PROFILE } from '../helpers/factories.js';
 import { SAMPLE_REQUIREMENTS } from '../helpers/jd.js';
 
@@ -25,6 +28,7 @@ const JD_VIEW = 'core.v_ai_jd_requirements';
 const JD_SOURCE_VIEW = 'core.v_ai_jd_source';
 const SKILLS_VIEW = 'core.v_ai_skills';
 const SKILL_CANDIDATES_VIEW = 'core.v_ai_skill_candidates';
+const MATCH_PAIRS_VIEW = 'core.v_ai_match_pairs';
 
 /** PostgreSQL's insufficient_privilege, raised before the statement touches any row. */
 async function expectDenied(promise: Promise<unknown>): Promise<void> {
@@ -143,11 +147,16 @@ describe('AD-4: database roles of the AI Service and the API', () => {
       'ai.jobs INSERT',
       'ai.jobs SELECT',
       'ai.jobs UPDATE',
+      'ai.llm_batches DELETE',
+      'ai.llm_batches INSERT',
+      'ai.llm_batches SELECT',
+      'ai.llm_batches UPDATE',
       'ai.llm_calls INSERT',
       'ai.llm_calls SELECT',
       `${CV_VIEW} SELECT`,
       `${JD_VIEW} SELECT`,
       `${JD_SOURCE_VIEW} SELECT`,
+      `${MATCH_PAIRS_VIEW} SELECT`,
       `${SKILL_CANDIDATES_VIEW} SELECT`,
       `${SKILLS_VIEW} SELECT`,
     ]);
@@ -169,7 +178,7 @@ describe('AD-4: database roles of the AI Service and the API', () => {
       expect([table, await can(`core.${table}`, 'DELETE')]).toEqual([table, !audit]);
       expect([table, await can(`core.${table}`, 'TRUNCATE')]).toEqual([table, false]);
     }
-    for (const table of ['ai.jobs', 'ai.llm_calls', 'ai.embeddings']) {
+    for (const table of ['ai.jobs', 'ai.llm_calls', 'ai.llm_batches', 'ai.embeddings']) {
       expect([table, await can(table, 'SELECT')]).toEqual([table, true]);
       for (const privilege of ['INSERT', 'UPDATE', 'DELETE']) {
         expect([table, privilege, await can(table, privilege)]).toEqual([table, privilege, false]);
@@ -218,6 +227,79 @@ describe('AD-4: views the AI Service reads', () => {
     // The catalogue, and the names awaiting ADMIN; no data of who wrote them (US-2.5).
     expect(await columnsOf(SKILLS_VIEW)).toEqual(['skill_id', 'canonical_name', 'aliases', 'group', 'version']);
     expect(await columnsOf(SKILL_CANDIDATES_VIEW)).toEqual(['skill_id', 'name']);
+    // Code verdicts quoting the masked profile; no facts (GPA, major) and no score (US-3.2 AC-5).
+    expect(await columnsOf(MATCH_PAIRS_VIEW)).toEqual([
+      'campaign_id',
+      'cv_id',
+      'cv_version',
+      'jd_id',
+      'jd_version',
+      'rules_version',
+      'criteria',
+    ]);
+  });
+
+  it('US-3.2 v_ai_match_pairs shows only eligible top-M pairs awaiting the LLM', async () => {
+    const cv = await createCv(seed.db);
+    const criteria: MatchCodeCriteria = {
+      must_have: [],
+      nice_to_have: [],
+      education: { major_match: 'EXACT', major_unrecognized: false },
+      language: null,
+      zones: [],
+      gaps: [],
+    };
+    const facts = { major: 'CNTT', yearOfStudy: 3, gpa4: 3.2, languageCertificates: [] };
+    const assessment = {
+      project_relevance: { score_0_4: 2, reason: 'x', evidence: [] },
+      strengths: [],
+      suggestions: [],
+      summary: 'x',
+      evidence_check: [],
+    };
+    const cases = [
+      { visible: true, row: {} },
+      { visible: false, row: { skippedByPrefilter: true } },
+      { visible: false, row: { needsReview: true } },
+      {
+        visible: false,
+        row: { promptVersion: 'matching/v1', model: 'm', assessment, sCv: 50, scvBreakdown: [] },
+      },
+      {
+        visible: false,
+        row: {
+          eligible: false,
+          criteria: null,
+          skillFit: null,
+          ineligibleReasons: [{ code: 'GPA_MISSING' as const, required: 2.5, actual: null }],
+        },
+      },
+    ];
+    const ids: number[] = [];
+    for (const c of cases) {
+      const jd = await createJobDescription(seed.db, { campaignId: cv.campaignId, status: 'APPROVED' });
+      const [row] = await seed.db
+        .insert(matchResults)
+        .values({
+          campaignId: cv.campaignId,
+          studentId: cv.studentId,
+          cvId: cv.id,
+          cvVersion: cv.version,
+          jdId: jd.id,
+          jdVersion: jd.version,
+          rulesVersion: 'matching-rules/v1',
+          eligible: true,
+          facts,
+          criteria,
+          skillFit: 50,
+          ...c.row,
+        })
+        .returning({ id: matchResults.id, jdId: matchResults.jdId });
+      ids.push(row!.jdId);
+    }
+    const { rows } = await ai.query<{ jd_id: string }>(`SELECT jd_id FROM ${MATCH_PAIRS_VIEW} WHERE jd_id = ANY($1)`, [ids]);
+    const visible = new Set(rows.map((r) => Number(r.jd_id)));
+    expect(ids.map((jdId) => visible.has(jdId))).toEqual(cases.map((c) => c.visible));
   });
 
   it('FR-13 v_ai_skills shows only approved skills; v_ai_skill_candidates only those awaiting review', async () => {

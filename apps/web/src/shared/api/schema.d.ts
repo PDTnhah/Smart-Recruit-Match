@@ -612,6 +612,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/campaigns/{id}/matching-runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["MatchingRunsController_start"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -978,6 +994,8 @@ export interface components {
                 scv_weight_education: number;
                 /** @default 0.1 */
                 scv_weight_language: number;
+                /** @default 10 */
+                match_top_m: number;
             };
         };
         CampaignDto_Output: {
@@ -1030,6 +1048,8 @@ export interface components {
                 scv_weight_education: number;
                 /** @default 0.1 */
                 scv_weight_language: number;
+                /** @default 10 */
+                match_top_m: number;
             };
             rowVersion: number;
             /** Format: date-time */
@@ -1088,6 +1108,8 @@ export interface components {
                     scv_weight_education: number;
                     /** @default 0.1 */
                     scv_weight_language: number;
+                    /** @default 10 */
+                    match_top_m: number;
                 };
                 rowVersion: number;
                 /** Format: date-time */
@@ -1128,6 +1150,7 @@ export interface components {
                 scv_weight_project?: number;
                 scv_weight_education?: number;
                 scv_weight_language?: number;
+                match_top_m?: number;
             };
             reason?: string;
         };
@@ -1665,6 +1688,20 @@ export interface components {
         };
         MarkAllReadResultDto_Output: {
             updated: number;
+        };
+        MatchingRunDto_Output: {
+            runId: number;
+            /** Format: uuid */
+            jobId: string | null;
+            /** @enum {string} */
+            status: "RUNNING" | "SUCCEEDED" | "PARTIAL" | "FAILED";
+            rulesVersion: string;
+            promptVersion: string[];
+            pairsTotal: number;
+            pairsIneligible: number;
+            pairsSkipped: number;
+            pairsCached: number;
+            pairsSent: number;
         };
     };
     responses: never;
@@ -2873,6 +2910,27 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    MatchingRunsController_start: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MatchingRunDto_Output"];
+                };
             };
         };
     };

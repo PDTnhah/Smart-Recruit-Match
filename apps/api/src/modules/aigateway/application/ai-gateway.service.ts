@@ -18,7 +18,8 @@ export class AiGatewayService {
   ) {}
 
   /**
-   * Publishes one job with a new `job_id` and resolves once the broker has confirmed it. The
+   * Publishes one job and resolves once the broker has confirmed it. The `job_id` is new unless
+   * the caller chose it and stored it with its rows, so that an answer can never come first. The
    * payload holds IDs only and is checked against the strict contract first, so a field outside
    * ARCHITECTURE › Hàng đợi throws here instead of reaching the AI Service.
    *
@@ -26,8 +27,12 @@ export class AiGatewayService {
    * may still roll back, which is why it takes no `tx`. A rejection (broker unreachable for
    * PUBLISH_TIMEOUT_MS) leaves the item waiting; there is no outbox yet (US-2.1 › What we did NOT do).
    */
-  async dispatch<T extends AiJobType>(type: T, input: AiJobInput<T>): Promise<AiJobPayload<T>> {
-    const job = AI_JOB_SCHEMAS[type].parse({ ...input, job_id: randomUUID() }) as AiJobPayload<T>;
+  async dispatch<T extends AiJobType>(
+    type: T,
+    input: AiJobInput<T>,
+    jobId: string = randomUUID(),
+  ): Promise<AiJobPayload<T>> {
+    const job = AI_JOB_SCHEMAS[type].parse({ ...input, job_id: jobId }) as AiJobPayload<T>;
     await this.amqp.managedChannel.publish('', AI_JOB_QUEUES[type], Buffer.from(JSON.stringify(job)), {
       persistent: true,
       contentType: 'application/json',

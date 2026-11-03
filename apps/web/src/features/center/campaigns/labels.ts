@@ -88,6 +88,12 @@ export const PARAMETER_FIELDS: readonly ParameterField[] = [
     description: 'Sinh viên chưa hoàn thành việc của giai đoạn được nhắc khi còn chừng này giờ. Từ 1 đến 168. Mặc định 24.',
     step: 1,
   },
+  {
+    key: 'match_top_m',
+    label: 'Số JD AI chấm cho mỗi CV (M)',
+    description: 'AI chỉ chấm dự án cho M JD có điểm kỹ năng cao nhất của mỗi CV. Từ 1 đến 50. Mặc định 10.',
+    step: 1,
+  },
 ];
 
 /** Weights wᵢ of the five S_cv criteria, in PRD › S_cv table order (US-3.1, CONTEXT D41). */

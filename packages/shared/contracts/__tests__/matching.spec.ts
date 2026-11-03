@@ -1,4 +1,13 @@
-import { type MatchCriteria, MatchCriteriaSchema, type MatchSkillVerdict, MatchSkillVerdictSchema } from '../../index.js';
+import {
+  EvidenceCheckSchema,
+  MATCH_COMMENTS_MAX,
+  MatchAssessmentSchema,
+  type MatchCriteria,
+  MatchCriteriaSchema,
+  type MatchSkillVerdict,
+  MatchSkillVerdictSchema,
+  PROJECT_EVIDENCE_MAX,
+} from '../../index.js';
 
 /** The PRD › S_cv sample output, without `education.gpa_4` (CONTEXT D41), with the US-3.5 fields. */
 const criteria = (): MatchCriteria => ({
@@ -29,7 +38,11 @@ const criteria = (): MatchCriteria => ({
     none('Docker'),
   ],
   nice_to_have: [none('Redis')],
-  project_relevance: { score_0_4: 3, reason: 'Hai dự án web có backend Java' },
+  project_relevance: {
+    score_0_4: 3,
+    reason: 'Hai dự án web có backend Java',
+    evidence: ['Xây dựng hệ thống quản lý thư viện bằng Spring Boot'],
+  },
   education: { major_match: 'EXACT', major_unrecognized: false },
   language: { verdict: 'MET', evidence: 'TOEIC 650', required: 'TOEIC 550 (B1)', held: 'TOEIC 650 (B1)' },
 });
@@ -79,7 +92,7 @@ describe('GĐ3 AD-2 MatchCriteria: per-criterion verdicts, code computes S_cv (U
     const input = criteria();
     input.project_relevance.score_0_4 = 5;
     expect(issuePaths(input)).toEqual(['project_relevance.score_0_4']);
-    expect(issuePaths({ ...criteria(), project_relevance: { score_0_4: 2.5, reason: 'x' } })).toEqual([
+    expect(issuePaths({ ...criteria(), project_relevance: { score_0_4: 2.5, reason: 'x', evidence: [] } })).toEqual([
       'project_relevance.score_0_4',
     ]);
     expect(issuePaths({ ...criteria(), language: { ...criteria().language, verdict: 'met' } })).toEqual([
@@ -154,5 +167,38 @@ describe('GĐ3 FR-40 skill verdict carries match kind, tier and sources (US-3.5 
     expect(verdictIssues({ skill: ' ', match_kind: 'NONE', tier: 0, sources: [] })).toEqual(['skill', 'match_kind']);
     expect(verdictIssues({ evidence: null, via: 'Spring Boot' })).toEqual(['evidence', 'via']);
     expect(MatchSkillVerdictSchema.safeParse(undefined).success).toBe(false);
+  });
+});
+
+describe('GĐ3 AD-2 MatchAssessment: the Matching Agent scores projects and comments only (US-3.2)', () => {
+  const assessment = () => ({
+    project_relevance: criteria().project_relevance,
+    strengths: ['Có hai dự án web dùng Java'],
+    suggestions: ['Học thêm Docker'],
+    summary: 'Hồ sơ phù hợp vị trí backend Java.',
+  });
+  const issues = (input: unknown): string[] => {
+    const result = MatchAssessmentSchema.safeParse(input);
+    return result.success ? [] : result.error.issues.map((issue) => issue.path.join('.'));
+  };
+  const many = (text: string, n: number) => Array.from({ length: n }, () => text);
+
+  it('AD-2 accepts the project score with its quotes and comments; carries no total and no verdict', () => {
+    expect(MatchAssessmentSchema.parse(assessment())).toEqual(assessment());
+    expect(issues({ ...assessment(), s_cv: 80 })).toEqual(['']);
+    expect(issues({ ...assessment(), must_have: [] })).toEqual(['']);
+  });
+
+  it('US-3.2 AC-8 at most 5 quotes and 5 comments of each kind, none empty', () => {
+    const relevance = { ...criteria().project_relevance, evidence: many('x', PROJECT_EVIDENCE_MAX + 1) };
+    expect(issues({ ...assessment(), project_relevance: relevance })).toEqual(['project_relevance.evidence']);
+    expect(issues({ ...assessment(), strengths: many('x', MATCH_COMMENTS_MAX + 1) })).toEqual(['strengths']);
+    expect(issues({ ...assessment(), suggestions: [' '] })).toEqual(['suggestions.0']);
+    expect(issues({ ...assessment(), summary: '' })).toEqual(['summary']);
+  });
+
+  it('US-3.2 AC-8 an evidence check stores the quote, its RapidFuzz score 0..100 and whether it matched', () => {
+    expect(EvidenceCheckSchema.safeParse({ quote: 'Spring Boot', score: 91.5, matched: true }).success).toBe(true);
+    expect(EvidenceCheckSchema.safeParse({ quote: 'Spring Boot', score: 101, matched: true }).success).toBe(false);
   });
 });

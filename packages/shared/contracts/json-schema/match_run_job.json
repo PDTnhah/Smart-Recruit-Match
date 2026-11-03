@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./match_run_job.json",
+  "type": "object",
+  "properties": {
+    "job_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique id of this job; the AI Service processes each job_id once (AD-5)"
+    },
+    "campaign_id": {
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "maximum": 9007199254740991,
+      "description": "core.campaigns.id of the run"
+    },
+    "rules_version": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "description": "Code rules the stored verdicts rest on, the same for every pair"
+    },
+    "prompt_version": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Prompt the campaign is pinned to, e.g. matching/v1; null until it has a result, then the active one"
+    },
+    "pairs": {
+      "minItems": 1,
+      "maxItems": 50000,
+      "type": "array",
+      "items": {
+        "$ref": "./match_pair_ref.json"
+      },
+      "description": "Pairs to score, without duplicates"
+    }
+  },
+  "required": [
+    "job_id",
+    "campaign_id",
+    "rules_version",
+    "prompt_version",
+    "pairs"
+  ],
+  "additionalProperties": false,
+  "title": "MatchRunJob",
+  "description": "Job on ai.match.run: score projects and comment on CV × JD pairs"
+}

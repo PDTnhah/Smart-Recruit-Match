@@ -43,7 +43,7 @@ const scvOfSkillsOnly = (fitWeights: SkillFitWeights): number => {
     },
     criteria: {
       ...verdicts,
-      project_relevance: { score_0_4: 4, reason: '...' },
+      project_relevance: { score_0_4: 4, reason: '...', evidence: [] },
       education: { major_match: 'EXACT', major_unrecognized: false },
       language: null,
     },

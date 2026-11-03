@@ -140,7 +140,8 @@ Nguồn: `deploy/.env` (sao từ [`deploy/.env.example`](deploy/.env.example)). 
 | `LLM_PROVIDER` | Optional (`fixture` trong compose) | `gemini`, `anthropic` hoặc `fixture` | Nhà cung cấp LLM của `ai-worker` ([CONTEXT D34](docs/CONTEXT.md), [D35](docs/CONTEXT.md)). `fixture` chỉ trả lời request đã ghi sẵn, nên phân tích JD thật luôn lỗi và HR nhập tay |
 | `GEMINI_API_KEY` | Required khi `LLM_PROVIDER=gemini` | Google AI Studio | Free tier chỉ dùng với dữ liệu giả; dữ liệu thật dùng paid tier (CONTEXT D34) |
 | `ANTHROPIC_API_KEY` | Required khi `LLM_PROVIDER=anthropic` | Claude Console | |
-| `LLM_MODEL` | Optional (trống = mặc định của nhà cung cấp) | Tên model | Mặc định `gemini-3.8-flash` hoặc `claude-opus-5-5` |
+| `LLM_MODEL` | Optional (trống = mặc định của nhà cung cấp) | Tên model | Mặc định `gemini-3.8-flash` hoặc `claude-opus-5-5`. Không đổi khi đợt đang chấm phù hợp ([CONTEXT D46](docs/CONTEXT.md)) |
+| `LLM_BATCH_POLL_SECONDS` | Optional (trống = 60) | Số giây, 1–3600 | Khoảng cách giữa hai lần `ai-worker` hỏi trạng thái một batch của nhà cung cấp khi chấm phù hợp ([CONTEXT D46](docs/CONTEXT.md)) |
 | `CV_MASK_CONTACTS` | Optional (`true`) | `true`/`false` | `ai-worker` che email, SĐT của CV có chữ trước khi gửi LLM (NFR-3, [CONTEXT D37](docs/CONTEXT.md)). Giữ `true` |
 | `EMBEDDING_PROVIDER` | Optional (`hashing` trong compose) | `hashing` hoặc `bge-m3` | Build arg của image AI Service và env của `ai-worker` ([CONTEXT D39](docs/CONTEXT.md)). `bge-m3` cần `up --build`, 2,5–3 GB RAM mỗi bản sao worker; `hashing` là vector giả cho dev, test |
 | `SKILL_MATCH_THRESHOLD` | Optional (trống = 0.85) | Số trong (0, 1] | Cosine tối thiểu để gán tên kỹ năng cho kỹ năng gần nhất của danh mục (US-2.5); thấp hơn thì tên thành kỹ năng mới chờ duyệt |

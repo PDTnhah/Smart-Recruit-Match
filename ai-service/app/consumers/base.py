@@ -7,7 +7,9 @@ A handler only turns a job payload into an output model. The runner does the res
   failure publishes a FAILED result and moves the message to `<queue>.dlq`;
 - a PermanentError fails the job at once with `needs_human` set (AC-7);
 - order: publish the result (confirmed by the broker), mark ai.jobs, then ack. A crash in between
-  redelivers the job, so delivery is at least once and the backend absorbs duplicates.
+  redelivers the job, so delivery is at least once and the backend absorbs duplicates;
+- a handler that hands its job to a provider batch returns DEFERRED: the message is acked and
+  ai.jobs stays PROCESSING until the batch poller publishes the result (US-3.2 AC-17, CONTEXT D46).
 """
 
 import asyncio
@@ -32,8 +34,19 @@ logger = logging.getLogger(__name__)
 RETRIES_EXHAUSTED = "RETRIES_EXHAUSTED"
 MAX_ERROR_LENGTH = 1000
 
-Handler = Callable[[Any], Awaitable[BaseModel]]
-"""Takes the validated job payload, returns the output model of its job type."""
+
+class Deferred:
+    """The job goes on after this delivery: a batch poller publishes its result and finishes it."""
+
+
+DEFERRED = Deferred()
+
+Handler = Callable[[Any], Awaitable[BaseModel | Deferred]]
+"""Takes the validated job payload, returns the output model of its job type, or DEFERRED."""
+
+
+def _succeeded(_output: BaseModel) -> AiResultStatus:
+    return AiResultStatus.SUCCEEDED
 
 
 class Settle(Enum):
@@ -49,6 +62,8 @@ class JobKind:
     queue: str
     job_model: type[BaseModel]
     result_model: type[BaseModel]
+    status_of: Callable[[BaseModel], AiResultStatus] = _succeeded
+    """Status of a result built from an output; MATCH reports PARTIAL when pairs failed."""
 
 
 def _job_id_of(body: bytes) -> str:
@@ -158,9 +173,13 @@ class JobRunner:
                 await self._sleep(delay)
                 attempt = await self._store.retry(job.job_id, message[:MAX_ERROR_LENGTH])
                 continue
-            result = self._result(job, AiResultStatus.SUCCEEDED, output, None)
+            if isinstance(output, Deferred):
+                logger.info("job %s: handed to a batch, acked while it runs", job.job_id)
+                return Settle.ACK
+            status = self.kind.status_of(output)
+            result = self._result(job, status, output, None)
             await self._outbox.publish_result(result, str(job.job_id))
-            await self._store.finish(job.job_id, AiResultStatus.SUCCEEDED.value, None)
+            await self._store.finish(job.job_id, status.value, None)
             return Settle.ACK
 
     async def _fail(

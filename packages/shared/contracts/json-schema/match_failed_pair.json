@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./match_failed_pair.json",
+  "type": "object",
+  "properties": {
+    "cv_id": {
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "maximum": 9007199254740991,
+      "description": "core.cvs.id; each CV version has its own row"
+    },
+    "cv_version": {
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "maximum": 9007199254740991,
+      "description": "core.cvs.version of that row"
+    },
+    "jd_id": {
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "maximum": 9007199254740991,
+      "description": "core.job_descriptions.id"
+    },
+    "jd_version": {
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "maximum": 9007199254740991,
+      "description": "core.job_descriptions.version the code part was computed for"
+    },
+    "code": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 50,
+      "description": "Why there is no assessment, e.g. LLM_REFUSAL, INVALID_OUTPUT, TRUNCATED, EXPIRED, SOURCE_MISSING"
+    },
+    "needs_review": {
+      "type": "boolean",
+      "description": "The LLM refused the pair again when sent on its own: staff review it and later runs skip it"
+    }
+  },
+  "required": [
+    "cv_id",
+    "cv_version",
+    "jd_id",
+    "jd_version",
+    "code",
+    "needs_review"
+  ],
+  "additionalProperties": false,
+  "title": "MatchFailedPair",
+  "description": "A pair of a MATCH job left without an assessment"
+}

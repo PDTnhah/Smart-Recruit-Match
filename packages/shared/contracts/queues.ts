@@ -5,6 +5,7 @@ export const AI_JOB_QUEUES = {
   CV_PARSE: 'ai.cv.parse',
   JD_ANALYZE: 'ai.jd.analyze',
   SKILL_NORMALIZE: 'ai.skills.normalize',
+  MATCH: 'ai.match.run',
 } as const satisfies Record<AiJobType, string>;
 
 export const AI_RESULTS_QUEUE = 'ai.results';

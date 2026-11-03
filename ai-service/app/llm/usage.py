@@ -3,6 +3,11 @@
 Prices are the paid-tier list prices in USD per million tokens, read on 2026-10-20. They apply even
 when development runs on a free tier, so ai.llm_calls estimates what a real campaign costs.
 `LLM_PRICING` overrides or adds models (settings.py).
+
+Batch requests have their own table, read on 2026-11-03 (US-3.2 AC-14): both providers bill half of
+the interactive price. Claude's discount also applies to cache reads and writes, and batch requests
+mark the shared block with the 1-hour TTL, whose writes cost 2x input. Gemini bills cache hits of a
+batch at the standard caching rate. `LLM_BATCH_PRICING` overrides or adds models.
 """
 
 import logging
@@ -35,6 +40,12 @@ DEFAULT_PRICES: Mapping[str, ModelPrice] = {
     "gemini-3.8-flash": ModelPrice(input=0.75, output=3.75, cache_read=0.075),
     # Cache writes with the default 5-minute TTL cost 1.25x input.
     "claude-opus-5-5": ModelPrice(input=4, output=20, cache_read=0.20, cache_write=5),
+}
+
+
+DEFAULT_BATCH_PRICES: Mapping[str, ModelPrice] = {
+    "gemini-3.8-flash": ModelPrice(input=0.375, output=1.875, cache_read=0.075),
+    "claude-opus-5-5": ModelPrice(input=2, output=10, cache_read=0.10, cache_write=4),
 }
 
 

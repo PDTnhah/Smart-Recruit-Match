@@ -14,7 +14,7 @@
 - pgvector: §24 index HNSW lọc sau khi quét, hàng cũ chiếm chỗ ứng viên
 - Ranh giới module: §5 `exclude: node_modules` làm dependency-cruiser bỏ sót
 - Thư viện API, web: §8 CLI shadcn 4.21 · §10 Zod 4 bỏ qua `refine` khi trường khác lỗi · §13 multer đọc tên file theo latin1 · §25 form gửi `row_version` của query mới nhất, bỏ qua khóa lạc quan · §26 lỗi tổng của form không mất khi sửa ô khác của tổng · §28 react-pdf 11 mặc định Suspense, PDF lỗi làm sập route · §29 Esc trong combobox tự viết đóng cả dialog Radix
-- RabbitMQ, job AI: §16 `RabbitMQModule` giữ connection static · §17 mặc định sai của thư viện message · §32 kiểm chéo trên schema hợp đồng message làm cả kết quả AI vào DLQ
+- RabbitMQ, job AI: §16 `RabbitMQModule` giữ connection static · §17 mặc định sai của thư viện message · §32 kiểm chéo trên schema hợp đồng message làm cả kết quả AI vào DLQ · §33 kết quả AI về trước khi API ghi `job_id`, message của một job xử lý song song
 - ai-service (Python): §19 chặn mạng trong pytest trên Windows · §20 PyMuPDF cắt chữ ngoài trang, màu nền theo thứ tự vẽ · §23 `HF_HUB_OFFLINE` đọc lúc import, bge-m3 tải 4,5 GB · §31 fixture LLM mất khóa khi nâng prompt hoặc sửa dữ liệu test nằm trong prompt
 
 ---
@@ -474,3 +474,18 @@ See [US-3.5](sprints/stories/US-3.5-skill-evidence-code-matching.md).
 - Có integration test gửi kết quả AI vi phạm luật qua đúng consumer, và test PUT của người dùng nhận 400 cho cùng dữ liệu.
 
 See [US-3.6](sprints/stories/US-3.6-language-cefr-major-match.md), [CONTEXT D45](CONTEXT.md).
+
+## 33. Kết quả AI về trước khi API ghi xong `job_id`, và các message của một job được xử lý song song
+
+**What happened (0.17.0)**: US-3.2 có hai lỗi cùng gốc:
+- Lần chạy cả bộ test đầu tiên, E2E matching đỏ: run đã `SUCCEEDED` mà `pairs_scored` vẫn là 0. Message cuối của job `MATCH` đóng run trước khi chunk kết quả trước nó ghi xong.
+- `/code-review` thấy `match_runs.job_id` chỉ được ghi sau khi `AiGatewayService.dispatch` trả về. Worker trả lời ngay, ví dụ khi mọi cặp đã rời view, thì handler tìm run theo `job_id` không thấy. Run kẹt `RUNNING` và chặn lượt chấm sau bằng 409.
+
+**Why**: consumer `ai.results` đặt `prefetchCount: 10`, nên các message của cùng một job chạy song song, không theo thứ tự. Message bị requeue cũng về sau message gửi sau nó. Còn `dispatch` publish xong mới trả `job_id`, mà từ lúc broker nhận job thì câu trả lời có thể về bất cứ lúc nào.
+
+**How to avoid**:
+- Kết quả cần tìm lại dòng của backend: tạo `job_id` trước, ghi vào dòng trong giao dịch nghiệp vụ, commit, rồi gọi `dispatch(type, input, jobId)`. Đánh dấu "đã gửi" bằng cột riêng (`dispatched_at`), không bằng `job_id` có hay không.
+- Job trả nhiều message: mỗi message ghi idempotent theo dòng. Không suy ra "đã đủ kết quả" từ message cuối; chỗ cần biết thì so số đếm (`pairs_scored + pairs_failed` với `pairs_sent`).
+- Test E2E chờ theo số đếm, không chờ theo trạng thái. Test cho lỗi thứ hai: một listener của `AI_JOB_DISPATCHED` gửi kết quả ngay khi job được publish.
+
+See [US-3.2](sprints/stories/US-3.2-batch-matching-agent.md), [CONTEXT D46](CONTEXT.md).

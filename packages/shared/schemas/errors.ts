@@ -35,6 +35,10 @@ export const API_ERROR_CODES = [
   'SKILL_NOT_APPROVED',
   // Profile review by the student (US-2.6, CONTEXT D40).
   'CV_PROFILE_NOT_EDITABLE',
+  // Matching runs (US-3.2, CONTEXT D46).
+  'MATCHING_RUN_IN_PROGRESS',
+  'MATCHING_RUN_TOO_LARGE',
+  'AI_UNAVAILABLE',
   'INTERNAL_ERROR',
 ] as const;
 

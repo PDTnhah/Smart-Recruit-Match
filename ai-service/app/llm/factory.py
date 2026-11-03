@@ -1,13 +1,18 @@
-"""Builds the LLMClient and its MinIO stores from LlmSettings (CONTEXT D34, D35).
+"""Builds the LLMClient, its batch counterpart and their MinIO stores from LlmSettings (CONTEXT D34,
+D35, D46).
 
 app/worker.py builds them once at startup; evals/smoke_llm.py builds its own.
 """
 
 from minio import Minio
 
+from app.llm.batch import BatchProvider, StructuredBatchClient
 from app.llm.providers import LLMProvider
+from app.llm.providers.anthropic_batch import AnthropicBatchProvider
 from app.llm.providers.anthropic_provider import AnthropicProvider, build_anthropic_client
+from app.llm.providers.fixture_batch import FixtureBatchProvider
 from app.llm.providers.fixture_provider import FixtureProvider
+from app.llm.providers.gemini_batch import GeminiBatchProvider
 from app.llm.providers.gemini_provider import GeminiProvider, build_gemini_client
 from app.llm.recorder import CallRecorder, LlmCallStore, MinioObjectStore, ObjectStore
 from app.llm.settings import LlmSettings
@@ -28,6 +33,32 @@ def build_provider(settings: LlmSettings) -> LLMProvider:
         return AnthropicProvider(client, settings.model)
     assert settings.fixtures_dir is not None
     return FixtureProvider(settings.fixtures_dir, settings.model)
+
+
+def build_batch_provider(settings: LlmSettings) -> BatchProvider:
+    """The batch adapter of the provider LLM_PROVIDER selects, with the same model."""
+    if settings.provider == "gemini":
+        assert settings.gemini_api_key is not None
+        client = build_gemini_client(settings.gemini_api_key.get_secret_value())
+        return GeminiBatchProvider(client, settings.model)
+    if settings.provider == "anthropic":
+        assert settings.anthropic_api_key is not None
+        client = build_anthropic_client(settings.anthropic_api_key.get_secret_value())
+        return AnthropicBatchProvider(client, settings.model)
+    assert settings.fixtures_dir is not None
+    return FixtureBatchProvider(settings.fixtures_dir, settings.model)
+
+
+def build_batch_client(
+    settings: LlmSettings, *, objects: ObjectStore, calls: LlmCallStore
+) -> StructuredBatchClient:
+    return StructuredBatchClient(
+        build_batch_provider(settings),
+        CallRecorder(objects, calls),
+        objects,
+        pricing=settings.batch_pricing,
+        max_output_tokens=settings.max_output_tokens,
+    )
 
 
 def build_llm_client(

@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./match_assessment.json",
+  "type": "object",
+  "properties": {
+    "project_relevance": {
+      "$ref": "./match_project_relevance.json"
+    },
+    "strengths": {
+      "maxItems": 5,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 500
+      },
+      "description": "Strengths of the CV for this JD, one short sentence each, in Vietnamese"
+    },
+    "suggestions": {
+      "maxItems": 5,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 500
+      },
+      "description": "What the student could do to fit this JD better, one short sentence each, in Vietnamese"
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1000,
+      "description": "Two or three sentences on the fit, in Vietnamese"
+    }
+  },
+  "required": [
+    "project_relevance",
+    "strengths",
+    "suggestions",
+    "summary"
+  ],
+  "additionalProperties": false,
+  "title": "MatchAssessment",
+  "description": "Project score and comments of the Matching Agent for one pair"
+}

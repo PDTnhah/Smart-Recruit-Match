@@ -46,6 +46,7 @@ async def test_nfr11_llm_calls_row_has_usage_cost_model_prompt_version(make_clie
         "cost_usd": Decimal("0.000240"),
         "latency_ms": row["latency_ms"],
         "log_key": record.log_key,
+        "batch_id": None,
     }
     assert row["latency_ms"] >= 0
 
