@@ -1434,7 +1434,7 @@ export interface components {
                     skill: string;
                     /**
                      * SkillLevel
-                     * @description BASIC = basic, INTERMEDIATE = working knowledge, ADVANCED = proficient
+                     * @description BASIC = basic: used in at least 1 project, experience or certificate; INTERMEDIATE = working knowledge: used in at least 2 projects or experience entries; ADVANCED = proficient: at least 6 months of work or internship experience using it
                      * @enum {string}
                      */
                     level: "BASIC" | "INTERMEDIATE" | "ADVANCED";
@@ -1447,7 +1447,7 @@ export interface components {
                     skill: string;
                     /**
                      * SkillLevel
-                     * @description BASIC = basic, INTERMEDIATE = working knowledge, ADVANCED = proficient
+                     * @description BASIC = basic: used in at least 1 project, experience or certificate; INTERMEDIATE = working knowledge: used in at least 2 projects or experience entries; ADVANCED = proficient: at least 6 months of work or internship experience using it
                      * @enum {string}
                      */
                     level: "BASIC" | "INTERMEDIATE" | "ADVANCED";
@@ -1494,7 +1494,7 @@ export interface components {
                     skill: string;
                     /**
                      * SkillLevel
-                     * @description BASIC = basic, INTERMEDIATE = working knowledge, ADVANCED = proficient
+                     * @description BASIC = basic: used in at least 1 project, experience or certificate; INTERMEDIATE = working knowledge: used in at least 2 projects or experience entries; ADVANCED = proficient: at least 6 months of work or internship experience using it
                      * @enum {string}
                      */
                     level: "BASIC" | "INTERMEDIATE" | "ADVANCED";
@@ -1507,7 +1507,7 @@ export interface components {
                     skill: string;
                     /**
                      * SkillLevel
-                     * @description BASIC = basic, INTERMEDIATE = working knowledge, ADVANCED = proficient
+                     * @description BASIC = basic: used in at least 1 project, experience or certificate; INTERMEDIATE = working knowledge: used in at least 2 projects or experience entries; ADVANCED = proficient: at least 6 months of work or internship experience using it
                      * @enum {string}
                      */
                     level: "BASIC" | "INTERMEDIATE" | "ADVANCED";
