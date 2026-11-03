@@ -40,7 +40,7 @@ US-3.6. Chứng chỉ ngoại ngữ khác loại được so theo bậc CEFR, n�
 ### Upgrade notes
 - Migration `0023_jd_preferred_languages` điền `preferred_languages: []` cho yêu cầu JD đã có: chạy `pnpm --filter @srm/api db:migrate`. Build lại image `api`, `web` và `ai-worker`, để worker dùng `jd_analyzer/v2`.
 
-**Commit**:
+**Commit**: ebe8c18
 
 ---
 

@@ -11,7 +11,7 @@ prd_ref: [FR-40, FR-14, FR-9, FR-10]
 arch_ref: [AD-15]
 depends_on: [US-3.1, US-2.3]
 assignee: PDTnhah
-commit:
+commit: ebe8c18dd710db3fb7dc6e281b613e22b70137e4
 created: 2026-11-02
 updated: 2026-11-03
 ---
@@ -124,7 +124,7 @@ JD có thêm `preferred_languages` (ngoại ngữ ưu tiên). Nhờ đó tiêu c
 - Ngoại ngữ ưu tiên của JD; tiêu chí ngoại ngữ và mức khớp ngành do code chấm.
 - Prompt `jd_analyzer/v2`; trợ giúp mức độ kỹ năng trên form HR.
 
-**Commit**:
+**Commit**: ebe8c18
 
 ## Implementation notes
 
