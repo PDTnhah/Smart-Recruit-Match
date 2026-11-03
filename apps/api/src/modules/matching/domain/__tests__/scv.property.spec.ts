@@ -1,6 +1,7 @@
 import type { MajorMatch, MatchCriteria, MatchSkillVerdict, MatchVerdict, ScvWeights } from '@srm/shared';
 import fc from 'fast-check';
 import { computeScv, type ScvInput } from '../scv.js';
+import { skillVerdict } from './fixtures/verdicts.js';
 
 const SKILLS = ['Java', 'SQL', 'Docker', 'Redis', 'React', 'Python', 'Git', 'Linux', 'AWS', 'Kafka'];
 
@@ -37,12 +38,8 @@ const scenario = fc.uniqueArray(fc.constantFrom(...SKILLS), { minLength: 1, maxL
 
 type Scenario = typeof scenario extends fc.Arbitrary<infer T> ? T : never;
 
-const item = (skill: string, value: MatchVerdict): MatchSkillVerdict => ({
-  skill,
-  level_required: 'BASIC',
-  verdict: value,
-  evidence: value === 'NOT_MET' ? null : `Dự án dùng ${skill}`,
-});
+const item = (skill: string, value: MatchVerdict): MatchSkillVerdict =>
+  skillVerdict(skill, 'BASIC', value, value === 'NOT_MET' ? null : `Dự án dùng ${skill}`);
 
 function toInput(s: Scenario): ScvInput {
   const skills = s.names.map((skill, i) => ({ skill, level: 'BASIC' as const, weight: s.skillWeights[i]! / 100 }));

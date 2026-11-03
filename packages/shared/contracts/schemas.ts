@@ -34,11 +34,14 @@ import {
 } from './jd.js';
 import { CvParseJobSchema, JdAnalyzeJobSchema, SkillNormalizeJobSchema } from './jobs.js';
 import {
+  EvidenceSectionSchema,
   MajorMatchSchema,
   MatchCriteriaSchema,
   MatchEducationSchema,
+  MatchKindSchema,
   MatchLanguageVerdictSchema,
   MatchProjectRelevanceSchema,
+  MatchSkillSourceSchema,
   MatchSkillVerdictSchema,
   MatchVerdictSchema,
 } from './matching.js';
@@ -63,6 +66,9 @@ const CONTRACTS: ReadonlyArray<[z.ZodType, string]> = [
   [JdAnalysisSchema, 'jd_analysis'],
   [MatchVerdictSchema, 'match_verdict'],
   [MajorMatchSchema, 'major_match'],
+  [MatchKindSchema, 'match_kind'],
+  [EvidenceSectionSchema, 'evidence_section'],
+  [MatchSkillSourceSchema, 'match_skill_source'],
   [MatchSkillVerdictSchema, 'match_skill_verdict'],
   [MatchProjectRelevanceSchema, 'match_project_relevance'],
   [MatchEducationSchema, 'match_education'],

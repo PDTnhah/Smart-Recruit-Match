@@ -7,13 +7,14 @@ goal: 'Ship US-2.7: danh mục kỹ năng có vùng, họ và quan hệ kéo the
 ---
 ## Sprint scope
 
-| US     | Title                                              | Epic   | Pri | Points | Status         | Carry    | Story file                                                                                                   |
-| ------ | -------------------------------------------------- | ------ | --- | ------ | -------------- | -------- | ------------------------------------------------------------------------------------------------------------ |
-| US-2.7 | Vùng, họ và quan hệ kéo theo của kỹ năng           | EPIC-2 | P0  | 8      | 👀 review      | new      | [stories/US-2.7-skill-zones-families-implications.md](stories/US-2.7-skill-zones-families-implications.md)   |
-| US-3.6 | Quy đổi ngoại ngữ CEFR và mức khớp ngành bằng code | EPIC-3 | P0  | 5      | 📋 backlog     | new      | [stories/US-3.6-language-cefr-major-match.md](stories/US-3.6-language-cefr-major-match.md)                   |
-| US-3.1 | Lọc điều kiện cứng và công thức S_cv               | EPIC-3 | P0  | 5      | 👀 review      | from W44 | [stories/US-3.1-hard-filters-and-scv-formula.md](stories/US-3.1-hard-filters-and-scv-formula.md)             |
-| US-5.1 | Allocation Engine và property-based test           | EPIC-5 | P0  | 5      | 📋 backlog     | from W42 | [stories/US-5.1-allocation-engine-property-tests.md](stories/US-5.1-allocation-engine-property-tests.md)     |
-| US-6.4 | Mô phỏng phân bổ so với baseline                   | EPIC-6 | P1  | 5      | 📋 backlog     | from W44 | [stories/US-6.4-allocation-simulation-vs-baselines.md](stories/US-6.4-allocation-simulation-vs-baselines.md) |
+| US     | Title                                              | Epic   | Pri | Points | Status     | Carry    | Story file                                                                                                   |
+| ------ | -------------------------------------------------- | ------ | --- | ------ | ---------- | -------- | ------------------------------------------------------------------------------------------------------------ |
+| US-2.7 | Vùng, họ và quan hệ kéo theo của kỹ năng           | EPIC-2 | P0  | 8      | 👀 review  | new      | [stories/US-2.7-skill-zones-families-implications.md](stories/US-2.7-skill-zones-families-implications.md)   |
+| US-3.6 | Quy đổi ngoại ngữ CEFR và mức khớp ngành bằng code | EPIC-3 | P0  | 5      | 📋 backlog | new      | [stories/US-3.6-language-cefr-major-match.md](stories/US-3.6-language-cefr-major-match.md)                   |
+| US-3.5 | Hồ sơ kỹ năng chi tiết và khớp kỹ năng bằng code   | EPIC-3 | P0  | 8      | 👀 review  | from W46 | [stories/US-3.5-skill-evidence-code-matching.md](stories/US-3.5-skill-evidence-code-matching.md)             |
+| US-3.1 | Lọc điều kiện cứng và công thức S_cv               | EPIC-3 | P0  | 5      | 👀 review  | from W44 | [stories/US-3.1-hard-filters-and-scv-formula.md](stories/US-3.1-hard-filters-and-scv-formula.md)             |
+| US-5.1 | Allocation Engine và property-based test           | EPIC-5 | P0  | 5      | 📋 backlog | from W42 | [stories/US-5.1-allocation-engine-property-tests.md](stories/US-5.1-allocation-engine-property-tests.md)     |
+| US-6.4 | Mô phỏng phân bổ so với baseline                   | EPIC-6 | P1  | 5      | 📋 backlog | from W44 | [stories/US-6.4-allocation-simulation-vs-baselines.md](stories/US-6.4-allocation-simulation-vs-baselines.md) |
 
 > **Convention**: AC + Tasks live inside each story file. This sprint file lists planned
 > stories at a glance only. Design + decision docs cross-linked at the bottom.
@@ -25,9 +26,9 @@ Tuần T5 của lộ trình 13 tuần ([sprints/README › Lộ trình](README.m
 - **Làn A — US-2.7** (8 điểm): taxonomy vùng, họ, kéo theo trong `core.skills` và `core.skill_implications`. Chốt phạm vi ở [CONTEXT D43](../CONTEXT.md): 15 vùng, 70 họ, 179 kỹ năng có họ, 81 cạnh kéo theo, bỏ AC-7.
 - **Làn B — US-3.6** (5 điểm, bắt đầu): bảng `language-cefr/v1` và mức khớp ngành bằng code.
 
-US-3.5 (khớp kỹ năng theo bậc bằng chứng) cần taxonomy của US-2.7, nên ở W46. US-5.1 và US-6.4 chuyển tiếp để hoàn thành mốc M1 khi một làn rảnh.
+US-3.5 (khớp kỹ năng theo bậc bằng chứng) cần taxonomy của US-2.7, nên ở W46. Ngày 2026-11-02, sau khi US-2.7 merge vào `dev`, kéo US-3.5 sớm từ W46 (8 điểm, làn A). Phiên Plan chốt khung bậc ở [CONTEXT D44](../CONTEXT.md): thời gian chỉ đọc ở mục kinh nghiệm. US-5.1 và US-6.4 chuyển tiếp để hoàn thành mốc M1 khi một làn rảnh.
 
-**Deliverable cut**: US-2.7 ship 0.14.0. US-3.6 có thể xong ở W46 như lộ trình.
+**Deliverable cut**: US-2.7 ship 0.14.0, US-3.5 ship 0.15.0. US-3.6 có thể xong ở W46 như lộ trình.
 
 ## Phased plan
 
@@ -53,12 +54,12 @@ US-3.5 (khớp kỹ năng theo bậc bằng chứng) cần taxonomy của US-2.7
 
 ## Per-Epic Retrospective
 
-| Epic   | Retro Status | Notes                               |
-| ------ | ------------ | ----------------------------------- |
-| EPIC-2 | optional     | US-2.7 là story cuối của epic       |
-| EPIC-3 | optional     | US-3.1 chờ kiểm tay; US-3.6 bắt đầu |
-| EPIC-5 | optional     | US-5.1 chưa bắt đầu                 |
-| EPIC-6 | optional     | US-6.4 chưa bắt đầu                 |
+| Epic   | Retro Status | Notes                                              |
+| ------ | ------------ | -------------------------------------------------- |
+| EPIC-2 | optional     | US-2.7 là story cuối của epic                      |
+| EPIC-3 | optional     | US-3.1 chờ kiểm tay; US-3.5 0.15.0; US-3.6 bắt đầu |
+| EPIC-5 | optional     | US-5.1 chưa bắt đầu                                |
+| EPIC-6 | optional     | US-6.4 chưa bắt đầu                                |
 
 ## Retrospective
 

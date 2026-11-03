@@ -48,8 +48,9 @@
 - D39 · Danh mục kỹ năng và embedding: module `skills`, `EMBEDDING_PROVIDER`, hợp đồng kỹ năng, HNSW một phần (US-2.5)
 - D40 · SV xác nhận hồ sơ: che PII lại bằng TS, "Sửa lại" tạo phiên bản mới, kỹ năng SV nhập vào hàng chờ duyệt (US-2.6)
 - D41 · Trọng số S_cv trong cấu hình đợt, tiêu chí rỗng chia lại trọng số, GPA thang 4, đọc chứng chỉ ngoại ngữ bằng code (US-3.1) → sửa một phần bởi D42 (quy đổi CEFR)
-- D42 · Khớp kỹ năng, ngoại ngữ, ngành bằng code theo taxonomy vùng/họ/kéo theo; LLM chỉ chấm dự án và viết nhận xét (US-2.7, US-3.5, US-3.6) → sửa một phần bởi D43 (danh sách vùng)
+- D42 · Khớp kỹ năng, ngoại ngữ, ngành bằng code theo taxonomy vùng/họ/kéo theo; LLM chỉ chấm dự án và viết nhận xét (US-2.7, US-3.5, US-3.6) → sửa một phần bởi D43 (danh sách vùng), D44 (khung bậc)
 - D43 · Taxonomy kỹ năng: 15 vùng, 70 họ, họ `FOREIGN_LANGUAGE`, bỏ chuyển cạnh khi gộp, mã lỗi và giới hạn kéo theo (US-2.7)
+- D44 · Khung bậc `matching-rules/v1`: thời gian chỉ đọc ở mục kinh nghiệm, luật khớp, quét văn bản tự do (US-3.5)
 
 ---
 
@@ -1583,3 +1584,56 @@ Code hiện có chưa đủ cho việc này:
 
 **Date**: 2026-11-02
 **Version**: 0.13.1
+
+### D44. Khung bậc bằng chứng của `matching-rules/v1`: thời gian chỉ đọc ở mục kinh nghiệm, luật khớp và quét văn bản (US-3.5) (revision of D42)
+
+**Context**: Phiên Plan của US-3.5 xét bốn điểm story để mở (ngưỡng T3/T4, mốc chỉ có năm, chứng chỉ, danh sách từ thông dụng) và điểm D43 để lại cho story làm luật khớp: họ `FOREIGN_LANGUAGE` có đi qua luật cùng họ không. Khung bậc của D42 cộng thời gian của cả dự án lẫn kinh nghiệm ("tổng ≥ 6 tháng"; "≥ 3 nguồn và ≥ 12 tháng"). Người dùng không đồng ý: dự án không phải kinh nghiệm, và kinh nghiệm chỉ thể hiện ở mục Experience, với thời gian CV ghi.
+
+**Decision** (người dùng chốt ngày 2026-11-02):
+
+- **Khung bậc** (sửa D42):
+
+  | Bậc | Điều kiện | Đáp ứng mức JD |
+  |---|---|---|
+  | T0 | Không có | – |
+  | T1 Đã nêu | Chỉ có ở mục kỹ năng | Chưa đáp ứng mức nào |
+  | T2 Đã dùng | ≥ 1 nguồn: dự án, kinh nghiệm hoặc chứng chỉ | `BASIC` |
+  | T3 Dùng nhiều | ≥ 2 nguồn dự án/kinh nghiệm | `INTERMEDIATE` |
+  | T4 Thành thạo | Các mục kinh nghiệm có dùng kỹ năng, tổng ≥ 6 tháng | `ADVANCED` |
+
+  - **Thời gian chỉ đọc ở mục kinh nghiệm** (`experience[].start/end`). Dự án chỉ được đếm là nguồn; mốc thời gian của dự án và học vấn không được đọc. Bỏ vế "hoặc tổng ≥ 6 tháng" của T3, vì khi chỉ tính tháng kinh nghiệm thì vế này trùng T4. Bỏ vế "≥ 3 nguồn và ≥ 12 tháng" của T4.
+  - Một mục CV là một nguồn: dự án ghi cả Java lẫn Spring Boot chỉ là một nguồn khi tính bậc của Java. Mục kỹ năng chỉ cho T1, không đếm là nguồn.
+  - Chứng chỉ là nguồn cho T2, không đếm vào "≥ 2 nguồn dự án/kinh nghiệm", nên chứng chỉ chỉ đưa kỹ năng lên tối đa T2. Mọi chứng chỉ đều được quét tên, không chia IT hay không IT.
+  - Mục kinh nghiệm gồm cả vai trò ở CLB, tổ chức (prompt `cv_parser`), vì schema không tách loại kinh nghiệm.
+- **Thời lượng**: đếm tháng cả hai đầu (06/2024 – 08/2024 là 3 tháng). Hai mục chồng thời gian chỉ tính một lần (hợp các khoảng). Mốc chỉ có năm lấy tháng 6 cho cả mốc đầu lẫn mốc cuối. Năm hai chữ số ("06/23") là năm của thế kỷ này. "Hiện tại" và mốc cuối sau hạn nộp CV đều cắt ở tháng của `intake_end` (giờ Việt Nam). Mục thiếu mốc hoặc có mốc không đọc được vẫn là một nguồn, chỉ không góp tháng.
+- **Luật khớp**:
+  - `EXACT` khi chính kỹ năng có nguồn; bậc tính trên hợp nguồn của nó và mọi kỹ năng kéo theo nó.
+  - `IMPLIED` khi chỉ kỹ năng kéo theo nó có nguồn. `via` là kỹ năng kéo theo **mà CV có nêu** có bậc cao nhất, hòa thì lấy `skill_id` nhỏ nhất. Kỹ năng ở giữa chuỗi không được chọn: CV chỉ có NestJS thì JavaScript khớp qua NestJS, không qua TypeScript.
+  - `FAMILY`: `via` là kỹ năng cùng họ có bậc cao nhất (≥ T2), hòa thì lấy `skill_id` nhỏ nhất. `tier` của verdict là bậc của `via`. FAMILY chỉ cho `PARTIAL`.
+  - **Họ `FOREIGN_LANGUAGE` không áp luật cùng họ**: English không thay được Japanese, và ngoại ngữ đã có tiêu chí riêng (US-3.6). EXACT/IMPLIED vẫn áp dụng.
+  - Kỹ năng JD ngoài danh mục chỉ so key với `technologies` và với tên ở mục kỹ năng mà danh mục chưa có, kể cả khi CV Parser đã gắn tên đó vào một kỹ năng của danh mục ("Spring MVC" → Spring Framework). Không quét văn bản tự do.
+  - Hợp đồng `MatchSkillVerdict` kiểm sự nhất quán: `NOT_MET` ⇔ `NONE` ⇔ bậc 0; FAMILY chỉ đi với `PARTIAL`; `MET`/`PARTIAL` có ít nhất một nguồn.
+- **Quét văn bản tự do**: n-gram 1–8 từ, ưu tiên cụm dài nhất, các cụm không chồng nhau, nên "React Native" không đếm thêm React. Tiếng Việt mỗi từ một âm tiết, nên tên trong danh mục dài: "Cấu trúc dữ liệu và giải thuật" có 7 từ. N-gram không vượt qua dấu hết câu hay chỗ xuống dòng ("Java. Script" không thành JavaScript). Key dưới 3 ký tự và key trong `COMMON_WORD_KEYS` chỉ khớp qua `skills` và `technologies`. Danh sách từ thông dụng: go, r, c, swift, rust, dart, spring, express, flask, next, nest, unity, spark, hive, excel, word, access, teams, ruby, rails, net, less, make. Review code thêm các alias trong seed cũng là từ thường gặp: rest, node, shell, oracle, solid, networking, statistics, "thống kê" ("chức năng thống kê doanh thu", "chứng chỉ Oracle Certified Java").
+- **Kỹ năng mềm** không đi qua bước quét n-gram. Nếu quét, câu "làm việc nhóm" trong mô tả sẽ thành nguồn T2. Bậc kỹ năng mềm lấy từ mục kỹ năng (T1) và bộ tín hiệu `soft-skill-signals/v1` theo năng lực (T2–T4).
+
+**Rationale**:
+
+- Thời gian của dự án học tập là thời gian *học*, không phải thời gian *làm việc*. Cộng tháng của ba đồ án thành "Thành thạo" sẽ đặt SV chưa đi làm ngang người đã thực tập 6 tháng.
+- Đếm theo mục CV, không theo từng lần nhắc tên, thì ghi một công nghệ nhiều lần trong cùng một dự án không làm tăng bậc.
+- Mốc tháng 6 không cộng dư thời gian cho CV ghi mơ hồ.
+- Không quét kỹ năng mềm và từ thông dụng trong văn bản tự do để tránh khớp nhầm ("Go to market", "làm việc với trưởng nhóm").
+
+**Alternatives considered**:
+- **Giữ khung bậc của D42 (tháng của dự án và kinh nghiệm cộng chung):** người dùng không chọn.
+- **Mốc chỉ có năm lấy tháng 1 cho mốc đầu và tháng 12 cho mốc cuối:** "2024 – 2024" thành 12 tháng; người dùng không chọn.
+- **Chứng chỉ tính như dự án ở mọi ngưỡng:** người dùng không chọn.
+- **Giữ luật cùng họ cho `FOREIGN_LANGUAGE`:** người dùng không chọn.
+
+**Impact**:
+- US-3.5: *Story refresh* (AC-1, AC-4, đường dẫn test AC-14).
+- PRD › *Khung quy đổi mức bằng chứng* (T3, T4, câu về thời lượng): sửa ở phiên Doc gate của US-3.5.
+- US-3.3 giải thích bậc theo bảng trên.
+- US-3.6: mục `languages` của CV chưa phải nguồn của kỹ năng họ `FOREIGN_LANGUAGE`. JD ghi "Tiếng Anh" ở kỹ năng thay vì ở ngoại ngữ thì kỹ năng đó chỉ khớp qua mục kỹ năng, dự án, kinh nghiệm, chứng chỉ.
+
+**Date**: 2026-11-02
+**Version**: 0.15.0

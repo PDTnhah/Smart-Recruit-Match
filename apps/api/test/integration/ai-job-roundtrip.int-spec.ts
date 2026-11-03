@@ -121,7 +121,7 @@ describe('AD-5: AI jobs round trip through RabbitMQ and the AI Service', () => {
     // The student module stored the CV Parser's result and moved the CV on (US-2.4 AC-9).
     expect(await cvStatus(cv.id)).toBe('PENDING_CONFIRMATION');
     const [row] = await t.db.select().from(cvs).where(eq(cvs.id, cv.id));
-    expect(row).toMatchObject({ analysisSource: 'TEXT_PDF', analysisPromptVersion: 'cv_parser/v1' });
+    expect(row).toMatchObject({ analysisSource: 'TEXT_PDF', analysisPromptVersion: 'cv_parser/v2' });
     expect(row!.maskedText).toContain('Email: [EMAIL] | Phone: [PHONE] | [LINK]');
     // Step 8 stored the profile embedding (US-2.5 AC-9), from the fake embedder the worker runs
     // with (EMBEDDING_PROVIDER=hashing).

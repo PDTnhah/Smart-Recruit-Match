@@ -1,13 +1,14 @@
 """CV Parser (US-2.4 AC-2 to AC-8, AC-13), with recorded LLM replies, never a real API.
 
 The fixtures in tests/fixtures/llm/cv_parser are keyed by the exact request, so they also pin the
-released prompt cv_parser/v1 and the text the agent builds from each sample CV. The sample CVs are
+released prompt cv_parser/v2 and the text the agent builds from each sample CV. The sample CVs are
 synthetic (tests/fixtures/cv/make_fixtures.py).
 """
 
 import io
 import json
 import logging
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 from uuid import UUID
@@ -15,7 +16,7 @@ from uuid import UUID
 import pymupdf
 import pytest
 from docx import Document as DocxDocument
-from embedding_support import CatalogueHarness
+from embedding_support import CATALOGUE, CatalogueHarness, skill
 
 from app.agents.cv_parser import (
     AGENT,
@@ -28,7 +29,7 @@ from app.consumers.errors import NeedsHumanReview, PermanentError, hidden_text_o
 from app.contracts.cv_parse_job import CvParseJob
 from app.contracts.cv_parse_output import CvParseOutput
 from app.contracts.cv_parse_result import CvParseResult
-from app.embedding import ProfileEmbeddings, profile_text
+from app.embedding import CatalogSkill, ProfileEmbeddings, profile_text
 from app.llm.providers.fixture_provider import FixtureProvider
 from app.llm.recorder import CallRecord, CallRecorder
 from app.llm.structured import StructuredLLMClient
@@ -74,6 +75,12 @@ def empty_docx() -> bytes:
 REFUSED_TEXT = "Refusal test CV. Skills: Java."
 RETRY_TEXT = "Retry test CV. Skills: Go, Kubernetes."
 SKILLS_TEXT = "Nguyen Van Demo. Skills: Java, Rust embedded, nguyenvandemo toolkit."
+# cv_parser/v2 (US-3.5 AC-14): technologies named only in the description, a role, a soft skill.
+PROJECT_TEXT = (
+    "Project: Library API (2024). Role: Team leader.\n"
+    "Built a REST API with Spring Boot and PostgreSQL, deployed with Docker.\n"
+    "Skills: Java, Teamwork."
+)
 
 FILES: dict[str, bytes] = {
     "cv/1/1/clean.pdf": (CV_FILES / "cv.pdf").read_bytes(),
@@ -90,6 +97,7 @@ FILES: dict[str, bytes] = {
     "cv/7/1/empty.docx": empty_docx(),
     "cv/8/1/hidden-scan.pdf": scan_with_tiny_text(),
     "cv/9/1/skills.pdf": small_pdf(SKILLS_TEXT),
+    "cv/10/1/project.pdf": small_pdf(PROJECT_TEXT),
 }
 
 
@@ -129,7 +137,7 @@ class RecordingFixtureProvider(FixtureProvider):
 
 
 class Harness:
-    def __init__(self, **options: Any) -> None:
+    def __init__(self, catalogue: Sequence[CatalogSkill] = CATALOGUE, **options: Any) -> None:
         self.files = MemoryFiles()
         self.provider = RecordingFixtureProvider()
         self.calls = MemoryCalls()
@@ -142,7 +150,7 @@ class Harness:
         )
         # The production registry: only the released, unchanged prompt renders (AD-12).
         prompts = PromptRegistry(active=load_active(), manifest=load_manifest())
-        self.catalogue = CatalogueHarness()
+        self.catalogue = CatalogueHarness(catalogue)
         self.parser = CvParser(
             files=self.files,
             llm=llm,
@@ -175,7 +183,7 @@ async def test_nfr3_contact_masked_before_llm_effort_low():
     params = harness.params
     assert (params["agent"], params["prompt_version"], params["effort"]) == (
         AGENT,
-        "cv_parser/v1",
+        "cv_parser/v2",
         "low",
     )
     user = params["user"]
@@ -218,7 +226,7 @@ async def test_gd2_result_matches_cv_parse_result_contract():
     }
     CvParseResult.model_validate(message)
     assert (output.cv_id, output.cv_version, output.source) == (11, 3, "TEXT_PDF")
-    assert (output.prompt_version, output.model) == ("cv_parser/v1", "gemini-3.8-flash")
+    assert (output.prompt_version, output.model) == ("cv_parser/v2", "gemini-3.8-flash")
     assert output.hidden_text_detected is False
     assert [s.name for s in output.profile.skills] == [
         "Java",
@@ -425,6 +433,29 @@ async def test_br03_no_embedding_when_masking_fails(monkeypatch):
     with pytest.raises(PermanentError):
         await harness.run("cv/3/1/pii.docx", cv_id=3)
     assert not [key for key in harness.catalogue.store.rows if key[0] == "cv"]
+
+
+# --- US-3.5 AC-14: cv_parser/v2 gives code matching more evidence -----------------------------
+
+
+async def test_gd2_v2_technologies_role_and_soft_skill_reach_profile_masked():
+    """US-3.5 AC-14: what v2 asks for, technologies named only in the description, the role and a
+    soft skill as written, reaches profile_masked, which code matching reads; the soft skill maps
+    to its catalogue skill like any other."""
+    teamwork = skill(9, "Teamwork", "Làm việc nhóm", group="SOFT_SKILL")
+    harness = Harness(catalogue=[*CATALOGUE, teamwork])
+    output = await harness.run("cv/10/1/project.pdf", cv_id=10)
+
+    assert harness.params["prompt_version"] == "cv_parser/v2"
+    profile = output.model_dump(mode="json")["profile_masked"]
+    [project] = profile["projects"]
+    assert (project["role"], project["technologies"]) == (
+        "Team leader",
+        ["Spring Boot", "PostgreSQL", "Docker"],
+    )
+    skills = [(s["name"], s["canonical_name"], s["match"]) for s in profile["skills"]]
+    assert skills == [("Java", "Java", "ALIAS"), ("Teamwork", "Teamwork", "ALIAS")]
+    assert output.new_skills == []
 
 
 # --- failures ---------------------------------------------------------------------------------

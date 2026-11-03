@@ -7,7 +7,7 @@ from enum import StrEnum
 
 class MatchVerdict(StrEnum):
     """
-    MET = shown by a project or experience in the CV; PARTIAL = only listed, or below the required level; NOT_MET = no evidence
+    MET = the CV shows the required level; PARTIAL = only listed, below the required level, or a skill of the same family; NOT_MET = no evidence
     """
 
     MET = 'MET'

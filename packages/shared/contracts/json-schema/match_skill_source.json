@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./match_skill_source.json",
+  "type": "object",
+  "properties": {
+    "section": {
+      "$ref": "./evidence_section.json"
+    },
+    "index": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 99,
+      "description": "Position of the entry in its CV list, from 0"
+    },
+    "text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1000,
+      "description": "The words of the entry that name the skill, copied from the CV"
+    }
+  },
+  "required": [
+    "section",
+    "index",
+    "text"
+  ],
+  "additionalProperties": false,
+  "title": "MatchSkillSource",
+  "description": "One CV entry that shows a skill"
+}

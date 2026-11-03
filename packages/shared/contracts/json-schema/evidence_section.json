@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./evidence_section.json",
+  "type": "string",
+  "enum": [
+    "SKILLS_LIST",
+    "PROJECT",
+    "EXPERIENCE",
+    "CERTIFICATE"
+  ],
+  "title": "EvidenceSection",
+  "description": "CV list of a source entry: skills, projects, experience or certificates"
+}
