@@ -6,10 +6,11 @@ import {
   type PositionGroup,
   SaveJdRequirementsRequestSchema,
   type SaveJdRequirementsRequest,
+  SKILL_LEVEL_HINTS,
   SKILL_LEVELS,
   SKILL_WEIGHT_MAX,
 } from '@srm/shared';
-import { ArrowDownUp, CircleAlert, Plus, RefreshCw, Trash2 } from 'lucide-react';
+import { ArrowDownUp, CircleAlert, Info, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { Controller, type UseFieldArrayReturn, useFieldArray, useForm, type UseFormReturn } from 'react-hook-form';
 import { toast } from 'sonner';
@@ -49,7 +50,23 @@ function emptyRequirements(): JdRequirements {
     must_have: [{ ...NEW_SKILL }],
     nice_to_have: [],
     hard_conditions: { majors: [], min_study_year: null, min_gpa: null, required_languages: [] },
+    preferred_languages: [],
   };
+}
+
+/**
+ * The errors of a list field for `FieldError`: the list's own, then each entry's with the entry,
+ * since an entry's error (too long, a language in both lists) sits under its index.
+ */
+function listErrors(error: unknown, values: readonly string[]): { message: string }[] {
+  if (typeof error !== 'object' || error === null) return [];
+  const { message, root } = error as { message?: unknown; root?: { message?: unknown } };
+  const own = [message, root?.message].filter((text): text is string => typeof text === 'string');
+  // An array, or the list's own error with the entries' errors under numeric keys when both occur.
+  const entries = Object.entries(error).flatMap(([key, entry]: [string, { message?: unknown } | undefined]) =>
+    /^\d+$/.test(key) && typeof entry?.message === 'string' ? [`${values[Number(key)] ?? ''}: ${entry.message}`] : [],
+  );
+  return [...own, ...entries].map((text) => ({ message: text }));
 }
 
 function defaultsOf(view: JdRequirementsView): FormInput {
@@ -230,6 +247,7 @@ export function RequirementsForm({ jdId, view, mode, onReload, onDone }: Require
         />
       </FieldGroup>
 
+      <SkillLevelHelp />
       <SkillGroup
         form={form}
         array={mustHave}
@@ -270,7 +288,7 @@ export function RequirementsForm({ jdId, view, mode, onReload, onDone }: Require
                   itemName="ngành"
                 />
                 <FieldDescription>Để trống nếu JD nhận mọi ngành.</FieldDescription>
-                {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                {fieldState.invalid && <FieldError errors={listErrors(fieldState.error, field.value)} />}
               </Field>
             )}
           />
@@ -331,6 +349,8 @@ export function RequirementsForm({ jdId, view, mode, onReload, onDone }: Require
           <Controller
             name="requirements.hard_conditions.required_languages"
             control={form.control}
+            // A language in both lists is reported on the preferred entry (LESSONS §26).
+            rules={{ deps: ['requirements.preferred_languages'] }}
             render={({ field, fieldState }) => (
               <Field data-invalid={fieldState.invalid}>
                 <FieldLabel htmlFor="req-languages">Ngoại ngữ bắt buộc</FieldLabel>
@@ -343,13 +363,41 @@ export function RequirementsForm({ jdId, view, mode, onReload, onDone }: Require
                   placeholder="Tiếng Anh (TOEIC 550)"
                   itemName="ngoại ngữ"
                 />
-                <FieldDescription>Ghi kèm mức yêu cầu nếu có. Ngoại ngữ chỉ ưu tiên thì thêm vào kỹ năng bổ trợ.</FieldDescription>
-                {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                <FieldDescription>
+                  Ghi kèm chứng chỉ và mức nếu có. Chứng chỉ khác loại của cùng ngôn ngữ được quy đổi theo bậc CEFR.
+                </FieldDescription>
+                {fieldState.invalid && <FieldError errors={listErrors(fieldState.error, field.value)} />}
               </Field>
             )}
           />
         </FieldGroup>
       </FieldSet>
+
+      <FieldGroup>
+        <Controller
+          name="requirements.preferred_languages"
+          control={form.control}
+          render={({ field, fieldState }) => (
+            <Field data-invalid={fieldState.invalid}>
+              <FieldLabel htmlFor="req-preferred-languages">Ngoại ngữ ưu tiên</FieldLabel>
+              <ValueListInput
+                id="req-preferred-languages"
+                value={field.value}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+                invalid={fieldState.invalid}
+                placeholder="Tiếng Nhật (JLPT N3)"
+                itemName="ngoại ngữ ưu tiên"
+              />
+              <FieldDescription>
+                Không phải điều kiện cứng: sinh viên đạt được cộng điểm, chưa đạt vẫn được xét. Mỗi ngoại ngữ chỉ ghi ở
+                một trong hai mục.
+              </FieldDescription>
+              {fieldState.invalid && <FieldError errors={listErrors(fieldState.error, field.value)} />}
+            </Field>
+          )}
+        />
+      </FieldGroup>
 
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
         {mode === 'IN_PLACE' ? (
@@ -418,6 +466,25 @@ export function RequirementsForm({ jdId, view, mode, onReload, onDone }: Require
         </AlertDialogContent>
       </AlertDialog>
     </form>
+  );
+}
+
+/** What each level asks of a CV (US-3.6 AC-9): the same thresholds the matching code uses. */
+function SkillLevelHelp() {
+  return (
+    <Alert>
+      <Info />
+      <AlertTitle>Mức độ kỹ năng được chấm theo CV</AlertTitle>
+      <AlertDescription>
+        <ul className="flex flex-col gap-1">
+          {SKILL_LEVELS.map((level) => (
+            <li key={level}>
+              <span className="font-medium text-foreground">{SKILL_LEVEL_LABELS[level]}</span>: {SKILL_LEVEL_HINTS[level]}.
+            </li>
+          ))}
+        </ul>
+      </AlertDescription>
+    </Alert>
   );
 }
 

@@ -22,12 +22,23 @@
     },
     "hard_conditions": {
       "$ref": "./jd_hard_conditions.json"
+    },
+    "preferred_languages": {
+      "maxItems": 10,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 100
+      },
+      "description": "Foreign languages the JD prefers but does not require, with any stated level; a language is either required or preferred, never both"
     }
   },
   "required": [
     "must_have",
     "nice_to_have",
-    "hard_conditions"
+    "hard_conditions",
+    "preferred_languages"
   ],
   "additionalProperties": false,
   "title": "JdRequirements",

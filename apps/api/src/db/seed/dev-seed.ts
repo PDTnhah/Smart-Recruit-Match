@@ -34,6 +34,7 @@ const SEED_REQUIREMENTS: JdRequirements = {
   ],
   nice_to_have: [{ skill: 'NestJS', level: 'BASIC', weight: 1 }],
   hard_conditions: { majors: ['Công nghệ thông tin'], min_study_year: 3, min_gpa: null, required_languages: [] },
+  preferred_languages: ['Tiếng Anh (TOEIC 550)'],
 };
 
 /**

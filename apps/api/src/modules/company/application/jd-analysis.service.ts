@@ -7,6 +7,7 @@ import {
   JdRequirementsSchema,
   type PositionGroup,
   SERVER_EVENTS,
+  withoutOverlappingPreferred,
 } from '@srm/shared';
 import { errorMessage } from '../../../common/errors/index.js';
 import { DRIZZLE } from '../../../db/tokens.js';
@@ -28,6 +29,8 @@ type AnalysisOutcome =
       kind: 'SUCCEEDED';
       jobId: string;
       requirements: JdRequirements;
+      /** Preferred languages dropped because a required entry names the same language (CONTEXT D45). */
+      droppedPreferred: string[];
       positionGroup: PositionGroup;
       model: string;
       promptVersion: string;
@@ -86,7 +89,13 @@ export class JdAnalysisService {
    */
   @OnEvent(AI_RESULT_EVENTS.JD_ANALYZE, { suppressErrors: false })
   async apply(result: AiResultEvent<'JD_ANALYZE'>): Promise<void> {
-    await this.settle(result.job.jd_id, result.job.jd_version, outcomeOf(result));
+    const outcome = outcomeOf(result);
+    if (outcome.kind === 'SUCCEEDED' && outcome.droppedPreferred.length > 0) {
+      this.logger.warn(
+        `JD ${result.job.jd_id} v${result.job.jd_version}: dropped preferred languages already required: ${outcome.droppedPreferred.join('; ')}`,
+      );
+    }
+    await this.settle(result.job.jd_id, result.job.jd_version, outcome);
   }
 
   private async settle(jdId: number, version: number, outcome: AnalysisOutcome): Promise<void> {
@@ -169,7 +178,9 @@ export class JdAnalysisService {
 /**
  * The outcome a result message stands for. A SUCCEEDED message whose requirements break the
  * cross-field rule of JdRequirementsSchema (the JSON Schema checked on the queue cannot carry it)
- * or that names another JD counts as a failure: HR then enters the requirements by hand.
+ * or that names another JD counts as a failure: HR then enters the requirements by hand. A
+ * preferred language that a required entry already names is dropped instead (US-3.6 AC-4), so
+ * the stored proposal meets the rule HR's save is held to.
  */
 function outcomeOf(result: AiResultEvent<'JD_ANALYZE'>): AnalysisOutcome {
   if (result.status === 'FAILED' || result.result === null) {
@@ -191,10 +202,12 @@ function outcomeOf(result: AiResultEvent<'JD_ANALYZE'>): AnalysisOutcome {
       hiddenTextDetected: output.hidden_text_detected,
     };
   }
+  const cleaned = withoutOverlappingPreferred(requirements.data);
   return {
     kind: 'SUCCEEDED',
     jobId: result.job_id,
-    requirements: requirements.data,
+    requirements: cleaned.requirements,
+    droppedPreferred: cleaned.dropped,
     positionGroup: output.position_group,
     model: output.model,
     promptVersion: output.prompt_version,

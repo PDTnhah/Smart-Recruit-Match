@@ -44,6 +44,7 @@ export const SAMPLE_REQUIREMENTS: JdRequirements = {
   must_have: [{ skill: 'TypeScript', level: 'INTERMEDIATE', weight: 3 }],
   nice_to_have: [{ skill: 'Docker', level: 'BASIC', weight: 1 }],
   hard_conditions: { majors: [], min_study_year: null, min_gpa: null, required_languages: [] },
+  preferred_languages: [],
 };
 
 /**

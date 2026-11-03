@@ -12,6 +12,7 @@ import {
   skillMatchKey,
 } from '@srm/shared';
 import { type EvidenceTier, FAMILY_MIN_TIER, FAMILY_RULE_EXCLUDED, LEVEL_TIER, MAX_EVIDENCE_CHARS } from './matching-rules.js';
+import { joinWithin } from './quote.js';
 import {
   type CvSkillEvidence,
   evidenceOfNewSkill,
@@ -33,20 +34,6 @@ export type SkillVerdicts = Pick<MatchCriteria, 'must_have' | 'nice_to_have'>;
 
 /** What a quoted entry is called in the evidence (PRD › S_cv sample). */
 const ENTRY_LABEL = { PROJECT: 'Dự án', EXPERIENCE: 'Kinh nghiệm', CERTIFICATE: 'Chứng chỉ' } as const;
-
-/**
- * As many of `items` as fit in `max` characters, joined by `separator`, so a quote is cut between
- * items; the first item alone is cut only if it does not fit.
- */
-function joinWithin(items: readonly string[], separator: string, max: number): string {
-  let joined = '';
-  for (const item of items) {
-    const next = joined === '' ? item : `${joined}${separator}${item}`;
-    if (next.length > max) break;
-    joined = next;
-  }
-  return joined === '' ? (items[0] ?? '').slice(0, max) : joined;
-}
 
 /**
  * The sources of a verdict, the strongest first, and its evidence (AC-6): each entry as the CV calls

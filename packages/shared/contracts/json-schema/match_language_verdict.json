@@ -18,13 +18,34 @@
         }
       ],
       "description": "Quote copied from the CV that supports the verdict; null when NOT_MET"
+    },
+    "required": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000,
+      "description": "The required and preferred languages of the JD with their CEFR levels, joined by \"; \""
+    },
+    "held": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "The languages and certificates of the student with their CEFR levels, joined by \"; \"; null when none"
     }
   },
   "required": [
     "verdict",
-    "evidence"
+    "evidence",
+    "required",
+    "held"
   ],
   "additionalProperties": false,
   "title": "MatchLanguageVerdict",
-  "description": "How well the languages and certificates meet the JD"
+  "description": "How well the languages and certificates meet the JD, computed by code (CONTEXT D42, D45)"
 }

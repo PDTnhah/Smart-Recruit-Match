@@ -8,6 +8,8 @@ import {
   scvWeightsOf,
   type SkillLevel,
 } from '@srm/shared';
+import { scoreLanguage } from '../language-score.js';
+import { majorMatch } from '../major-match.js';
 import { computeScv } from '../scv.js';
 import { buildSkillEvidence } from '../skill-evidence.js';
 import { matchSkills } from '../skill-match.js';
@@ -213,11 +215,12 @@ describe('GĐ3 FR-40 exact, implied, family and none; evidence copied from CV (U
   });
 });
 
-describe('GĐ3 PRD sample: code verdicts feed computeScv to 58.80 (US-3.5 AC-7)', () => {
+describe('GĐ3 PRD sample: code verdicts feed computeScv to 58.80 (US-3.5 AC-7, US-3.6)', () => {
   const requirements: JdRequirements = {
     must_have: [req('Java', 'INTERMEDIATE'), req('SQL'), req('Docker')],
     nice_to_have: [req('Redis')],
     hard_conditions: { majors: [], min_study_year: null, min_gpa: null, required_languages: ['Tiếng Anh (TOEIC 500)'] },
+    preferred_languages: [],
   };
   const cv = profile({
     skills: [listed('MySQL')],
@@ -260,14 +263,21 @@ describe('GĐ3 PRD sample: code verdicts feed computeScv to 58.80 (US-3.5 AC-7)'
     });
   });
 
-  it('GĐ3 PRD sample: with the rest of US-3.1 AC-4, S_cv is 58.80', () => {
+  it('GĐ3 PRD sample: with the rest of US-3.1 AC-4, S_cv is 58.80; major and language by code too', () => {
+    const language = scoreLanguage(requirements, ['Tiếng Anh TOEIC 650']);
+    expect(language).toEqual({
+      verdict: 'MET',
+      evidence: 'Tiếng Anh TOEIC 650',
+      required: 'TOEIC 500 (A2)',
+      held: 'TOEIC 650 (B1)',
+    });
     const result = computeScv({
       requirements,
       criteria: {
         ...verdicts,
         project_relevance: { score_0_4: 3, reason: '...' },
-        education: { major_match: 'EXACT' },
-        language: { verdict: 'MET', evidence: 'TOEIC 650' },
+        education: majorMatch({ majors: [], positionGroup: 'BACKEND' }, 'Kỹ thuật phần mềm'),
+        language,
       },
       education: { gpa4: 3.2 },
       weights: scvWeightsOf(CampaignConfigSchema.parse({})),

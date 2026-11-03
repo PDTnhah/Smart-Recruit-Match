@@ -1,10 +1,14 @@
 import {
+  HrJdRequirementsSchema,
   JdAnalysisSchema,
   JdAnalyzeOutputSchema,
   JdRequirementsSchema,
   type JdRequirements,
   SaveJdRequirementsRequestSchema,
+  SKILL_LEVEL_EVIDENCE,
+  SKILL_LEVEL_HINTS,
   skillKey,
+  withoutOverlappingPreferred,
 } from '../../index.js';
 
 const requirements = (): JdRequirements => ({
@@ -19,11 +23,12 @@ const requirements = (): JdRequirements => ({
     min_gpa: 2.5,
     required_languages: ['Tiếng Anh (TOEIC 550)'],
   },
+  preferred_languages: ['Tiếng Nhật (JLPT N3)'],
 });
 
 /** Paths of the issues a parse reports, as `a.0.b` strings. */
-function issuePaths(input: unknown): string[] {
-  const result = JdRequirementsSchema.safeParse(input);
+function issuePaths(input: unknown, schema: typeof JdRequirementsSchema = JdRequirementsSchema): string[] {
+  const result = schema.safeParse(input);
   return result.success ? [] : result.error.issues.map((issue) => issue.path.join('.'));
 }
 
@@ -154,6 +159,90 @@ describe('FR-9 JdAnalysis and JdAnalyzeOutput (AC-3)', () => {
     const missing: Partial<typeof output> = { ...output };
     delete missing.hidden_text_detected;
     expect(JdAnalyzeOutputSchema.safeParse(missing).success).toBe(false);
+  });
+});
+
+describe('GĐ1 FR-9 preferred languages (US-3.6 AC-4, CONTEXT D45)', () => {
+  const withLanguages = (required: string[], preferred: unknown[]) => ({
+    ...requirements(),
+    hard_conditions: { ...requirements().hard_conditions, required_languages: required },
+    preferred_languages: preferred,
+  });
+
+  it('AC-4 at most 10 entries of at most 100 characters, none blank; the list is required', () => {
+    expect(issuePaths(withLanguages([], Array.from({ length: 10 }, (_, i) => `Tiếng ${i}`)))).toEqual([]);
+    expect(issuePaths(withLanguages([], Array.from({ length: 11 }, (_, i) => `Tiếng ${i}`)))).toEqual([
+      'preferred_languages',
+    ]);
+    expect(issuePaths(withLanguages([], ['  ', 'x'.repeat(101)]))).toEqual([
+      'preferred_languages.0',
+      'preferred_languages.1',
+    ]);
+    const missing: Partial<JdRequirements> = requirements();
+    delete missing.preferred_languages;
+    expect(issuePaths(missing)).toEqual(['preferred_languages']);
+  });
+
+  it('AC-4 a language is required or preferred, never both: compared by language, not by text', () => {
+    const input = withLanguages(['Tiếng Anh (TOEIC 550)'], ['IELTS 7.0', 'Tiếng Nhật N3', 'English']);
+    const result = HrJdRequirementsSchema.safeParse(input);
+    expect(result.error?.issues.map((issue) => [issue.path.join('.'), issue.message])).toEqual([
+      ['preferred_languages.0', 'Ngoại ngữ này đã có ở mục bắt buộc'],
+      ['preferred_languages.2', 'Ngoại ngữ này đã có ở mục bắt buộc'],
+    ]);
+    // Alternatives and parts joined by "và" name every language they mention.
+    expect(issuePaths(withLanguages(['Tiếng Anh hoặc tiếng Nhật'], ['JLPT N2']), HrJdRequirementsSchema)).toEqual([
+      'preferred_languages.0',
+    ]);
+    expect(issuePaths(withLanguages(['TOEIC 550 và JLPT N3'], ['Tiếng Hàn']), HrJdRequirementsSchema)).toEqual([]);
+  });
+
+  it('AC-4 entries that name no language never clash', () => {
+    expect(issuePaths(withLanguages(['Ngoại ngữ thứ hai'], ['Ngoại ngữ thứ hai']), HrJdRequirementsSchema)).toEqual([]);
+    expect(issuePaths(withLanguages(['Tiếng Anh'], ['B2']), HrJdRequirementsSchema)).toEqual([]);
+  });
+
+  it('AC-4 the clash still shows while another field is invalid (LESSONS §10)', () => {
+    const input = withLanguages(['Tiếng Anh'], ['TOEIC 700', '']);
+    input.must_have[0]!.weight = 0;
+    expect(issuePaths(input, HrJdRequirementsSchema).sort()).toEqual([
+      'must_have.0.weight',
+      'preferred_languages.0',
+      'preferred_languages.1',
+    ]);
+  });
+
+  it.each([undefined, null, 'x', {}, { hard_conditions: 5, preferred_languages: 'x' }, withLanguages([1 as never], [2])])(
+    'AC-4 malformed input %p is reported, never thrown',
+    (input) => {
+      expect(HrJdRequirementsSchema.safeParse(input).success).toBe(false);
+    },
+  );
+
+  it('AC-4 the AI proposal is not held to it on the queue; the backend drops the repeated entries', () => {
+    const proposal = JdRequirementsSchema.parse(withLanguages(['Tiếng Anh (TOEIC 550)'], ['IELTS 7.0', 'Tiếng Nhật N3']));
+    const cleaned = withoutOverlappingPreferred(proposal);
+    expect(cleaned).toEqual({
+      requirements: { ...proposal, preferred_languages: ['Tiếng Nhật N3'] },
+      dropped: ['IELTS 7.0'],
+    });
+    expect(HrJdRequirementsSchema.safeParse(cleaned.requirements).success).toBe(true);
+    const clean = requirements();
+    expect(withoutOverlappingPreferred(clean).requirements).toBe(clean);
+  });
+
+  it('AC-4 the API reports the clash under requirements', () => {
+    const body = { rowVersion: 1, requirements: withLanguages(['Tiếng Anh'], ['IELTS 6.5']), positionGroup: 'BACKEND' };
+    const result = SaveJdRequirementsRequestSchema.safeParse(body);
+    expect(result.error?.issues.map((issue) => issue.path.join('.'))).toEqual(['requirements.preferred_languages.0']);
+  });
+});
+
+describe('GĐ1 FR-9 skill level hints for HR (US-3.6 AC-9, CONTEXT D44)', () => {
+  it('AC-9 the hints quote the thresholds the tier rules use', () => {
+    expect(SKILL_LEVEL_HINTS.INTERMEDIATE).toContain(`${SKILL_LEVEL_EVIDENCE.intermediateMinProjectOrExperience} dự án`);
+    expect(SKILL_LEVEL_HINTS.ADVANCED).toContain(`${SKILL_LEVEL_EVIDENCE.advancedMinExperienceMonths} tháng`);
+    expect(SKILL_LEVEL_HINTS.BASIC).toContain('1 dự án');
   });
 });
 

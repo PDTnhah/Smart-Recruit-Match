@@ -827,7 +827,7 @@ Mỗi quyết định có một mã AD-N; lý do đầy đủ ở mục D tươn
 | AD-12 | Tối ưu chi phí LLM | Message Batches + prompt caching cho tác vụ hàng loạt; prompt là file có phiên bản | pre-0.1.0 | [D12](CONTEXT.md) |
 | AD-13 | Cập nhật thời gian thực | Server-Sent Events thay cho WebSocket | pre-0.1.0 | [D13](CONTEXT.md) |
 | AD-14 | Thư viện UI | shadcn/ui + Tailwind CSS thay cho Ant Design | pre-0.1.0 | [D14](CONTEXT.md) |
-| AD-15 | Khớp kỹ năng tất định | Code khớp kỹ năng CV–JD theo danh mục có vùng, họ, quan hệ kéo theo và bậc bằng chứng T0–T4; ngoại ngữ quy về CEFR; ngành theo bảng nhóm ngành; top-M theo `skill_fit`; không dùng LLM hay embedding cho bước này | 0.13.1 (thiết kế; code ở US-2.7, US-3.5, US-3.6) | [D42](CONTEXT.md) |
+| AD-15 | Khớp kỹ năng tất định | Code khớp kỹ năng CV–JD theo danh mục có vùng, họ, quan hệ kéo theo và bậc bằng chứng T0–T4; ngoại ngữ quy về CEFR (`language-cefr/v1`; bộ đọc ngôn ngữ ở `packages/shared` để schema JD, form HR và chấm điểm dùng chung); ngành theo bảng nhóm ngành (`packages/shared/schemas/majors.ts`); top-M theo `skill_fit`; không dùng LLM hay embedding cho bước này | 0.13.1 (thiết kế; code ở US-2.7 0.14.0, US-3.5 0.15.0, US-3.6 0.16.0) | [D42, D45](CONTEXT.md) |
 
 ---
 

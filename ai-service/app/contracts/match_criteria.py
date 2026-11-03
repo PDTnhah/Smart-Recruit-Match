@@ -29,5 +29,5 @@ class MatchCriteria(BaseModel):
     education: match_education.MatchEducation
     language: match_language_verdict.MatchLanguageVerdict | None
     """
-    null when the JD requires no foreign language
+    null when the JD neither requires nor prefers a foreign language
     """

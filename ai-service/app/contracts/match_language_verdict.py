@@ -16,9 +16,16 @@ class Evidence(RootModel[str]):
     """
 
 
+class Held(RootModel[str]):
+    root: Annotated[str, Field(max_length=2000, min_length=1)]
+    """
+    The languages and certificates of the student with their CEFR levels, joined by "; "; null when none
+    """
+
+
 class MatchLanguageVerdict(BaseModel):
     """
-    How well the languages and certificates meet the JD
+    How well the languages and certificates meet the JD, computed by code (CONTEXT D42, D45)
     """
 
     model_config = ConfigDict(
@@ -28,4 +35,12 @@ class MatchLanguageVerdict(BaseModel):
     evidence: Evidence | None
     """
     Quote copied from the CV that supports the verdict; null when NOT_MET
+    """
+    required: Annotated[str, Field(max_length=2000, min_length=1)]
+    """
+    The required and preferred languages of the JD with their CEFR levels, joined by "; "
+    """
+    held: Held | None
+    """
+    The languages and certificates of the student with their CEFR levels, joined by "; "; null when none
     """

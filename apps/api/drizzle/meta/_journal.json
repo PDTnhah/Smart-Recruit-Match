@@ -162,6 +162,13 @@
       "when": 1793625052830,
       "tag": "0022_skill_implications_valid",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1793677297409,
+      "tag": "0023_jd_preferred_languages",
+      "breakpoints": true
     }
   ]
 }

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { normalizeAudienceValue } from '../contracts/text.js';
 import { CAMPAIGN_STATES, type CampaignStatus } from '../states/campaign.js';
 import { RowVersionSchema, whenValid } from './common.js';
 
@@ -205,13 +206,8 @@ export const CampaignTargetSchema = z.object({
 
 export type CampaignTarget = z.output<typeof CampaignTargetSchema>;
 
-/**
- * Cohorts and majors match ignoring case and extra spaces ("cntt" = " CNTT "), and however the
- * accents were typed: Unikey's composed and decomposed forms read alike (NFC).
- */
-export function normalizeAudienceValue(value: string): string {
-  return value.normalize('NFC').trim().replace(/\s+/g, ' ').toLocaleLowerCase('vi');
-}
+// Cohorts and majors match ignoring case, extra spaces and the Unicode form of the accents.
+export { normalizeAudienceValue };
 
 // --- Phase deadlines --------------------------------------------------------------------------
 

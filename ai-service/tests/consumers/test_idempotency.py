@@ -34,6 +34,7 @@ JD_OUTPUT = {
             "min_gpa": None,
             "required_languages": [],
         },
+        "preferred_languages": [],
     },
     "position_group": "BACKEND",
     "new_skills": [],

@@ -4,9 +4,13 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, RootModel
 
 from . import jd_hard_conditions, jd_skill_requirement
+
+
+class PreferredLanguage(RootModel[str]):
+    root: Annotated[str, Field(max_length=100, min_length=1)]
 
 
 class JdRequirements(BaseModel):
@@ -28,3 +32,7 @@ class JdRequirements(BaseModel):
     Nice-to-have skills; never repeats a must-have skill
     """
     hard_conditions: jd_hard_conditions.JdHardConditions
+    preferred_languages: Annotated[list[PreferredLanguage], Field(max_length=10)]
+    """
+    Foreign languages the JD prefers but does not require, with any stated level; a language is either required or preferred, never both
+    """

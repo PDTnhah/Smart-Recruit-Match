@@ -1468,6 +1468,8 @@ export interface components {
                     /** @description Mandatory foreign languages with any stated level, e.g. "English (TOEIC 550)" */
                     required_languages: string[];
                 };
+                /** @description Foreign languages the JD prefers but does not require, with any stated level; a language is either required or preferred, never both */
+                preferred_languages: string[];
             } | null;
             /**
              * PositionGroup
@@ -1526,6 +1528,8 @@ export interface components {
                     /** @description Mandatory foreign languages with any stated level, e.g. "English (TOEIC 550)" */
                     required_languages: string[];
                 };
+                /** @description Foreign languages the JD prefers but does not require, with any stated level; a language is either required or preferred, never both */
+                preferred_languages: string[];
             };
             /**
              * PositionGroup

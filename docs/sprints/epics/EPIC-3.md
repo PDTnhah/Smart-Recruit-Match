@@ -84,7 +84,7 @@ Epic này **không** tính S_test hay S_final và không phân bổ. Các phần
 | US-3.3 | Shortlist và chọn nguyện vọng | SV xem shortlist có giải thích và sắp tối đa N_NV nguyện vọng | 📋 backlog | — |
 | US-3.4 | Mức cạnh tranh và gợi ý ít cạnh tranh | SV thấy mức cạnh tranh khi chọn NV; Trung tâm biết JD thiếu NV | 📋 backlog | — |
 | US-3.5 | Hồ sơ kỹ năng chi tiết và khớp kỹ năng bằng code | Mỗi kỹ năng của JD có verdict do code tính kèm kiểu khớp, bậc, nguồn trong CV | 👀 review | — |
-| US-3.6 | Quy đổi ngoại ngữ CEFR và mức khớp ngành bằng code | Chứng chỉ khác loại so theo CEFR; tiêu chí ngoại ngữ và ngành do code chấm | 📋 backlog | — |
+| US-3.6 | Quy đổi ngoại ngữ CEFR và mức khớp ngành bằng code | Chứng chỉ khác loại so theo CEFR; tiêu chí ngoại ngữ và ngành do code chấm | 👀 review | 0.16.0 |
 
 ## Object map & user-story interactions
 
@@ -97,7 +97,7 @@ Epic này **không** tính S_test hay S_final và không phân bổ. Các phần
 | US-3.3 | `preferences`; `packages/shared/states` (hồ sơ ứng tuyển); `apps/web/src/features/student/` | FR-15, FR-16 |
 | US-3.4 | Redis `competition:{jdId}`; SSE | FR-17 |
 | US-3.5 | `matching/domain/` (`skill-evidence`, `skill-match`, `soft-skill-signals`, `zone-profile`, `skill-fit`); `MatchSkillVerdict`; prompt `cv_parser/v2` | FR-40 |
-| US-3.6 | `matching/domain/` (`language-cefr`, `language-score`, `major-match`); `JdRequirements.preferred_languages`; `packages/shared/majors.ts`; prompt `jd_analyzer/v2` | FR-40 |
+| US-3.6 | `matching/domain/` (`language-cefr`, `language-score`, `major-match`); `JdRequirements.preferred_languages`; `packages/shared/contracts/languages.ts`, `schemas/majors.ts`; prompt `jd_analyzer/v2` | FR-40 |
 
 ## Cross-cutting invariants
 

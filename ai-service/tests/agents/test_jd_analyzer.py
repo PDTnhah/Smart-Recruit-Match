@@ -1,16 +1,17 @@
 """JD Analyzer (US-2.3 AC-2, AC-3, AC-6, AC-12), with recorded LLM replies, never a real API.
 
 The fixtures in tests/fixtures/llm/jd_analyzer are keyed by the exact request, so they also pin the
-released prompt jd_analyzer/v1 and the text the agent builds from each sample JD.
+released prompt jd_analyzer/v2 and the text the agent builds from each sample JD.
 """
 
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 from uuid import UUID
 
 import pymupdf
 import pytest
-from embedding_support import CatalogueHarness
+from embedding_support import CATALOGUE, CatalogueHarness, skill
 
 from app.agents.jd_analyzer import (
     AGENT,
@@ -23,6 +24,7 @@ from app.agents.jd_analyzer.agent import MAX_JD_CHARACTERS
 from app.consumers.errors import NeedsHumanReview, PermanentError, hidden_text_of
 from app.contracts.jd_analyze_job import JdAnalyzeJob
 from app.contracts.jd_analyze_output import JdAnalyzeOutput
+from app.embedding import CatalogSkill
 from app.llm.providers.fixture_provider import FixtureProvider
 from app.llm.recorder import CallRecord, CallRecorder
 from app.llm.structured import StructuredLLMClient
@@ -55,6 +57,16 @@ CATALOGUE_NAMES = JdSource(
     1,
     "Thực tập sinh Frontend",
     "Bắt buộc: ReactJS (khá), Postgres, React (thành thạo). Ưu tiên: React.js, Rust embedded.",
+    None,
+)
+# jd_analyzer/v2 (US-3.6 AC-8): a preferred language, soft skills, a trait no catalogue name covers.
+SOFT_SKILLS_AND_LANGUAGES = JdSource(
+    20,
+    1,
+    "Thực tập sinh Tester",
+    "Yêu cầu:\n- Kiểm thử API với Postman.\n- Viết được câu lệnh SQL.\n- Kỹ năng giao tiếp tốt.\n"
+    "- Tiếng Anh TOEIC 550 trở lên.\n\nƯu tiên:\n- Biết tiếng Nhật (JLPT N3).\n- Cẩn thận, tỉ mỉ.\n"
+    "- Vui vẻ, hòa đồng.",
     None,
 )
 
@@ -110,7 +122,7 @@ class RecordingFixtureProvider(FixtureProvider):
 
 
 class Harness:
-    def __init__(self, *sources: JdSource) -> None:
+    def __init__(self, *sources: JdSource, catalogue: Sequence[CatalogSkill] = CATALOGUE) -> None:
         self.sources = MemorySources(*sources)
         self.files = MemoryFiles()
         self.provider = RecordingFixtureProvider()
@@ -123,7 +135,7 @@ class Harness:
         )
         # The production registry: only the released, unchanged prompt renders (AD-12).
         prompts = PromptRegistry(active=load_active(), manifest=load_manifest())
-        self.catalogue = CatalogueHarness()
+        self.catalogue = CatalogueHarness(catalogue)
         self.analyzer = JdAnalyzer(
             sources=self.sources,
             files=self.files,
@@ -152,7 +164,7 @@ async def test_gd1_reads_view_wraps_jd_effort_low():
     [params] = harness.provider.sent
     assert (params["agent"], params["prompt_version"], params["effort"]) == (
         AGENT,
-        "jd_analyzer/v1",
+        "jd_analyzer/v2",
         "low",
     )
     assert params["user"].endswith(
@@ -170,7 +182,7 @@ async def test_gd1_result_matches_jd_requirements_schema():
 
     assert JdAnalyzeOutput.model_validate_json(output.model_dump_json()) == output
     assert (output.jd_id, output.jd_version) == (12, 1)
-    assert (output.prompt_version, output.model) == ("jd_analyzer/v1", "gemini-3.8-flash")
+    assert (output.prompt_version, output.model) == ("jd_analyzer/v2", "gemini-3.8-flash")
     assert output.position_group == "BACKEND"
     assert output.hidden_text_detected is False
     requirements = output.requirements
@@ -307,6 +319,7 @@ def test_gd1_checked_analysis_rejects_a_skill_listed_twice_ignoring_case():
                 "min_gpa": None,
                 "required_languages": [],
             },
+            "preferred_languages": [],
         },
         "position_group": "BACKEND",
     }
@@ -322,6 +335,7 @@ def test_gd1_checked_analysis_rejects_a_skill_listed_twice_ignoring_case():
         (("must_have", 0, "skill"), "   "),
         (("hard_conditions", "majors"), ["  "]),
         (("hard_conditions", "required_languages"), ["	"]),
+        (("preferred_languages",), [" "]),
     ],
 )
 def test_gd1_checked_analysis_rejects_blank_texts_as_zod_does(path, blank):
@@ -336,6 +350,7 @@ def test_gd1_checked_analysis_rejects_blank_texts_as_zod_does(path, blank):
                 "min_gpa": None,
                 "required_languages": [],
             },
+            "preferred_languages": [],
         },
         "position_group": "BACKEND",
     }
@@ -395,3 +410,47 @@ async def test_gd1_names_already_in_the_catalogue_unchanged():
     skills = [s.skill for s in (*output.requirements.must_have, *output.requirements.nice_to_have)]
     assert skills == ["Java", "Spring Boot", "SQL", "Docker", "Git"]
     assert [name.root for name in output.new_skills] == ["Git"]
+
+
+# --- US-3.6 AC-8: jd_analyzer/v2 ----------------------------------------------------------------
+
+
+async def test_ac8_preferred_languages_and_soft_skills_under_catalogue_names():
+    """v2 puts a preferred language in its own list, never among the skills, and writes the soft
+    skills the JD asks for under their catalogue names; a trait none of them covers is left out."""
+    catalogue = [
+        *CATALOGUE,
+        skill(9, "Communication", "Giao tiếp", group="SOFT_SKILL"),
+        skill(10, "Attention to Detail", "Cẩn thận tỉ mỉ", group="SOFT_SKILL"),
+    ]
+    harness = Harness(SOFT_SKILLS_AND_LANGUAGES, catalogue=catalogue)
+    output = await harness.run(SOFT_SKILLS_AND_LANGUAGES)
+
+    assert harness.provider.sent[0]["prompt_version"] == "jd_analyzer/v2"
+    requirements = output.model_dump(mode="json")["requirements"]
+    assert requirements["hard_conditions"]["required_languages"] == ["Tiếng Anh (TOEIC 550)"]
+    assert requirements["preferred_languages"] == ["Tiếng Nhật (JLPT N3)"]
+    skills = [s["skill"] for s in (*requirements["must_have"], *requirements["nice_to_have"])]
+    assert skills == ["Kiểm thử API", "Postman", "SQL", "Communication", "Attention to Detail"]
+    assert [name.root for name in output.new_skills] == ["Kiểm thử API", "Postman"]
+    assert output.position_group == "TESTER_QA"
+
+
+def test_ac4_a_language_both_required_and_preferred_passes_here_for_the_backend_to_drop():
+    """Telling languages apart takes the reader in packages/shared; the backend drops the copy."""
+    analysis = {
+        "requirements": {
+            "must_have": [{"skill": "SQL", "level": "BASIC", "weight": 3}],
+            "nice_to_have": [],
+            "hard_conditions": {
+                "majors": [],
+                "min_study_year": None,
+                "min_gpa": None,
+                "required_languages": ["Tiếng Anh (TOEIC 550)"],
+            },
+            "preferred_languages": ["IELTS 6.5"],
+        },
+        "position_group": "TESTER_QA",
+    }
+    checked = CheckedJdAnalysis.model_validate(analysis)
+    assert [language.root for language in checked.requirements.preferred_languages] == ["IELTS 6.5"]

@@ -34,7 +34,7 @@
           "type": "null"
         }
       ],
-      "description": "null when the JD requires no foreign language"
+      "description": "null when the JD neither requires nor prefers a foreign language"
     }
   },
   "required": [

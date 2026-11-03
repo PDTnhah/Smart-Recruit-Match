@@ -167,16 +167,48 @@ export const MatchProjectRelevanceSchema = z
   .meta({ title: 'MatchProjectRelevance', description: 'Rubric score of the relevant projects and experience' });
 
 export const MatchEducationSchema = z
-  .strictObject({ major_match: MajorMatchSchema })
+  .strictObject({
+    major_match: MajorMatchSchema,
+    major_unrecognized: z
+      .boolean()
+      .describe('The major is in no major group, or the student has none, so it counts as OTHER'),
+  })
   .meta({
     title: 'MatchEducation',
-    description: 'Major against the JD; the GPA comes from the school record, not from the CV (CONTEXT D41)',
+    description:
+      'Major against the JD, computed by code (CONTEXT D42, D45); the GPA comes from the school record, not from the CV (CONTEXT D41)',
   });
 
+/** Longest `required` / `held` of a language verdict: ten entries of 100 characters with their CEFR levels. */
+export const LANGUAGE_LIST_MAX = 2000;
+
 export const MatchLanguageVerdictSchema = z
-  .strictObject({ verdict: MatchVerdictSchema, evidence })
+  .strictObject({
+    verdict: MatchVerdictSchema,
+    evidence,
+    required: z
+      .string()
+      .trim()
+      .min(1)
+      .max(LANGUAGE_LIST_MAX)
+      .describe('The required and preferred languages of the JD with their CEFR levels, joined by "; "'),
+    held: z
+      .string()
+      .trim()
+      .min(1)
+      .max(LANGUAGE_LIST_MAX)
+      .nullable()
+      .describe('The languages and certificates of the student with their CEFR levels, joined by "; "; null when none'),
+  })
   .superRefine(requireEvidence, whenEvidenceParsed)
-  .meta({ title: 'MatchLanguageVerdict', description: 'How well the languages and certificates meet the JD' });
+  .meta({
+    title: 'MatchLanguageVerdict',
+    description: 'How well the languages and certificates meet the JD, computed by code (CONTEXT D42, D45)',
+  });
+
+export type MatchLanguageVerdict = z.output<typeof MatchLanguageVerdictSchema>;
+
+export type MatchEducation = z.output<typeof MatchEducationSchema>;
 
 export const MatchCriteriaSchema = z
   .strictObject({
@@ -190,7 +222,9 @@ export const MatchCriteriaSchema = z
       .describe('One verdict per nice-to-have skill of the JD'),
     project_relevance: MatchProjectRelevanceSchema,
     education: MatchEducationSchema,
-    language: MatchLanguageVerdictSchema.nullable().describe('null when the JD requires no foreign language'),
+    language: MatchLanguageVerdictSchema.nullable().describe(
+      'null when the JD neither requires nor prefers a foreign language',
+    ),
   })
   .meta({ title: 'MatchCriteria', description: 'Per-criterion verdicts of the Matching Agent; code computes S_cv (AD-2)' });
 

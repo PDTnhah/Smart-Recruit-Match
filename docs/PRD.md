@@ -481,16 +481,29 @@ Mỗi verdict lưu kiểu khớp, bậc, kỹ năng trung gian và nguồn. Bằ
 **Kỹ năng mềm.** Tên tự do ("giao tiếp tốt", "teamwork") được quy về một bộ năng lực chuẩn trong vùng Kỹ năng mềm: giao tiếp, làm việc nhóm, lãnh đạo, giải quyết vấn đề, thuyết trình, tư duy phản biện, tự học, quản lý thời gian, chủ động, trách nhiệm, thích nghi, cẩn thận. Bậc lấy từ bộ tín hiệu có phiên bản, so trên vai trò, vị trí, mô tả và chứng chỉ. Ví dụ "trưởng nhóm", "chủ nhiệm CLB" là tín hiệu lãnh đạo; "hackathon", "Olympic tin học" là tín hiệu giải quyết vấn đề. Chỉ tự khai là T1. 1, 2 hoặc ≥ 3 tín hiệu từ các mục khác nhau là T2, T3, T4. Kỹ năng mềm đi qua cùng luật khớp như kỹ năng chuyên môn.
 
 **Quy đổi ngoại ngữ (CEFR).**
-- Chứng chỉ quy về CEFR A1–C2 theo bảng chính thức của tổ chức thi: ETS cho TOEIC và TOEFL, IELTS, VSTEP bậc 1–6. Bảng có phiên bản (`language-cefr/v1`).
-- Hai chứng chỉ cùng loại thì so điểm gốc. Khác loại nhưng cùng ngôn ngữ thì so bậc CEFR.
+- Chứng chỉ quy về CEFR A1–C2 theo bảng chính thức của tổ chức thi. Bảng có phiên bản (`language-cefr/v1`, nguồn đọc ngày 03/11/2026, chi tiết ở [CONTEXT D45](CONTEXT.md)):
+
+  | Chứng chỉ (nguồn) | A1 | A2 | B1 | B2 | C1 | C2 |
+  |---|---|---|---|---|---|---|
+  | TOEIC Listening & Reading, tổng hai phần (ETS 2025) | 120 | 225 | 550 | 785 | 945 | – |
+  | IELTS (ielts.org) | – | – | 4.0 | 5.5 | 7.0 | 8.5 |
+  | TOEFL iBT thang 0–120 (ETS 04/2026) | 0 | 24 | 44 | 72 | 95 | 114 |
+  | TOEFL iBT thang band 1–6, dùng từ 21/01/2026 (ETS 04/2026) | 1 | 2 | 3 | 4 | 5 | 6 |
+  | TOEFL ITP (ETS 2023) | – | 343 | 433 | 543 | 627 | – |
+  | VSTEP / CEFR | bậc 1 | bậc 2 | bậc 3 | bậc 4 | bậc 5 | bậc 6 |
+
+  Điểm TOEFL không ghi "ITP" mà ≤ 6 là band của thang mới. Điểm thấp hơn ô đầu tiên của dòng là "dưới" bậc đó. Cambridge chưa có trong bảng.
+- Hai chứng chỉ cùng loại thì so điểm gốc. Khác loại thì so bậc CEFR, khi yêu cầu và mục của SV nêu cùng một ngôn ngữ (tên kỳ thi như TOEIC, IELTS cho biết là tiếng Anh). Hai thang của TOEFL iBT so với nhau như hai loại.
+- Bậc CEFR ghi kèm một điểm ("TOEIC 650 (B1)") chỉ là chú thích; bậc của điểm lấy từ bảng.
 - JLPT, TOPIK, HSK chỉ so cùng loại.
-- Luật này dùng cho cả điều kiện cứng lẫn điểm. Ví dụ: JD yêu cầu "TOEIC 550" (B1), SV có "IELTS 6.0" (B2) thì đạt.
-- Điểm ngoại ngữ tính trên các ngoại ngữ bắt buộc và ưu tiên của JD. Đạt hoặc vượt là *Đáp ứng*. Với ngoại ngữ ưu tiên, thiếu một bậc CEFR hoặc có ngôn ngữ mà không có chứng chỉ là *Một phần*.
+- Luật này dùng cho cả điều kiện cứng lẫn điểm. Ví dụ: JD yêu cầu "TOEIC 550" (B1), SV có "IELTS 6.0" (B2) thì đạt; JD yêu cầu "IELTS 6.5" (B2), SV có "TOEIC 600" (B1) thì không đạt.
+- Điểm ngoại ngữ xét từng ngoại ngữ bắt buộc và ưu tiên của JD; một ngôn ngữ chỉ nằm ở một trong hai danh sách. Đạt hoặc vượt là *Đáp ứng*. Với ngoại ngữ ưu tiên, *Một phần* khi thiếu không quá một bậc CEFR (JLPT, TOPIK, HSK: một cấp trên thang riêng), hoặc khi CV có một mục nêu ngôn ngữ đó mà không kèm chứng chỉ. Mục nối bằng "và" lấy mức thấp nhất của các phần.
+- Tiêu chí ngoại ngữ là trung bình các mục (*Đáp ứng* = 1, *Một phần* = 0,5): từ 0,75 là *Đáp ứng*, từ 0,25 là *Một phần*, còn lại *Không có bằng chứng*. JD không có ngoại ngữ nào thì tiêu chí rỗng.
 
 **Mức khớp ngành.**
 - JD có danh sách ngành thì cặp đã qua điều kiện cứng là *đúng ngành*.
-- JD không nêu ngành thì code tra bảng nhóm ngành theo nhóm vị trí. Ví dụ: Kỹ thuật phần mềm là đúng ngành với Backend; Toán tin là ngành gần với Data/AI.
-- Ngành không nhận ra được tính là *khác*, và hệ thống gắn cờ để Trung tâm kiểm.
+- JD không nêu ngành thì code quy ngành của SV về một trong 7 nhóm (phần mềm, hệ thống thông tin, mạng và an toàn thông tin, dữ liệu và AI, toán, điện tử, kinh tế), rồi tra bảng nhóm ngành theo nhóm vị trí. Tên ngành, viết tắt (CNTT, KTPM, HTTT…) và tên tiếng Anh của từng nhóm nằm ở `packages/shared/schemas/majors.ts`; bảng theo nhóm vị trí ở [CONTEXT D45](CONTEXT.md). Ví dụ: Kỹ thuật phần mềm là đúng ngành với Backend; Toán tin là ngành gần với Data/AI.
+- Ngành không nhận ra được, hoặc SV chưa có ngành, tính là *khác*, và hệ thống gắn cờ để Trung tâm kiểm.
 
 Kết quả mẫu của một cặp. Phần `criteria` về kỹ năng, học vấn và ngoại ngữ do code tính. `project_relevance`, `strengths`, `suggestions`, `summary` do Matching Agent trả:
 
@@ -894,7 +907,7 @@ Mọi thông báo đều hiện trong ứng dụng (chuông ở ba cổng, cập
 | FR-37 | Theo dõi token và chi phí LLM theo agent và theo đợt | P1 | 📋 backlog | EPIC-6 |
 | FR-38 | Cán bộ Trung tâm xem kết quả chấm phù hợp theo JD: CV phù hợp sắp theo S_cv, tỷ lệ CV phù hợp / chỉ tiêu, số cặp bị lọc sơ bộ; ngay sau GĐ3 hệ thống báo các JD có tỷ lệ < 1. HR không xem được (UC-09, BR-11, GĐ3) | P1 | 📋 backlog | EPIC-3 |
 | FR-39 | Danh mục kỹ năng có vùng, họ (nhóm kỹ năng thay thế được cho nhau) và quan hệ kéo theo; kỹ năng mềm quy về bộ năng lực chuẩn; Quản trị gán và sửa khi duyệt kỹ năng (GĐ2, FR-13, [CONTEXT D42](CONTEXT.md)) | P0 | 🚧 In progress | EPIC-2 |
-| FR-40 | Khớp kỹ năng CV–JD bằng code, không dùng LLM: bậc bằng chứng của từng kỹ năng (cả kỹ năng mềm), khớp đúng / kéo theo / cùng họ, quy đổi ngoại ngữ theo CEFR (cả điều kiện cứng), ngoại ngữ ưu tiên của JD, mức khớp ngành, độ phủ theo vùng; mọi verdict kèm nguồn trong CV (GĐ3, NFR-4, [CONTEXT D42](CONTEXT.md)) | P0 | 🚧 In progress | EPIC-3 |
+| FR-40 | Khớp kỹ năng CV–JD bằng code, không dùng LLM: bậc bằng chứng của từng kỹ năng (cả kỹ năng mềm), khớp đúng / kéo theo / cùng họ, quy đổi ngoại ngữ theo CEFR (cả điều kiện cứng), ngoại ngữ ưu tiên của JD, mức khớp ngành, độ phủ theo vùng; mọi verdict kèm nguồn trong CV (GĐ3, NFR-4, [CONTEXT D42, D45](CONTEXT.md)) | P0 | 🚧 In progress | EPIC-3 |
 
 Priority: `P0` = bắt buộc cho MVP, `P1` = nên có, `P2` = tùy chọn, `P3` = mở rộng. Status: `✅ shipped (vX.Y.Z)` / `🚧 in-progress` / `📋 backlog` / `⏪ reverted in vX.Y.Z` / `🗑️ deprecated vX.Y.Z`.
 

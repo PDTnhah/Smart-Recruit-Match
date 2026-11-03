@@ -7,7 +7,7 @@ from enum import StrEnum
 
 class SkillLevel(StrEnum):
     """
-    BASIC = basic, INTERMEDIATE = working knowledge, ADVANCED = proficient
+    BASIC = basic: used in at least 1 project, experience or certificate; INTERMEDIATE = working knowledge: used in at least 2 projects or experience entries; ADVANCED = proficient: at least 6 months of work or internship experience using it
     """
 
     BASIC = 'BASIC'

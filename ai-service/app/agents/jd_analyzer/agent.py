@@ -49,7 +49,9 @@ class CheckedJdAnalysis(JdAnalysis):
     (superRefine). An answer that breaks either is invalid output, so the LLMClient asks again
     (US-2.2 AC-4) instead of the backend refusing the whole proposal. Zod compares skills by the
     catalogue key; two spellings of one skill ("React", "React.js") pass here and are merged after
-    normalization (`_distinct_skills`), so they cost no second call."""
+    normalization (`_distinct_skills`), so they cost no second call. A language both required and
+    preferred is not checked here: telling languages apart takes the reader in packages/shared, so
+    the backend drops the preferred copy (US-3.6, CONTEXT D45)."""
 
     # The schema sent to the LLM keeps the contract's description, not this docstring.
     model_config = ConfigDict(
@@ -65,6 +67,7 @@ class CheckedJdAnalysis(JdAnalysis):
             *(item.skill for item in (*requirements.must_have, *requirements.nice_to_have)),
             *(major.root for major in conditions.majors),
             *(language.root for language in conditions.required_languages),
+            *(language.root for language in requirements.preferred_languages),
         ]
         if any(not text.strip() for text in texts):
             raise ValueError("skills, majors and languages must not be blank")
