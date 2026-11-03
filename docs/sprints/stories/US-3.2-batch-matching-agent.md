@@ -11,7 +11,7 @@ prd_ref: [FR-14, NFR-4, NFR-7]
 arch_ref: [AD-2, AD-4, AD-5, AD-12, AD-15]
 depends_on: [US-2.2, US-2.5, US-2.6, US-3.1, US-3.5, US-3.6]
 assignee: PDTnhah
-commit:
+commit: db5378c
 created: 2026-10-07
 updated: 2026-11-03
 ---
@@ -107,7 +107,7 @@ GĐ3 của PRD; ARCH › *Pipeline từng agent* › Matching, *Luồng chấm p
 
 Xem [CHANGELOG 0.17.0](../../CHANGELOG.md).
 
-**Commit**:
+**Commit**: db5378c
 
 ## Implementation notes
 

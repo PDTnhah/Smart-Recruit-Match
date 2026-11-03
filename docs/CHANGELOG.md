@@ -51,7 +51,7 @@ US-3.2. Mọi cặp SV × JD của đợt được chấm phù hợp. Code lọc
 - Chạy `pnpm --filter @srm/api db:migrate` (`0024`, `0025`). Build lại image `api` và `ai-worker` (`up -d --build`): worker cần `rapidfuzz` và prompt `matching/v1`.
 - Chưa đo với key thật: `ai-service/evals/smoke_llm.py` cho batch, và thời gian, chi phí của 500 SV × 50 JD.
 
-**Commit**:
+**Commit**: db5378c
 
 ---
 
