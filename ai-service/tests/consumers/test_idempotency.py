@@ -9,11 +9,15 @@ from cv_output import fake_cv_output
 from faststream.rabbit import RabbitBroker, TestRabbitBroker
 from faststream.rabbit.annotations import RabbitMessage
 
+from app.consumers.base import DEFERRED, Deferred
 from app.consumers.outbox import RabbitOutbox
 from app.contracts.cv_parse_job import CvParseJob
 from app.contracts.cv_parse_output import CvParseOutput
 from app.contracts.jd_analyze_job import JdAnalyzeJob
 from app.contracts.jd_analyze_output import JdAnalyzeOutput
+from app.contracts.match_failed_pair import MatchFailedPair
+from app.contracts.match_run_job import MatchRunJob
+from app.contracts.match_run_output import MatchRunOutput
 from app.contracts.skill_normalize_job import SkillNormalizeJob
 from app.contracts.skill_normalize_output import SkillNormalizeOutput
 from app.handlers import build_handlers
@@ -61,10 +65,28 @@ async def stub_skill_normalize(job: SkillNormalizeJob) -> SkillNormalizeOutput:
     )
 
 
+async def stub_match(job: MatchRunJob) -> MatchRunOutput | Deferred:
+    """Stands in for the Matching Agent (tests/agents/matching): a pair with cv_id 404 has lost
+    its data, so the job ends at once; any other job goes to a batch."""
+    missing = [pair for pair in job.pairs if pair.cv_id == 404]
+    if not missing:
+        return DEFERRED
+    return MatchRunOutput(
+        prompt_version="matching/v1",
+        final=True,
+        items=[],
+        failed_pairs=[
+            MatchFailedPair(**pair.model_dump(), code="SOURCE_MISSING", needs_review=False)
+            for pair in missing
+        ],
+    )
+
+
 STUBS = {
     "cv_parser": stub_cv_parse,
     "jd_analyzer": stub_jd_analyze,
     "skill_normalizer": stub_skill_normalize,
+    "matching": stub_match,
 }
 HANDLERS = build_handlers(**STUBS, fake_file_keys=True)
 
@@ -125,6 +147,41 @@ async def test_ad5_both_job_types_reach_their_handler(store) -> None:
     assert by_type["CV_PARSE"]["result"] == fake_cv_output(7, 1).model_dump(mode="json")
     assert by_type["JD_ANALYZE"]["result"] == {**JD_OUTPUT, "jd_id": 3, "jd_version": 2}
     assert all(r["error"] is None for r in results)
+
+
+def match_job(cv_id: int) -> dict[str, Any]:
+    return {
+        "job_id": str(uuid4()),
+        "campaign_id": 1,
+        "rules_version": "matching-rules/v1",
+        "prompt_version": None,
+        "pairs": [{"cv_id": cv_id, "cv_version": 1, "jd_id": 2, "jd_version": 1}],
+    }
+
+
+async def test_ad5_match_job_handed_to_a_batch_is_acked_and_stays_processing(store) -> None:
+    """US-3.2 AC-17: the message is acked once the batch is submitted; the poller finishes it."""
+    broker, results, dead = wired_broker(store, HANDLERS)
+    async with TestRabbitBroker(broker) as test_broker:
+        await test_broker.publish(json.dumps(match_job(7)), queue=QUEUES.jobs["MATCH"])
+
+    assert results == [] and dead == []
+    [row] = store.rows.values()
+    assert (row["type"], row["status"]) == ("MATCH", "PROCESSING")
+
+
+async def test_ad5_match_job_with_failed_pairs_finishes_partial(store) -> None:
+    """US-3.2 AC-9: a MATCH result that lists failed pairs is PARTIAL, in ai.results and ai.jobs."""
+    broker, results, _ = wired_broker(store, HANDLERS)
+    async with TestRabbitBroker(broker) as test_broker:
+        await test_broker.publish(json.dumps(match_job(404)), queue=QUEUES.jobs["MATCH"])
+
+    [result] = results
+    assert result["status"] == "PARTIAL"
+    assert result["result"]["final"] is True
+    assert [p["code"] for p in result["result"]["failed_pairs"]] == ["SOURCE_MISSING"]
+    [row] = store.rows.values()
+    assert row["status"] == "PARTIAL"
 
 
 async def test_nfr10_permanent_marker_fails_without_dlq(store) -> None:

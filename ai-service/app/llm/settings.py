@@ -12,7 +12,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, ValidationError, model_validator
 
-from app.llm.usage import DEFAULT_PRICES, ModelPrice
+from app.llm.usage import DEFAULT_BATCH_PRICES, DEFAULT_PRICES, ModelPrice
 
 ProviderName = Literal["gemini", "anthropic", "fixture"]
 
@@ -33,6 +33,8 @@ class LlmSettings(BaseModel):
     anthropic_api_key: SecretStr | None = None
     max_output_tokens: int = Field(default=16_000, ge=1)
     pricing: dict[str, ModelPrice]
+    batch_pricing: dict[str, ModelPrice]
+    """Prices of batch requests (US-3.2), see usage.py."""
     prompt_versions: dict[str, str] = {}
     """Overrides of app/prompts/active.json, e.g. {"cv_parser": "cv_parser/v2"}."""
     fixtures_dir: Path | None = None
@@ -70,6 +72,10 @@ def load_llm_settings(environ: Mapping[str, str] = os.environ) -> LlmSettings:
             "anthropic_api_key": get("ANTHROPIC_API_KEY"),
             "max_output_tokens": get("LLM_MAX_OUTPUT_TOKENS"),
             "pricing": {**DEFAULT_PRICES, **_json_object(get("LLM_PRICING"), "LLM_PRICING")},
+            "batch_pricing": {
+                **DEFAULT_BATCH_PRICES,
+                **_json_object(get("LLM_BATCH_PRICING"), "LLM_BATCH_PRICING"),
+            },
             "prompt_versions": _json_object(get("LLM_PROMPT_VERSIONS"), "LLM_PROMPT_VERSIONS"),
             "fixtures_dir": get("LLM_FIXTURES_DIR"),
             "log_bucket": get("LLM_LOG_BUCKET"),

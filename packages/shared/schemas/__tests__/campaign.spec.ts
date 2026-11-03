@@ -43,8 +43,15 @@ describe('GĐ0: campaign config schema', () => {
       scv_weight_project: 0.2,
       scv_weight_education: 0.15,
       scv_weight_language: 0.1,
+      match_top_m: 10,
     });
     expect(CampaignConfigSchema.parse({})).toEqual(DEFAULT_CAMPAIGN_CONFIG);
+  });
+
+  it('GĐ3 match_top_m is an integer from 1 to 50 (US-3.2 AC-6)', () => {
+    const topM = (value: number) => CampaignConfigSchema.safeParse({ match_top_m: value }).success;
+    expect([topM(1), topM(50)]).toEqual([true, true]);
+    expect([topM(0), topM(51), topM(2.5)]).toEqual([false, false, false]);
   });
 
   it('GĐ0: create request fills config and deadlines when they are left out', () => {

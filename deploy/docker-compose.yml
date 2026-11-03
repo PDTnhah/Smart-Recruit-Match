@@ -199,6 +199,8 @@ services:
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       LLM_FIXTURES_DIR: ${LLM_FIXTURES_DIR:-/tmp/llm-fixtures}
+      # Seconds between two status checks of a provider batch (matching, US-3.2); empty = 60.
+      LLM_BATCH_POLL_SECONDS: ${LLM_BATCH_POLL_SECONDS:-}
       # Emails and phone numbers of a CV are masked before the LLM (US-2.4 AC-5, NFR-3).
       CV_MASK_CONTACTS: ${CV_MASK_CONTACTS:-true}
       # Skill catalogue and profile embeddings (US-2.5, CONTEXT D39). `hashing` is a fake that needs

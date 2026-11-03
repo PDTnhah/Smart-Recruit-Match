@@ -1,7 +1,8 @@
 """US-2.2 AC-5: what the AI Service writes matches the ai.llm_calls migration (Invariant 11).
 
-The table is created by a Drizzle migration in apps/api. This test reads that SQL, so a column or
-CHECK value changed on one side only fails here, without a database.
+The table is created by a Drizzle migration in apps/api, and later migrations add columns to it
+(`batch_id`, US-3.2). This test reads that SQL, so a column or CHECK value changed on one side only
+fails here, without a database.
 """
 
 import re
@@ -24,6 +25,18 @@ def table_columns(sql: str) -> list[str]:
     return re.findall(r'^\t"([a-z_]+)" ', body, flags=re.MULTILINE)
 
 
+def added_columns() -> list[str]:
+    """Columns later migrations add, in migration order."""
+    return [
+        column
+        for path in sorted(MIGRATIONS.glob("*.sql"))
+        for column in re.findall(
+            r'ALTER TABLE "ai"\."llm_calls" ADD COLUMN "([a-z_]+)"',
+            path.read_text(encoding="utf-8"),
+        )
+    ]
+
+
 def check_values(sql: str, constraint: str) -> list[str]:
     match = re.search(rf'"{constraint}" CHECK \([^)]* in \(([^)]*)\)\)', sql)
     assert match, f"{constraint} not found"
@@ -33,7 +46,8 @@ def check_values(sql: str, constraint: str) -> list[str]:
 def test_nfr11_written_columns_exist_in_the_migration():
     columns = table_columns(migration_sql())
     assert columns[0] == "id" and columns[-1] == "created_at"
-    assert list(LLM_CALL_COLUMNS) == columns[1:-1]
+    assert added_columns() == ["batch_id"]
+    assert list(LLM_CALL_COLUMNS) == [*columns[1:-1], *added_columns()]
     assert INSERT_SQL.count("%s") == len(LLM_CALL_COLUMNS)
 
 

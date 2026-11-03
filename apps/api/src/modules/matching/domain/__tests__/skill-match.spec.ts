@@ -275,7 +275,7 @@ describe('GĐ3 PRD sample: code verdicts feed computeScv to 58.80 (US-3.5 AC-7, 
       requirements,
       criteria: {
         ...verdicts,
-        project_relevance: { score_0_4: 3, reason: '...' },
+        project_relevance: { score_0_4: 3, reason: '...', evidence: [] },
         education: majorMatch({ majors: [], positionGroup: 'BACKEND' }, 'Kỹ thuật phần mềm'),
         language,
       },

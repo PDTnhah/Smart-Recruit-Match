@@ -7,6 +7,15 @@ import { cvs, students } from '../../../db/schema/index.js';
 import { DRIZZLE } from '../../../db/tokens.js';
 import type { Database, DbTx } from '../../../db/types.js';
 
+/** A CV that counts in matching: the active version, confirmed by its student (US-3.2). */
+export interface ConfirmedCv {
+  cvId: number;
+  cvVersion: number;
+  studentId: number;
+  /** Personal values replaced by tokens (BR-03); all matching reads of the CV. */
+  profileMasked: CvProfile;
+}
+
 export interface CvRecord {
   id: number;
   studentId: number;
@@ -271,6 +280,16 @@ export class CvRepository {
       .from(cvs)
       .where(and(eq(cvs.studentId, studentId), campaignId === undefined ? undefined : eq(cvs.campaignId, campaignId)))
       .orderBy(desc(cvs.createdAt), desc(cvs.id));
+  }
+
+  /** Active CVs the student confirmed, with the masked profile (BR-01, CHECK cvs_analysed_check). */
+  async listConfirmedActive(campaignId: number): Promise<ConfirmedCv[]> {
+    const rows = await this.db
+      .select({ cvId: cvs.id, cvVersion: cvs.version, studentId: cvs.studentId, profileMasked: cvs.profileMasked })
+      .from(cvs)
+      .where(and(eq(cvs.campaignId, campaignId), eq(cvs.active, true), eq(cvs.status, 'CONFIRMED')))
+      .orderBy(cvs.id);
+    return rows.flatMap(({ profileMasked, ...row }) => (profileMasked === null ? [] : [{ ...row, profileMasked }]));
   }
 
   /** Students with an active CV in the campaign (BR-01: at most one row each). */

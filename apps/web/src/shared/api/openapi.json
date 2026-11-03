@@ -2109,6 +2109,44 @@
           "events"
         ]
       }
+    },
+    "/api/campaigns/{id}/matching-runs": {
+      "post": {
+        "operationId": "MatchingRunsController_start",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "maximum": 9007199254740991,
+              "exclusiveMinimum": true,
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchingRunDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "matching"
+        ]
+      }
     }
   },
   "info": {
@@ -3678,6 +3716,13 @@
                 "minimum": 0,
                 "maximum": 1,
                 "multipleOf": 0.01
+              },
+              "match_top_m": {
+                "default": 10,
+                "type": "integer",
+                "exclusiveMinimum": true,
+                "maximum": 50,
+                "minimum": 0
               }
             }
           }
@@ -3871,6 +3916,13 @@
                 "minimum": 0,
                 "maximum": 1,
                 "multipleOf": 0.01
+              },
+              "match_top_m": {
+                "default": 10,
+                "type": "integer",
+                "exclusiveMinimum": true,
+                "maximum": 50,
+                "minimum": 0
               }
             },
             "required": [
@@ -3889,7 +3941,8 @@
               "scv_weight_nice_to_have",
               "scv_weight_project",
               "scv_weight_education",
-              "scv_weight_language"
+              "scv_weight_language",
+              "match_top_m"
             ],
             "additionalProperties": false
           },
@@ -4111,6 +4164,13 @@
                       "minimum": 0,
                       "maximum": 1,
                       "multipleOf": 0.01
+                    },
+                    "match_top_m": {
+                      "default": 10,
+                      "type": "integer",
+                      "exclusiveMinimum": true,
+                      "maximum": 50,
+                      "minimum": 0
                     }
                   },
                   "required": [
@@ -4129,7 +4189,8 @@
                     "scv_weight_nice_to_have",
                     "scv_weight_project",
                     "scv_weight_education",
-                    "scv_weight_language"
+                    "scv_weight_language",
+                    "match_top_m"
                   ],
                   "additionalProperties": false
                 },
@@ -4328,6 +4389,12 @@
                 "minimum": 0,
                 "maximum": 1,
                 "multipleOf": 0.01
+              },
+              "match_top_m": {
+                "type": "integer",
+                "exclusiveMinimum": true,
+                "maximum": 50,
+                "minimum": 0
               }
             }
           },
@@ -7044,6 +7111,79 @@
         },
         "required": [
           "updated"
+        ],
+        "additionalProperties": false
+      },
+      "MatchingRunDto_Output": {
+        "type": "object",
+        "properties": {
+          "runId": {
+            "type": "integer",
+            "exclusiveMinimum": true,
+            "maximum": 9007199254740991,
+            "minimum": 0
+          },
+          "jobId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "RUNNING",
+              "SUCCEEDED",
+              "PARTIAL",
+              "FAILED"
+            ]
+          },
+          "rulesVersion": {
+            "type": "string"
+          },
+          "promptVersion": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "pairsTotal": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "pairsIneligible": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "pairsSkipped": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "pairsCached": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "pairsSent": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "runId",
+          "jobId",
+          "status",
+          "rulesVersion",
+          "promptVersion",
+          "pairsTotal",
+          "pairsIneligible",
+          "pairsSkipped",
+          "pairsCached",
+          "pairsSent"
         ],
         "additionalProperties": false
       }

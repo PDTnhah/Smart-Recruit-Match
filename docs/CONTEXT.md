@@ -18,7 +18,7 @@
 - D9 · Drizzle ORM thay Prisma
 - D10 · Một model Claude Opus 5.5 cho mọi agent → sửa bởi D34
 - D11 · Embedding `bge-m3` tự host → sửa một phần bởi D42 (lọc sơ bộ GĐ3 theo `skill_fit`)
-- D12 · Message Batches, prompt caching, prompt có phiên bản
+- D12 · Message Batches, prompt caching, prompt có phiên bản → sửa một phần bởi D46 (batch cho hai nhà cung cấp, yêu cầu JD ở block `shared`)
 - D13 · Server-Sent Events cho cập nhật thời gian thực
 - D14 · shadcn/ui + Tailwind CSS thay Ant Design
 - D15 · Áp dụng koni-docs
@@ -48,10 +48,11 @@
 - D39 · Danh mục kỹ năng và embedding: module `skills`, `EMBEDDING_PROVIDER`, hợp đồng kỹ năng, HNSW một phần (US-2.5)
 - D40 · SV xác nhận hồ sơ: che PII lại bằng TS, "Sửa lại" tạo phiên bản mới, kỹ năng SV nhập vào hàng chờ duyệt (US-2.6)
 - D41 · Trọng số S_cv trong cấu hình đợt, tiêu chí rỗng chia lại trọng số, GPA thang 4, đọc chứng chỉ ngoại ngữ bằng code (US-3.1) → sửa một phần bởi D42 (quy đổi CEFR)
-- D42 · Khớp kỹ năng, ngoại ngữ, ngành bằng code theo taxonomy vùng/họ/kéo theo; LLM chỉ chấm dự án và viết nhận xét (US-2.7, US-3.5, US-3.6) → sửa một phần bởi D43 (danh sách vùng), D44 (khung bậc), D45 (bảng CEFR, nhóm ngành)
+- D42 · Khớp kỹ năng, ngoại ngữ, ngành bằng code theo taxonomy vùng/họ/kéo theo; LLM chỉ chấm dự án và viết nhận xét (US-2.7, US-3.5, US-3.6) → sửa một phần bởi D43 (danh sách vùng), D44 (khung bậc), D45 (bảng CEFR, nhóm ngành), D46 (tạm không hạ điểm dự án)
 - D43 · Taxonomy kỹ năng: 15 vùng, 70 họ, họ `FOREIGN_LANGUAGE`, bỏ chuyển cạnh khi gộp, mã lỗi và giới hạn kéo theo (US-2.7)
 - D44 · Khung bậc `matching-rules/v1`: thời gian chỉ đọc ở mục kinh nghiệm, luật khớp, quét văn bản tự do (US-3.5)
 - D45 · Bảng `language-cefr/v1`, hai thang TOEFL iBT, điểm tiêu chí ngoại ngữ, 7 nhóm ngành, bộ đọc ngôn ngữ ở `packages/shared` (US-3.6)
+- D46 · Matching hàng loạt: batch Gemini + Claude, ack sớm và bộ poll, ghim prompt theo đợt, tạm không hạ điểm dự án, năm học đọc từ hồ sơ (US-3.2)
 
 ---
 
@@ -1719,3 +1720,83 @@ AC-4 đòi một ngôn ngữ không nằm ở cả `required_languages` lẫn `p
 
 **Date**: 2026-11-03
 **Version**: 0.16.0
+
+### D46. Matching hàng loạt: batch cho Gemini và Claude, ack sớm và bộ poll, ghim prompt theo đợt, tạm không hạ điểm dự án, năm học đọc từ hồ sơ (US-3.2) (revision of D12, D42)
+
+**Context**: Phiên Plan của US-3.2 gặp sáu điểm spec chưa chốt hoặc mâu thuẫn:
+
+- ARCH › *Chọn model* ghi "Message Batches và prompt caching khác nhau giữa hai nhà cung cấp; cách bọc chung chốt ở US-3.2". Story viết theo Message Batches của Claude, trong khi Gemini là mặc định (D34).
+- Story refresh để mở mức hạ điểm dự án khi trích dẫn không khớp: về 0 hay giảm 1.
+- AC-4 refresh gửi lại cặp khi `prompt_version` đổi. PRD › guardrails yêu cầu cố định phiên bản prompt trong đợt.
+- Điều kiện cứng `min_study_year` cần năm học. US-3.1 để việc suy ra từ `cohort` cho US-3.2, nhưng mã khóa ("K66") không có trên CV và mỗi trường quy đổi một khác.
+- Spec cho consumer `ai.match.run` "poll đến khi xong". RabbitMQ 4.3 của compose đóng channel khi message chưa ack quá `consumer_timeout` (mặc định 30 phút), còn một batch có thể chạy tới 24 giờ.
+- AC-7 đặt yêu cầu JD trong `system`, nhưng D34 không cho dữ liệu thay đổi vào `system` (block này render với context rỗng).
+
+**Decision** (người dùng chốt bốn điểm đầu ngày 2026-11-03; hai điểm sau nằm trong plan đã được duyệt):
+
+- **Batch cho cả Gemini và Claude.** `StructuredBatchClient` làm phần chung:
+  - kiểm refusal trước khi đọc nội dung, rồi kiểm schema;
+  - ghi `ai.llm_calls` và `llm-logs` cho từng request, giá giảm 50%.
+
+  Adapter `BatchProvider` (`submit`, `status`, `results`) có ba bản: Claude Message Batches, Gemini Batch API và fixture (`ai-service/tests/fixtures/batches/`). Tham số cụ thể đối chiếu skill `claude-api` và ai.google.dev lúc code, ghi kết luận vào story.
+- **Tạm không hạ điểm dự án** (ngoại lệ tạm thời của AGENTS › Nguyên tắc 5).
+  - Code vẫn kiểm từng trích dẫn trong `project_relevance.evidence`: chuẩn hóa NFC, chữ thường, gộp khoảng trắng, rồi so bằng RapidFuzz `partial_ratio`, ngưỡng 85. Nguồn so là `masked_text`; CV bản scan không có văn bản nên so với chuỗi của `profile_masked`.
+  - Kết quả lưu ở `evidence_check` (`quote`, `score`, `matched`) để truy vết và để US-3.3 hiện cảnh báo. `score_0_4` không đổi.
+  - Rubric chỉ chấm mức liên quan tới vị trí, vai trò và độ phức tạp của dự án, không chấm lại kỹ năng vì code đã chấm (D42). Verdict kỹ năng, ngoại ngữ, ngành do code tính, nên không chịu ảnh hưởng.
+  - Trigger để xem lại: US-6.3 đo được tỷ lệ trích dẫn không khớp đáng kể, hoặc hội đồng yêu cầu.
+- **Ghim prompt theo đợt.**
+  - Đợt đã có kết quả LLM thì job `MATCH` sau mang `prompt_version` của kết quả đó. AI Service render đúng bản này bằng `PromptRegistry.render(version=)`, chỉ nhận bản đã phát hành.
+  - Cặp đã có kết quả cho (`cv_id`, `jd_id`, `cv_version`, `jd_version`, `rules_version`, prompt đã ghim) không được gửi lại. CV hoặc JD có phiên bản mới thì cặp mới được gửi.
+  - Model không ghim bằng code: không đổi `LLM_PROVIDER`/`LLM_MODEL` khi đợt đang chấm là quy tắc vận hành.
+- **Năm học đọc bằng code từ hồ sơ đã xác nhận** (`profile_masked`), không từ `cohort`.
+  - Ưu tiên cụm "sinh viên năm N" trong `summary` hoặc mục học vấn, N viết bằng số hoặc chữ ("năm ba"). "Năm cuối" không cho biết số nên bị bỏ qua.
+  - Không có cụm đó thì lấy mục học vấn đang học: năm học chứa `intake_end` (năm học bắt đầu tháng 9, giờ Việt Nam) − năm bắt đầu + 1, giới hạn 1–6.
+  - Không đọc được thì `null`, và điều kiện cứng trả `YEAR_MISSING`.
+- **Ack sớm và bộ poll nền.**
+  - Handler `MATCH` gửi batch, ghi `ai.llm_batches`, rồi trả `Deferred`. Runner ack message nhưng giữ `ai.jobs` ở `PROCESSING`.
+  - Bộ poll trong worker nhận batch đến hạn bằng lease (`FOR UPDATE SKIP LOCKED`), nên nhiều replica không xử lý trùng và worker khởi động lại thì làm tiếp. Message được giao lại mà job đã có batch thì không gửi batch mới.
+  - Item `errored`, `expired`, sai schema hoặc `MAX_TOKENS` vào batch vòng sau, tối đa 2 vòng. Refusal được gửi lại đồng bộ qua `LLMClient.generate`. Vẫn từ chối thì cặp có `needs_review`, và lượt sau không gửi lại.
+- **Kết quả theo chunk.** Mỗi message `ai.results` loại `MATCH` mang tối đa 500 item. Message cuối có `final: true`, trạng thái `SUCCEEDED`/`PARTIAL` và `failed_pairs`. Backend upsert theo cặp, nên thứ tự message không ảnh hưởng dữ liệu.
+- **Yêu cầu JD nằm ở block `shared` của prompt**, giữa `system` (rubric, không biến) và `user` (hồ sơ đã che PII + bảng verdict của code). Claude gắn `cache_control` cho block này; Gemini dùng cache ngầm theo prefix. Request sắp theo `jd_id`, rồi `cv_id`.
+- **Lưu kết quả:**
+  - `core.match_results` theo ARCH, thêm `campaign_id`, `student_id`, `facts` (dữ kiện điều kiện cứng đã chụp), `assessment` (phần LLM), `scv_breakdown`, `needs_review`. `rules_version` ghép `matching-rules`, `language-cefr` và `soft-skill-signals`.
+  - `core.match_runs` có partial unique index trên đợt đang chạy, chặn hai lượt chạy chồng (409).
+  - View `core.v_ai_match_pairs` cho AI Service đọc verdict của code.
+  - Bảng `ai.llm_batches`; cột `ai.llm_calls.batch_id`.
+- **Tham số và phạm vi:**
+  - `campaigns.config.match_top_m` (1–50, mặc định 10).
+  - Pha được chạy chấm: `INTAKE`, `PREFERENCE_SELECTION`.
+  - `recomputeScv` chưa có endpoint.
+  - Story không làm nút "Chấm phù hợp" trên web.
+
+**Rationale**:
+
+- Gemini là mặc định. Chỉ bọc Claude thì đợt thật không được giảm 50%. Lõi chung giữ logic quyết định ở một chỗ, như D34.
+- Hạ điểm theo một ngưỡng so chuỗi khi chưa có số đo có thể phạt SV chỉ vì LLM trích lệch một câu. Lưu điểm khớp thì vẫn truy vết được, và US-6.3 đo được trước khi chọn mức hạ.
+- Ghim prompt thì mọi SV trong đợt được chấm theo cùng một rubric, và không tốn tiền chấm lại.
+- `cohort` là mã khóa của trường: không có trên CV, và mỗi trường quy đổi một khác. Hồ sơ thì SV đã xác nhận (US-2.6).
+- Nếu giữ message chưa ack suốt thời gian chạy batch, `consumer_timeout` sẽ hết hạn. Message được giao lại, batch bị gửi lần nữa, tốn tiền hai lần.
+
+**Alternatives considered**:
+
+- **Chỉ Claude Message Batches, hoặc chỉ Gemini Batch API:** người dùng không chọn.
+- **Hạ điểm dự án về 0, hoặc giảm 1 bậc, khi có trích dẫn không khớp:** người dùng chọn tạm không hạ.
+- **Không ghim prompt, hoặc chấm lại theo prompt hiện hành:** người dùng không chọn.
+- **Năm học từ `cohort` "K<n>" cộng một hằng số; thêm cột `students.year_of_study`; thêm trường vào hồ sơ CV (prompt `cv_parser/v3`):** người dùng không chọn.
+- **Tăng `consumer_timeout` của RabbitMQ lên ≥ 24 giờ:** loại. Worker khởi động lại vẫn gửi lại batch, và một slot `prefetch` bị giữ hàng giờ.
+
+**Impact**:
+
+- US-3.2: viết lại AC và task; 8 → 13 điểm.
+- Cập nhật ở phiên Doc gate của US-3.2:
+  - AGENTS › Nguyên tắc 5;
+  - PRD › *Quy tắc bằng chứng* và guardrails;
+  - ARCH › *Pipeline từng agent* › Matching (bước 6), *Các bảng chính*, *Hàng đợi*, *Chọn model*.
+- Story sau:
+  - US-3.3 hiện cảnh báo khi `evidence_check` có trích dẫn không khớp.
+  - US-4.4 dùng lại `StructuredBatchClient`, bộ poll và `ai.llm_batches`.
+  - US-6.2 tách chi phí batch theo `batch_id`.
+  - US-6.3 đo tỷ lệ trích dẫn không khớp.
+
+**Date**: 2026-11-03
+**Version**: 0.17.0

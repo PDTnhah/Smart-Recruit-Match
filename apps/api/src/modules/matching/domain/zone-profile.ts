@@ -1,4 +1,11 @@
-import { type JdSkillRequirement, SKILL_ZONES, type SkillZone, skillMatchKey, toHundredths } from '@srm/shared';
+import {
+  type JdSkillRequirement,
+  type MatchZoneCoverage,
+  SKILL_ZONES,
+  type SkillZone,
+  skillMatchKey,
+  toHundredths,
+} from '@srm/shared';
 import { roundHalfUp, times } from './ratio.js';
 import { halvesBySkill, skillGroupScore } from './scv.js';
 import type { SkillRequirements, SkillVerdicts } from './skill-match.js';
@@ -8,13 +15,8 @@ import type { TaxonomyIndex } from './taxonomy-index.js';
 // JD needs and how much of each the CV covers. For display and suggestions only; zones are no
 // criterion of S_cv.
 
-export interface ZoneCoverage {
-  zone: SkillZone;
-  /** Weights of the JD skills in the zone, must-have and nice-to-have alike, × 100. */
-  demandWeightX100: number;
-  /** Weighted share met, MET = 1 and PARTIAL = 0.5, × 100: an integer 0–10 000. */
-  coverageX100: number;
-}
+/** Shared with the web app, which shows it (US-3.3). */
+export type ZoneCoverage = MatchZoneCoverage;
 
 /**
  * Every zone the JD needs, in SKILL_ZONES order. A JD skill outside the catalogue, or without a

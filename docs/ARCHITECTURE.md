@@ -273,15 +273,16 @@ Mỗi agent là một **vai trò** có prompt riêng, schema đầu ra riêng, c
    - Code tính bậc bằng chứng T0–T4 của từng kỹ năng, rồi khớp với JD: đúng kỹ năng, kéo theo, hoặc cùng họ.
    - Code chấm tiêu chí ngoại ngữ (bảng `language-cefr/v1`) và mức khớp ngành, tính độ phủ theo vùng và `skill_fit`.
    - Kết quả ghi vào `match_results` cùng `rules_version`; `s_cv` để null.
-3. Lọc sơ bộ: với mỗi CV giữ top-M JD có `skill_fit` cao nhất. Cặp ngoài top-M được đánh dấu `skipped_by_prefilter`. Backend gửi ID các cặp còn lại qua `ai.match.run`.
-4. AI Service dựng request.
-   - `system` = [rubric cố định theo phiên bản prompt] + [yêu cầu JD, đánh dấu cache].
-   - `user` = hồ sơ đã che PII + bảng verdict kỹ năng do code tính, đọc qua view, để nhận xét khớp với điểm.
+3. Lọc sơ bộ: với mỗi CV giữ top-M JD có `skill_fit` cao nhất (`match_top_m`). Cặp ngoài top-M được đánh dấu `skipped_by_prefilter`. Cặp đã có kết quả với cùng phiên bản CV, JD, luật và prompt đã ghim thì không gửi lại. Backend gửi ID các cặp còn lại qua `ai.match.run` ([CONTEXT D46](CONTEXT.md)).
+4. AI Service dựng request bằng prompt `matching/vN`, ghim theo đợt: đợt đã có kết quả thì job mang `prompt_version` của kết quả đó.
+   - `system` = rubric cố định theo phiên bản prompt, không có biến.
+   - `shared` = yêu cầu JD; Claude gắn `cache_control`, Gemini dựa vào cache ngầm theo prefix.
+   - `user` = hồ sơ đã che PII + bảng verdict do code tính, đọc qua view `core.v_ai_match_pairs`, để nhận xét khớp với điểm.
 
-   Request được sắp theo JD để các CV cùng JD dùng chung phần đã cache.
-5. Gửi qua **Message Batches API** (giảm 50% giá), chờ xong, lấy kết quả theo `custom_id = {cv_id}:{jd_id}:{prompt_version}`. Đầu ra là `MatchAssessment`: `project_relevance` (điểm 0–4, lý do, trích dẫn), `strengths`, `suggestions`, `summary`.
-6. Kiểm tra schema (Pydantic). **Kiểm tra trích dẫn** của tiêu chí dự án bằng RapidFuzz (độ khớp ≥ 85 với văn bản CV); không khớp thì hạ điểm (PRD › *Điểm phù hợp CV–JD (S_cv)*).
-7. **Core Backend ghép điểm dự án vào verdict của code và tính S_cv** theo trọng số của đợt (CONTEXT D41).
+   Request được sắp theo JD, rồi CV, để các CV cùng JD dùng chung phần đã cache.
+5. Gửi bằng **batch của nhà cung cấp** (Claude Message Batches hoặc Gemini Batch API, giảm 50% giá) qua `StructuredBatchClient`. Một vòng chia thành nhiều *part* theo giới hạn của nhà cung cấp; mỗi part là một batch và một dòng `ai.llm_batches`. Handler ack job ngay sau khi gửi. Bộ poll của worker hỏi trạng thái mỗi `LLM_BATCH_POLL_SECONDS` và đọc kết quả khi batch xong; nó giữ dòng bằng lease 15 phút, gia hạn trong lúc xử lý. Khóa của request là `{cv_id}_{cv_version}_{jd_id}_{jd_version}` (`custom_id` của Claude, `metadata` của Gemini). Đầu ra là `MatchAssessment`: `project_relevance` (điểm 0–4, lý do, trích dẫn), `strengths`, `suggestions`, `summary`.
+6. Kiểm refusal, rồi schema (Pydantic). Request lỗi, hết hạn, sai schema hoặc bị cắt được gửi lại ở batch vòng sau, tối đa 3 vòng. Cặp bị từ chối được gửi lại đồng bộ; vẫn từ chối thì có `needs_review`. **Kiểm tra trích dẫn** của tiêu chí dự án bằng RapidFuzz (≥ 85 với `masked_text` và các chuỗi của `profile_masked`), lưu ở `evidence_check`; tạm thời chưa hạ điểm ([CONTEXT D46](CONTEXT.md)). Kết quả về theo chunk tối đa 500 cặp; message cuối có `final` và `failed_pairs`.
+7. **Core Backend ghép điểm dự án vào verdict của code và tính S_cv** theo trọng số của đợt (CONTEXT D41). Đổi trọng số thì `RecomputeScvService` tính lại từ dữ liệu đã lưu, không gọi LLM.
 
 **Test Generator (agent có công cụ)**
 
@@ -350,7 +351,7 @@ def score_pair(rubric: str, jd_requirements: dict, cv_profile_masked: dict) -> M
     return MatchResult.model_validate_json(text)
 ```
 
-Khi chạy hàng loạt, cùng tham số này (bỏ `betas` và `fallbacks` vì Batches API không hỗ trợ) được bọc trong `Request(custom_id=..., params=...)` và gửi bằng `client.messages.batches.create(...)`. Các cặp bị từ chối trong batch được gửi lại đồng bộ bằng hàm trên.
+Khi chạy hàng loạt, cùng tham số này (bỏ `betas` và `fallbacks` vì Batches API không nhận) được bọc trong `Request(custom_id=..., params=...)` và gửi bằng `client.messages.batches.create(...)`. `custom_id` phải khớp `^[a-zA-Z0-9_-]{1,64}$`. Các cặp bị từ chối trong batch được gửi lại đồng bộ bằng hàm trên.
 
 Từ [CONTEXT D42](CONTEXT.md), schema đầu ra là `MatchAssessment`: chỉ gồm tiêu chí dự án và phần nhận xét. Tin nhắn `user` có thêm bảng verdict kỹ năng do code tính. Tham số gọi API giữ như mẫu.
 
@@ -369,7 +370,7 @@ Từ [CONTEXT D42](CONTEXT.md), schema đầu ra là `MatchAssessment`: chỉ g�
 | 2 | Chuẩn hóa tên kỹ năng | Embedding; LLM chỉ cho kỹ năng chưa có trong danh mục | low | Job nền | Quản trị duyệt kỹ năng mới |
 | 3 | Khớp kỹ năng (cả kỹ năng mềm), quy đổi ngoại ngữ CEFR, mức khớp ngành | Code theo danh mục vùng/họ/kéo theo (không dùng LLM) | – | Trong lượt chấm của backend | Unit test, property test; bộ luật có phiên bản |
 | 3 | Lọc sơ bộ JD cho mỗi CV | `skill_fit` do code tính (không dùng LLM) | – | Trong lượt chấm của backend | – |
-| 3 | Chấm tiêu chí dự án/kinh nghiệm, bằng chứng, nhận xét, gợi ý cải thiện | LLM, structured output, prompt caching | medium | Message Batches | Kiểm tra trích dẫn bằng code |
+| 3 | Chấm tiêu chí dự án/kinh nghiệm, bằng chứng, nhận xét, gợi ý cải thiện | LLM, structured output, prompt caching | medium | Batch của nhà cung cấp | Kiểm tra trích dẫn bằng code |
 | 5 | Câu hỏi xác minh CV (tùy chọn) | LLM | medium | Job nền | Không tính vào điểm |
 | 6 | Chấm tự luận | LLM, 2 lần độc lập | high | Message Batches sau khi đóng thi | Lệch nhiều / độ tự tin thấp → người chấm |
 | 6 | Phát hiện bài tự luận giống nhau | Embedding (không dùng LLM) | – | Job nền | Chỉ cảnh báo |
@@ -398,7 +399,10 @@ Lọc điều kiện cứng · khớp kỹ năng CV–JD, quy đổi ngoại ng�
   - Luôn có suy luận (thinking), không tắt được; điều chỉnh bằng `output_config.effort` (mặc định là `medium` — nên ghi rõ cho từng tác vụ).
   - Không hỗ trợ ép gọi công cụ (`tool_choice` loại `any`/`tool`); muốn có JSON thì dùng structured outputs (`output_config.format`).
   - Luôn kiểm tra `stop_reason == "refusal"` trước khi đọc nội dung. Bật `fallbacks: "default"` cho lượt gọi đồng bộ; trong Batches không có tham số này nên xử lý lại riêng (mục *Code mẫu – lượt gọi của Matching Agent*).
-- **Message Batches và prompt caching** (AD-12) khác nhau giữa hai nhà cung cấp; cách bọc chung chốt ở US-3.2.
+- **Batch và prompt caching** (AD-12, [CONTEXT D46](CONTEXT.md)). `StructuredBatchClient` (`ai-service/app/llm/batch.py`) làm phần chung: kiểm refusal và schema, ghi `ai.llm_calls` (kèm `batch_id`) và `llm-logs` cho từng request, tính giá batch (`DEFAULT_BATCH_PRICES`, ghi đè bằng `LLM_BATCH_PRICING`). Adapter `BatchProvider` có ba bản:
+  - Claude Message Batches: tối đa 100.000 request hoặc 256 MB mỗi batch, hết hạn sau 24 giờ; block `shared` có `cache_control` TTL 1 giờ; không nhận `fallbacks`. `errored` và `expired` không tính tiền.
+  - Gemini Batch API: request inline tổng dưới 20 MB, khóa đặt trong `metadata`, hết hạn sau 48 giờ. Chưa biết cache ngầm có hit trong batch không: đo `cache_read_tokens` ở lần chạy thật.
+  - Fixture, cho test.
 - **Nếu cần giảm chi phí:** có thể thử model nhỏ hơn của cùng nhà cung cấp cho các tác vụ trích xuất đơn giản (phân tích CV/JD). Chỉ đổi sau khi đo chất lượng trên bộ đánh giá ở mục *Testing strategy* và thấy không giảm.
 - **Mô hình mở tự host** (PRD Q8, phần còn mở): thêm một adapter sau `LLMClient` nếu Trung tâm không cho phép gửi dữ liệu ra ngoài.
 
@@ -455,7 +459,7 @@ Nên đặt giới hạn chi tiêu trên trang quản lý của nhà cung cấp 
   - chủ DB (`POSTGRES_USER`): chỉ bước `migrate` dùng; tạo bảng, view, role;
   - `api_service` (Core Backend): đọc ghi mọi bảng `core`, riêng `audit_logs` chỉ `SELECT` và `INSERT`; chỉ đọc `ai.*`;
   - `ai_service` (AI Service): `SELECT` trên hai view `core.v_ai_*`, không có quyền gì khác ở `core`; đọc ghi `ai.*`, không `CREATE`.
-- View `core.v_ai_cv_profile_masked (cv_id, version, campaign_id, profile_masked, masked_text)` chỉ trả CV `active` đã được sinh viên xác nhận (BR-01; `masked_text` thêm ở US-2.4, `null` với bản scan); `core.v_ai_jd_requirements (jd_id, version, campaign_id, position_group, requirements)` chỉ trả JD từ `APPROVED` trở đi (BR-02). Cả hai `security_barrier`. Migration tạo role ở dạng `NOLOGIN`; `migrate` bật đăng nhập bằng `API_DB_PASSWORD`, `AI_DB_PASSWORD`. `core.v_ai_jd_source (jd_id, version, title, raw_text, file_key)` chỉ trả JD đang chờ phân tích (`PENDING_HR_CONFIRMATION`, `analysis_status = PENDING`, chưa có `requirements`) cho JD Analyzer ([CONTEXT D35](CONTEXT.md)); AI Service đọc file gốc trong `jd-files` bằng tài khoản MinIO của nó.
+- View `core.v_ai_cv_profile_masked (cv_id, version, campaign_id, profile_masked, masked_text)` chỉ trả CV `active` đã được sinh viên xác nhận (BR-01; `masked_text` thêm ở US-2.4, `null` với bản scan); `core.v_ai_jd_requirements (jd_id, version, campaign_id, position_group, requirements)` chỉ trả JD từ `APPROVED` trở đi (BR-02). `core.v_ai_match_pairs (cv_id, cv_version, jd_id, jd_version, rules_version, criteria)` chỉ trả cặp đang chờ Matching Agent: đạt điều kiện cứng, trong top-M, chưa có kết quả LLM ([CONTEXT D46](CONTEXT.md)). Các view đều `security_barrier`. Migration tạo role ở dạng `NOLOGIN`; `migrate` bật đăng nhập bằng `API_DB_PASSWORD`, `AI_DB_PASSWORD`. `core.v_ai_jd_source (jd_id, version, title, raw_text, file_key)` chỉ trả JD đang chờ phân tích (`PENDING_HR_CONFIRMATION`, `analysis_status = PENDING`, chưa có `requirements`) cho JD Analyzer ([CONTEXT D35](CONTEXT.md)); AI Service đọc file gốc trong `jd-files` bằng tài khoản MinIO của nó.
 
 ### Các bảng chính
 
@@ -470,7 +474,8 @@ Nên đặt giới hạn chi tiêu trên trang quản lý của nhà cung cấp 
 | `job_descriptions` | JD | id, campaign_id, company_id, title, position_group, location, work_mode, internship_period, allowance, raw_text, file_key, file_name, requirements JSONB, analysis_status, analysis_model, analysis_prompt_version, hidden_text_flag, quota, exam_blueprint JSONB, version, status, row_version | index(campaign_id, status); CHECK(work_mode ∈ ONSITE/HYBRID/REMOTE); `file_key` và `file_name` cùng có hoặc cùng rỗng (CONTEXT D28); CHECK `position_group` theo `POSITION_GROUPS`, `analysis_status` ∈ PENDING/SUCCEEDED/FAILED, `analysis_model` và `analysis_prompt_version` cùng có hoặc cùng rỗng (CONTEXT D35). `requirements` theo hợp đồng `JdRequirements` (`packages/shared/contracts/jd.ts`) |
 | `cvs` | CV | id, student_id, campaign_id, file_key, file_name, profile JSONB (`CvProfile`), pii BYTEA (`pgp_sym_encrypt` của JSON `CvPii`), profile_masked JSONB, masked_text, analysis_source, analysis_model, analysis_prompt_version, analysis_error_code, version, status, active, hidden_text_flag, row_version. Mỗi phiên bản một dòng ([CONTEXT D30, D37](CONTEXT.md)) | unique một CV hiệu lực: partial unique(student_id, campaign_id) WHERE active; unique(student_id, campaign_id, version); CHECK(status), CHECK(version > 0); CHECK `analysis_source` ∈ TEXT_PDF/SCANNED_PDF/DOCX; `analysis_model` và `analysis_prompt_version` cùng có hoặc cùng rỗng; CV ở `PENDING_CONFIRMATION`/`CONFIRMED` có `profile`, `profile_masked`, `pii`, model và nguồn; CV ở `ANALYSIS_FAILED` có mã lỗi |
 | `consents` | – | id, student_id, campaign_id, terms_version, terms_sha256, accepted_at | unique(student_id, campaign_id, terms_version); CHECK(terms_version > 0), CHECK(terms_sha256 là hex 64 ký tự) |
-| `match_results` | KET_QUA_PHU_HOP | cv_id, jd_id, cv_version, jd_version, eligible, ineligible_reasons JSONB, criteria JSONB (verdict kỹ năng kèm `match_kind`, bậc, nguồn; ngoại ngữ; ngành; độ phủ theo vùng; điểm dự án), skill_fit, skipped_by_prefilter, rules_version, s_cv (null tới khi có điểm dự án), prompt_version, model | unique(cv_id, jd_id, cv_version, jd_version, rules_version, prompt_version) NULLS NOT DISTINCT (chốt ở US-3.2); index(jd_id, s_cv DESC) ([CONTEXT D42](CONTEXT.md)) |
+| `match_results` | KET_QUA_PHU_HOP | campaign_id, student_id, cv_id, cv_version, jd_id, jd_version, rules_version, eligible, ineligible_reasons JSONB, facts JSONB (dữ kiện điều kiện cứng đã chụp), criteria JSONB (`MatchCodeCriteria`: verdict kỹ năng kèm `match_kind`, bậc, nguồn; ngoại ngữ; ngành; độ phủ theo vùng; `gaps`), skill_fit, skipped_by_prefilter, assessment JSONB (phần LLM kèm `evidence_check`), prompt_version, model, s_cv, scv_breakdown JSONB, needs_review. Phần code ghi trước với `prompt_version` null (dòng chờ); kết quả LLM điền vào chính dòng đó | unique(cv_id, jd_id, cv_version, jd_version, rules_version, prompt_version) NULLS NOT DISTINCT; index(jd_id, s_cv DESC), index(campaign_id); CHECK: đạt điều kiện ⇔ có `criteria` và `skill_fit`, không có lý do; `prompt_version`, `model`, `assessment`, `s_cv`, `scv_breakdown` cùng có hoặc cùng rỗng, chỉ có ở cặp đạt và không bị lọc; `needs_review` chỉ ở dòng chờ ([CONTEXT D42, D46](CONTEXT.md)) |
+| `match_runs` | – | id, campaign_id, job_id, dispatched_at, status (`RUNNING` rồi `SUCCEEDED`/`PARTIAL`/`FAILED`), actor_kind, actor_id, rules_version, prompt_version, pairs_total, pairs_ineligible, pairs_skipped, pairs_cached, pairs_sent, pairs_scored, pairs_failed, error_code, finished_at. Bản ghi kỹ thuật, không có máy trạng thái | partial unique(campaign_id) WHERE status = 'RUNNING' (chạy chồng: 409); unique(job_id); có `job_id` khi và chỉ khi `pairs_sent > 0`, ghi cùng giao dịch lập lượt, trước khi gửi job; có `finished_at` khi và chỉ khi đã rời `RUNNING`; `FAILED` có `error_code`. Run chưa xong sau 7 ngày, hoặc sau 15 phút mà chưa gửi được job, bị đóng `STALE` khi có lượt mới ([CONTEXT D46](CONTEXT.md)) |
 | `preferences` | NGUYEN_VONG | id, campaign_id, student_id, jd_id, rank, status | unique(student_id, jd_id); unique(campaign_id, student_id, rank) |
 | `question_banks` | – | id, jd_id / position_group, blueprint JSONB, version, locked_at | – |
 | `questions` | CAU_HOI | id, bank_id, type, skill, difficulty, content JSONB, answer_key JSONB, rubric JSONB, status, version | index(bank_id, skill, difficulty, status) |
@@ -485,7 +490,8 @@ Nên đặt giới hạn chi tiêu trên trang quản lý của nhà cung cấp 
 | `notifications` | – | id, user_id, type, payload JSONB, channels text[], read_at, dedupe_key, email_status, email_attempts, email_next_attempt_at, email_sent_at, email_last_error, created_at | index(user_id, read_at); unique(user_id, dedupe_key); partial index(email_next_attempt_at) WHERE email_status = 'PENDING'; CHECK `type`, `channels` ⊆ {IN_APP, EMAIL}, có `email_status` khi và chỉ khi có kênh EMAIL. Một dòng mỗi người nhận, vừa là thông báo trong app vừa là outbox email ([CONTEXT D31](CONTEXT.md)) |
 | `audit_logs` | NHAT_KY | id, actor_kind (`USER`/`SYSTEM`), actor_id, action, entity, entity_id, before JSONB, after JSONB, reason, at | chỉ thêm: trigger `ENABLE ALWAYS` chặn UPDATE/DELETE/TRUNCATE; CHECK actor_id có khi và chỉ khi `USER`; index(entity, entity_id, at); không FK tới users (CONTEXT D24) |
 | `ai.embeddings` | – | owner_type (cv/jd/question/skill/essay), owner_id, version, model, embedding vector(1024), created_at, updated_at | unique(owner_type, owner_id, version, model), ghi bằng upsert; mỗi `owner_type` một index HNSW (`vector_cosine_ops`) một phần, truy vấn ghi `owner_type` dạng hằng để planner chọn đúng index; vector kỹ năng của phiên bản cũ hoặc model khác bị xóa khi tính lại. Kỹ năng khóa theo `row_version` ([CONTEXT D39](CONTEXT.md)) |
-| `ai.llm_calls` | – | id, job_id, agent, prompt_version, provider, model, effort, attempt, outcome, stop_reason, raw_stop_reason, input_tokens, cache_read_tokens, cache_write_tokens, output_tokens, cost_usd, latency_ms, log_key, created_at | Một dòng cho mỗi lần thử. index(agent, created_at), index(job_id), unique `log_key`; CHECK `provider`, `effort`, `outcome`, `stop_reason`, `prompt_version` dạng `<agent>/v<N>`; `stop_reason` NULL khi và chỉ khi `outcome = API_ERROR`. Chỉ ghi thêm: `ai_service` có `SELECT`, `INSERT`. Migration `0007`, `0008`, [CONTEXT D34](CONTEXT.md) |
+| `ai.llm_calls` | – | id, job_id, agent, prompt_version, provider, model, effort, attempt, outcome, stop_reason, raw_stop_reason, input_tokens, cache_read_tokens, cache_write_tokens, output_tokens, cost_usd, latency_ms, log_key, batch_id (request trong batch; null với lượt gọi đồng bộ), created_at | Một dòng cho mỗi lần thử. index(agent, created_at), index(job_id), index(batch_id), unique `log_key`; CHECK `provider`, `effort`, `outcome`, `stop_reason`, `prompt_version` dạng `<agent>/v<N>`; `stop_reason` NULL khi và chỉ khi `outcome = API_ERROR`. Chỉ ghi thêm: `ai_service` có `SELECT`, `INSERT`. Migration `0007`, `0008`, [CONTEXT D34](CONTEXT.md) |
+| `ai.llm_batches` | – | id, job_id, job_type, job_payload JSONB, agent, prompt_version, provider, model, round (1–3), part, status (`PREPARING` → `SUBMITTED` → `PROCESSED`/`FAILED`), provider_batch_id, request_count, failures JSONB, error_message, lease_owner, lease_until, next_poll_at, created_at, submitted_at, finished_at. Prompt của mỗi part lưu ở bucket `llm-logs` | unique(job_id, round, part): message giao lại không tạo batch mới; unique(provider, provider_batch_id); partial index(next_poll_at) cho batch còn mở. Bộ poll nhận dòng bằng `FOR UPDATE SKIP LOCKED` và lease. Migration `0024`, [CONTEXT D46](CONTEXT.md) |
 | `ai.jobs` | – | job_id, type, status (`PROCESSING` rồi `SUCCEEDED`/`PARTIAL`/`FAILED`), attempts, last_error, created_at, finished_at | PK(job_id) — chống xử lý trùng; CHECK `type`, `status`, `attempts ≥ 0`, có `finished_at` khi và chỉ khi đã rời `PROCESSING`. Chỉ `ai_service` ghi (migration `0005`, [CONTEXT D33](CONTEXT.md)) |
 
 Quy ước chung của schema `core` (US-1.2, CONTEXT D24): khóa chính `bigint generated always as identity`; cột `status` là `text` kèm CHECK, danh sách giá trị sinh từ `packages/shared/states`; bảng có vòng đời có `row_version integer not null default 0`. Cột `pii` của `cvs` thêm ở US-2.4; cột `active`, `file_name`, partial unique index và bảng `consents` có từ US-1.6 (migration `0003`).
@@ -523,7 +529,7 @@ Prompt và phản hồi đầy đủ của từng lần gọi LLM lưu thành fi
 | Frontend → Backend | REST JSON qua HTTPS, JWT | OpenAPI |
 | Backend → Frontend | SSE | Thông báo, tiến độ job |
 | Backend ↔ AI Service | RabbitMQ | Bất đồng bộ, có thử lại và dead-letter queue |
-| AI Service → LLM API | HTTPS (google-genai hoặc Anthropic SDK, [CONTEXT D34](CONTEXT.md)) | Việc hàng loạt chạy batch của nhà cung cấp (chốt ở US-3.2) |
+| AI Service → LLM API | HTTPS (google-genai hoặc Anthropic SDK, [CONTEXT D34](CONTEXT.md)) | Việc hàng loạt chạy batch của nhà cung cấp: Claude Message Batches, Gemini Batch API ([CONTEXT D46](CONTEXT.md)) |
 | AI Service → PostgreSQL | View chỉ đọc (`core`), đọc ghi (`ai`) | – |
 
 ### Hàng đợi
@@ -534,12 +540,14 @@ Prompt và phản hồi đầy đủ của từng lần gọi LLM lưu thành fi
 | `ai.jd.analyze` | Backend → AI | job_id, jd_id, jd_version |
 | `ai.skills.normalize` | Backend → AI | job_id, skill_ids (1–50 kỹ năng chờ duyệt) |
 | `ai.questions.generate` | Backend → AI | job_id, bank_id |
-| `ai.match.run` | Backend → AI | job_id, campaign_id, danh sách cặp (cv_id, jd_id) đã qua điều kiện cứng |
+| `ai.match.run` | Backend → AI | job_id, campaign_id, rules_version, prompt_version (đã ghim; null = bản active), pairs (cv_id, cv_version, jd_id, jd_version; 1–50.000 cặp) đã qua điều kiện cứng và lọc top-M |
 | `ai.essay.grade` | Backend → AI | job_id, danh sách exam_session_id |
 | `ai.results` | AI → Backend | job_id, type, status (SUCCEEDED / PARTIAL / FAILED), job (bản sao payload job), result (khi không FAILED), error `{ code, message, needs_human, hidden_text_detected? }` (khi FAILED; cờ chữ ẩn giữ được cả khi lỗi, CONTEXT D35) |
 | `*.dlq` | – | Message lỗi sau 3 lần thử, hoặc sai schema; kèm header `x-srm-dlq-reason`, `x-srm-attempts`, `x-srm-source-queue`. MVP xử lý bằng giao diện RabbitMQ management |
 
 Payload chỉ chứa ID; dữ liệu lớn được đọc từ DB/MinIO. Mỗi job có `job_id` duy nhất: AI Service kiểm tra `ai.jobs` trước khi xử lý, Backend ghi kết quả theo kiểu upsert — nhận trùng message cũng không sai dữ liệu.
+
+Job `MATCH` trả nhiều message `ai.results` cùng `job_id`: các chunk tối đa 500 cặp (`final: false`), rồi message cuối (`final: true`, `SUCCEEDED` hoặc `PARTIAL` kèm `failed_pairs`). Consumer xử lý song song tới 10 message, nên message cuối có thể đóng `match_runs` trước khi chunk trước nó được ghi; chỗ cần biết đủ kết quả thì so `pairs_scored + pairs_failed` với `pairs_sent` ([LESSONS §33](LESSONS.md)).
 
 Cơ chế (từ US-2.1, [CONTEXT D33](CONTEXT.md)):
 
@@ -611,21 +619,22 @@ sequenceDiagram
     participant AI as AI Service
     participant PG as PostgreSQL
     participant LLM as LLM API
-    Note over BE: Hết hạn nộp CV hoặc Trung tâm bấm Chấm phù hợp
+    Note over BE: Hết hạn nộp CV, hoặc Trung tâm gọi POST /api/campaigns/{id}/matching-runs
     BE->>BE: Lọc điều kiện cứng (CEFR), lập danh sách cặp hợp lệ
     BE->>BE: Khớp kỹ năng, ngoại ngữ, ngành bằng code; tính skill_fit
-    BE->>PG: Lưu match_results phần code (s_cv null)
     BE->>BE: Giữ top-M JD mỗi CV theo skill_fit
+    BE->>PG: Lưu match_results phần code (s_cv null) và match_runs kèm job_id
     BE->>MQ: ai.match.run (ID cặp top-M)
     MQ->>AI: Nhận job
-    AI->>PG: Đọc hồ sơ đã che PII, yêu cầu JD và verdict kỹ năng qua view chỉ đọc
-    AI->>LLM: Tạo Message Batch, sắp request theo JD
-    loop Đến khi batch hoàn tất
+    AI->>PG: Đọc hồ sơ đã che PII, yêu cầu JD và verdict của code qua view chỉ đọc
+    AI->>LLM: Gửi batch, request sắp theo JD
+    AI->>PG: Ghi ai.llm_batches, rồi ack job
+    loop Bộ poll, mỗi LLM_BATCH_POLL_SECONDS
         AI->>LLM: Kiểm tra trạng thái batch
     end
     LLM-->>AI: Kết quả từng cặp
-    AI->>AI: Kiểm tra schema và trích dẫn
-    AI->>MQ: ai.results
+    AI->>AI: Kiểm refusal, schema và trích dẫn; request lỗi vào batch vòng sau
+    AI->>MQ: ai.results theo chunk, rồi message cuối
     MQ->>BE: Kết quả
     BE->>BE: Ghép điểm dự án, tính S_cv theo trọng số, lập shortlist
 ```

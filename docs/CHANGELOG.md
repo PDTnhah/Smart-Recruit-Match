@@ -15,6 +15,46 @@ Lịch sử phát hành của Smart Recruit Match. Mỗi commit ship code tăng 
 
 ---
 
+## [0.17.0] — 2026-11-03 — Matching Agent chạy hàng loạt — v0.17.0
+
+US-3.2. Mọi cặp SV × JD của đợt được chấm phù hợp. Code lọc điều kiện cứng và chấm kỹ năng, ngoại ngữ, ngành; Matching Agent chỉ chấm dự án của top-M JD mỗi CV, qua batch của nhà cung cấp; backend tính S_cv (FR-14, AD-2, AD-12, [CONTEXT D46](CONTEXT.md)).
+
+### Added
+- **Lượt chấm phù hợp**: `POST /api/campaigns/{id}/matching-runs` (CENTER, trả `202`), và tự chạy khi đợt chuyển `INTAKE → PREFERENCE_SELECTION`.
+  - Chạy được ở `INTAKE` và `PREFERENCE_SELECTION`. Mỗi đợt chỉ một lượt mỗi lúc: lượt thứ hai nhận `409 MATCHING_RUN_IN_PROGRESS`.
+  - Cặp không đạt điều kiện cứng lưu lý do. Cặp đạt lưu verdict do code tính và `skill_fit`.
+  - Chỉ top-M JD của mỗi CV được gửi qua `ai.match.run`. M là tham số đợt mới `match_top_m` (1–50, mặc định 10).
+  - Cặp đã chấm với cùng phiên bản CV, JD, bộ luật và prompt thì không gửi lại. Prompt được ghim theo đợt.
+- **Năm học** đọc bằng code từ hồ sơ đã xác nhận, cho điều kiện `min_study_year`: cụm "sinh viên năm N", nếu không có thì tính từ năm bắt đầu của mục học vấn đang học.
+- **Matching Agent** (`matching/v1`): chấm dự án 0–4 theo mức liên quan, vai trò, độ phức tạp, kèm trích dẫn; viết điểm mạnh, gợi ý, tóm tắt bằng tiếng Việt. Yêu cầu JD nằm ở block `shared` của prompt (Claude gắn `cache_control`).
+- **Kiểm trích dẫn** bằng RapidFuzz (`partial_ratio` ≥ 85 sau khi chuẩn hóa NFC, chữ thường, khoảng trắng), lưu ở `evidence_check`. Tạm chưa hạ điểm dự án khi trích dẫn không khớp.
+- **Chế độ batch của `LLMClient`** cho Claude Message Batches, Gemini Batch API và fixture (`StructuredBatchClient`, `BatchProvider`).
+  - Mỗi request được kiểm refusal và schema, ghi một dòng `ai.llm_calls` (cột mới `batch_id`) và một file `llm-logs`. Giá batch riêng, ghi đè bằng `LLM_BATCH_PRICING`.
+  - Request lỗi, hết hạn, sai schema được gửi lại ở batch vòng sau, tối đa 3 vòng. Cặp bị từ chối được gửi lại đồng bộ; vẫn từ chối thì đánh dấu `needs_review`.
+- **Bộ poll batch** trong `ai-worker`: job được ack ngay sau khi gửi batch. Batch chạy tiếp được khi worker khởi động lại hoặc có nhiều replica, nhờ lease trên `ai.llm_batches`, gia hạn trong lúc xử lý. Biến mới `LLM_BATCH_POLL_SECONDS` (mặc định 60).
+- **Nhận kết quả**: backend ghép điểm dự án vào verdict của code và tự tính S_cv (AD-2), lưu kèm `rules_version`, `prompt_version`, `model` và bảng thành phần.
+  - Kết quả về theo chunk tối đa 500 cặp. Nhận trùng không đổi dữ liệu.
+  - `RecomputeScvService` tính lại S_cv khi đổi trọng số, không gọi LLM.
+- Bảng `core.match_results`, `core.match_runs`, `ai.llm_batches`; view `core.v_ai_match_pairs` (migration `0024`, `0025`). Mã lỗi `MATCHING_RUN_IN_PROGRESS` và `MATCHING_RUN_TOO_LARGE` (409), `AI_UNAVAILABLE` (503).
+- **Test**:
+  - unit: năm học, top-M, kế hoạch lượt chấm, S_cv của một cặp;
+  - integration: lượt chấm, nhận kết quả, nhận trùng, kết quả về trước khi API trả lời, JD đổi phiên bản, tính lại S_cv;
+  - E2E: 3 SV × 4 JD với AI worker thật ở chế độ fixture;
+  - pytest: request của hai nhà cung cấp, PII, trích dẫn, lỗi batch, bộ poll (khởi động lại, hai replica, gia hạn lease).
+
+### Changed
+- `AiGatewayService.dispatch` nhận `job_id` do bên gọi chọn.
+- `ai.results` có kết quả loại `MATCH`; `MatchProjectRelevance` thêm `evidence`. JSON Schema và Pydantic sinh lại.
+- AGENTS › Nguyên tắc 5 và *Mẫu có sẵn*; PRD › *Quy tắc bằng chứng*, guardrails; ARCH › pipeline Matching, *Chọn model*, *Các bảng chính*, *Hàng đợi*.
+
+### Upgrade notes
+- Chạy `pnpm --filter @srm/api db:migrate` (`0024`, `0025`). Build lại image `api` và `ai-worker` (`up -d --build`): worker cần `rapidfuzz` và prompt `matching/v1`.
+- Chưa đo với key thật: `ai-service/evals/smoke_llm.py` cho batch, và thời gian, chi phí của 500 SV × 50 JD.
+
+**Commit**:
+
+---
+
 ## [0.16.0] — 2026-11-03 — Quy đổi ngoại ngữ CEFR và mức khớp ngành bằng code — v0.16.0
 
 US-3.6. Chứng chỉ ngoại ngữ khác loại được so theo bậc CEFR, nên SV có IELTS không còn bị loại khỏi JD yêu cầu TOEIC. JD có thêm ngoại ngữ ưu tiên. Code chấm tiêu chí ngoại ngữ và mức khớp ngành; US-3.2 sẽ gọi các hàm này khi lưu kết quả (FR-40, AD-15, [CONTEXT D45](CONTEXT.md)).

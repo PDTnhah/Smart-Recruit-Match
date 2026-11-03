@@ -30,7 +30,7 @@ import { AuditService, userActor } from '../../audit/index.js';
 import { CampaignService } from '../../campaign/index.js';
 import { STUDENT_AUDIT_ACTIONS } from '../domain/audit-actions.js';
 import { CV_SUBMITTED, type CvSubmittedEvent } from '../domain/events.js';
-import { type CenterCvRecord, type CvRecord, CvRepository } from '../infrastructure/cv.repository.js';
+import { type CenterCvRecord, type ConfirmedCv, type CvRecord, CvRepository } from '../infrastructure/cv.repository.js';
 import { ConsentService } from './consent.service.js';
 import { studentIdOf } from './current-student.js';
 
@@ -133,6 +133,14 @@ export class CvService implements OnModuleInit {
    */
   async studentIdsWithActiveCv(campaignId: number): Promise<number[]> {
     return this.repository.studentIdsWithActive(campaignId);
+  }
+
+  /**
+   * BR-01: the CVs of a campaign the Matching Agent scores (US-3.2 AC-3), the active version each
+   * student confirmed, with its masked profile only (BR-03); by CV id.
+   */
+  async listConfirmedForMatching(campaignId: number): Promise<ConfirmedCv[]> {
+    return this.repository.listConfirmedActive(campaignId);
   }
 
   /** AC-8: the caller's own versions, newest first. */

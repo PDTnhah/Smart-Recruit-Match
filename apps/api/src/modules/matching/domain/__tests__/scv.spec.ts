@@ -31,7 +31,7 @@ const criteria = (change: Partial<MatchCriteria> = {}): MatchCriteria => ({
     skillVerdict('Docker', 'BASIC', 'NOT_MET', null),
   ],
   nice_to_have: [skillVerdict('Redis', 'BASIC', 'NOT_MET', null)],
-  project_relevance: { score_0_4: 3, reason: '...' },
+  project_relevance: { score_0_4: 3, reason: '...', evidence: [] },
   education: { major_match: 'EXACT', major_unrecognized: false },
   language: LANGUAGE_MET,
   ...change,
@@ -154,7 +154,7 @@ describe('GĐ3 S_cv computed by code from per-criterion verdicts (AD-2, US-3.1, 
     expect([language('MET'), language('PARTIAL'), language('NOT_MET')]).toEqual([10000, 5000, 0]);
 
     const project = (score: number) =>
-      computeScv(input({ criteria: criteria({ project_relevance: { score_0_4: score, reason: '...' } }), weights: weights(0, 0, 1, 0, 0) }))
+      computeScv(input({ criteria: criteria({ project_relevance: { score_0_4: score, reason: '...', evidence: [] } }), weights: weights(0, 0, 1, 0, 0) }))
         .scvX100;
     expect([0, 1, 2, 3, 4].map(project)).toEqual([0, 2500, 5000, 7500, 10000]);
 

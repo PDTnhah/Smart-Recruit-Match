@@ -4,7 +4,9 @@ Parameters follow the claude-api skill, checked against anthropic 1.11.0: effort
 in `output_config`, no `temperature` (Opus 5.5 rejects sampling parameters), no `tool_choice`, and
 server-side `fallbacks="default"` so a declined request is retried on Anthropic's fallback model.
 A document is a base64 `document` block placed before the text block of the user turn; citations
-stay off, as they cannot be combined with `output_config.format` (US-2.4, CONTEXT D37).
+stay off, as they cannot be combined with `output_config.format` (US-2.4, CONTEXT D37). A `shared`
+block goes first in the user turn with a `cache_control` breakpoint, so requests that repeat it read
+`system` + `shared` from the cache (US-3.2 AC-7, CONTEXT D46).
 """
 
 import base64
@@ -51,7 +53,7 @@ class AnthropicProvider:
                 "format": {"type": "json_schema", "schema": request.output_schema},
             },
             "system": request.system,
-            "messages": [{"role": "user", "content": _content(request)}],
+            "messages": [{"role": "user", "content": user_content(request)}],
         }
 
     async def send(
@@ -69,11 +71,23 @@ class AnthropicProvider:
         return to_provider_response(message)
 
 
-def _content(request: LLMRequest) -> str | list[dict[str, Any]]:
-    """The prompt alone, or a `document` block per document followed by the prompt text."""
-    if not request.documents:
+def user_content(
+    request: LLMRequest, cache_control: dict[str, Any] | None = None
+) -> str | list[dict[str, Any]]:
+    """The prompt alone, or the `shared` block (cached), a `document` block per document and the
+    prompt text, in that order."""
+    if not request.documents and request.shared is None:
         return request.user
-    blocks: list[dict[str, Any]] = [
+    blocks: list[dict[str, Any]] = []
+    if request.shared is not None:
+        blocks.append(
+            {
+                "type": "text",
+                "text": request.shared,
+                "cache_control": cache_control or {"type": "ephemeral"},
+            }
+        )
+    blocks += [
         {
             "type": "document",
             "source": {

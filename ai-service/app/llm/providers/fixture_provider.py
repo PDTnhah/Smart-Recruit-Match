@@ -1,8 +1,9 @@
 """Recorded replies instead of a real provider, for tests and development (AC-11).
 
 A fixture file `<fixtures_dir>/<agent>/<key>.json` answers one request. The key hashes the agent,
-prompt version, system, user, output schema and effort, and the hashes of attached documents when
-there are any (so fixtures recorded before documents existed keep their key). Any change to the
+prompt version, system, user, output schema and effort, plus the `shared` block, the hashes of
+attached documents and the batch `mode` only when the request has them (so older fixtures keep their
+key). Any change to the
 prompt or the data needs a new fixture. A file holds a list of replies, served in order to the
 attempts of one `generate` call, so a test can script "invalid twice, then valid"; the next call
 starts again from the first reply. A missing fixture raises FixtureMissingError: there is no
@@ -20,8 +21,18 @@ from app.consumers.errors import PermanentError
 from app.llm.render import dumps_sorted
 from app.llm.types import Document, LLMRequest, Provider, ProviderResponse
 
-KEY_FIELDS = ("agent", "prompt_version", "system", "user", "output_schema", "effort", "documents")
-"""`documents` counts only when the request has some."""
+KEY_FIELDS = (
+    "agent",
+    "prompt_version",
+    "system",
+    "shared",
+    "user",
+    "output_schema",
+    "effort",
+    "documents",
+    "mode",
+)
+"""`shared`, `documents` and `mode` count only when the request has them."""
 KEY_LENGTH = 16
 
 
@@ -41,6 +52,24 @@ def fixture_key(params: dict[str, Any]) -> str:
     return hashlib.sha256(dumps_sorted(key_source).encode()).hexdigest()[:KEY_LENGTH]
 
 
+def fixture_params(request: LLMRequest) -> dict[str, Any]:
+    """The parameters a fixture provider logs and keys its replies by."""
+    params: dict[str, Any] = {
+        "agent": request.agent,
+        "prompt_version": request.prompt_version,
+        "system": request.system,
+        "user": request.user,
+        "output_schema": request.output_schema,
+        "effort": request.effort,
+        "max_output_tokens": request.max_output_tokens,
+    }
+    if request.shared is not None:
+        params["shared"] = request.shared
+    if request.documents:
+        params["documents"] = [ref.as_json() for ref in request.documents]
+    return params
+
+
 class FixtureProvider:
     name = Provider.FIXTURE
 
@@ -50,17 +79,7 @@ class FixtureProvider:
         self._served: Counter[str] = Counter()
 
     def build_params(self, request: LLMRequest) -> dict[str, Any]:
-        params = {
-            "agent": request.agent,
-            "prompt_version": request.prompt_version,
-            "system": request.system,
-            "user": request.user,
-            "output_schema": request.output_schema,
-            "effort": request.effort,
-            "max_output_tokens": request.max_output_tokens,
-        }
-        if request.documents:
-            params["documents"] = [ref.as_json() for ref in request.documents]
+        params = fixture_params(request)
         # LLMClient builds the parameters once per generate call: restart the reply sequence.
         self._served[str(self.path_for(params))] = 0
         return params

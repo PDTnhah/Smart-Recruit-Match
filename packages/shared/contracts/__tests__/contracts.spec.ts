@@ -6,6 +6,8 @@ import {
   AiResultMessageSchema,
   CvParseJobSchema,
   JdAnalyzeJobSchema,
+  MATCH_RESULT_CHUNK_MAX,
+  MatchRunJobSchema,
   SKILL_NORMALIZE_BATCH,
   SkillNormalizeJobSchema,
   aiQueueManifest,
@@ -58,6 +60,33 @@ const output = {
   hidden_text_detected: false,
 };
 const succeeded = { job_id: JOB_ID, type: 'CV_PARSE', status: 'SUCCEEDED', job: cvJob, result: output, error: null };
+const pair = { cv_id: 457, cv_version: 2, jd_id: 9, jd_version: 1 };
+const matchJob = {
+  job_id: JOB_ID,
+  campaign_id: 3,
+  rules_version: 'matching-rules/v1+language-cefr/v1+soft-skill-signals/v1',
+  prompt_version: 'matching/v1',
+  pairs: [pair],
+};
+const matchItem = {
+  ...pair,
+  model: 'gemini-3.8-flash',
+  assessment: {
+    project_relevance: { score_0_4: 3, reason: 'Dự án web Java', evidence: ['Quản lý thư viện'] },
+    strengths: [],
+    suggestions: [],
+    summary: 'Phù hợp.',
+  },
+  evidence_check: [{ quote: 'Quản lý thư viện', score: 100, matched: true }],
+};
+const matchResult = {
+  job_id: JOB_ID,
+  type: 'MATCH',
+  status: 'SUCCEEDED',
+  job: matchJob,
+  result: { prompt_version: 'matching/v1', final: false, items: [matchItem], failed_pairs: [] },
+  error: null,
+};
 const failure = { code: 'RETRIES_EXHAUSTED', message: 'boom', needs_human: false };
 
 describe('AD-6: contracts are generated, not written by hand', () => {
@@ -96,10 +125,12 @@ describe('AD-6: contracts are generated, not written by hand', () => {
       'ai.cv.parse',
       'ai.jd.analyze',
       'ai.skills.normalize',
+      'ai.match.run',
       'ai.results',
       'ai.cv.parse.dlq',
       'ai.jd.analyze.dlq',
       'ai.skills.normalize.dlq',
+      'ai.match.run.dlq',
       'ai.results.dlq',
     ]);
   });
@@ -128,6 +159,14 @@ describe('AD-5: job payloads carry IDs only', () => {
 
   it('AD-5 job_id must be a UUID', () => {
     expect(CvParseJobSchema.safeParse({ ...cvJob, job_id: '42' }).success).toBe(false);
+  });
+
+  it('US-3.2 AC-1 a MATCH job carries the pinned prompt and pairs by IDs and versions only', () => {
+    expect(MatchRunJobSchema.parse(matchJob)).toEqual(matchJob);
+    expect(MatchRunJobSchema.safeParse({ ...matchJob, prompt_version: null }).success).toBe(true);
+    expect(MatchRunJobSchema.safeParse({ ...matchJob, pairs: [] }).success).toBe(false);
+    const withProfile = { ...matchJob, pairs: [{ ...pair, profile_masked: {} }] };
+    expect(MatchRunJobSchema.safeParse(withProfile).success).toBe(false);
   });
 });
 
@@ -168,5 +207,19 @@ describe('AD-6: ai.results message', () => {
   it('AD-6 rejects extra fields on the message and on the result', () => {
     expect(parse({ ...succeeded, extra: 1 }).success).toBe(false);
     expect(parse({ ...succeeded, result: { ...output, score: 1 } }).success).toBe(false);
+  });
+
+  it('US-3.2 AC-9 a MATCH result comes in chunks; the last one lists the failed pairs', () => {
+    expect(parse(matchResult).success).toBe(true);
+    const failed = { ...pair, code: 'LLM_REFUSAL', needs_review: true };
+    const last = { ...matchResult.result, final: true, items: [], failed_pairs: [failed] };
+    expect(parse({ ...matchResult, status: 'PARTIAL', result: last }).success).toBe(true);
+    const tooMany = Array.from({ length: MATCH_RESULT_CHUNK_MAX + 1 }, () => matchItem);
+    expect(parse({ ...matchResult, result: { ...matchResult.result, items: tooMany } }).success).toBe(false);
+  });
+
+  it('US-3.2 AC-10 a MATCH item carries no total the backend could read (AD-2)', () => {
+    const items = [{ ...matchItem, s_cv: 80 }];
+    expect(parse({ ...matchResult, result: { ...matchResult.result, items } }).success).toBe(false);
   });
 });

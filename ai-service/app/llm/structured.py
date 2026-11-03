@@ -109,6 +109,7 @@ class StructuredLLMClient:
             effort=effort,
             max_output_tokens=max_output_tokens or self._max_output_tokens,
             documents=tuple(document.ref for document in documents),
+            shared=prompt.shared,
         )
         params = self._provider.build_params(request)
         problems: list[str] = []

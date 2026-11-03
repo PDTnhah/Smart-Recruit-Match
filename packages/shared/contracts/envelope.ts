@@ -1,7 +1,16 @@
 import { z } from 'zod';
 import { CvPiiSchema, CvProfileSchema, CvSourceSchema } from './cv.js';
 import { JdRequirementsSchema, PositionGroupSchema } from './jd.js';
-import { CvParseJobSchema, JdAnalyzeJobSchema, SkillNormalizeJobSchema, type AiJobType } from './jobs.js';
+import {
+  CvParseJobSchema,
+  JdAnalyzeJobSchema,
+  MATCH_RUN_MAX_PAIRS,
+  MatchPairRefSchema,
+  MatchRunJobSchema,
+  SkillNormalizeJobSchema,
+  type AiJobType,
+} from './jobs.js';
+import { EvidenceCheckSchema, MatchAssessmentSchema, PROJECT_EVIDENCE_MAX } from './matching.js';
 import { SKILL_NORMALIZE_BATCH, SkillSuggestionSchema } from './skills.js';
 
 /** Outcome of a job as reported on `ai.results` (ARCHITECTURE › Hàng đợi). */
@@ -107,6 +116,59 @@ export const SkillNormalizeOutputSchema = z
   })
   .meta({ title: 'SkillNormalizeOutput', description: 'Result of SKILL_NORMALIZE' });
 
+/** Most assessments one `ai.results` message of a MATCH job carries (CONTEXT D46). */
+export const MATCH_RESULT_CHUNK_MAX = 500;
+
+export const MatchAssessmentItemSchema = z
+  .strictObject({
+    ...MatchPairRefSchema.shape,
+    // Per pair: a refusal resent on its own may be answered by a fallback model (Invariant 12).
+    model: z.string().min(1).describe('Model id that produced this assessment'),
+    assessment: MatchAssessmentSchema,
+    evidence_check: z
+      .array(EvidenceCheckSchema)
+      .max(PROJECT_EVIDENCE_MAX)
+      .describe('One check per quote of assessment.project_relevance.evidence, in the same order'),
+  })
+  .meta({ title: 'MatchAssessmentItem', description: 'The Matching Agent assessment of one pair, quotes checked' });
+
+export type MatchAssessmentItem = z.output<typeof MatchAssessmentItemSchema>;
+
+export const MatchFailedPairSchema = z
+  .strictObject({
+    ...MatchPairRefSchema.shape,
+    code: z
+      .string()
+      .min(1)
+      .max(50)
+      .describe('Why there is no assessment, e.g. LLM_REFUSAL, INVALID_OUTPUT, TRUNCATED, EXPIRED, SOURCE_MISSING'),
+    needs_review: z
+      .boolean()
+      .describe('The LLM refused the pair again when sent on its own: staff review it and later runs skip it'),
+  })
+  .meta({ title: 'MatchFailedPair', description: 'A pair of a MATCH job left without an assessment' });
+
+export type MatchFailedPair = z.output<typeof MatchFailedPairSchema>;
+
+/**
+ * Output of MATCH (US-3.2 AC-9, AC-10, CONTEXT D46), sent in chunks: every message but the last
+ * has `final` false and status SUCCEEDED; the last one is SUCCEEDED, or PARTIAL with the failed
+ * pairs, and closes the run. The backend scores each item itself (AD-2).
+ */
+export const MatchRunOutputSchema = z
+  .strictObject({
+    prompt_version: z.string().min(1).describe('Versioned prompt of every assessment of the job, e.g. matching/v1'),
+    final: z.boolean().describe('Last message of the job'),
+    items: z.array(MatchAssessmentItemSchema).max(MATCH_RESULT_CHUNK_MAX),
+    failed_pairs: z
+      .array(MatchFailedPairSchema)
+      .max(MATCH_RUN_MAX_PAIRS)
+      .describe('Pairs left without an assessment; empty except in the last message'),
+  })
+  .meta({ title: 'MatchRunOutput', description: 'One message of the result of MATCH' });
+
+export type MatchRunOutput = z.output<typeof MatchRunOutputSchema>;
+
 /**
  * One result message per job type. `job` echoes the job payload so a FAILED result still tells the
  * backend which CV or JD it is about (CONTEXT D33).
@@ -141,12 +203,22 @@ export const SkillNormalizeResultSchema = resultMessage(
   description: 'Message on ai.results for a SKILL_NORMALIZE job',
 });
 
+export const MatchRunResultSchema = resultMessage('MATCH', MatchRunJobSchema, MatchRunOutputSchema).meta({
+  title: 'MatchRunResult',
+  description: 'Message on ai.results for a MATCH job',
+});
+
 /**
  * A message on `ai.results`. The status/result/error checks live here only: `z.toJSONSchema` drops
  * refinements, so the AI Service builds the message in one place and tests it (CONTEXT D33).
  */
 export const AiResultMessageSchema = z
-  .discriminatedUnion('type', [CvParseResultSchema, JdAnalyzeResultSchema, SkillNormalizeResultSchema])
+  .discriminatedUnion('type', [
+    CvParseResultSchema,
+    JdAnalyzeResultSchema,
+    SkillNormalizeResultSchema,
+    MatchRunResultSchema,
+  ])
   .superRefine((msg, ctx) => {
     if (msg.job.job_id !== msg.job_id) {
       ctx.addIssue({ code: 'custom', path: ['job', 'job_id'], message: 'job.job_id must equal job_id' });

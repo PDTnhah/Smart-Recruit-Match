@@ -100,10 +100,14 @@ class GeminiProvider:
 
 
 def _contents(request: LLMRequest) -> str | list[dict[str, Any]]:
-    """The prompt alone, or one user turn with each document before the prompt text."""
-    if not request.documents:
+    """The prompt alone, or one user turn with the `shared` block, then each document, then the
+    prompt text. Gemini caches a repeated prefix implicitly (CONTEXT D46)."""
+    if not request.documents and request.shared is None:
         return request.user
-    parts: list[dict[str, Any]] = [
+    parts: list[dict[str, Any]] = []
+    if request.shared is not None:
+        parts.append({"text": request.shared})
+    parts += [
         {"inline_data": {"mime_type": ref.media_type, "data": document_placeholder(ref)}}
         for ref in request.documents
     ]

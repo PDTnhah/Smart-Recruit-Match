@@ -47,11 +47,17 @@ class Provider(StrEnum):
 
 @dataclass(frozen=True)
 class RenderedPrompt:
-    """A prompt file rendered for one call. `system` never holds per-call data (AC-9)."""
+    """A prompt file rendered for one call. `system` never holds per-call data (AC-9).
+
+    `shared` is the optional data block that many calls repeat, e.g. the requirements of one JD for
+    every CV scored against it (US-3.2, CONTEXT D46). It goes first in the user turn, so the cached
+    prefix covers `system` plus `shared`; it is still data, never instructions.
+    """
 
     prompt_version: str
     system: str
     user: str
+    shared: str | None = None
 
     def __post_init__(self) -> None:
         if not PROMPT_VERSION.match(self.prompt_version):
@@ -102,6 +108,8 @@ class LLMRequest:
     max_output_tokens: int
     documents: tuple[DocumentRef, ...] = ()
     """Read by the model before `user`; the bytes reach the provider through `send`."""
+    shared: str | None = None
+    """Data block placed before the documents and `user`, see RenderedPrompt."""
 
 
 class Usage(BaseModel):

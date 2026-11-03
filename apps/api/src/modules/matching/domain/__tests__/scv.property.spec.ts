@@ -47,7 +47,7 @@ function toInput(s: Scenario): ScvInput {
   const criteria: MatchCriteria = {
     must_have: judged.filter((v) => s.names.indexOf(v.skill) < s.mustCount),
     nice_to_have: judged.filter((v) => s.names.indexOf(v.skill) >= s.mustCount),
-    project_relevance: { score_0_4: s.project, reason: '...' },
+    project_relevance: { score_0_4: s.project, reason: '...', evidence: [] },
     education: { major_match: s.major, major_unrecognized: false },
     language:
       s.language === null

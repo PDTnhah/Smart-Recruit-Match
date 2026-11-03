@@ -10,6 +10,9 @@
     },
     {
       "$ref": "./skill_normalize_result.json"
+    },
+    {
+      "$ref": "./match_run_result.json"
     }
   ],
   "title": "AiResultMessage",

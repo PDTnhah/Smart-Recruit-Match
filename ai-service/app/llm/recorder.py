@@ -42,6 +42,7 @@ LLM_CALL_COLUMNS = (
     "cost_usd",
     "latency_ms",
     "log_key",
+    "batch_id",
 )
 """Every column the AI Service writes; `id` and `created_at` come from the database."""
 
@@ -68,6 +69,8 @@ class CallRecord:
     cost_usd: Decimal | None
     latency_ms: int
     log_key: str
+    batch_id: int | None = None
+    """ai.llm_batches.id when the request went in a batch (US-3.2 AC-14)."""
 
     def row(self) -> tuple[Any, ...]:
         """Values in LLM_CALL_COLUMNS order. Enumerations are UPPER_SNAKE like the CHECKs."""
@@ -89,11 +92,14 @@ class CallRecord:
             self.cost_usd,
             self.latency_ms,
             self.log_key,
+            self.batch_id,
         )
 
 
 class ObjectStore(Protocol):
     async def put_json(self, key: str, document: dict[str, Any]) -> None: ...
+
+    async def get_json(self, key: str) -> dict[str, Any]: ...
 
 
 class LlmCallStore(Protocol):
@@ -139,6 +145,17 @@ class MinioObjectStore:
     async def put_json(self, key: str, document: dict[str, Any]) -> None:
         data = json.dumps(document, ensure_ascii=False, sort_keys=True, default=str).encode()
         await anyio.to_thread.run_sync(self._put, key, data)
+
+    async def get_json(self, key: str) -> dict[str, Any]:
+        return json.loads(await anyio.to_thread.run_sync(self._get, key))
+
+    def _get(self, key: str) -> bytes:
+        response = self._client.get_object(self._bucket, key)
+        try:
+            return response.read()
+        finally:
+            response.close()
+            response.release_conn()
 
     def _put(self, key: str, data: bytes) -> None:
         if not self._ready:

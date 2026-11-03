@@ -31,11 +31,14 @@ class Settings(BaseModel):
     (US-2.5, CONTEXT D39)."""
     skill_match_threshold: float = Field(default=DEFAULT_SKILL_MATCH_THRESHOLD, gt=0, le=1)
     """Lowest cosine similarity that maps a skill name to the catalogue (US-2.5 AC-4)."""
+    batch_poll_seconds: int = Field(default=60, ge=1, le=3600)
+    """How often the batch poller asks a provider about a running batch (US-3.2 AC-17)."""
 
 
 def load_settings(environ: Mapping[str, str] = os.environ) -> Settings:
     """Reads AI_DATABASE_URL, RABBITMQ_URL, LOG_LEVEL, CV_MASK_CONTACTS, AI_FAKE_FILE_KEYS,
-    EMBEDDING_PROVIDER and SKILL_MATCH_THRESHOLD; an empty value counts as unset."""
+    EMBEDDING_PROVIDER, SKILL_MATCH_THRESHOLD and LLM_BATCH_POLL_SECONDS; an empty value counts as
+    unset."""
     values = {
         "ai_database_url": environ.get("AI_DATABASE_URL") or None,
         "rabbitmq_url": environ.get("RABBITMQ_URL") or None,
@@ -44,6 +47,7 @@ def load_settings(environ: Mapping[str, str] = os.environ) -> Settings:
         "fake_file_keys": environ.get("AI_FAKE_FILE_KEYS") or None,
         "embedding_provider": (environ.get("EMBEDDING_PROVIDER") or "").lower() or None,
         "skill_match_threshold": environ.get("SKILL_MATCH_THRESHOLD") or None,
+        "batch_poll_seconds": environ.get("LLM_BATCH_POLL_SECONDS") or None,
     }
     try:
         return Settings.model_validate({k: v for k, v in values.items() if v is not None})

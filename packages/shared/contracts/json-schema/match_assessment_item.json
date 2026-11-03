@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./match_assessment_item.json",
+  "type": "object",
+  "properties": {
+    "cv_id": {
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "maximum": 9007199254740991,
+      "description": "core.cvs.id; each CV version has its own row"
+    },
+    "cv_version": {
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "maximum": 9007199254740991,
+      "description": "core.cvs.version of that row"
+    },
+    "jd_id": {
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "maximum": 9007199254740991,
+      "description": "core.job_descriptions.id"
+    },
+    "jd_version": {
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "maximum": 9007199254740991,
+      "description": "core.job_descriptions.version the code part was computed for"
+    },
+    "model": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Model id that produced this assessment"
+    },
+    "assessment": {
+      "$ref": "./match_assessment.json"
+    },
+    "evidence_check": {
+      "maxItems": 5,
+      "type": "array",
+      "items": {
+        "$ref": "./evidence_check.json"
+      },
+      "description": "One check per quote of assessment.project_relevance.evidence, in the same order"
+    }
+  },
+  "required": [
+    "cv_id",
+    "cv_version",
+    "jd_id",
+    "jd_version",
+    "model",
+    "assessment",
+    "evidence_check"
+  ],
+  "additionalProperties": false,
+  "title": "MatchAssessmentItem",
+  "description": "The Matching Agent assessment of one pair, quotes checked"
+}

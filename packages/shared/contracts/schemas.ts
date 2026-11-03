@@ -21,6 +21,10 @@ import {
   CvParseResultSchema,
   JdAnalyzeOutputSchema,
   JdAnalyzeResultSchema,
+  MatchAssessmentItemSchema,
+  MatchFailedPairSchema,
+  MatchRunOutputSchema,
+  MatchRunResultSchema,
   SkillNormalizeOutputSchema,
   SkillNormalizeResultSchema,
 } from './envelope.js';
@@ -32,10 +36,12 @@ import {
   PositionGroupSchema,
   SkillLevelSchema,
 } from './jd.js';
-import { CvParseJobSchema, JdAnalyzeJobSchema, SkillNormalizeJobSchema } from './jobs.js';
+import { CvParseJobSchema, JdAnalyzeJobSchema, MatchPairRefSchema, MatchRunJobSchema, SkillNormalizeJobSchema } from './jobs.js';
 import {
+  EvidenceCheckSchema,
   EvidenceSectionSchema,
   MajorMatchSchema,
+  MatchAssessmentSchema,
   MatchCriteriaSchema,
   MatchEducationSchema,
   MatchKindSchema,
@@ -56,6 +62,8 @@ const CONTRACTS: ReadonlyArray<[z.ZodType, string]> = [
   [CvParseJobSchema, 'cv_parse_job'],
   [JdAnalyzeJobSchema, 'jd_analyze_job'],
   [SkillNormalizeJobSchema, 'skill_normalize_job'],
+  [MatchPairRefSchema, 'match_pair_ref'],
+  [MatchRunJobSchema, 'match_run_job'],
   [AiResultStatusSchema, 'ai_result_status'],
   [AiJobErrorSchema, 'ai_job_error'],
   [SkillLevelSchema, 'skill_level'],
@@ -74,6 +82,8 @@ const CONTRACTS: ReadonlyArray<[z.ZodType, string]> = [
   [MatchEducationSchema, 'match_education'],
   [MatchLanguageVerdictSchema, 'match_language_verdict'],
   [MatchCriteriaSchema, 'match_criteria'],
+  [MatchAssessmentSchema, 'match_assessment'],
+  [EvidenceCheckSchema, 'evidence_check'],
   [CvSourceSchema, 'cv_source'],
   [CvEducationSchema, 'cv_education'],
   [SkillGroupSchema, 'skill_group'],
@@ -93,9 +103,13 @@ const CONTRACTS: ReadonlyArray<[z.ZodType, string]> = [
   [SkillSuggestionSchema, 'skill_suggestion'],
   [SkillSuggestionsSchema, 'skill_suggestions'],
   [SkillNormalizeOutputSchema, 'skill_normalize_output'],
+  [MatchAssessmentItemSchema, 'match_assessment_item'],
+  [MatchFailedPairSchema, 'match_failed_pair'],
+  [MatchRunOutputSchema, 'match_run_output'],
   [CvParseResultSchema, 'cv_parse_result'],
   [JdAnalyzeResultSchema, 'jd_analyze_result'],
   [SkillNormalizeResultSchema, 'skill_normalize_result'],
+  [MatchRunResultSchema, 'match_run_result'],
   [AiResultMessageSchema, 'ai_result_message'],
 ];
 

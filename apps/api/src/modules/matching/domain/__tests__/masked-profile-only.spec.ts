@@ -17,7 +17,13 @@ describe('BR-03 matching domain reads only the masked profile, without framework
   it('BR-03 no domain file names CvProfile or CvPii; the CV readers take CvProfileMasked', () => {
     expect(sources.length).toBeGreaterThan(0);
     expect(filesWhere((text) => /\bCvProfile\b|\bCvPii\b/.test(text))).toEqual([]);
-    expect(filesWhere((text) => text.includes('CvProfileMasked'))).toEqual(['skill-evidence.ts', 'soft-skill-signals.ts']);
+    // US-3.2 adds the year of study and the facts of the hard filter, read from the same profile.
+    expect(filesWhere((text) => text.includes('CvProfileMasked'))).toEqual([
+      'skill-evidence.ts',
+      'soft-skill-signals.ts',
+      'student-facts.ts',
+      'year-of-study.ts',
+    ]);
   });
 
   it('BR-03 no domain file imports NestJS or Drizzle (Invariant 13)', () => {

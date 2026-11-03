@@ -1,15 +1,19 @@
 """Loads and renders versioned prompts (AD-12, AC-8 to AC-10).
 
-Each `<agent>/v<N>.md` is a Jinja2 template with two blocks:
+Each `<agent>/v<N>.md` is a Jinja2 template with two blocks, `system` and `user`, and an optional
+`shared` block:
 
     {% block system %}Fixed instructions and rubric. No variables.{% endblock %}
+    {% block shared %}{{ jd | tojson_sorted | untrusted("jd_requirements") }}{% endblock %}
     {% block user %}{{ cv_text | untrusted("cv_document") }}{% endblock %}
 
 `system` is rendered with no variables, so it is byte-identical on every call and stays cacheable;
-any variable in it fails the render (AC-9). Data goes in `user`, through the `untrusted` and
-`tojson_sorted` filters (AC-10). The version in use comes from active.json plus
-LLM_PROMPT_VERSIONS, never from "the newest file" (AC-8). Given a manifest, the registry renders
-only released files whose hash still matches, so a configuration override cannot run a draft.
+any variable in it fails the render (AC-9). `shared` holds data that many calls repeat; it comes
+right after `system`, so the cached prefix covers it too (US-3.2, CONTEXT D46). Data goes in
+`shared` and `user`, through the `untrusted` and `tojson_sorted` filters (AC-10). The version in use
+comes from active.json plus LLM_PROMPT_VERSIONS, never from "the newest file" (AC-8). Given a
+manifest, the registry renders only released files whose hash still matches, so a configuration
+override cannot run a draft.
 """
 
 from collections.abc import Mapping
@@ -23,6 +27,7 @@ from app.llm.types import PROMPT_VERSION, RenderedPrompt
 from app.prompts.files import PROMPTS_DIR, load_active, prompt_hash
 
 BLOCKS = ("system", "user")
+SHARED_BLOCK = "shared"
 
 
 class PromptRegistry:
@@ -73,7 +78,12 @@ class PromptRegistry:
             ) from error
         context = template.new_context(dict(variables))
         user = "".join(template.blocks["user"](context)).strip()
-        return RenderedPrompt(prompt_version=prompt_version, system=system, user=user)
+        shared = None
+        if SHARED_BLOCK in template.blocks:
+            shared = "".join(template.blocks[SHARED_BLOCK](context)).strip()
+        return RenderedPrompt(
+            prompt_version=prompt_version, system=system, user=user, shared=shared
+        )
 
     def _check_released(self, prompt_version: str, name: str) -> None:
         if self._manifest is None or prompt_version in self._released:

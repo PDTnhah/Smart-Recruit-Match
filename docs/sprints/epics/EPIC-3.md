@@ -47,7 +47,7 @@ Epic này **không** tính S_test hay S_final và không phân bổ. Các phần
 | US-3.1 | 5 | T5 (W45), làm sớm ở W44 | A | US-2.3, US-1.4 |
 | US-3.5 | 8 | T6 (W46) | A (+ B: prompt `cv_parser/v2`) | US-2.7, US-3.1 |
 | US-3.6 | 5 | T5–T6 (W45–W46) | A (+ B: prompt `jd_analyzer/v2`) | US-3.1, US-2.3 |
-| US-3.2 | 8 | T7 (W47) | A + B | US-2.2, US-2.5, US-2.6, US-3.1, US-3.5, US-3.6 |
+| US-3.2 | 13 | T5 (W45) | A + B | US-2.2, US-2.5, US-2.6, US-3.1, US-3.5, US-3.6 |
 | US-3.3 | 8 | T8 (W48) | A | US-3.2, US-1.4, US-3.5 |
 | US-3.4 | 3 | T8 (W48) | A | US-3.3, US-1.7 |
 
@@ -61,7 +61,7 @@ Epic này **không** tính S_test hay S_final và không phân bổ. Các phần
 
 | FR | Story | Status |
 |----|-------|--------|
-| FR-14 | US-3.1, US-3.2 | 📋 backlog |
+| FR-14 | US-3.1, US-3.2 | 🚧 in-progress |
 | FR-15 | US-3.3 | 📋 backlog |
 | FR-16 | US-3.3 | 📋 backlog |
 | FR-17 | US-3.4 | 📋 backlog |
@@ -80,7 +80,7 @@ Epic này **không** tính S_test hay S_final và không phân bổ. Các phần
 | ID | Title | Goal | Status | Version |
 |---|---|---|---|---|
 | US-3.1 | Lọc điều kiện cứng và công thức S_cv | Điều kiện cứng và S_cv được tính bằng hàm thuần có unit test | 👀 review | — |
-| US-3.2 | Matching Agent chạy hàng loạt | Mọi cặp SV × JD hợp lệ có điểm tiêu chí, bằng chứng đã kiểm tra và S_cv | 📋 backlog | — |
+| US-3.2 | Matching Agent chạy hàng loạt | Mọi cặp SV × JD hợp lệ có điểm tiêu chí, bằng chứng đã kiểm tra và S_cv | 👀 review | 0.17.0 |
 | US-3.3 | Shortlist và chọn nguyện vọng | SV xem shortlist có giải thích và sắp tối đa N_NV nguyện vọng | 📋 backlog | — |
 | US-3.4 | Mức cạnh tranh và gợi ý ít cạnh tranh | SV thấy mức cạnh tranh khi chọn NV; Trung tâm biết JD thiếu NV | 📋 backlog | — |
 | US-3.5 | Hồ sơ kỹ năng chi tiết và khớp kỹ năng bằng code | Mỗi kỹ năng của JD có verdict do code tính kèm kiểu khớp, bậc, nguồn trong CV | 👀 review | — |
@@ -104,7 +104,7 @@ Epic này **không** tính S_test hay S_final và không phân bổ. Các phần
 - **LLM không tính điểm tổng (AD-2, BR-13):** LLM trả verdict từng tiêu chí; S_cv = Σ wᵢ·sᵢ do code tính theo PRD › *Điểm phù hợp CV–JD (S_cv)*. Thực thi ở US-3.1; unit test công thức.
 - **Bằng chứng phải có thật (AGENTS › Nguyên tắc 5):**
   - Verdict kỹ năng, ngoại ngữ do code tính lấy bằng chứng từ chính trường của CV. Thực thi ở US-3.5, US-3.6.
-  - Trích dẫn của LLM ở tiêu chí dự án không khớp văn bản CV (RapidFuzz < 85) thì bị hạ điểm. Thực thi ở US-3.2; test với bằng chứng bịa.
+  - Trích dẫn của LLM ở tiêu chí dự án được so với văn bản CV (RapidFuzz ≥ 85) và lưu ở `evidence_check`; tạm chưa hạ điểm ([CONTEXT D46](../../CONTEXT.md)). Thực thi ở US-3.2; test với bằng chứng bịa.
 - **Khớp kỹ năng, ngoại ngữ, ngành không dùng LLM (AD-15):** hàm thuần trong `matching/domain/`, có property test tính đơn điệu và tất định; bộ luật có phiên bản (`matching-rules/v1`, `language-cefr/v1`) lưu kèm kết quả. Thực thi ở US-3.5, US-3.6.
 - **Matching chỉ nhận `profile_masked` (BR-03):** đọc qua view che PII. Thực thi ở US-3.2.
 - **Kết quả không bị chấm lại khi không có gì đổi:** `match_results` unique theo (cv_id, jd_id, cv_version, jd_version, rules_version, prompt_version). Thực thi ở US-3.2.

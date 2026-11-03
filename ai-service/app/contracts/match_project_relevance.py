@@ -4,7 +4,11 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, RootModel
+
+
+class EvidenceItem(RootModel[str]):
+    root: Annotated[str, Field(max_length=500, min_length=1)]
 
 
 class MatchProjectRelevance(BaseModel):
@@ -22,4 +26,8 @@ class MatchProjectRelevance(BaseModel):
     reason: Annotated[str, Field(max_length=1000, min_length=1)]
     """
     Why this score, citing the projects it rests on
+    """
+    evidence: Annotated[list[EvidenceItem], Field(max_length=5)]
+    """
+    Sentences copied word for word from the CV that the score rests on; empty when there is none
     """

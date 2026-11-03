@@ -64,9 +64,10 @@ export async function createVhost(name: string): Promise<RabbitVhost> {
  * Builds ai-service/Dockerfile and runs the FastStream worker on the test network, connected as
  * the ai_service role (the same image and command as compose's ai-worker). The recorded LLM replies
  * of ai-service/tests/fixtures/llm are copied in, so the sample CVs parse without a real API, and
- * `__fake__/` file keys fail on purpose for the retry and DLQ tests (CONTEXT D37).
+ * `__fake__/` file keys fail on purpose for the retry and DLQ tests (CONTEXT D37). `env` adds or
+ * overrides variables, e.g. a short LLM_BATCH_POLL_SECONDS for the matching batches (US-3.2).
  */
-export async function startAiWorker(vhost: RabbitVhost): Promise<StartedTestContainer> {
+export async function startAiWorker(vhost: RabbitVhost, env: Record<string, string> = {}): Promise<StartedTestContainer> {
   // Kept after the run: the dependency layer is then reused, so only a changed app/ rebuilds.
   const image = await GenericContainer.fromDockerfile(AI_SERVICE_DIR).build('srm-ai-service-test', {
     deleteOnExit: false,
@@ -90,6 +91,7 @@ export async function startAiWorker(vhost: RabbitVhost): Promise<StartedTestCont
       MINIO_ENDPOINT: 'http://minio:9000',
       MINIO_ACCESS_KEY: requiredEnv('MINIO_ACCESS_KEY'),
       MINIO_SECRET_KEY: requiredEnv('MINIO_SECRET_KEY'),
+      ...env,
     })
     .withCopyDirectoriesToContainer([{ source: path.join(AI_FIXTURES_DIR, 'llm'), target: '/tmp/llm-fixtures' }])
     .withCommand(['faststream', 'run', 'app.worker:create_app', '--factory'])

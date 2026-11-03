@@ -1,6 +1,6 @@
 import { AI_JOB_RUN_STATUSES, AI_JOB_TYPES, type AiJobRunStatus, type AiJobType } from '@srm/shared';
 import { sql } from 'drizzle-orm';
-import { check, index, integer, numeric, pgSchema, text, unique, uuid, vector } from 'drizzle-orm/pg-core';
+import { check, index, integer, jsonb, numeric, pgSchema, text, unique, uuid, vector } from 'drizzle-orm/pg-core';
 import { id, oneOf, ref, timestamptz } from './columns.js';
 
 /**
@@ -68,9 +68,12 @@ export const aiLlmCalls = ai.table(
     latencyMs: integer('latency_ms').notNull(),
     logKey: text('log_key').notNull().unique(),
     createdAt: timestamptz('created_at').notNull().defaultNow(),
+    // Added by US-3.2 (CONTEXT D46), so after created_at: the request was part of this batch.
+    batchId: ref('batch_id').references(() => aiLlmBatches.id),
   },
   (t) => [
     index('llm_calls_agent_created_at_idx').on(t.agent, t.createdAt),
+    index('llm_calls_batch_id_idx').on(t.batchId),
     index('llm_calls_job_id_idx').on(t.jobId),
     check('llm_calls_prompt_version_check', sql`${t.promptVersion} ~ '^[a-z][a-z0-9_]*/v[1-9][0-9]*$'`),
     oneOf('llm_calls_provider_check', t.provider, LLM_PROVIDERS),
@@ -85,6 +88,72 @@ export const aiLlmCalls = ai.table(
     ),
     check('llm_calls_cost_usd_check', sql`${t.costUsd} >= 0`),
     check('llm_calls_latency_ms_check', sql`${t.latencyMs} >= 0`),
+  ],
+);
+
+/** PREPARING: claimed, not yet accepted by the provider; SUBMITTED: the provider is running it. */
+export const LLM_BATCH_STATUSES = ['PREPARING', 'SUBMITTED', 'PROCESSED', 'FAILED'] as const;
+
+export type LlmBatchStatus = (typeof LLM_BATCH_STATUSES)[number];
+
+/**
+ * One provider batch of a job (US-3.2 AC-17, CONTEXT D46). The job handler inserts round 1 as
+ * PREPARING before it submits, records the provider's id, then the worker acks the job message and
+ * leaves `ai.jobs` PROCESSING: a batch may run for hours, longer than the broker waits for an ack.
+ * A redelivered job finds its round 1 and submits nothing (AD-5). The poller of any replica leases
+ * due rows with `FOR UPDATE SKIP LOCKED`, reads the results once the provider has ended the batch,
+ * and submits the requests that failed again as round 2, then 3 (AC-9). A round larger than one
+ * provider batch may hold (Gemini: 20 MB of inline requests) is split into parts.
+ */
+export const aiLlmBatches = ai.table(
+  'llm_batches',
+  {
+    id: id(),
+    jobId: uuid('job_id')
+      .notNull()
+      .references(() => aiJobs.jobId),
+    jobType: text('job_type').$type<AiJobType>().notNull(),
+    /** The job message, so a poller on another replica or after a restart can finish the job. */
+    jobPayload: jsonb('job_payload').$type<Record<string, unknown>>().notNull(),
+    agent: text('agent').notNull(),
+    promptVersion: text('prompt_version').notNull(),
+    provider: text('provider').$type<(typeof LLM_PROVIDERS)[number]>().notNull(),
+    model: text('model').notNull(),
+    round: integer('round').notNull(),
+    part: integer('part').notNull(),
+    status: text('status').$type<LlmBatchStatus>().notNull(),
+    providerBatchId: text('provider_batch_id'),
+    requestCount: integer('request_count').notNull(),
+    /** Requests of the round left without a valid answer, with why; written when it is processed. */
+    failures: jsonb('failures').$type<Record<string, unknown>[]>(),
+    errorMessage: text('error_message'),
+    leaseOwner: text('lease_owner'),
+    leaseUntil: timestamptz('lease_until'),
+    nextPollAt: timestamptz('next_poll_at').notNull().defaultNow(),
+    createdAt: timestamptz('created_at').notNull().defaultNow(),
+    submittedAt: timestamptz('submitted_at'),
+    finishedAt: timestamptz('finished_at'),
+  },
+  (t) => [
+    unique('llm_batches_job_round_part_key').on(t.jobId, t.round, t.part),
+    unique('llm_batches_provider_batch_key').on(t.provider, t.providerBatchId),
+    // The poller's scan: batches still open, by when they are due.
+    index('llm_batches_due_idx')
+      .on(t.nextPollAt)
+      .where(sql`${t.status} in ('PREPARING', 'SUBMITTED')`),
+    oneOf('llm_batches_job_type_check', t.jobType, AI_JOB_TYPES),
+    oneOf('llm_batches_status_check', t.status, LLM_BATCH_STATUSES),
+    oneOf('llm_batches_provider_check', t.provider, LLM_PROVIDERS),
+    check('llm_batches_prompt_version_check', sql`${t.promptVersion} ~ '^[a-z][a-z0-9_]*/v[1-9][0-9]*$'`),
+    check('llm_batches_round_check', sql`${t.round} between 1 and 3`),
+    check('llm_batches_part_check', sql`${t.part} >= 1`),
+    check('llm_batches_request_count_check', sql`${t.requestCount} > 0`),
+    check(
+      'llm_batches_provider_batch_id_check',
+      sql`${t.status} = 'FAILED' or (${t.status} = 'PREPARING') = (${t.providerBatchId} is null)`,
+    ),
+    check('llm_batches_finished_check', sql`(${t.status} in ('PROCESSED', 'FAILED')) = (${t.finishedAt} is not null)`),
+    check('llm_batches_error_check', sql`${t.status} <> 'FAILED' or ${t.errorMessage} is not null`),
   ],
 );
 

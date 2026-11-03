@@ -11,6 +11,8 @@ const CORE_TABLES = [
   'consents',
   'cvs',
   'job_descriptions',
+  'match_results',
+  'match_runs',
   'notifications',
   'skill_implications',
   'skills',

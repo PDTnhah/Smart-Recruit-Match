@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./evidence_check.json",
+  "type": "object",
+  "properties": {
+    "quote": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 500,
+      "description": "The quote, as the LLM wrote it"
+    },
+    "score": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "rapidfuzz partial_ratio against the CV text, both NFC, lower case, spaces collapsed"
+    },
+    "matched": {
+      "type": "boolean",
+      "description": "score is at least EVIDENCE_MATCH_MIN_SCORE (85)"
+    }
+  },
+  "required": [
+    "quote",
+    "score",
+    "matched"
+  ],
+  "additionalProperties": false,
+  "title": "EvidenceCheck",
+  "description": "Whether one quote of the Matching Agent is found in the CV"
+}

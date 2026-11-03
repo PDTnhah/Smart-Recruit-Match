@@ -5,7 +5,7 @@ import { SKILL_NORMALIZE_BATCH } from './skills.js';
  * Job types handled by the AI Service. Each later agent story adds its own type, payload schema,
  * queue and result output (US-3.2, US-4.1, …).
  */
-export const AI_JOB_TYPES = ['CV_PARSE', 'JD_ANALYZE', 'SKILL_NORMALIZE'] as const;
+export const AI_JOB_TYPES = ['CV_PARSE', 'JD_ANALYZE', 'SKILL_NORMALIZE', 'MATCH'] as const;
 
 export type AiJobType = (typeof AI_JOB_TYPES)[number];
 
@@ -51,10 +51,48 @@ export const SkillNormalizeJobSchema = z
 
 export type SkillNormalizeJob = z.infer<typeof SkillNormalizeJobSchema>;
 
+/** Most pairs one matching run sends to the LLM: 1 000 students × top-M 50; NFR-7 plans for 500 × 10. */
+export const MATCH_RUN_MAX_PAIRS = 50_000;
+
+/** A versioned prompt such as `matching/v1`, or the code rules a verdict rests on. Shape only (LESSONS §32). */
+const versionLabel = () => z.string().trim().min(1).max(200);
+
+/** One CV × JD pair, by IDs and versions only (AD-5); the AI Service reads the pair's data from the views. */
+export const MatchPairRefSchema = z
+  .strictObject({
+    cv_id: rowId().describe('core.cvs.id; each CV version has its own row'),
+    cv_version: rowId().describe('core.cvs.version of that row'),
+    jd_id: rowId().describe('core.job_descriptions.id'),
+    jd_version: rowId().describe('core.job_descriptions.version the code part was computed for'),
+  })
+  .meta({ title: 'MatchPairRef', description: 'One CV × JD pair of a matching run' });
+
+export type MatchPairRef = z.infer<typeof MatchPairRefSchema>;
+
+/**
+ * Payload on `ai.match.run` (US-3.2 AC-1, CONTEXT D46): the pairs among the top M of each CV that
+ * still need the Matching Agent. Code has stored each pair's verdicts in `core.match_results`; the
+ * AI Service reads them through `core.v_ai_match_pairs`.
+ */
+export const MatchRunJobSchema = z
+  .strictObject({
+    job_id: jobId(),
+    campaign_id: rowId().describe('core.campaigns.id of the run'),
+    rules_version: versionLabel().describe('Code rules the stored verdicts rest on, the same for every pair'),
+    prompt_version: versionLabel()
+      .nullable()
+      .describe('Prompt the campaign is pinned to, e.g. matching/v1; null until it has a result, then the active one'),
+    pairs: z.array(MatchPairRefSchema).min(1).max(MATCH_RUN_MAX_PAIRS).describe('Pairs to score, without duplicates'),
+  })
+  .meta({ title: 'MatchRunJob', description: 'Job on ai.match.run: score projects and comment on CV × JD pairs' });
+
+export type MatchRunJob = z.infer<typeof MatchRunJobSchema>;
+
 export const AI_JOB_SCHEMAS = {
   CV_PARSE: CvParseJobSchema,
   JD_ANALYZE: JdAnalyzeJobSchema,
   SKILL_NORMALIZE: SkillNormalizeJobSchema,
+  MATCH: MatchRunJobSchema,
 } as const satisfies Record<AiJobType, z.ZodType>;
 
 export type AiJobPayload<T extends AiJobType> = z.infer<(typeof AI_JOB_SCHEMAS)[T]>;
