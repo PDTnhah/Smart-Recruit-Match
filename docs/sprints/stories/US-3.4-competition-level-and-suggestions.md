@@ -10,7 +10,7 @@ version_shipped: 0.19.0
 prd_ref: [FR-17]
 depends_on: [US-3.3, US-1.7]
 assignee:
-commit:
+commit: 72c82c2
 created: 2026-10-07
 updated: 2026-11-04
 ---
@@ -107,7 +107,7 @@ Mức cạnh tranh là phép đếm, không dùng LLM, nằm trong module `match
 - Nhãn gợi ý "Phù hợp – ít cạnh tranh" trên shortlist.
 - Thông báo cho Trung tâm danh sách JD có tỷ lệ NV/chỉ tiêu < 1 sau khi khóa chọn NV và tự gán NV.
 
-**Commit**:
+**Commit**: 72c82c2
 
 ## Implementation notes
 
