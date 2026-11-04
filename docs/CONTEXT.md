@@ -53,6 +53,7 @@
 - D44 · Khung bậc `matching-rules/v1`: thời gian chỉ đọc ở mục kinh nghiệm, luật khớp, quét văn bản tự do (US-3.5)
 - D45 · Bảng `language-cefr/v1`, hai thang TOEFL iBT, điểm tiêu chí ngoại ngữ, 7 nhóm ngành, bộ đọc ngôn ngữ ở `packages/shared` (US-3.6)
 - D46 · Matching hàng loạt: batch Gemini + Claude, ack sớm và bộ poll, ghim prompt theo đợt, tạm không hạ điểm dự án, năm học đọc từ hồ sơ (US-3.2)
+- D47 · Chốt Q1, Q6; vòng đời hồ sơ ứng tuyển, bảng `preferences`, shortlist của SV, màn chọn nguyện vọng (US-3.3)
 
 ---
 
@@ -1800,3 +1801,70 @@ AC-4 đòi một ngôn ngữ không nằm ở cả `required_languages` lẫn `p
 
 **Date**: 2026-11-03
 **Version**: 0.17.0
+
+### D47. Chốt Q1, Q6; vòng đời hồ sơ ứng tuyển, bảng `preferences`, shortlist của SV và màn chọn nguyện vọng (US-3.3)
+
+**Context**: Phiên Plan của US-3.3 gặp các điểm chưa chốt:
+
+- Q1 (SV tự chọn NV) và Q6 (SV không chọn NV đến hạn) còn mở trong PRD; story tạm dùng cột Đề xuất.
+- Story đề xuất hai route `/sv/shortlist`, `/sv/preferences`, nhưng thanh điều hướng dưới của cổng SV đã đủ 5 mục (DESIGN §12), trong đó có "Nguyện vọng".
+- D31 giao cho US-3.3 nguồn nhắc hạn chọn NV, nhưng story không có task này.
+- Spec không nói cách lưu NV (tự lưu hay nút lưu); `GET /api/me/shortlist` lấy đợt nào; dòng `match_results` nào là hiện hành; cặp bị lọc top-M hiện ra sao; hai `PUT` của cùng SV tuần tự hóa bằng gì.
+
+**Decision** (người dùng chốt bốn điểm đầu ngày 2026-11-03; phần còn lại nằm trong plan đã được duyệt):
+
+- **Q1 chốt:** SV chọn và sắp tối đa N_NV (`campaigns.config.n_nv`, mặc định 3) JD **từ shortlist**.
+- **Q6 chốt:** tham số `campaigns.config.no_preference_policy` = `AUTO_ASSIGN_TOP_SCV` (mặc định) | `NONE`.
+  - Khi đợt chuyển `PREFERENCE_SELECTION → TESTING` (sự kiện `campaign.phase_changed`), SV có shortlist không rỗng mà chưa có NV được gán min(N_NV, số JD trong shortlist) JD đầu shortlist, đúng thứ tự shortlist.
+  - Actor `SYSTEM`, audit có lý do, thông báo `PREFERENCES_AUTO_ASSIGNED` (IN_APP + EMAIL). Chạy lại không gán thêm: kiểm lại trong khóa của SV, hai unique index chặn ở DB.
+  - Xong thì phát `matching.preferences.auto_assigned` (`campaignId`, `studentIds`, `jdIds`) cho US-3.4.
+  - (Bổ sung ở phiên Review, 2026-11-04.) Lần chạy theo sự kiện nằm trong tiến trình API, nên có thể lỗi hoặc dừng giữa chừng khi API khởi động lại. Vì vậy có thêm tác vụ quét `preference-auto-assign` mỗi 10 phút, chạy Q6 lại cho mọi đợt ở `TESTING`, dưới khóa advisory `3_304`. Mỗi lần quét chỉ gán cho SV còn chưa có NV.
+  - Khi đợt còn lượt chấm `RUNNING`, SV còn JD chờ chấm chưa được gán; lần quét sau khi lượt chấm xong mới gán, theo shortlist đầy đủ.
+  - Q6 và nhắc hạn chỉ đọc các cột quyết định shortlist (`shortlistSummary`), cùng cách phân loại với `shortlistView`.
+- **`campaigns.config.require_full_preferences`** (boolean, mặc định `false`; GĐ4 bước 3): `true` thì phải chọn đủ min(N_NV, số JD trong shortlist). Cả hai tham số mới khóa sau khi mở đợt như mọi tham số khác; đợt cũ nhận mặc định khi parse.
+- **Vòng đời hồ sơ ứng tuyển** (`packages/shared/states/application.ts`): 13 mã trạng thái của story, 17 cạnh chép đúng sơ đồ PRD, khởi đầu `PENDING_TEST`. Lưu ở `preferences.status`. Trạng thái nào lưu ở `nominations` do EPIC-5 chốt. Không thêm cạnh `TEST_GRADED → CLOSED` khi chưa có mục D mới.
+- **Bảng `core.preferences`**: `id`, `campaign_id`, `student_id`, `jd_id`, `rank`, `status`, `row_version`, timestamps.
+  - Ràng buộc `unique(campaign_id, student_id, rank)`, `unique(student_id, jd_id)`, `CHECK (rank >= 1)`, `status` thuộc 13 mã; index `(jd_id, status)` cho US-3.4.
+  - `PUT /api/me/preferences` thay cả danh sách: xóa rồi chèn ở `PENDING_TEST` trong một giao dịch. Một dòng audit `PREFERENCES_REPLACED`, entity `preference_list`, `entity_id` = id SV, trước/sau là `{ campaignId, items[{ jdId, rank }] }`. Xóa được vì trong pha chọn NV chưa có gì trỏ tới NV.
+  - Thứ tự trong giao dịch: `pg_advisory_xact_lock(3_303, student_id)` → `CampaignService.assertPhase(campaignId, ['PREFERENCE_SELECTION'], { tx })` (khóa `FOR SHARE` hàng đợt, kiểm hạn theo giờ server) → kiểm danh sách → ghi → audit. Sau commit phát `matching.preferences.replaced` (`campaignId`, `studentId`, `jdIds` trước ∪ sau).
+  - Body: `{ campaignId, preferences: [{ jdId, rank }] }`, tối đa 20 phần tử. Lỗi `422` có mã: `PREFERENCES_TOO_MANY`, `PREFERENCE_NOT_IN_SHORTLIST`, `PREFERENCE_DUPLICATE_JD`, `PREFERENCE_RANK_NOT_CONTIGUOUS`, `PREFERENCES_INCOMPLETE`; thông điệp tiếng Việt ở `packages/shared`. Danh sách rỗng hợp lệ khi không bắt buộc đủ.
+- **Shortlist của SV** (`GET /api/me/shortlist`, không tham số):
+  - Đợt: đợt có CV `active` mới nhất của SV, không ở `DRAFT`/`CLOSED`. Response trả `campaign` (`id`, `name`, `status`, `preferenceEnd`, `nNv`, `requireFullPreferences`, `editable`) hoặc `null`.
+  - Dòng hiện hành: phiên bản CV `active`; phiên bản hiện hành của JD `APPROVED`/`RECRUITING` (`JdService.listShortlistCards`, kèm tên công ty); `rules_version` hiện hành; dòng đã chấm có `prompt_version` = prompt ghim của đợt (D46).
+  - `state`: `NO_CONFIRMED_CV` (không có CV `active` đã xác nhận) | `SCORING` (đợt có lượt chấm `RUNNING`, hoặc CV chưa có kết quả) | `READY`.
+  - `items[]` theo `selectShortlist`, mỗi JD có thẻ JD, `sCv`, `breakdown`, `skills` (`MatchSkillVerdict` có `match_kind`, `tier`, `via`, `sources`), `zones`, `language`, `education`, `project` (điểm, lý do, trích dẫn kèm `evidence_check`), `gaps` (`criteria.gaps` của code), `strengths`, `suggestions`, `summary`, `preferenceRank`. `ineligible[]` có `reasons: IneligibleReason[]`.
+  - Cặp đủ điều kiện mà dưới θ_cv, bị lọc top-M hoặc `needs_review`, hoặc còn chờ LLM thì không hiện, chỉ đếm (`belowThresholdCount`, `notScoredCount`, `pendingCount`).
+  - Một hàm thuần (`matching/domain/shortlist-view.ts`) lọc và phân loại cho cả GET, PUT, Q6 và nhắc hạn, nên bốn chỗ cùng một định nghĩa "trong shortlist".
+- **Nhắc hạn:** nguồn `preference-selection` trong module `matching`, đăng ký vào `DeadlineReminderRegistry`. Đợt `PREFERENCE_SELECTION` có `preference_end` trong khung `reminder_hours_before`; người nhận là SV có shortlist không rỗng mà chưa có NV; `dedupe_key` `deadline:{campaignId}:preference_end:{hạn ISO}`.
+- **Giao diện:** một route `/sv/preferences`, hai tab "Gợi ý" / "Nguyện vọng x/N", từ `lg` thành hai cột (mẫu `tabs` của US-2.6). Giải thích chi tiết của JD mở trong `Sheet`. Sắp thứ tự bằng dnd-kit (cảm ứng, bàn phím) và nút lên/xuống. Bản nháp ở client, lưu bằng nút "Lưu nguyện vọng"; có dấu hiệu chưa lưu và cảnh báo khi rời trang.
+
+**Rationale**:
+
+- Q1, Q6 theo Đề xuất: tôn trọng mong muốn của SV mà thuật toán vẫn chống dồn hồ sơ; tự gán giúp SV không bị bỏ khỏi đợt chỉ vì quên chọn, còn `NONE` để Trung tâm chọn khác.
+- Khóa advisory theo SV không đụng bảng của module khác (Nguyên tắc 13) và có hiệu lực cả khi SV chưa có NV nào, lúc chưa có hàng để `FOR UPDATE`.
+- Xóa rồi chèn tránh vi phạm tạm thời của `unique(…, rank)` khi đổi chỗ hai NV.
+- Một hàm cho bốn chỗ đọc shortlist: chỗ kiểm BR-04 và chỗ SV nhìn thấy không lệch nhau.
+- Một route: không vượt 5 mục của thanh dưới; hai tab trên điện thoại, hai cột trên màn rộng.
+- Nút lưu: mỗi lần lưu một audit; kéo-thả nhanh không sinh nhiều request đè nhau.
+
+**Alternatives considered**:
+
+- **Q6 mặc định `NONE`; code theo Đề xuất nhưng để Q1, Q6 mở:** người dùng không chọn.
+- **Hai route `/sv/shortlist`, `/sv/preferences`; một màn dọc không tab:** người dùng không chọn.
+- **Tự lưu mỗi thay đổi:** người dùng không chọn.
+- **Để nguồn nhắc hạn chọn NV cho story sau:** người dùng không chọn.
+- **Khóa hàng CV `active` bằng `FOR UPDATE`:** loại; bảng của module `student`.
+- **Cập nhật `rank` tại chỗ:** loại; cần unique `DEFERRABLE` hoặc hai bước, không lợi gì khi chưa có gì trỏ tới NV.
+
+**Impact**:
+
+- PRD: Q1, Q6 ghi đã chốt; bảng tham số GĐ0 thêm hai khóa (phiên Doc gate).
+- ARCHITECTURE: *Các bảng chính* (`preferences`), *API architecture* (body `PUT /api/me/preferences`), *Các module* (sự kiện `matching.*`), *Tác vụ định kỳ* (khóa `3_303`, `3_304`, tác vụ quét `preference-auto-assign`, nguồn nhắc `preference-selection`).
+- DESIGN: §6 (sortable dnd-kit, `Progress` cho độ phủ vùng), §12 (màn Nguyện vọng).
+- Story sau:
+  - US-3.4 nghe `matching.preferences.replaced` và `matching.preferences.auto_assigned`, đếm NV theo `(jd_id, status)`, thêm `competition` vào `ShortlistResponse`.
+  - US-4.3, US-4.4, US-5.2–US-5.4 dùng `applicationMachine` và `applicationLifecycle`.
+  - US-5.5 thêm NV ở vòng bổ sung bằng endpoint riêng, không dùng `PUT` thay cả danh sách khi đã có bài test.
+
+**Date**: 2026-11-03
+**Version**: 0.18.0

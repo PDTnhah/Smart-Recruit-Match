@@ -23,6 +23,8 @@ export const NOTIFICATION_TYPES = [
   'CV_PROFILE_READY',
   'CV_ANALYSIS_FAILED',
   'CV_NEEDS_ATTENTION',
+  // Preferences given by the system at the deadline (US-3.3, PRD Q6, CONTEXT D47).
+  'PREFERENCES_AUTO_ASSIGNED',
 ] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
@@ -118,6 +120,17 @@ export const CvNeedsAttentionPayloadSchema = z.object({
   reason: z.enum(CV_ATTENTION_REASONS),
 });
 
+/**
+ * The student chose no preference by `preference_end`, so the system gave them the first `count`
+ * JDs of their shortlist (Q6, US-3.3 AC-10). In the app and by email: the student may not be back
+ * before the tests start.
+ */
+export const PreferencesAutoAssignedPayloadSchema = z.object({
+  campaignId: id,
+  campaignName: z.string().min(1),
+  count: id,
+});
+
 /** `type` and the `payload` that goes with it. */
 export const NotificationContentSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('CAMPAIGN_OPENED'), payload: CampaignOpenedPayloadSchema }),
@@ -129,6 +142,7 @@ export const NotificationContentSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('CV_PROFILE_READY'), payload: CvProfileReadyPayloadSchema }),
   z.object({ type: z.literal('CV_ANALYSIS_FAILED'), payload: CvAnalysisFailedPayloadSchema }),
   z.object({ type: z.literal('CV_NEEDS_ATTENTION'), payload: CvNeedsAttentionPayloadSchema }),
+  z.object({ type: z.literal('PREFERENCES_AUTO_ASSIGNED'), payload: PreferencesAutoAssignedPayloadSchema }),
 ]);
 
 export type NotificationContent = z.output<typeof NotificationContentSchema>;

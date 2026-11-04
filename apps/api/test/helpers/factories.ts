@@ -1,8 +1,19 @@
 // Minimal valid rows for the core tables. Test files share one database and run in parallel,
 // so every unique column gets a fresh value.
 import type { Database } from '../../src/db/types.js';
-import { type CvProfile, type CvStatus, type Role, skillMatchKey } from '@srm/shared';
-import { campaigns, companies, cvs, jobDescriptions, skills, students, users } from '../../src/db/schema/index.js';
+import { type CvProfile, type CvStatus, type MatchCodeCriteria, type Role, skillMatchKey } from '@srm/shared';
+import {
+  campaigns,
+  companies,
+  cvs,
+  jobDescriptions,
+  matchResults,
+  preferences,
+  skills,
+  students,
+  users,
+} from '../../src/db/schema/index.js';
+import { RULES_VERSION } from '../../src/modules/matching/domain/rules-version.js';
 
 let sequence = 0;
 
@@ -130,6 +141,82 @@ export async function createSkill(db: Database, values: Partial<typeof skills.$i
       canonicalName,
       nameKey: skillMatchKey(canonicalName),
       aliasKeys: (values.aliases ?? []).map(skillMatchKey),
+    })
+    .returning();
+  return row!;
+}
+
+/**
+ * A preference (an application, US-3.3) of a new student for a new JD unless told otherwise, rank 1
+ * in PENDING_TEST by default. The JD is created in the campaign, so the row is consistent.
+ */
+export async function createPreference(db: Database, values: Partial<typeof preferences.$inferInsert> = {}) {
+  const campaignId = values.campaignId ?? (await createCampaign(db)).id;
+  const [studentId, jdId] = await Promise.all([
+    values.studentId ?? createStudent(db).then((row) => row.id),
+    values.jdId ?? createJobDescription(db, { campaignId }).then((row) => row.id),
+  ]);
+  const [row] = await db
+    .insert(preferences)
+    .values({ rank: 1, ...values, campaignId, studentId, jdId })
+    .returning();
+  return row!;
+}
+
+/** Code verdicts of an eligible pair with no skill, language or major gap (US-3.2 CHECKs). */
+export const SAMPLE_MATCH_CRITERIA: MatchCodeCriteria = {
+  must_have: [],
+  nice_to_have: [],
+  education: { major_match: 'EXACT', major_unrecognized: false },
+  language: null,
+  zones: [],
+  gaps: [],
+};
+
+type MatchResultValues = Partial<Omit<typeof matchResults.$inferInsert, 'sCv'>> &
+  Pick<typeof matchResults.$inferInsert, 'campaignId' | 'studentId' | 'cvId' | 'jdId'> & {
+    /** S_cv of a scored pair; null for a pair waiting for the LLM. */
+    sCv?: number | null;
+  };
+
+/** The LLM part of a scored pair (US-3.2 CHECKs: it comes whole, with S_cv). */
+function llmPart(sCv: number): Partial<typeof matchResults.$inferInsert> {
+  return {
+    promptVersion: 'matching/v1',
+    model: 'fixture',
+    assessment: {
+      project_relevance: { score_0_4: 3, reason: 'Dự án web phù hợp.', evidence: [] },
+      strengths: ['Có dự án web'],
+      suggestions: ['Học thêm Docker'],
+      summary: 'Khá phù hợp.',
+      evidence_check: [],
+    },
+    sCv,
+    scvBreakdown: [],
+  };
+}
+
+/**
+ * A `match_results` row for a CV × JD pair with the current rules (US-3.2). By default the pair is
+ * eligible and scored with `matching/v1` at S_cv 70; pass `eligible: false` with
+ * `ineligibleReasons`, or `sCv: null` for a pair waiting for the LLM.
+ */
+export async function createMatchResult(db: Database, values: MatchResultValues) {
+  const { sCv = 70, ...rest } = values;
+  const eligible = rest.eligible ?? true;
+  const scored = eligible && sCv !== null && !rest.skippedByPrefilter && !rest.needsReview;
+  const [row] = await db
+    .insert(matchResults)
+    .values({
+      cvVersion: 1,
+      jdVersion: 1,
+      rulesVersion: RULES_VERSION,
+      facts: { major: 'CNTT', yearOfStudy: 3, gpa4: 3.2, languageCertificates: [] },
+      criteria: eligible ? SAMPLE_MATCH_CRITERIA : null,
+      skillFit: eligible ? 50 : null,
+      ...(scored ? llmPart(sCv) : {}),
+      ...rest,
+      eligible,
     })
     .returning();
   return row!;

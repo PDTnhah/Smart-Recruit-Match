@@ -40,7 +40,14 @@ import { CampaignService } from '../../campaign/index.js';
 import { COMPANY_AUDIT_ACTIONS } from '../domain/audit-actions.js';
 import { JD_APPROVED, JD_SUBMITTED, type JdEvent } from '../domain/events.js';
 import { checkApprovable, checkSubmittable } from '../domain/jd-checks.js';
-import { type ApprovedJd, type JdChanges, type JdContent, type JdRecord, JdRepository } from '../infrastructure/jd.repository.js';
+import {
+  type ApprovedJd,
+  type JdChanges,
+  type JdContent,
+  type JdRecord,
+  JdRepository,
+  type ShortlistJdCard,
+} from '../infrastructure/jd.repository.js';
 
 /** Audit and error entity, shared with transitionTo (the machine name). */
 const ENTITY = jobDescriptionMachine.name;
@@ -81,6 +88,14 @@ export class JdService implements OnModuleInit {
    */
   async listApprovedForMatching(campaignId: number, { withEnded = false } = {}): Promise<ApprovedJd[]> {
     return this.repository.listApproved(campaignId, withEnded);
+  }
+
+  /**
+   * The JDs of a campaign a student may be suggested (US-3.3, BR-02): the ones matching scores
+   * against, with their current version and what the card shows, company name included; by JD id.
+   */
+  async listShortlistCards(campaignId: number): Promise<ShortlistJdCard[]> {
+    return this.repository.listShortlistCards(campaignId);
   }
 
   /**

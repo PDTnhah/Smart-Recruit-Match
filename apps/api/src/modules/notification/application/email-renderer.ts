@@ -105,6 +105,12 @@ export class EmailRenderer {
           campaignName: content.payload.campaignName,
           link: `${this.webOrigin}${DEADLINE_TASKS.intake_end.path}`,
         };
+      case 'PREFERENCES_AUTO_ASSIGNED':
+        return {
+          campaignName: content.payload.campaignName,
+          count: String(content.payload.count),
+          link: `${this.webOrigin}${DEADLINE_TASKS.preference_end.path}`,
+        };
       case 'JD_REQUIREMENTS_READY':
       case 'JD_ANALYSIS_FAILED':
       case 'JD_REQUIREMENTS_VERSIONED':

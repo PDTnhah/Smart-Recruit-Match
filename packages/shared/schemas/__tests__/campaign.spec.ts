@@ -8,6 +8,7 @@ import {
   normalizeAudienceValue,
   PHASE_END_DEADLINE,
   PhaseDeadlinesInputSchema,
+  PREFERENCES_MAX,
   SCV_WEIGHT_KEYS,
   scvWeightsOf,
   toHundredths,
@@ -44,8 +45,30 @@ describe('GĐ0: campaign config schema', () => {
       scv_weight_education: 0.15,
       scv_weight_language: 0.1,
       match_top_m: 10,
+      no_preference_policy: 'AUTO_ASSIGN_TOP_SCV',
+      require_full_preferences: false,
     });
     expect(CampaignConfigSchema.parse({})).toEqual(DEFAULT_CAMPAIGN_CONFIG);
+  });
+
+  it('GĐ4 Q6 policy and require_full_preferences take their defaults on an older config (US-3.3 AC-19)', () => {
+    const older = { n_nv: 4, theta_cv: 60 };
+    expect(CampaignConfigSchema.parse(older)).toMatchObject({
+      n_nv: 4,
+      no_preference_policy: 'AUTO_ASSIGN_TOP_SCV',
+      require_full_preferences: false,
+    });
+    const parsed = CampaignConfigSchema.parse({ no_preference_policy: 'NONE', require_full_preferences: true });
+    expect(parsed).toMatchObject({ no_preference_policy: 'NONE', require_full_preferences: true });
+    expect(CampaignConfigSchema.safeParse({ no_preference_policy: 'RANDOM' }).success).toBe(false);
+    expect(CampaignConfigSchema.safeParse({ require_full_preferences: 'yes' }).success).toBe(false);
+    expect(CampaignConfigPatchSchema.parse({ require_full_preferences: true })).toEqual({ require_full_preferences: true });
+  });
+
+  it('GĐ4 N_NV is at most PREFERENCES_MAX, the size of a preference list (CONTEXT D47)', () => {
+    const nNv = (value: number) => CampaignConfigSchema.safeParse({ n_nv: value }).success;
+    expect([nNv(1), nNv(PREFERENCES_MAX)]).toEqual([true, true]);
+    expect(nNv(PREFERENCES_MAX + 1)).toBe(false);
   });
 
   it('GĐ3 match_top_m is an integer from 1 to 50 (US-3.2 AC-6)', () => {

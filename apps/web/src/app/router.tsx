@@ -19,6 +19,7 @@ import { SkillReviewPage } from '@/features/center/skills/skill-review-page';
 import { HrJdListPage } from '@/features/hr/jds/hr-jd-list-page';
 import { HrJdCreatePage, HrJdDetailPage } from '@/features/hr/jds/hr-jd-pages';
 import { StudentHomePage } from '@/features/student/home/student-home-page';
+import { PreferencesPage } from '@/features/student/preferences/preferences-page';
 import { CvPage } from '@/features/student/profile/cv-page';
 
 // Routes by portal (DESIGN.md §12). A story that ships a screen adds its route next to the
@@ -62,6 +63,8 @@ export const router = createBrowserRouter([
     [
       // US-1.6: "Hồ sơ": consent to the terms, CV upload and versions (the /sv portal is STUDENT-only).
       { path: 'cv', element: <CvPage /> },
+      // US-3.3: "Nguyện vọng": the shortlist with its explanations and the preference list.
+      { path: 'preferences', element: <PreferencesPage /> },
     ],
     // US-1.6 AC-1: the home lists what to do now, starting with consent and CV for open campaigns.
     <StudentHomePage />,

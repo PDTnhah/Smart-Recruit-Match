@@ -2147,6 +2147,68 @@
           "matching"
         ]
       }
+    },
+    "/api/me/shortlist": {
+      "get": {
+        "operationId": "MeShortlistController_get",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShortlistResponseDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "preferences"
+        ]
+      }
+    },
+    "/api/me/preferences": {
+      "put": {
+        "operationId": "MePreferencesController_replace",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReplacePreferencesRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreferenceListDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "preferences"
+        ]
+      }
     }
   },
   "info": {
@@ -3613,7 +3675,7 @@
                 "default": 3,
                 "type": "integer",
                 "exclusiveMinimum": true,
-                "maximum": 9007199254740991,
+                "maximum": 20,
                 "minimum": 0
               },
               "theta_cv": {
@@ -3723,6 +3785,18 @@
                 "exclusiveMinimum": true,
                 "maximum": 50,
                 "minimum": 0
+              },
+              "no_preference_policy": {
+                "default": "AUTO_ASSIGN_TOP_SCV",
+                "type": "string",
+                "enum": [
+                  "AUTO_ASSIGN_TOP_SCV",
+                  "NONE"
+                ]
+              },
+              "require_full_preferences": {
+                "default": false,
+                "type": "boolean"
               }
             }
           }
@@ -3813,7 +3887,7 @@
                 "default": 3,
                 "type": "integer",
                 "exclusiveMinimum": true,
-                "maximum": 9007199254740991,
+                "maximum": 20,
                 "minimum": 0
               },
               "theta_cv": {
@@ -3923,6 +3997,18 @@
                 "exclusiveMinimum": true,
                 "maximum": 50,
                 "minimum": 0
+              },
+              "no_preference_policy": {
+                "default": "AUTO_ASSIGN_TOP_SCV",
+                "type": "string",
+                "enum": [
+                  "AUTO_ASSIGN_TOP_SCV",
+                  "NONE"
+                ]
+              },
+              "require_full_preferences": {
+                "default": false,
+                "type": "boolean"
               }
             },
             "required": [
@@ -3942,7 +4028,9 @@
               "scv_weight_project",
               "scv_weight_education",
               "scv_weight_language",
-              "match_top_m"
+              "match_top_m",
+              "no_preference_policy",
+              "require_full_preferences"
             ],
             "additionalProperties": false
           },
@@ -4061,7 +4149,7 @@
                       "default": 3,
                       "type": "integer",
                       "exclusiveMinimum": true,
-                      "maximum": 9007199254740991,
+                      "maximum": 20,
                       "minimum": 0
                     },
                     "theta_cv": {
@@ -4171,6 +4259,18 @@
                       "exclusiveMinimum": true,
                       "maximum": 50,
                       "minimum": 0
+                    },
+                    "no_preference_policy": {
+                      "default": "AUTO_ASSIGN_TOP_SCV",
+                      "type": "string",
+                      "enum": [
+                        "AUTO_ASSIGN_TOP_SCV",
+                        "NONE"
+                      ]
+                    },
+                    "require_full_preferences": {
+                      "default": false,
+                      "type": "boolean"
                     }
                   },
                   "required": [
@@ -4190,7 +4290,9 @@
                     "scv_weight_project",
                     "scv_weight_education",
                     "scv_weight_language",
-                    "match_top_m"
+                    "match_top_m",
+                    "no_preference_policy",
+                    "require_full_preferences"
                   ],
                   "additionalProperties": false
                 },
@@ -4301,7 +4403,7 @@
               "n_nv": {
                 "type": "integer",
                 "exclusiveMinimum": true,
-                "maximum": 9007199254740991,
+                "maximum": 20,
                 "minimum": 0
               },
               "theta_cv": {
@@ -4395,6 +4497,16 @@
                 "exclusiveMinimum": true,
                 "maximum": 50,
                 "minimum": 0
+              },
+              "no_preference_policy": {
+                "type": "string",
+                "enum": [
+                  "AUTO_ASSIGN_TOP_SCV",
+                  "NONE"
+                ]
+              },
+              "require_full_preferences": {
+                "type": "boolean"
               }
             }
           },
@@ -7077,6 +7189,68 @@
                     "payload"
                   ],
                   "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "readAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                      "nullable": true
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "PREFERENCES_AUTO_ASSIGNED"
+                      ]
+                    },
+                    "payload": {
+                      "type": "object",
+                      "properties": {
+                        "campaignId": {
+                          "type": "integer",
+                          "exclusiveMinimum": true,
+                          "maximum": 9007199254740991,
+                          "minimum": 0
+                        },
+                        "campaignName": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "count": {
+                          "type": "integer",
+                          "exclusiveMinimum": true,
+                          "maximum": 9007199254740991,
+                          "minimum": 0
+                        }
+                      },
+                      "required": [
+                        "campaignId",
+                        "campaignName",
+                        "count"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "readAt",
+                    "createdAt",
+                    "type",
+                    "payload"
+                  ],
+                  "additionalProperties": false
                 }
               ]
             }
@@ -7184,6 +7358,1099 @@
           "pairsSkipped",
           "pairsCached",
           "pairsSent"
+        ],
+        "additionalProperties": false
+      },
+      "ShortlistResponseDto_Output": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "NO_CONFIRMED_CV",
+              "SCORING",
+              "READY"
+            ]
+          },
+          "campaign": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer",
+                "exclusiveMinimum": true,
+                "maximum": 9007199254740991,
+                "minimum": 0
+              },
+              "name": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "DRAFT",
+                  "INTAKE",
+                  "PREFERENCE_SELECTION",
+                  "TESTING",
+                  "ALLOCATION_REVIEW",
+                  "SUPPLEMENTARY",
+                  "CLOSED"
+                ]
+              },
+              "preferenceEnd": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                "nullable": true
+              },
+              "nNv": {
+                "type": "integer",
+                "exclusiveMinimum": true,
+                "maximum": 9007199254740991,
+                "minimum": 0
+              },
+              "requireFullPreferences": {
+                "type": "boolean"
+              },
+              "editable": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "status",
+              "preferenceEnd",
+              "nNv",
+              "requireFullPreferences",
+              "editable"
+            ],
+            "additionalProperties": false,
+            "nullable": true
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "jd": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "exclusiveMinimum": true,
+                      "maximum": 9007199254740991,
+                      "minimum": 0
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "companyName": {
+                      "type": "string"
+                    },
+                    "positionGroup": {
+                      "type": "string",
+                      "enum": [
+                        "BACKEND",
+                        "FRONTEND",
+                        "MOBILE",
+                        "DATA_AI",
+                        "TESTER_QA",
+                        "BA",
+                        "DEVOPS",
+                        "OTHER",
+                        null
+                      ],
+                      "nullable": true
+                    },
+                    "location": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "workMode": {
+                      "type": "string",
+                      "enum": [
+                        "ONSITE",
+                        "HYBRID",
+                        "REMOTE",
+                        null
+                      ],
+                      "nullable": true
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "title",
+                    "companyName",
+                    "positionGroup",
+                    "location",
+                    "workMode"
+                  ],
+                  "additionalProperties": false
+                },
+                "sCv": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 100
+                },
+                "breakdown": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "criterion": {
+                        "type": "string",
+                        "enum": [
+                          "must_have",
+                          "nice_to_have",
+                          "project",
+                          "education",
+                          "language"
+                        ]
+                      },
+                      "applicable": {
+                        "type": "boolean"
+                      },
+                      "scoreX100": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991,
+                        "nullable": true
+                      },
+                      "weightBp": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "effectiveWeightBp": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "contributionX100": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "required": [
+                      "criterion",
+                      "applicable",
+                      "scoreX100",
+                      "weightBp",
+                      "effectiveWeightBp",
+                      "contributionX100"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "skills": {
+                  "type": "object",
+                  "properties": {
+                    "must_have": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "skill": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 100,
+                            "description": "Skill name exactly as the JD requirements list it"
+                          },
+                          "level_required": {
+                            "type": "string",
+                            "enum": [
+                              "BASIC",
+                              "INTERMEDIATE",
+                              "ADVANCED"
+                            ],
+                            "title": "SkillLevel",
+                            "description": "BASIC = basic: used in at least 1 project, experience or certificate; INTERMEDIATE = working knowledge: used in at least 2 projects or experience entries; ADVANCED = proficient: at least 6 months of work or internship experience using it"
+                          },
+                          "verdict": {
+                            "type": "string",
+                            "enum": [
+                              "MET",
+                              "PARTIAL",
+                              "NOT_MET"
+                            ],
+                            "title": "MatchVerdict",
+                            "description": "MET = the CV shows the required level; PARTIAL = only listed, below the required level, or a skill of the same family; NOT_MET = no evidence"
+                          },
+                          "evidence": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 1000,
+                            "description": "Quote copied from the CV that supports the verdict; null when NOT_MET",
+                            "nullable": true
+                          },
+                          "match_kind": {
+                            "type": "string",
+                            "enum": [
+                              "EXACT",
+                              "IMPLIED",
+                              "FAMILY",
+                              "NONE"
+                            ],
+                            "title": "MatchKind",
+                            "description": "EXACT = the CV shows the skill itself; IMPLIED = only skills that imply it; FAMILY = a skill of the same family; NONE = no match"
+                          },
+                          "tier": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 4,
+                            "description": "Evidence tier of the matched skill: 0 none, 1 listed, 2 used, 3 used often, 4 proficient (CONTEXT D44)"
+                          },
+                          "via": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 100,
+                            "description": "Catalogue skill of the CV the match goes through for IMPLIED and FAMILY; null for EXACT and NONE",
+                            "nullable": true
+                          },
+                          "sources": {
+                            "maxItems": 10,
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "section": {
+                                  "type": "string",
+                                  "enum": [
+                                    "SKILLS_LIST",
+                                    "PROJECT",
+                                    "EXPERIENCE",
+                                    "CERTIFICATE"
+                                  ],
+                                  "title": "EvidenceSection",
+                                  "description": "CV list of a source entry: skills, projects, experience or certificates"
+                                },
+                                "index": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 99,
+                                  "description": "Position of the entry in its CV list, from 0"
+                                },
+                                "text": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 1000,
+                                  "description": "The words of the entry that name the skill, copied from the CV"
+                                }
+                              },
+                              "required": [
+                                "section",
+                                "index",
+                                "text"
+                              ],
+                              "additionalProperties": false,
+                              "title": "MatchSkillSource",
+                              "description": "One CV entry that shows a skill"
+                            },
+                            "description": "CV entries the tier rests on: experience, projects, certificates, then the skills list"
+                          }
+                        },
+                        "required": [
+                          "skill",
+                          "level_required",
+                          "verdict",
+                          "evidence",
+                          "match_kind",
+                          "tier",
+                          "via",
+                          "sources"
+                        ],
+                        "additionalProperties": false,
+                        "title": "MatchSkillVerdict",
+                        "description": "Verdict on one skill of the JD, computed by code, with the CV entries it rests on"
+                      }
+                    },
+                    "nice_to_have": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "skill": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 100,
+                            "description": "Skill name exactly as the JD requirements list it"
+                          },
+                          "level_required": {
+                            "type": "string",
+                            "enum": [
+                              "BASIC",
+                              "INTERMEDIATE",
+                              "ADVANCED"
+                            ],
+                            "title": "SkillLevel",
+                            "description": "BASIC = basic: used in at least 1 project, experience or certificate; INTERMEDIATE = working knowledge: used in at least 2 projects or experience entries; ADVANCED = proficient: at least 6 months of work or internship experience using it"
+                          },
+                          "verdict": {
+                            "type": "string",
+                            "enum": [
+                              "MET",
+                              "PARTIAL",
+                              "NOT_MET"
+                            ],
+                            "title": "MatchVerdict",
+                            "description": "MET = the CV shows the required level; PARTIAL = only listed, below the required level, or a skill of the same family; NOT_MET = no evidence"
+                          },
+                          "evidence": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 1000,
+                            "description": "Quote copied from the CV that supports the verdict; null when NOT_MET",
+                            "nullable": true
+                          },
+                          "match_kind": {
+                            "type": "string",
+                            "enum": [
+                              "EXACT",
+                              "IMPLIED",
+                              "FAMILY",
+                              "NONE"
+                            ],
+                            "title": "MatchKind",
+                            "description": "EXACT = the CV shows the skill itself; IMPLIED = only skills that imply it; FAMILY = a skill of the same family; NONE = no match"
+                          },
+                          "tier": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 4,
+                            "description": "Evidence tier of the matched skill: 0 none, 1 listed, 2 used, 3 used often, 4 proficient (CONTEXT D44)"
+                          },
+                          "via": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 100,
+                            "description": "Catalogue skill of the CV the match goes through for IMPLIED and FAMILY; null for EXACT and NONE",
+                            "nullable": true
+                          },
+                          "sources": {
+                            "maxItems": 10,
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "section": {
+                                  "type": "string",
+                                  "enum": [
+                                    "SKILLS_LIST",
+                                    "PROJECT",
+                                    "EXPERIENCE",
+                                    "CERTIFICATE"
+                                  ],
+                                  "title": "EvidenceSection",
+                                  "description": "CV list of a source entry: skills, projects, experience or certificates"
+                                },
+                                "index": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 99,
+                                  "description": "Position of the entry in its CV list, from 0"
+                                },
+                                "text": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 1000,
+                                  "description": "The words of the entry that name the skill, copied from the CV"
+                                }
+                              },
+                              "required": [
+                                "section",
+                                "index",
+                                "text"
+                              ],
+                              "additionalProperties": false,
+                              "title": "MatchSkillSource",
+                              "description": "One CV entry that shows a skill"
+                            },
+                            "description": "CV entries the tier rests on: experience, projects, certificates, then the skills list"
+                          }
+                        },
+                        "required": [
+                          "skill",
+                          "level_required",
+                          "verdict",
+                          "evidence",
+                          "match_kind",
+                          "tier",
+                          "via",
+                          "sources"
+                        ],
+                        "additionalProperties": false,
+                        "title": "MatchSkillVerdict",
+                        "description": "Verdict on one skill of the JD, computed by code, with the CV entries it rests on"
+                      }
+                    }
+                  },
+                  "required": [
+                    "must_have",
+                    "nice_to_have"
+                  ],
+                  "additionalProperties": false
+                },
+                "zones": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "zone": {
+                        "type": "string",
+                        "enum": [
+                          "FOUNDATION",
+                          "BACKEND",
+                          "FRONTEND",
+                          "MOBILE",
+                          "DATABASE",
+                          "DATA_AI",
+                          "DEVOPS_CLOUD",
+                          "TESTING_QA",
+                          "BUSINESS_ANALYSIS",
+                          "PROCESS",
+                          "SECURITY_NETWORK",
+                          "EMBEDDED_IOT",
+                          "GAME_DEV",
+                          "BLOCKCHAIN",
+                          "SOFT_SKILL"
+                        ]
+                      },
+                      "demandWeightX100": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "coverageX100": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 10000
+                      }
+                    },
+                    "required": [
+                      "zone",
+                      "demandWeightX100",
+                      "coverageX100"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "language": {
+                  "type": "object",
+                  "properties": {
+                    "verdict": {
+                      "type": "string",
+                      "enum": [
+                        "MET",
+                        "PARTIAL",
+                        "NOT_MET"
+                      ],
+                      "title": "MatchVerdict",
+                      "description": "MET = the CV shows the required level; PARTIAL = only listed, below the required level, or a skill of the same family; NOT_MET = no evidence"
+                    },
+                    "evidence": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 1000,
+                      "description": "Quote copied from the CV that supports the verdict; null when NOT_MET",
+                      "nullable": true
+                    },
+                    "required": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 2000,
+                      "description": "The required and preferred languages of the JD with their CEFR levels, joined by \"; \""
+                    },
+                    "held": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 2000,
+                      "description": "The languages and certificates of the student with their CEFR levels, joined by \"; \"; null when none",
+                      "nullable": true
+                    }
+                  },
+                  "required": [
+                    "verdict",
+                    "evidence",
+                    "required",
+                    "held"
+                  ],
+                  "additionalProperties": false,
+                  "title": "MatchLanguageVerdict",
+                  "description": "How well the languages and certificates meet the JD, computed by code (CONTEXT D42, D45)",
+                  "nullable": true
+                },
+                "education": {
+                  "type": "object",
+                  "properties": {
+                    "major_match": {
+                      "type": "string",
+                      "enum": [
+                        "EXACT",
+                        "RELATED",
+                        "OTHER"
+                      ],
+                      "title": "MajorMatch",
+                      "description": "EXACT = the major the JD asks for, RELATED = a close major, OTHER = unrelated"
+                    },
+                    "major_unrecognized": {
+                      "type": "boolean",
+                      "description": "The major is in no major group, or the student has none, so it counts as OTHER"
+                    }
+                  },
+                  "required": [
+                    "major_match",
+                    "major_unrecognized"
+                  ],
+                  "additionalProperties": false,
+                  "title": "MatchEducation",
+                  "description": "Major against the JD, computed by code (CONTEXT D42, D45); the GPA comes from the school record, not from the CV (CONTEXT D41)"
+                },
+                "project": {
+                  "type": "object",
+                  "properties": {
+                    "score": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 4
+                    },
+                    "reason": {
+                      "type": "string"
+                    },
+                    "quotes": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "quote": {
+                            "type": "string"
+                          },
+                          "matched": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "quote",
+                          "matched"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "score",
+                    "reason",
+                    "quotes"
+                  ],
+                  "additionalProperties": false
+                },
+                "gaps": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "skill": {
+                        "type": "string"
+                      },
+                      "group": {
+                        "type": "string",
+                        "enum": [
+                          "must_have",
+                          "nice_to_have"
+                        ]
+                      },
+                      "levelRequired": {
+                        "type": "string",
+                        "enum": [
+                          "BASIC",
+                          "INTERMEDIATE",
+                          "ADVANCED"
+                        ],
+                        "title": "SkillLevel",
+                        "description": "BASIC = basic: used in at least 1 project, experience or certificate; INTERMEDIATE = working knowledge: used in at least 2 projects or experience entries; ADVANCED = proficient: at least 6 months of work or internship experience using it"
+                      },
+                      "verdict": {
+                        "type": "string",
+                        "enum": [
+                          "PARTIAL",
+                          "NOT_MET"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "skill",
+                      "group",
+                      "levelRequired",
+                      "verdict"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "strengths": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "suggestions": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "summary": {
+                  "type": "string"
+                },
+                "preferenceRank": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "nullable": true
+                }
+              },
+              "required": [
+                "jd",
+                "sCv",
+                "breakdown",
+                "skills",
+                "zones",
+                "language",
+                "education",
+                "project",
+                "gaps",
+                "strengths",
+                "suggestions",
+                "summary",
+                "preferenceRank"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "ineligible": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "jd": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "exclusiveMinimum": true,
+                      "maximum": 9007199254740991,
+                      "minimum": 0
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "companyName": {
+                      "type": "string"
+                    },
+                    "positionGroup": {
+                      "type": "string",
+                      "enum": [
+                        "BACKEND",
+                        "FRONTEND",
+                        "MOBILE",
+                        "DATA_AI",
+                        "TESTER_QA",
+                        "BA",
+                        "DEVOPS",
+                        "OTHER",
+                        null
+                      ],
+                      "nullable": true
+                    },
+                    "location": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "workMode": {
+                      "type": "string",
+                      "enum": [
+                        "ONSITE",
+                        "HYBRID",
+                        "REMOTE",
+                        null
+                      ],
+                      "nullable": true
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "title",
+                    "companyName",
+                    "positionGroup",
+                    "location",
+                    "workMode"
+                  ],
+                  "additionalProperties": false
+                },
+                "reasons": {
+                  "minItems": 1,
+                  "type": "array",
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "code": {
+                            "type": "string",
+                            "enum": [
+                              "MAJOR_NOT_ALLOWED"
+                            ]
+                          },
+                          "required": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "actual": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "code",
+                          "required",
+                          "actual"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "code": {
+                            "type": "string",
+                            "enum": [
+                              "MAJOR_MISSING"
+                            ]
+                          },
+                          "required": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "actual": {
+                            "type": "null"
+                          }
+                        },
+                        "required": [
+                          "code",
+                          "required",
+                          "actual"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "code": {
+                            "type": "string",
+                            "enum": [
+                              "YEAR_BELOW_MIN"
+                            ]
+                          },
+                          "required": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "actual": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "required": [
+                          "code",
+                          "required",
+                          "actual"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "code": {
+                            "type": "string",
+                            "enum": [
+                              "YEAR_MISSING"
+                            ]
+                          },
+                          "required": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "actual": {
+                            "type": "null"
+                          }
+                        },
+                        "required": [
+                          "code",
+                          "required",
+                          "actual"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "code": {
+                            "type": "string",
+                            "enum": [
+                              "GPA_BELOW_MIN"
+                            ]
+                          },
+                          "required": {
+                            "type": "number"
+                          },
+                          "actual": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "code",
+                          "required",
+                          "actual"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "code": {
+                            "type": "string",
+                            "enum": [
+                              "GPA_MISSING"
+                            ]
+                          },
+                          "required": {
+                            "type": "number"
+                          },
+                          "actual": {
+                            "type": "null"
+                          }
+                        },
+                        "required": [
+                          "code",
+                          "required",
+                          "actual"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "code": {
+                            "type": "string",
+                            "enum": [
+                              "LANGUAGE_NOT_MET"
+                            ]
+                          },
+                          "required": {
+                            "type": "string"
+                          },
+                          "actual": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "required": [
+                          "code",
+                          "required",
+                          "actual"
+                        ],
+                        "additionalProperties": false
+                      }
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "jd",
+                "reasons"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "belowThresholdCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "notScoredCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "pendingCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "preferences": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "jdId": {
+                  "type": "integer",
+                  "exclusiveMinimum": true,
+                  "maximum": 9007199254740991,
+                  "minimum": 0
+                },
+                "rank": {
+                  "type": "integer",
+                  "exclusiveMinimum": true,
+                  "maximum": 9007199254740991,
+                  "minimum": 0
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "PENDING_TEST",
+                    "TEST_GRADED",
+                    "BELOW_THRESHOLD",
+                    "WAITING_NEXT_ROUND",
+                    "NOMINATED",
+                    "INTERVIEW",
+                    "HR_REJECTED",
+                    "PASSED",
+                    "RESERVE",
+                    "INTERVIEW_FAILED",
+                    "ACCEPTED",
+                    "DECLINED",
+                    "CLOSED"
+                  ]
+                }
+              },
+              "required": [
+                "jdId",
+                "rank",
+                "status"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "state",
+          "campaign",
+          "items",
+          "ineligible",
+          "belowThresholdCount",
+          "notScoredCount",
+          "pendingCount",
+          "preferences"
+        ],
+        "additionalProperties": false
+      },
+      "ReplacePreferencesRequestDto": {
+        "type": "object",
+        "properties": {
+          "campaignId": {
+            "type": "integer",
+            "exclusiveMinimum": true,
+            "maximum": 9007199254740991,
+            "minimum": 0
+          },
+          "preferences": {
+            "maxItems": 20,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "jdId": {
+                  "type": "integer",
+                  "exclusiveMinimum": true,
+                  "maximum": 9007199254740991,
+                  "minimum": 0
+                },
+                "rank": {
+                  "type": "integer",
+                  "exclusiveMinimum": true,
+                  "maximum": 9007199254740991,
+                  "minimum": 0
+                }
+              },
+              "required": [
+                "jdId",
+                "rank"
+              ]
+            }
+          }
+        },
+        "required": [
+          "campaignId",
+          "preferences"
+        ]
+      },
+      "PreferenceListDto_Output": {
+        "type": "object",
+        "properties": {
+          "campaignId": {
+            "type": "integer",
+            "exclusiveMinimum": true,
+            "maximum": 9007199254740991,
+            "minimum": 0
+          },
+          "preferences": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "jdId": {
+                  "type": "integer",
+                  "exclusiveMinimum": true,
+                  "maximum": 9007199254740991,
+                  "minimum": 0
+                },
+                "rank": {
+                  "type": "integer",
+                  "exclusiveMinimum": true,
+                  "maximum": 9007199254740991,
+                  "minimum": 0
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "PENDING_TEST",
+                    "TEST_GRADED",
+                    "BELOW_THRESHOLD",
+                    "WAITING_NEXT_ROUND",
+                    "NOMINATED",
+                    "INTERVIEW",
+                    "HR_REJECTED",
+                    "PASSED",
+                    "RESERVE",
+                    "INTERVIEW_FAILED",
+                    "ACCEPTED",
+                    "DECLINED",
+                    "CLOSED"
+                  ]
+                }
+              },
+              "required": [
+                "jdId",
+                "rank",
+                "status"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "campaignId",
+          "preferences"
         ],
         "additionalProperties": false
       }

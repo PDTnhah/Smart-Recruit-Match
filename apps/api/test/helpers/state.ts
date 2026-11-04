@@ -1,7 +1,7 @@
 // Reusable helpers for lifecycle tests (US-1.2 AC-9). Later stories use them to put a record in any
 // state, run a transition and read its audit entry, and race two operations to check the 409 path.
 import { Test, type TestingModule, type TestingModuleBuilder } from '@nestjs/testing';
-import type { CampaignStatus, CvStatus, JobDescriptionStatus } from '@srm/shared';
+import type { ApplicationStatus, CampaignStatus, CvStatus, JobDescriptionStatus } from '@srm/shared';
 import { and, desc, eq } from 'drizzle-orm';
 import { RowVersionConflictError } from '../../src/common/errors/domain-error.js';
 import {
@@ -12,6 +12,7 @@ import {
 } from '../../src/common/state/index.js';
 import { DbModule } from '../../src/db/db.module.js';
 import {
+  applicationLifecycle,
   campaignLifecycle,
   cvLifecycle,
   jobDescriptionLifecycle,
@@ -21,12 +22,13 @@ import {
 import { auditLogs } from '../../src/db/schema/index.js';
 import { DRIZZLE } from '../../src/db/tokens.js';
 import type { Database } from '../../src/db/types.js';
-import { createCampaign, createCv, createJobDescription } from './factories.js';
+import { createCampaign, createCv, createJobDescription, createPreference } from './factories.js';
 
 interface Lifecycles {
   campaign: CampaignStatus;
   jobDescription: JobDescriptionStatus;
   cv: CvStatus;
+  application: ApplicationStatus;
 }
 
 export type LifecycleKind = keyof Lifecycles;
@@ -35,6 +37,7 @@ const LIFECYCLES: { [K in LifecycleKind]: Lifecycle<Lifecycles[K]> } = {
   campaign: campaignLifecycle,
   jobDescription: jobDescriptionLifecycle,
   cv: cvLifecycle,
+  application: applicationLifecycle,
 };
 
 /** Inserts a minimal valid row with the given status and row_version; returns its id. */
@@ -43,6 +46,7 @@ const CREATE: Record<LifecycleKind, (db: Database, status: string, rowVersion: n
   jobDescription: (db, status, rowVersion) =>
     createJobDescription(db, { status: status as JobDescriptionStatus, rowVersion }),
   cv: (db, status, rowVersion) => createCv(db, { status: status as CvStatus, rowVersion }),
+  application: (db, status, rowVersion) => createPreference(db, { status: status as ApplicationStatus, rowVersion }),
 };
 
 /** The production lifecycle (table + state machine) for a kind, to build a `transitionTo` request. */

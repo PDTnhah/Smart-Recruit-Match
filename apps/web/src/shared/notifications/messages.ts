@@ -89,5 +89,13 @@ export function describeNotification(notification: Notification): NotificationVi
         href: centerCvsPath(campaignId),
       };
     }
+    case 'PREFERENCES_AUTO_ASSIGNED': {
+      const { campaignName, count } = notification.payload;
+      return {
+        title: 'Hệ thống đã chọn nguyện vọng cho bạn',
+        body: `Bạn chưa chọn nguyện vọng của đợt "${campaignName}" trước hạn, nên hệ thống đã chọn ${count} JD phù hợp nhất trong danh sách gợi ý.`,
+        href: DEADLINES.preference_end.href,
+      };
+    }
   }
 }

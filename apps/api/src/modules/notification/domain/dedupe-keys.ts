@@ -13,6 +13,8 @@ export const DEDUPE_KEYS = {
    */
   deadline: (campaignId: number, deadlineKey: CampaignDeadlineKey, deadline: Date) =>
     `deadline:${campaignId}:${deadlineKey}:${deadline.toISOString()}`,
+  /** Q6 gives a student preferences at most once per campaign (US-3.3, CONTEXT D47). */
+  preferencesAutoAssigned: (campaignId: number) => `preferences_auto_assigned:${campaignId}`,
   /**
    * One notice per CV version and outcome (US-2.4, CONTEXT D37): a redelivered result is quiet, a
    * profile after a failed dispatch is still announced, and a retry by command that fails again

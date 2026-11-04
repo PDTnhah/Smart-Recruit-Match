@@ -38,6 +38,14 @@ const score = (label: string) =>
     .min(0, { error: `${label} phải từ 0 đến 100` })
     .max(100, { error: `${label} phải từ 0 đến 100` });
 
+/** Most preferences a list may hold, whatever N_NV says (CONTEXT D47). */
+export const PREFERENCES_MAX = 20;
+
+/** What happens to a student with no preference at `preference_end` (PRD Q6, CONTEXT D47). */
+export const NO_PREFERENCE_POLICIES = ['AUTO_ASSIGN_TOP_SCV', 'NONE'] as const;
+
+export type NoPreferencePolicy = (typeof NO_PREFERENCE_POLICIES)[number];
+
 const weight = (label: string) =>
   z
     .number({ error: `${label} phải là một số` })
@@ -48,7 +56,7 @@ const weight = (label: string) =>
 // Declared once without defaults: the full schema adds PRD defaults, the patch schema stays partial
 // (in Zod 4, `.partial()` would still fill defaults in).
 const CONFIG_FIELDS = {
-  n_nv: positiveInt('N_NV'),
+  n_nv: positiveInt('N_NV').max(PREFERENCES_MAX, { error: `N_NV tối đa ${PREFERENCES_MAX}` }),
   theta_cv: score('θ_cv'),
   theta_test: score('θ_test'),
   alpha: weight('α'),
@@ -71,13 +79,18 @@ const CONFIG_FIELDS = {
   scv_weight_language: weight('Trọng số ngoại ngữ'),
   // How many JDs of each CV, the best skill_fit first, the Matching Agent scores (US-3.2, CONTEXT D46).
   match_top_m: positiveInt('Số JD AI chấm cho mỗi CV').max(50, { error: 'Số JD AI chấm cho mỗi CV tối đa 50' }),
+  // Q6 and GĐ4 step 3 (US-3.3, CONTEXT D47): auto-assign at the deadline, and whether a student must
+  // pick min(N_NV, shortlist size) preferences.
+  no_preference_policy: z.enum(NO_PREFERENCE_POLICIES, { error: 'Chọn cách xử lý SV không chọn nguyện vọng' }),
+  require_full_preferences: z.boolean({ error: 'Chọn có bắt buộc chọn đủ N_NV hay không' }),
 };
 
 /**
- * PRD GĐ0 defaults. Q1 (N_NV) and Q3 (k) are still open; these are the PRD proposals.
- * `reminder_hours_before` is not in the PRD table: added by US-1.7 (CONTEXT D31). The `scv_weight_*`
- * defaults are the PRD › S_cv table (US-3.1, CONTEXT D41). `match_top_m` is not in the PRD table:
- * added by US-3.2 (CONTEXT D46).
+ * PRD GĐ0 defaults. Q3 (k) is still open; this is the PRD proposal. Q1 (N_NV) and Q6
+ * (`no_preference_policy`) are settled as proposed (CONTEXT D47). `reminder_hours_before` is not in
+ * the PRD table: added by US-1.7 (CONTEXT D31). The `scv_weight_*` defaults are the PRD › S_cv
+ * table (US-3.1, CONTEXT D41). `match_top_m` is not in the PRD table: added by US-3.2 (CONTEXT
+ * D46); nor is `require_full_preferences`: added by US-3.3 (CONTEXT D47).
  */
 export const DEFAULT_CAMPAIGN_CONFIG = {
   n_nv: 3,
@@ -97,6 +110,8 @@ export const DEFAULT_CAMPAIGN_CONFIG = {
   scv_weight_education: 0.15,
   scv_weight_language: 0.1,
   match_top_m: 10,
+  no_preference_policy: 'AUTO_ASSIGN_TOP_SCV',
+  require_full_preferences: false,
 } as const;
 
 /** The S_cv criteria in PRD table order; the sum error is reported on the last one. */
@@ -161,6 +176,10 @@ export const CampaignConfigSchema = z
     scv_weight_education: CONFIG_FIELDS.scv_weight_education.default(DEFAULT_CAMPAIGN_CONFIG.scv_weight_education),
     scv_weight_language: CONFIG_FIELDS.scv_weight_language.default(DEFAULT_CAMPAIGN_CONFIG.scv_weight_language),
     match_top_m: CONFIG_FIELDS.match_top_m.default(DEFAULT_CAMPAIGN_CONFIG.match_top_m),
+    no_preference_policy: CONFIG_FIELDS.no_preference_policy.default(DEFAULT_CAMPAIGN_CONFIG.no_preference_policy),
+    require_full_preferences: CONFIG_FIELDS.require_full_preferences.default(
+      DEFAULT_CAMPAIGN_CONFIG.require_full_preferences,
+    ),
   })
   .superRefine(checkWeights, whenValid(['alpha', 'beta']))
   .superRefine(checkScvWeights, whenValid(SCV_WEIGHT_KEYS));

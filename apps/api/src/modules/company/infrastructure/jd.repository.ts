@@ -21,6 +21,17 @@ export interface ApprovedJd {
   requirements: JdRequirements;
 }
 
+/** What a student's shortlist shows of a JD (US-3.3): the current version and its card. */
+export interface ShortlistJdCard {
+  jdId: number;
+  jdVersion: number;
+  title: string;
+  companyName: string;
+  positionGroup: PositionGroup | null;
+  location: string | null;
+  workMode: WorkMode | null;
+}
+
 /** Approved by the center and still taking students (BR-02); FILLED and CLOSED have no place left. */
 const MATCHABLE_JD_STATES = ['APPROVED', 'RECRUITING'] as const satisfies readonly JobDescriptionStatus[];
 
@@ -135,6 +146,30 @@ export class JdRepository {
     return rows.flatMap(({ requirements, positionGroup, ...row }) =>
       requirements === null ? [] : [{ ...row, positionGroup: positionGroup ?? 'OTHER', requirements }],
     );
+  }
+
+  /** The JDs `listApproved` returns without `withEnded`, with their company, by JD id (US-3.3). */
+  async listShortlistCards(campaignId: number): Promise<ShortlistJdCard[]> {
+    return this.db
+      .select({
+        jdId: jobDescriptions.id,
+        jdVersion: jobDescriptions.version,
+        title: jobDescriptions.title,
+        companyName: companies.name,
+        positionGroup: jobDescriptions.positionGroup,
+        location: jobDescriptions.location,
+        workMode: jobDescriptions.workMode,
+      })
+      .from(jobDescriptions)
+      .innerJoin(companies, eq(companies.id, jobDescriptions.companyId))
+      .where(
+        and(
+          eq(jobDescriptions.campaignId, campaignId),
+          inArray(jobDescriptions.status, [...MATCHABLE_JD_STATES]),
+          isNotNull(jobDescriptions.requirements),
+        ),
+      )
+      .orderBy(jobDescriptions.id);
   }
 
   async insert(tx: DbTx, values: JdInsert): Promise<number> {

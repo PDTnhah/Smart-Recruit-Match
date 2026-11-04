@@ -15,6 +15,52 @@ Lịch sử phát hành của Smart Recruit Match. Mỗi commit ship code tăng 
 
 ---
 
+## [0.18.0] — 2026-11-04 — Shortlist và chọn nguyện vọng — v0.18.0
+
+US-3.3. Sinh viên xem các JD được gợi ý, kèm S_cv và giải thích, rồi chọn và sắp tối đa N_NV nguyện vọng ngay trên điện thoại. Danh sách khóa khi hết hạn. Sinh viên không chọn được hệ thống tự gán (Q6) (FR-15, FR-16, BR-04, [CONTEXT D47](CONTEXT.md)).
+
+### Added
+- **`GET /api/me/shortlist`** (chỉ STUDENT). Lấy đợt có CV `active` mới nhất của SV.
+  - JD đủ điều kiện có S_cv ≥ θ_cv, sắp giảm dần. Mỗi JD có:
+    - thành phần điểm;
+    - từng kỹ năng: verdict, kiểu khớp, bậc, nguồn trong CV;
+    - độ phủ theo vùng, ngoại ngữ CEFR, ngành;
+    - dự án, kèm trích dẫn không khớp CV;
+    - kỹ năng còn thiếu, điểm mạnh, gợi ý, nhận xét.
+  - JD không đủ điều kiện có lý do. `state` phân biệt `NO_CONFIRMED_CV`, `SCORING`, `READY`.
+- **`PUT /api/me/preferences`**: thay cả danh sách NV trong một giao dịch, có audit `PREFERENCES_REPLACED`, dưới khóa advisory theo SV.
+  - `422` có mã cho: quá N_NV, JD ngoài shortlist, JD trùng, `rank` hở, chưa đủ khi bắt buộc.
+  - `409` ngoài pha hoặc sau `preference_end` theo giờ server.
+- **Bảng `core.preferences`** (migration `0026`): ràng buộc DB cho BR-04, `CHECK rank ≥ 1`, `row_version`.
+- **Vòng đời hồ sơ ứng tuyển** trong `packages/shared/states/application.ts`: 13 trạng thái, 17 chuyển theo PRD, nhãn tiếng Việt. Thêm `applicationLifecycle` cho `transitionTo`.
+- **Tham số đợt** `no_preference_policy` (`AUTO_ASSIGN_TOP_SCV` mặc định | `NONE`) và `require_full_preferences` (mặc định `false`). Form đợt của Trung tâm có hai ô chọn cho chúng.
+- **Q6**: SV có shortlist mà chưa có NV khi đợt sang `TESTING` được gán các JD đầu shortlist, kèm audit và thông báo `PREFERENCES_AUTO_ASSIGNED` (IN_APP + EMAIL).
+  - Tác vụ quét `preference-auto-assign` (10 phút, khóa 3304) gán bù khi lần chạy đầu lỗi, khi API khởi động lại, hoặc khi kết quả chấm về muộn.
+- **Nhắc hạn chọn NV** (nguồn `preference-selection`) cho SV có shortlist mà chưa chọn.
+- Sự kiện `matching.preferences.replaced`, `matching.preferences.auto_assigned` cho US-3.4.
+- **Màn "Nguyện vọng"** (`/sv/preferences`):
+  - hai tab trên điện thoại, hai cột từ 1024 px; giải thích JD trong `Sheet`;
+  - danh sách NV kéo-thả bằng dnd-kit (cảm ứng, bàn phím) và nút lên/xuống;
+  - dấu "Chưa lưu", hỏi lại khi rời trang chưa lưu; chỉ đọc sau hạn.
+  - Trang chủ SV có việc "Chọn nguyện vọng".
+- **Test**:
+  - unit: bảng chuyển trạng thái, luật danh sách NV, phân loại shortlist (thêm property test: bản đọc gọn của Q6 cho cùng kết quả);
+  - integration: shortlist, lưu NV (IDOR, gán thừa trường, đồng thời, khóa sau hạn, `transitionTo`), Q6 và tác vụ quét, nhắc hạn.
+
+### Changed
+- Lời nhắn của `PREFERENCE_NOT_IN_SHORTLIST` bỏ "của bạn" (DESIGN §9).
+- `lockEntityInTx` dùng chung cho khóa advisory hai khóa (email mời HR, NV của SV).
+- DESIGN §6: mẫu danh sách sắp xếp được (dnd-kit), cách dùng `tabs`, `sheet`, `progress`, `badge` cho màn Nguyện vọng.
+- PRD: FR-15, FR-16 sang `in-progress`; bảng tham số GĐ0 thêm hai khóa. ARCHITECTURE: bảng `preferences`, module `matching`, tác vụ định kỳ, body `PUT /api/me/preferences`.
+
+### Upgrade notes
+- Chạy `pnpm install` (thêm `@dnd-kit/core` 6.3.1, `@dnd-kit/sortable` 10.0.0, `@dnd-kit/utilities` 3.2.2) và `pnpm --filter @srm/api db:migrate` (`0026`). Build lại image `api` và `web`.
+- Chưa kiểm tay giao diện ở 360 / 768 / 1024 px (AC-14, AC-15, AC-19).
+
+**Commit**:
+
+---
+
 ## [0.17.0] — 2026-11-03 — Matching Agent chạy hàng loạt — v0.17.0
 
 US-3.2. Mọi cặp SV × JD của đợt được chấm phù hợp. Code lọc điều kiện cứng và chấm kỹ năng, ngoại ngữ, ngành; Matching Agent chỉ chấm dự án của top-M JD mỗi CV, qua batch của nhà cung cấp; backend tính S_cv (FR-14, AD-2, AD-12, [CONTEXT D46](CONTEXT.md)).

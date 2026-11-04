@@ -15,6 +15,7 @@
 - Ranh giới module: §5 `exclude: node_modules` làm dependency-cruiser bỏ sót
 - Thư viện API, web: §8 CLI shadcn 4.21 · §10 Zod 4 bỏ qua `refine` khi trường khác lỗi · §13 multer đọc tên file theo latin1 · §25 form gửi `row_version` của query mới nhất, bỏ qua khóa lạc quan · §26 lỗi tổng của form không mất khi sửa ô khác của tổng · §28 react-pdf 11 mặc định Suspense, PDF lỗi làm sập route · §29 Esc trong combobox tự viết đóng cả dialog Radix
 - RabbitMQ, job AI: §16 `RabbitMQModule` giữ connection static · §17 mặc định sai của thư viện message · §32 kiểm chéo trên schema hợp đồng message làm cả kết quả AI vào DLQ · §33 kết quả AI về trước khi API ghi `job_id`, message của một job xử lý song song
+- Sự kiện, tác vụ định kỳ: §34 việc phải chạy một lần ở mốc pha mà chỉ nằm trong listener `campaign.phase_changed` thì mất khi lỗi hoặc API dừng
 - ai-service (Python): §19 chặn mạng trong pytest trên Windows · §20 PyMuPDF cắt chữ ngoài trang, màu nền theo thứ tự vẽ · §23 `HF_HUB_OFFLINE` đọc lúc import, bge-m3 tải 4,5 GB · §31 fixture LLM mất khóa khi nâng prompt hoặc sửa dữ liệu test nằm trong prompt
 
 ---
@@ -489,3 +490,25 @@ See [US-3.6](sprints/stories/US-3.6-language-cefr-major-match.md), [CONTEXT D45]
 - Test E2E chờ theo số đếm, không chờ theo trạng thái. Test cho lỗi thứ hai: một listener của `AI_JOB_DISPATCHED` gửi kết quả ngay khi job được publish.
 
 See [US-3.2](sprints/stories/US-3.2-batch-matching-agent.md), [CONTEXT D46](CONTEXT.md).
+
+---
+
+## 34. Việc phải chạy một lần ở mốc pha mà chỉ nằm trong listener `campaign.phase_changed`
+
+**What happened (0.18.0)**: Q6 của US-3.3 (tự gán NV khi hết hạn chọn) ban đầu chỉ chạy trong listener `@OnEvent(CAMPAIGN_PHASE_CHANGED, { async: true })`. `/code-review` chỉ ra ba cách nó bị bỏ sót mà không ai biết:
+- API khởi động lại giữa lần chạy;
+- truy vấn lỗi một lần (listener chỉ ghi log);
+- đợt bị chuyển sang `TESTING` khi lượt chấm còn `RUNNING`, nên SV được gán từ shortlist chưa đủ.
+
+Pha đợt không quay lại, nên không có lần chạy thứ hai.
+
+**Why**: sự kiện của `@nestjs/event-emitter` chỉ sống trong tiến trình, không bền như message RabbitMQ. Listener `async: true` cố ý nuốt lỗi để không ảnh hưởng việc chuyển pha.
+
+**How to avoid**:
+- Viết việc đó idempotent: kiểm lại trong khóa, có unique index chặn trùng ở DB.
+- Thêm tác vụ quét định kỳ (`@Cron` + `withAdvisoryLock`, có `runOnce()` cho test) chạy lại việc đó cho mọi đợt đang ở pha đích. Sự kiện chỉ để việc chạy sớm.
+- Việc đọc dữ liệu còn đang được tính (lượt chấm `RUNNING`) thì bỏ qua phần chưa đủ và để lần quét sau. Không chặn cả đợt.
+- Tác vụ quét đọc ít cột nhất có thể, vì nó chạy suốt pha.
+- Listener chạy lượt chấm khi hết `INTAKE` (US-3.2) có cùng dạng, nhưng Trung tâm chạy lại được bằng endpoint. Listener mới của EPIC-4, EPIC-5 phải chọn một trong hai cách: tác vụ quét, hoặc nút chạy lại.
+
+See [US-3.3](sprints/stories/US-3.3-shortlist-and-preferences.md), [CONTEXT D47](CONTEXT.md).

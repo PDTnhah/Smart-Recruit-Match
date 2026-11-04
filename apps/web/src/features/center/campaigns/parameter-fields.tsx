@@ -1,4 +1,4 @@
-import { type CampaignConfig, SCV_WEIGHT_KEYS } from '@srm/shared';
+import { type CampaignConfig, NO_PREFERENCE_POLICIES, SCV_WEIGHT_KEYS } from '@srm/shared';
 import { type Control, Controller, type FieldValues, type Path } from 'react-hook-form';
 import {
   Field,
@@ -11,11 +11,20 @@ import {
   FieldSet,
 } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { formatNumber } from '@/lib/format';
-import { PARAMETER_FIELDS, type ParameterField, SCV_WEIGHT_FIELDS } from './labels';
+import {
+  NO_PREFERENCE_POLICY_LABELS,
+  PARAMETER_FIELDS,
+  type ParameterField,
+  PREFERENCE_POLICY_FIELDS,
+  REQUIRE_FULL_PREFERENCES_LABELS,
+  SCV_WEIGHT_FIELDS,
+} from './labels';
 
 const SCV_WEIGHTS_TITLE = 'Trọng số điểm phù hợp CV (S_cv)';
+const PREFERENCES_TITLE = 'Chọn nguyện vọng';
 
 /**
  * The shared schema puts a sum error on the last field of the sum, and React Hook Form re-checks
@@ -51,7 +60,83 @@ export function ParameterInputs<T extends FieldValues>({ control }: { control: C
           ))}
         </FieldGroup>
       </FieldSet>
+      <FieldSeparator />
+      <FieldSet>
+        <FieldLegend>{PREFERENCES_TITLE}</FieldLegend>
+        <FieldGroup className="grid gap-x-6 md:grid-cols-2">
+          <PreferencePolicyInputs control={control} />
+        </FieldGroup>
+      </FieldSet>
     </FieldGroup>
+  );
+}
+
+/** Q6 and "chọn đủ N_NV" (US-3.3 AC-19, CONTEXT D47): choices, not numbers. */
+function PreferencePolicyInputs<T extends FieldValues>({ control }: { control: Control<T> }) {
+  const policy = PREFERENCE_POLICY_FIELDS.no_preference_policy;
+  const full = PREFERENCE_POLICY_FIELDS.require_full_preferences;
+  return (
+    <>
+      <Controller
+        name={'config.no_preference_policy' as Path<T>}
+        control={control}
+        render={({ field, fieldState }) => (
+          <Field data-invalid={fieldState.invalid}>
+            <FieldLabel htmlFor="config-no_preference_policy">{policy.label}</FieldLabel>
+            <Select value={field.value} onValueChange={field.onChange}>
+              <SelectTrigger
+                id="config-no_preference_policy"
+                ref={field.ref}
+                className="w-full"
+                aria-invalid={fieldState.invalid}
+                onBlur={field.onBlur}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {NO_PREFERENCE_POLICIES.map((value) => (
+                  <SelectItem key={value} value={value}>
+                    {NO_PREFERENCE_POLICY_LABELS[value]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <FieldDescription>{policy.description}</FieldDescription>
+            {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+          </Field>
+        )}
+      />
+      <Controller
+        name={'config.require_full_preferences' as Path<T>}
+        control={control}
+        render={({ field, fieldState }) => (
+          <Field data-invalid={fieldState.invalid}>
+            <FieldLabel htmlFor="config-require_full_preferences">{full.label}</FieldLabel>
+            {/* Radix Select carries strings; the form keeps the boolean. */}
+            <Select value={String(field.value === true)} onValueChange={(next) => field.onChange(next === 'true')}>
+              <SelectTrigger
+                id="config-require_full_preferences"
+                ref={field.ref}
+                className="w-full"
+                aria-invalid={fieldState.invalid}
+                onBlur={field.onBlur}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {(['false', 'true'] as const).map((value) => (
+                  <SelectItem key={value} value={value}>
+                    {REQUIRE_FULL_PREFERENCES_LABELS[value]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <FieldDescription>{full.description}</FieldDescription>
+            {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+          </Field>
+        )}
+      />
+    </>
   );
 }
 
@@ -100,6 +185,20 @@ export function ParameterList({ config }: { config: CampaignConfig }) {
       <Separator />
       <h3 className="text-base font-medium">{SCV_WEIGHTS_TITLE}</h3>
       <ParameterValues config={config} fields={SCV_WEIGHT_FIELDS} />
+      <Separator />
+      <h3 className="text-base font-medium">{PREFERENCES_TITLE}</h3>
+      <dl className="grid gap-x-6 gap-y-4 md:grid-cols-2">
+        <div className="flex flex-col gap-1">
+          <dt className="text-sm text-muted-foreground">{PREFERENCE_POLICY_FIELDS.no_preference_policy.label}</dt>
+          <dd className="text-sm font-medium">{NO_PREFERENCE_POLICY_LABELS[config.no_preference_policy]}</dd>
+        </div>
+        <div className="flex flex-col gap-1">
+          <dt className="text-sm text-muted-foreground">{PREFERENCE_POLICY_FIELDS.require_full_preferences.label}</dt>
+          <dd className="text-sm font-medium">
+            {REQUIRE_FULL_PREFERENCES_LABELS[config.require_full_preferences ? 'true' : 'false']}
+          </dd>
+        </div>
+      </dl>
     </div>
   );
 }

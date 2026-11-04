@@ -1,4 +1,4 @@
-import type { ApiErrorCode } from '@srm/shared';
+import type { ApiErrorCode, PreferenceRejectionCode } from '@srm/shared';
 
 // Plain classes without NestJS imports, so domain/ code may throw them too.
 // ApiExceptionFilter (or DomainErrorFilter) turns them into `{ code, message, details }` responses.
@@ -366,5 +366,23 @@ export class AiUnavailableError extends DomainError {
 
   constructor(jobType: string) {
     super(`the ${jobType} job could not be sent to the AI Service`, { jobType });
+  }
+}
+
+// Preference lists (US-3.3, CONTEXT D47).
+
+/**
+ * A preference list breaks a rule of BR-04 or of the campaign (AC-6, AC-8); nothing is stored. The
+ * code names the rule and the message, in Vietnamese, is the one the web shows.
+ */
+export class PreferencesRejectedError extends DomainError {
+  readonly httpStatus = 422;
+
+  constructor(
+    readonly code: PreferenceRejectionCode,
+    message: string,
+    details: { campaignId: number; jdIds?: number[] },
+  ) {
+    super(message, details);
   }
 }

@@ -2,3 +2,9 @@
 export { MatchingModule } from './matching.module.js';
 export { MATCHING_PHASES, RunMatchingService } from './application/run-matching.service.js';
 export { RecomputeScvService, type ScvRecompute } from './application/recompute-scv.js';
+export {
+  PREFERENCES_AUTO_ASSIGNED,
+  PREFERENCES_REPLACED,
+  type PreferencesAutoAssignedEvent,
+  type PreferencesReplacedEvent,
+} from './domain/events.js';
