@@ -1,7 +1,10 @@
-import type { PreferenceRejectionCode } from '@srm/shared';
+import type { CampaignStatus, PreferenceRejectionCode } from '@srm/shared';
 
 // The rules of a preference list (FR-16, BR-04, US-3.3 AC-6, AC-8, CONTEXT D47). Pure; the service
 // runs it under the student's lock, against the shortlist of `shortlist-view.ts`.
+
+/** Students choose preferences in this phase only, before `preference_end` (PRD GĐ4, CONTEXT D27). */
+export const PREFERENCE_PHASES: readonly CampaignStatus[] = ['PREFERENCE_SELECTION'];
 
 export interface PreferenceEntry {
   jdId: number;

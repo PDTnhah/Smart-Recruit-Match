@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { formatNumber } from '@/lib/format';
 import {
+  COMPETITION_THRESHOLD_FIELDS,
   NO_PREFERENCE_POLICY_LABELS,
   PARAMETER_FIELDS,
   type ParameterField,
@@ -65,6 +66,7 @@ export function ParameterInputs<T extends FieldValues>({ control }: { control: C
         <FieldLegend>{PREFERENCES_TITLE}</FieldLegend>
         <FieldGroup className="grid gap-x-6 md:grid-cols-2">
           <PreferencePolicyInputs control={control} />
+          <CompetitionThresholdInputs control={control} />
         </FieldGroup>
       </FieldSet>
     </FieldGroup>
@@ -140,25 +142,67 @@ function PreferencePolicyInputs<T extends FieldValues>({ control }: { control: C
   );
 }
 
+/** Where the competition level of a JD changes (US-3.4 AC-9): two ratios, two decimals at most. */
+function CompetitionThresholdInputs<T extends FieldValues>({ control }: { control: Control<T> }) {
+  return COMPETITION_THRESHOLD_FIELDS.map(({ key, label, description }) => (
+    <NumberInput
+      key={key}
+      control={control}
+      name={`config.competition_thresholds.${key}` as Path<T>}
+      id={`config-competition_thresholds-${key}`}
+      label={label}
+      description={description}
+      step={0.01}
+      // The shared schema reports the order error on high_from; changing low_below re-checks it.
+      deps={key === 'low_below' ? [`config.competition_thresholds.high_from` as Path<T>] : undefined}
+    />
+  ));
+}
+
 function ParameterInput<T extends FieldValues>({ control, parameter }: { control: Control<T>; parameter: ParameterField }) {
   const sumField = SUM_ERROR_FIELD[parameter.key];
   return (
-    <Controller
-      name={`config.${parameter.key}` as Path<T>}
+    <NumberInput
       control={control}
-      rules={sumField ? { deps: [`config.${sumField}` as Path<T>] } : undefined}
+      name={`config.${parameter.key}` as Path<T>}
+      id={`config-${parameter.key}`}
+      label={parameter.label}
+      description={parameter.description}
+      step={parameter.step}
+      deps={sumField ? [`config.${sumField}` as Path<T>] : undefined}
+    />
+  );
+}
+
+interface NumberInputProps<T extends FieldValues> {
+  control: Control<T>;
+  name: Path<T>;
+  id: string;
+  label: string;
+  description: string;
+  step: number;
+  /** Fields whose error depends on this one, checked again when it changes. */
+  deps?: Path<T>[];
+}
+
+function NumberInput<T extends FieldValues>({ control, name, id, label, description, step, deps }: NumberInputProps<T>) {
+  return (
+    <Controller
+      name={name}
+      control={control}
+      rules={deps ? { deps } : undefined}
       render={({ field, fieldState }) => {
         const value = field.value as number | undefined;
         return (
           <Field data-invalid={fieldState.invalid}>
-            <FieldLabel htmlFor={`config-${parameter.key}`}>{parameter.label}</FieldLabel>
+            <FieldLabel htmlFor={id}>{label}</FieldLabel>
             <Input
-              id={`config-${parameter.key}`}
+              id={id}
               name={field.name}
               ref={field.ref}
               type="number"
               inputMode="decimal"
-              step={parameter.step}
+              step={step}
               // An emptied input becomes NaN, which the shared schema reports as "phải là một số".
               value={value === undefined || Number.isNaN(value) ? '' : value}
               onChange={(event) =>
@@ -168,7 +212,7 @@ function ParameterInput<T extends FieldValues>({ control, parameter }: { control
               aria-invalid={fieldState.invalid}
               className="tabular-nums"
             />
-            <FieldDescription>{parameter.description}</FieldDescription>
+            <FieldDescription>{description}</FieldDescription>
             {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
           </Field>
         );
@@ -198,6 +242,14 @@ export function ParameterList({ config }: { config: CampaignConfig }) {
             {REQUIRE_FULL_PREFERENCES_LABELS[config.require_full_preferences ? 'true' : 'false']}
           </dd>
         </div>
+        {COMPETITION_THRESHOLD_FIELDS.map(({ key, label }) => (
+          <div key={key} className="flex flex-col gap-1">
+            <dt className="text-sm text-muted-foreground">{label}</dt>
+            <dd className="text-sm font-medium tabular-nums">
+              {formatNumber(config.competition_thresholds[key], decimalsOf(config.competition_thresholds[key]))}
+            </dd>
+          </div>
+        ))}
       </dl>
     </div>
   );

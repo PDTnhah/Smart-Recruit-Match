@@ -13,6 +13,9 @@ const DEADLINE_TASKS: Record<CampaignDeadlineKey, { task: string; path: string }
   testing_end: { task: 'làm bài test', path: '/sv/exams' },
 };
 
+/** The campaign page of the center portal; `/{campaignId}` follows (apps/web router). */
+const CENTER_CAMPAIGN_PATH = '/admin/campaigns';
+
 /** Emails show Vietnam time, the time zone of the school, whatever the server runs in. */
 const DATE_TIME = new Intl.DateTimeFormat('vi-VN', {
   timeZone: 'Asia/Ho_Chi_Minh',
@@ -33,7 +36,10 @@ export function formatVietnamTime(iso: string): string {
   return `${parts.day}/${parts.month}/${parts.year} ${parts.hour}:${parts.minute}`;
 }
 
-type Template = Handlebars.TemplateDelegate<Record<string, string>>;
+/** Values a template reads: text, or a list of rows for `{{#each}}`. */
+type EmailContext = Record<string, string | Record<string, string>[]>;
+
+type Template = Handlebars.TemplateDelegate<EmailContext>;
 
 /** A link to an HR's current invitation, issued by iam when the email is sent (CONTEXT D31). */
 export interface InvitationLink {
@@ -77,7 +83,7 @@ export class EmailRenderer {
     };
   }
 
-  private contextOf(content: NotificationContent, links: { invitation?: InvitationLink }): Record<string, string> {
+  private contextOf(content: NotificationContent, links: { invitation?: InvitationLink }): EmailContext {
     switch (content.type) {
       case 'CAMPAIGN_OPENED':
         return {
@@ -110,6 +116,18 @@ export class EmailRenderer {
           campaignName: content.payload.campaignName,
           count: String(content.payload.count),
           link: `${this.webOrigin}${DEADLINE_TASKS.preference_end.path}`,
+        };
+      case 'JD_LOW_PREFERENCES':
+        return {
+          campaignName: content.payload.campaignName,
+          jdCount: String(content.payload.jds.length),
+          jds: content.payload.jds.map((jd) => ({
+            title: jd.title,
+            companyName: jd.companyName,
+            nvCount: String(jd.nvCount),
+            quota: String(jd.quota),
+          })),
+          link: `${this.webOrigin}${CENTER_CAMPAIGN_PATH}/${content.payload.campaignId}`,
         };
       case 'JD_REQUIREMENTS_READY':
       case 'JD_ANALYSIS_FAILED':

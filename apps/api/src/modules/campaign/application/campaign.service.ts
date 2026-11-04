@@ -325,7 +325,10 @@ function lockedFieldChanges(before: CampaignRecord, patch: UpdateCampaignRequest
   if (patch.name !== undefined && patch.name !== before.name) fields.push('name');
   if (patch.target !== undefined && !isDeepStrictEqual(patch.target, before.target)) fields.push('target');
   for (const [key, value] of Object.entries(patch.config ?? {})) {
-    if (value !== undefined && value !== before.config[key as keyof CampaignConfig]) fields.push(`config.${key}`);
+    // Deep: `competition_thresholds` is an object, sent again unchanged by a form (CONTEXT D48).
+    if (value !== undefined && !isDeepStrictEqual(value, before.config[key as keyof CampaignConfig])) {
+      fields.push(`config.${key}`);
+    }
   }
   return fields;
 }

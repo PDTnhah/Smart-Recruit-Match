@@ -283,7 +283,12 @@ describe('FR-2: campaign setup API (US-1.4)', () => {
 
     it('FR-2: config edit after DRAFT returns 409 CAMPAIGN_CONFIG_LOCKED', async () => {
       const campaign = await openCampaign(await createDraft());
-      for (const body of [{ config: { k: 2 } }, { name: 'Tên mới' }, { target: { cohorts: ['K70'], majors: ['CNTT'] } }]) {
+      for (const body of [
+        { config: { k: 2 } },
+        { config: { competition_thresholds: { low_below: 0.5, high_from: 3 } } },
+        { name: 'Tên mới' },
+        { target: { cohorts: ['K70'], majors: ['CNTT'] } },
+      ]) {
         const res = await center.agent
           .patch(api(`campaigns/${campaign.id}`))
           .send({ rowVersion: campaign.rowVersion, ...body })
@@ -292,9 +297,12 @@ describe('FR-2: campaign setup API (US-1.4)', () => {
       }
       const res = await center.agent
         .patch(api(`campaigns/${campaign.id}`))
-        .send({ rowVersion: campaign.rowVersion, config: { k: 2, n_nv: 3 } })
+        .send({
+          rowVersion: campaign.rowVersion,
+          config: { k: 2, n_nv: 3, competition_thresholds: { ...DEFAULT_CAMPAIGN_CONFIG.competition_thresholds } },
+        })
         .expect(409);
-      // Unchanged values are not edits: only k is reported.
+      // Unchanged values are not edits, an object compared by value (US-3.4 AC-9): only k is reported.
       expect(ApiErrorSchema.parse(res.body).details).toMatchObject({ status: 'INTAKE', fields: ['config.k'] });
       expect((await readState(t.db, 'campaign', campaign.id)).rowVersion).toBe(campaign.rowVersion);
     });

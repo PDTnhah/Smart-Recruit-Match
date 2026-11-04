@@ -1,4 +1,4 @@
-import type { ShortlistCampaign, ShortlistJd, ShortlistResponse } from '@srm/shared';
+import type { ShortlistCampaign, ShortlistItem, ShortlistJd, ShortlistResponse } from '@srm/shared';
 import { CalendarClock, CircleAlert, FileText, Hourglass, Lock, SearchX } from 'lucide-react';
 import { type ReactNode, useState } from 'react';
 import { Link } from 'react-router';
@@ -13,7 +13,7 @@ import { CAMPAIGN_STATUS_BADGE, CAMPAIGN_STATUS_LABELS } from '@/features/center
 import { PROFILE_PATH } from '@/features/student/profile/intake';
 import { formatDateTime } from '@/lib/format';
 import { ApiRequestError, apiErrorMessage } from '@/shared/api/errors';
-import { useReplacePreferences, useShortlist } from './api';
+import { useCompetitionUpdates, useReplacePreferences, useShortlist } from './api';
 import { addToDraft, type Draft, draftOf, removeFromDraft, requestOf, sameDraft } from './draft';
 import { IneligibleList } from './ineligible-list';
 import { PreferenceList } from './preference-list';
@@ -67,6 +67,20 @@ function CampaignSummary({ campaign }: { campaign: ShortlistCampaign }) {
   );
 }
 
+/**
+ * Heading of a group of suggestions (US-3.4 AC-4). A sibling of the cards rather than their parent:
+ * a card that changes group on a `competition.updated` event moves without remounting, so its open
+ * explanation stays open.
+ */
+function SuggestionGroupHeading({ title, description }: { title: string; description?: string }) {
+  return (
+    <div className="flex flex-col gap-1 pt-2">
+      <h3 className="text-sm font-medium">{title}</h3>
+      {description && <p className="text-sm text-muted-foreground">{description}</p>}
+    </div>
+  );
+}
+
 /** Why the save failed; a deadline that passed meanwhile says so plainly (AC-9). */
 function saveErrorMessage(error: unknown): string {
   if (error instanceof ApiRequestError && error.body?.code === 'CAMPAIGN_PHASE_MISMATCH') {
@@ -88,10 +102,13 @@ function leftOutText(view: ShortlistResponse): string | null {
  * "Nguyện vọng" of the student portal (US-3.3, FR-15, FR-16, CONTEXT D47): the shortlist with
  * the explanation of every S_cv, and the list of up to N_NV preferences, sorted by drag or by
  * buttons and saved whole. Two tabs on phones, two columns from `lg` (DESIGN.md §6 `tabs`).
+ * US-3.4: the competition level of every JD, kept current over SSE, and the "Phù hợp – ít cạnh
+ * tranh" JDs grouped first.
  */
 export function PreferencesPage() {
   const query = useShortlist();
   const save = useReplacePreferences();
+  useCompetitionUpdates();
   // The draft exists only once the student changes something; until then the saved list shows.
   const [edited, setEdited] = useState<Draft | null>(null);
   const [tab, setTab] = useState<Tab>('suggestions');
@@ -236,9 +253,41 @@ export function PreferencesPage() {
     ...data.items.map(({ jd }) => [jd.id, jd] as const),
   ]);
   const shortlistIds = new Set(data.items.map(({ jd }) => jd.id));
+  const competitions = new Map(data.items.map(({ jd, competition }) => [jd.id, competition] as const));
   const required = Math.min(campaign.nNv, data.items.length);
   const full = draft.length >= campaign.nNv;
   const leftOut = leftOutText(data);
+
+  const card = (item: ShortlistItem) => {
+    const position = draft.indexOf(item.jd.id);
+    return (
+      <ShortlistCard
+        key={item.jd.id}
+        item={item}
+        rank={position === -1 ? null : position + 1}
+        editable={editable}
+        full={full}
+        onAdd={() => change(addToDraft(draft, item.jd.id, campaign.nNv))}
+        onRemove={() => change(removeFromDraft(draft, item.jd.id))}
+      />
+    );
+  };
+  // Both groups keep the S_cv order of the response (AC-4); one flat list while no JD is LOW.
+  const lowCompetition = data.items.filter((item) => item.lowCompetitionSuggestion);
+  const otherItems = data.items.filter((item) => !item.lowCompetitionSuggestion);
+  const grouped = lowCompetition.length > 0;
+  const suggestionRows = grouped
+    ? [
+        <SuggestionGroupHeading
+          key="low-competition"
+          title={`Phù hợp – ít cạnh tranh (${lowCompetition.length})`}
+          description="JD phù hợp với hồ sơ mà còn ít nguyện vọng so với chỉ tiêu, nên ít người cạnh tranh hơn."
+        />,
+        ...lowCompetition.map(card),
+        otherItems.length > 0 && <SuggestionGroupHeading key="other" title={`JD gợi ý khác (${otherItems.length})`} />,
+        ...otherItems.map(card),
+      ]
+    : data.items.map(card);
 
   return (
     <>
@@ -270,7 +319,14 @@ export function PreferencesPage() {
                   JD được gợi ý ({data.items.length})
                 </h2>
                 <p className="text-sm text-muted-foreground">
-                  Xếp theo điểm phù hợp với hồ sơ, cao nhất trước. {leftOut}
+                  {grouped
+                    ? 'JD phù hợp mà ít cạnh tranh được xếp lên đầu; trong mỗi nhóm, điểm phù hợp cao hơn đứng trước.'
+                    : 'Xếp theo điểm phù hợp với hồ sơ, cao nhất trước.'}{' '}
+                  {leftOut}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Mức cạnh tranh so số nguyện vọng sinh viên đã chọn JD với chỉ tiêu của JD, cập nhật ngay khi có thay
+                  đổi.
                 </p>
                 {editable && full && (
                   <p className="text-sm text-muted-foreground">
@@ -279,20 +335,7 @@ export function PreferencesPage() {
                 )}
               </div>
               {data.items.length > 0 ? (
-                data.items.map((item) => {
-                  const position = draft.indexOf(item.jd.id);
-                  return (
-                    <ShortlistCard
-                      key={item.jd.id}
-                      item={item}
-                      rank={position === -1 ? null : position + 1}
-                      editable={editable}
-                      full={full}
-                      onAdd={() => change(addToDraft(draft, item.jd.id, campaign.nNv))}
-                      onRemove={() => change(removeFromDraft(draft, item.jd.id))}
-                    />
-                  );
-                })
+                suggestionRows
               ) : (
                 <StateEmpty icon={<SearchX />} title="Không còn JD nào trong danh sách gợi ý">
                   Các JD từng được gợi ý không còn đạt điều kiện của đợt.
@@ -311,6 +354,7 @@ export function PreferencesPage() {
               draft={draft}
               saved={data.preferences}
               jds={jds}
+              competitions={competitions}
               shortlistIds={shortlistIds}
               required={required}
               dirty={dirty}

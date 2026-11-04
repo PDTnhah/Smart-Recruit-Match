@@ -47,6 +47,7 @@ describe('GĐ0: campaign config schema', () => {
       match_top_m: 10,
       no_preference_policy: 'AUTO_ASSIGN_TOP_SCV',
       require_full_preferences: false,
+      competition_thresholds: { low_below: 1, high_from: 3 },
     });
     expect(CampaignConfigSchema.parse({})).toEqual(DEFAULT_CAMPAIGN_CONFIG);
   });
@@ -151,6 +152,42 @@ describe('GĐ0: campaign config schema', () => {
     expect(issues(CampaignConfigPatchSchema.safeParse({ alpha: 0.5, beta: 0.6 }))).toEqual([
       'beta: α + β phải bằng 1',
     ]);
+  });
+});
+
+describe('GĐ4: competition thresholds in the campaign config (US-3.4 AC-9, CONTEXT D48)', () => {
+  const thresholds = (low_below: unknown, high_from: unknown) =>
+    CampaignConfigSchema.safeParse({ competition_thresholds: { low_below, high_from } });
+
+  it('GĐ4 an older config gets the default thresholds, each parse its own copy', () => {
+    const first = CampaignConfigSchema.parse({ n_nv: 3 });
+    expect(first.competition_thresholds).toEqual({ low_below: 1, high_from: 3 });
+    first.competition_thresholds.low_below = 2;
+    expect(CampaignConfigSchema.parse({}).competition_thresholds).toEqual({ low_below: 1, high_from: 3 });
+  });
+
+  it('GĐ4 thresholds are positive, at most 100, with two decimals, low below high', () => {
+    expect(thresholds(0.5, 2.25).success).toBe(true);
+    expect(thresholds(0.01, 100).success).toBe(true);
+    expect(issues(thresholds(0, 3))).toEqual(['competition_thresholds.low_below: Ngưỡng cạnh tranh thấp phải lớn hơn 0']);
+    expect(issues(thresholds(1, 101))).toEqual(['competition_thresholds.high_from: Ngưỡng cạnh tranh cao tối đa 100']);
+    expect(issues(thresholds(1.005, 3))).toEqual([
+      'competition_thresholds.low_below: Ngưỡng cạnh tranh thấp có tối đa hai chữ số thập phân',
+    ]);
+    expect(issues(thresholds(3, 3))).toEqual([
+      'competition_thresholds.high_from: Ngưỡng cạnh tranh thấp phải nhỏ hơn ngưỡng cạnh tranh cao',
+    ]);
+    expect(issues(thresholds(2.5, 1))).toEqual([
+      'competition_thresholds.high_from: Ngưỡng cạnh tranh thấp phải nhỏ hơn ngưỡng cạnh tranh cao',
+    ]);
+    // The order is checked only once both values are valid.
+    expect(issues(thresholds('x', 1))).toEqual(['competition_thresholds.low_below: Ngưỡng cạnh tranh thấp phải là một số']);
+  });
+
+  it('GĐ4 a patch replaces both thresholds together', () => {
+    const both = { competition_thresholds: { low_below: 0.8, high_from: 2 } };
+    expect(CampaignConfigPatchSchema.parse(both)).toEqual(both);
+    expect(CampaignConfigPatchSchema.safeParse({ competition_thresholds: { low_below: 0.8 } }).success).toBe(false);
   });
 });
 

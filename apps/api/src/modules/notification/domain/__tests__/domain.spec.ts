@@ -98,4 +98,14 @@ describe('GĐ4: preferences given at the deadline (US-3.3, CONTEXT D47)', () => 
     const payload = { campaignId: 7, campaignName: 'Đợt', count: 3 };
     expect(emailStillRelevant({ type: 'PREFERENCES_AUTO_ASSIGNED', payload }, at('2030-01-01T00:00:00.000Z'))).toBe(true);
   });
+
+  it('FR-17 alert of JDs with few preferences: one key per campaign, still worth an email later', () => {
+    expect(DEDUPE_KEYS.jdLowPreferences(7)).toBe('jd_low_preferences:7');
+    const payload = {
+      campaignId: 7,
+      campaignName: 'Đợt',
+      jds: [{ jdId: 1, title: 'Backend', companyName: 'ACME', nvCount: 1, quota: 3 }],
+    };
+    expect(emailStillRelevant({ type: 'JD_LOW_PREFERENCES', payload }, at('2030-01-01T00:00:00.000Z'))).toBe(true);
+  });
 });

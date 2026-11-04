@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { PreferenceItem } from '@srm/shared';
-import { and, asc, eq } from 'drizzle-orm';
+import { and, asc, count, eq, inArray } from 'drizzle-orm';
 import { ADVISORY_LOCK_KEYS, lockEntityInTx } from '../../../common/scheduling/advisory-lock.js';
 import { preferences } from '../../../db/schema/index.js';
 import { DRIZZLE } from '../../../db/tokens.js';
@@ -41,6 +41,22 @@ export class PreferencesRepository {
       .values(items.map((item) => ({ campaignId, studentId, jdId: item.jdId, rank: item.rank })))
       .returning(ITEM_COLUMNS);
     return rows.sort((a, b) => a.rank - b.rank);
+  }
+
+  /**
+   * Preferences of each JD of the campaign, every rank counted once (US-3.4, CONTEXT D48), only for
+   * `jdIds` when given. A JD nobody chose is missing from the map: read it as 0.
+   */
+  async countByJd(campaignId: number, jdIds?: readonly number[], tx: DbTx | Database = this.db): Promise<Map<number, number>> {
+    if (jdIds?.length === 0) return new Map();
+    const rows = await tx
+      .select({ jdId: preferences.jdId, nvCount: count() })
+      .from(preferences)
+      .where(
+        and(eq(preferences.campaignId, campaignId), jdIds ? inArray(preferences.jdId, [...jdIds]) : undefined),
+      )
+      .groupBy(preferences.jdId);
+    return new Map(rows.map((row) => [row.jdId, row.nvCount]));
   }
 
   /** Students of the campaign with at least one preference. */

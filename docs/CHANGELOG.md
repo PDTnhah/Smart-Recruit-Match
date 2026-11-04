@@ -15,6 +15,31 @@ Lịch sử phát hành của Smart Recruit Match. Mỗi commit ship code tăng 
 
 ---
 
+## [0.19.0] — 2026-11-04 — Mức cạnh tranh và gợi ý ít cạnh tranh — v0.19.0
+
+US-3.4. Khi chọn nguyện vọng, sinh viên thấy mức cạnh tranh của từng JD, cập nhật ngay khi sinh viên khác đổi NV, và thấy nhãn "Phù hợp – ít cạnh tranh". Hết hạn chọn NV, Trung tâm được báo các JD có ít NV hơn chỉ tiêu. Đây là biện pháp 1 và 4 của PRD › *Cơ chế hỗ trợ JD ít hồ sơ*. Toàn bộ là phép đếm, không dùng LLM (FR-17, [CONTEXT D48](CONTEXT.md)).
+
+### Added
+- **Mức cạnh tranh** Thấp / Trung bình / Cao theo số NV / chỉ tiêu (`competitionLevel`, so số nguyên, tỷ lệ bằng ngưỡng rơi vào mức cao hơn).
+  - Tham số đợt `competition_thresholds`, mặc định `{ low_below: 1, high_from: 3 }`. Form đợt có hai ô số; đợt cũ nhận mặc định khi đọc.
+  - Mọi thứ hạng NV tính như nhau.
+- **Bộ đếm Redis `competition:{jdId}`**, hết hạn ở `preference_end`. DB vẫn là nguồn sự thật.
+  - Sau mỗi lần lưu hoặc tự gán NV, các JD bị thêm hoặc bỏ được đếm lại từ DB dưới khóa `pg_advisory_xact_lock(3401, hashtext(jdId))` rồi ghi đè.
+  - Key bị mất được dựng lại ở lần đọc sau; ghi hoặc đếm lại lỗi thì key bị xóa để đọc lại từ DB.
+  - Trong một process các lần đếm lại chạy lần lượt và gộp JD đang chờ.
+- **Sự kiện SSE `competition.updated`** trên kênh mới theo đợt `notify:campaign:{campaignId}:students`. Chỉ SV có CV `active` trong đợt nhận; sự kiện không chứa thông tin của SV đã đổi NV.
+- **`GET /api/me/shortlist`** thêm `competition: { nvCount, quota, level }` và `lowCompetitionSuggestion` cho mỗi JD.
+- **Màn Nguyện vọng**: huy hiệu mức cạnh tranh (chữ kèm icon) trên thẻ gợi ý và từng dòng NV. Tab Gợi ý chia nhóm "Phù hợp – ít cạnh tranh" và "JD gợi ý khác", mỗi nhóm theo S_cv giảm dần. Mức cập nhật tại chỗ qua SSE.
+- **Thông báo `JD_LOW_PREFERENCES`** (trong app + email) cho mọi tài khoản CENTER: các JD có NV < chỉ tiêu, đếm từ DB.
+  - Gửi sau Q6 lúc đợt sang `TESTING` và ở mỗi lượt quét `preference-auto-assign`, khi Q6 không còn SV chờ gán.
+  - `dedupe_key` chặn gửi trùng. Migration `0027` thêm loại thông báo.
+
+### Changed
+- `matching.preferences.replaced` chỉ mang các JD bị thêm hoặc bỏ; sắp lại thứ tự NV thì `jdIds` rỗng.
+- Sửa tham số đã khóa của đợt so theo giá trị, nên gửi lại `competition_thresholds` không đổi không bị coi là sửa.
+
+---
+
 ## [0.18.0] — 2026-11-04 — Shortlist và chọn nguyện vọng — v0.18.0
 
 US-3.3. Sinh viên xem các JD được gợi ý, kèm S_cv và giải thích, rồi chọn và sắp tối đa N_NV nguyện vọng ngay trên điện thoại. Danh sách khóa khi hết hạn. Sinh viên không chọn được hệ thống tự gán (Q6) (FR-15, FR-16, BR-04, [CONTEXT D47](CONTEXT.md)).

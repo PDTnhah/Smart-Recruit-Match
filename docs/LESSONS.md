@@ -9,11 +9,11 @@
 - Claude Code, skill, hook, koni-docs: §1 skill phải nằm ở `.claude/skills` · §2 `docs:sync` định dạng lại PRD, đổi ngày · §3 snippet hook của koni-harness không chặn commit
 - Docker, compose, image: §4 `minio/minio` không còn trên Docker Hub · §14 compose truyền biến chưa đặt thành `""` · §15 hết RAM khi chạy test (compose, số worker Jest, commit memory của Windows) · §18 testcontainers build image không cache, Jest treo · §27 nginx trả `.mjs` là `octet-stream`, worker pdf.js không nạp
 - Jest, ESM: §9 gói chỉ có ESM (`@nestjs/schedule`, `file-type`, `promise-breaker`…) · §11 `testTimeout` trong `projects` bị bỏ qua · §21 `--selectProjects` nuốt đường dẫn test
-- Integration test: §22 các file dùng chung DB, thông báo gửi mọi tài khoản CENTER lọt vào test khác · §30 bảng mới trong `core` làm đỏ `core-schema` và `ai-service-role`
+- Integration test: §22 các file dùng chung DB, thông báo gửi mọi tài khoản CENTER và tác vụ quét mọi đợt lọt vào test khác · §30 bảng mới trong `core` làm đỏ `core-schema` và `ai-service-role`
 - Drizzle, migration: §6 migration có mốc thời gian cũ bị bỏ qua · §7 hàm dùng chung nhiều bảng: khai kiểu cụ thể · §12 `FOR UPDATE OF` sinh tên có schema
 - pgvector: §24 index HNSW lọc sau khi quét, hàng cũ chiếm chỗ ứng viên
 - Ranh giới module: §5 `exclude: node_modules` làm dependency-cruiser bỏ sót
-- Thư viện API, web: §8 CLI shadcn 4.21 · §10 Zod 4 bỏ qua `refine` khi trường khác lỗi · §13 multer đọc tên file theo latin1 · §25 form gửi `row_version` của query mới nhất, bỏ qua khóa lạc quan · §26 lỗi tổng của form không mất khi sửa ô khác của tổng · §28 react-pdf 11 mặc định Suspense, PDF lỗi làm sập route · §29 Esc trong combobox tự viết đóng cả dialog Radix
+- Thư viện API, web: §8 CLI shadcn 4.21 · §10 Zod 4 bỏ qua `refine` khi trường khác lỗi · §13 multer đọc tên file theo latin1 · §25 form gửi `row_version` của query mới nhất, bỏ qua khóa lạc quan · §26 lỗi tổng của form không mất khi sửa ô khác của tổng · §28 react-pdf 11 mặc định Suspense, PDF lỗi làm sập route · §29 Esc trong combobox tự viết đóng cả dialog Radix · §35 Handlebars bỏ dòng chỉ chứa `{{#each}}`, email văn bản dính dòng
 - RabbitMQ, job AI: §16 `RabbitMQModule` giữ connection static · §17 mặc định sai của thư viện message · §32 kiểm chéo trên schema hợp đồng message làm cả kết quả AI vào DLQ · §33 kết quả AI về trước khi API ghi `job_id`, message của một job xử lý song song
 - Sự kiện, tác vụ định kỳ: §34 việc phải chạy một lần ở mốc pha mà chỉ nằm trong listener `campaign.phase_changed` thì mất khi lỗi hoặc API dừng
 - ai-service (Python): §19 chặn mạng trong pytest trên Windows · §20 PyMuPDF cắt chữ ngoài trang, màu nền theo thứ tự vẽ · §23 `HF_HUB_OFFLINE` đọc lúc import, bge-m3 tải 4,5 GB · §31 fixture LLM mất khóa khi nâng prompt hoặc sửa dữ liệu test nằm trong prompt
@@ -340,6 +340,7 @@ See [US-2.4](sprints/stories/US-2.4-cv-parser-hidden-text-pii-split.md) › Impl
 - Tổng quát: đừng giả định dữ liệu của user test chỉ do file mình tạo ra. Thao tác gửi cho "mọi tài khoản có vai trò X" chạm cả vào user của file khác. Assertion phải giới hạn theo ID, loại hoặc `dedupeKey` của chính test.
 - Khi thêm thông báo gửi cho cả một vai trò, grep các test tạo user vai trò đó (`createLoginUser('CENTER')`) và đọc bảng `notifications`.
 - Lỗi chỉ hiện khi các file chạy cùng lúc, nên chạy riêng một file mà xanh chưa chứng minh đã sửa xong.
+- Tác vụ quét cũng vậy (0.19.0): `runOnce()` của `PreferenceAutoAssignScheduler` chạy Q6 cho mọi đợt `TESTING` trong DB. Gọi nó từ `competition.int-spec.ts` đã gán NV cho SV của `preferences.int-spec.ts`, làm test Q6 của file đó đỏ. Chỉ file kiểm chính tác vụ quét mới gọi `runOnce()`; file khác gọi các bước của tác vụ cho đợt của mình (`AutoAssignPreferencesService.run(id)`, rồi `LowPreferenceAlertService.afterAutoAssign`).
 
 See [US-1.7](sprints/stories/US-1.7-notifications-sse-email-reminders.md) (các test bị ảnh hưởng), [US-2.3](sprints/stories/US-2.3-jd-analyzer-hr-requirement-confirmation.md), [US-2.4](sprints/stories/US-2.4-cv-parser-hidden-text-pii-split.md) (nơi thêm thông báo gửi cả vai trò).
 
@@ -512,3 +513,15 @@ Pha đợt không quay lại, nên không có lần chạy thứ hai.
 - Listener chạy lượt chấm khi hết `INTAKE` (US-3.2) có cùng dạng, nhưng Trung tâm chạy lại được bằng endpoint. Listener mới của EPIC-4, EPIC-5 phải chọn một trong hai cách: tác vụ quét, hoặc nút chạy lại.
 
 See [US-3.3](sprints/stories/US-3.3-shortlist-and-preferences.md), [CONTEXT D47](CONTEXT.md).
+
+## 35. Handlebars bỏ dòng chỉ chứa `{{#each}}`: các dòng của email văn bản dính vào nhau
+
+**What happened (0.19.0)**: email văn bản `JD_LOW_PREFERENCES` của US-3.4 ra `…chỉ tiêu:\n- JD 1 …chỉ tiêu- JD 2 …`, mọi JD trên một dòng. Template có `{{#each jds}}` đứng riêng một dòng, rồi `- {{title}} …{{/each}}`. Integration test chỉ kiểm một dòng bằng `toContain`, nên vẫn xanh; `/code-review` mới bắt được.
+
+**Why**: Handlebars coi thẻ khối đứng một mình trên dòng là *standalone* và bỏ cả dòng đó, kể cả ký tự xuống dòng. Ký tự xuống dòng duy nhất nằm trước `{{#each}}`, ngoài khối, nên không lặp lại theo phần tử. Bản HTML không bị vì `<li>` tự xuống dòng.
+
+**How to avoid**:
+- Trong template văn bản, đặt mỗi phần tử trên một dòng nằm giữa hai dòng thẻ: `{{#each xs}}` / `- {{name}}` / `{{/each}}`. Ký tự xuống dòng sau phần tử nằm trong khối nên lặp lại.
+- Test email có danh sách: dựng ít nhất hai phần tử và kiểm cả đoạn có `\n` giữa chúng, không chỉ `toContain` một dòng.
+
+See [US-3.4](sprints/stories/US-3.4-competition-level-and-suggestions.md).

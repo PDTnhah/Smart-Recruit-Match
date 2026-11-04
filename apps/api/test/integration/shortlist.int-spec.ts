@@ -179,7 +179,11 @@ describe('GĐ3 shortlist of a student (US-3.3)', () => {
       suggestions: ['Học thêm Docker'],
       summary: 'Phù hợp với vị trí backend.',
       preferenceRank: null,
+      // US-3.4 AC-4: nobody chose it, quota 2: LOW, so "Phù hợp – ít cạnh tranh".
+      competition: { nvCount: 0, quota: 2, level: 'LOW' },
+      lowCompetitionSuggestion: true,
     });
+    expect(body.items[1]).toMatchObject({ competition: { nvCount: 1, quota: 2, level: 'LOW' }, lowCompetitionSuggestion: true });
     expect({
       ineligible: body.ineligible,
       below: body.belowThresholdCount,

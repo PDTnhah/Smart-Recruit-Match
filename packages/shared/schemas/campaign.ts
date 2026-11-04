@@ -53,6 +53,33 @@ const weight = (label: string) =>
     .max(1, { error: `${label} phải từ 0 đến 1` })
     .multipleOf(0.01, { error: `${label} có tối đa hai chữ số thập phân` });
 
+const ratioThreshold = (label: string) =>
+  z
+    .number({ error: `${label} phải là một số` })
+    .positive({ error: `${label} phải lớn hơn 0` })
+    .max(100, { error: `${label} tối đa 100` })
+    .multipleOf(0.01, { error: `${label} có tối đa hai chữ số thập phân` });
+
+const COMPETITION_THRESHOLDS_MESSAGE = 'Ngưỡng cạnh tranh thấp phải nhỏ hơn ngưỡng cạnh tranh cao';
+
+/**
+ * Where the competition level of a JD changes (GĐ4 step 2, US-3.4, CONTEXT D48), as ratios of
+ * preferences to quota: LOW below `low_below`, HIGH from `high_from`, MEDIUM in between. Compared
+ * as integers ×100 (AGENTS › Invariant 9). One object, so the two bounds are always checked together.
+ */
+export const CompetitionThresholdsSchema = z
+  .object({
+    low_below: ratioThreshold('Ngưỡng cạnh tranh thấp'),
+    high_from: ratioThreshold('Ngưỡng cạnh tranh cao'),
+  })
+  .superRefine((thresholds, ctx) => {
+    if (toHundredths(thresholds.low_below) >= toHundredths(thresholds.high_from)) {
+      ctx.addIssue({ code: 'custom', message: COMPETITION_THRESHOLDS_MESSAGE, path: ['high_from'] });
+    }
+  }, whenValid(['low_below', 'high_from']));
+
+export type CompetitionThresholds = z.output<typeof CompetitionThresholdsSchema>;
+
 // Declared once without defaults: the full schema adds PRD defaults, the patch schema stays partial
 // (in Zod 4, `.partial()` would still fill defaults in).
 const CONFIG_FIELDS = {
@@ -83,6 +110,8 @@ const CONFIG_FIELDS = {
   // pick min(N_NV, shortlist size) preferences.
   no_preference_policy: z.enum(NO_PREFERENCE_POLICIES, { error: 'Chọn cách xử lý SV không chọn nguyện vọng' }),
   require_full_preferences: z.boolean({ error: 'Chọn có bắt buộc chọn đủ N_NV hay không' }),
+  // Competition level of GĐ4 step 2 (US-3.4, CONTEXT D48).
+  competition_thresholds: CompetitionThresholdsSchema,
 };
 
 /**
@@ -90,7 +119,8 @@ const CONFIG_FIELDS = {
  * (`no_preference_policy`) are settled as proposed (CONTEXT D47). `reminder_hours_before` is not in
  * the PRD table: added by US-1.7 (CONTEXT D31). The `scv_weight_*` defaults are the PRD › S_cv
  * table (US-3.1, CONTEXT D41). `match_top_m` is not in the PRD table: added by US-3.2 (CONTEXT
- * D46); nor is `require_full_preferences`: added by US-3.3 (CONTEXT D47).
+ * D46); nor is `require_full_preferences`: added by US-3.3 (CONTEXT D47); nor is
+ * `competition_thresholds`: added by US-3.4 (CONTEXT D48).
  */
 export const DEFAULT_CAMPAIGN_CONFIG = {
   n_nv: 3,
@@ -112,6 +142,7 @@ export const DEFAULT_CAMPAIGN_CONFIG = {
   match_top_m: 10,
   no_preference_policy: 'AUTO_ASSIGN_TOP_SCV',
   require_full_preferences: false,
+  competition_thresholds: { low_below: 1, high_from: 3 },
 } as const;
 
 /** The S_cv criteria in PRD table order; the sum error is reported on the last one. */
@@ -180,6 +211,9 @@ export const CampaignConfigSchema = z
     require_full_preferences: CONFIG_FIELDS.require_full_preferences.default(
       DEFAULT_CAMPAIGN_CONFIG.require_full_preferences,
     ),
+    competition_thresholds: CONFIG_FIELDS.competition_thresholds.default(() => ({
+      ...DEFAULT_CAMPAIGN_CONFIG.competition_thresholds,
+    })),
   })
   .superRefine(checkWeights, whenValid(['alpha', 'beta']))
   .superRefine(checkScvWeights, whenValid(SCV_WEIGHT_KEYS));

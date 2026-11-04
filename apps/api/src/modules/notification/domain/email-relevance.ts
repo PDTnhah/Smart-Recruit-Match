@@ -20,6 +20,9 @@ export function emailStillRelevant(content: NotificationContent, now: Date): boo
     case 'PREFERENCES_AUTO_ASSIGNED':
       // A fact about the list; the student may change nothing after the deadline anyway (D47).
       return true;
+    case 'JD_LOW_PREFERENCES':
+      // Preferences are final once the alert is sent; the counts stay true (D48).
+      return true;
     case 'JD_REQUIREMENTS_READY':
     case 'JD_ANALYSIS_FAILED':
     case 'JD_REQUIREMENTS_VERSIONED':

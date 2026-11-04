@@ -57,8 +57,10 @@ describe('FR-8: email outbox (US-1.7 AC-4)', () => {
     }
   });
 
+  // HR, not CENTER: other files notify every CENTER account by email (JD_LOW_PREFERENCES, US-3.4)
+  // while this one runs, and the checks below count each recipient's emails (LESSONS §22).
   async function recipient(fullName = 'Trần Thị Bích') {
-    return instance1.createLoginUser('CENTER').then(async (user) => {
+    return instance1.createLoginUser('HR').then(async (user) => {
       await instance1.db.update(users).set({ fullName }).where(eq(users.id, user.id));
       return { ...user, fullName };
     });
