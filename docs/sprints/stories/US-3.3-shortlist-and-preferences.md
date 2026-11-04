@@ -10,7 +10,7 @@ version_shipped: 0.18.0
 prd_ref: [FR-15, FR-16]
 depends_on: [US-3.2, US-1.4, US-3.5]
 assignee: PDTnhah
-commit:
+commit: cc22be2
 created: 2026-10-07
 updated: 2026-11-04
 ---
@@ -95,7 +95,7 @@ GĐ3 bước 3–4 và GĐ4 (UC-12, UC-13). Shortlist = JD đủ điều kiện 
 
 Xem [CHANGELOG 0.18.0](../../CHANGELOG.md).
 
-**Commit**:
+**Commit**: cc22be2
 
 ## Implementation notes
 

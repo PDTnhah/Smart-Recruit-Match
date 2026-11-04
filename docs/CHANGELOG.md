@@ -57,7 +57,7 @@ US-3.3. Sinh viên xem các JD được gợi ý, kèm S_cv và giải thích, r
 - Chạy `pnpm install` (thêm `@dnd-kit/core` 6.3.1, `@dnd-kit/sortable` 10.0.0, `@dnd-kit/utilities` 3.2.2) và `pnpm --filter @srm/api db:migrate` (`0026`). Build lại image `api` và `web`.
 - Chưa kiểm tay giao diện ở 360 / 768 / 1024 px (AC-14, AC-15, AC-19).
 
-**Commit**:
+**Commit**: cc22be2
 
 ---
 
