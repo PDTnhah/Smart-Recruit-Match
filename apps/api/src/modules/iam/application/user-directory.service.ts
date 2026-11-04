@@ -31,6 +31,24 @@ export class UserDirectory {
     return rows.map((row) => row.id);
   }
 
+  /** The same accounts, grouped by student: for notices sent to each student on their own. */
+  async userIdsByStudent(studentIds: readonly number[]): Promise<Map<number, number[]>> {
+    const byStudent = new Map<number, number[]>();
+    if (studentIds.length === 0) return byStudent;
+    const rows = await this.db
+      .select({ id: users.id, studentId: users.studentId })
+      .from(users)
+      .where(and(inArray(users.studentId, [...studentIds]), eq(users.isActive, true)))
+      .orderBy(users.id);
+    for (const { id, studentId } of rows) {
+      if (studentId === null) continue;
+      const ids = byStudent.get(studentId);
+      if (ids) ids.push(id);
+      else byStudent.set(studentId, [id]);
+    }
+    return byStudent;
+  }
+
   /**
    * Ids of the HR accounts of a company that can sign in: active, invitation accepted. Notices
    * about the company's JDs go to all of them (US-2.3, BR-11: never to another company).

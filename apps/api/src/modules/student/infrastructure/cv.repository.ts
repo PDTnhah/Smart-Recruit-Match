@@ -8,12 +8,24 @@ import { DRIZZLE } from '../../../db/tokens.js';
 import type { Database, DbTx } from '../../../db/types.js';
 
 /** A CV that counts in matching: the active version, confirmed by its student (US-3.2). */
-export interface ConfirmedCv {
+/** An active confirmed CV without its profile: whose it is and which version counts (US-3.3). */
+export interface ConfirmedCvKey {
   cvId: number;
   cvVersion: number;
   studentId: number;
+}
+
+export interface ConfirmedCv extends ConfirmedCvKey {
   /** Personal values replaced by tokens (BR-03); all matching reads of the CV. */
   profileMasked: CvProfile;
+}
+
+/** A student's active CV in one campaign (BR-01: at most one each), as the shortlist reads it (US-3.3). */
+export interface ActiveCv {
+  cvId: number;
+  cvVersion: number;
+  campaignId: number;
+  status: CvStatus;
 }
 
 export interface CvRecord {
@@ -290,6 +302,24 @@ export class CvRepository {
       .where(and(eq(cvs.campaignId, campaignId), eq(cvs.active, true), eq(cvs.status, 'CONFIRMED')))
       .orderBy(cvs.id);
     return rows.flatMap(({ profileMasked, ...row }) => (profileMasked === null ? [] : [{ ...row, profileMasked }]));
+  }
+
+  /** The same CVs as `listConfirmedActive`, without the profile. */
+  async listConfirmedActiveKeys(campaignId: number): Promise<ConfirmedCvKey[]> {
+    return this.db
+      .select({ cvId: cvs.id, cvVersion: cvs.version, studentId: cvs.studentId })
+      .from(cvs)
+      .where(and(eq(cvs.campaignId, campaignId), eq(cvs.active, true), eq(cvs.status, 'CONFIRMED')))
+      .orderBy(cvs.id);
+  }
+
+  /** The student's active CVs, one per campaign, newest first. */
+  async listActiveOf(studentId: number): Promise<ActiveCv[]> {
+    return this.db
+      .select({ cvId: cvs.id, cvVersion: cvs.version, campaignId: cvs.campaignId, status: cvs.status })
+      .from(cvs)
+      .where(and(eq(cvs.studentId, studentId), eq(cvs.active, true)))
+      .orderBy(desc(cvs.id));
   }
 
   /** Students with an active CV in the campaign (BR-01: at most one row each). */

@@ -2,241 +2,135 @@
 id: US-3.3
 title: "Shortlist và chọn nguyện vọng"
 epic: EPIC-3
-status: backlog
+status: review
 priority: P0
 points: 8
-sprint:
-version_shipped:
+sprint: sprint-2026-W45
+version_shipped: 0.18.0
 prd_ref: [FR-15, FR-16]
 depends_on: [US-3.2, US-1.4, US-3.5]
-assignee:
-commit:
+assignee: PDTnhah
+commit: cc22be2
 created: 2026-10-07
-updated: 2026-11-02
+updated: 2026-11-04
 ---
 
-## Story refresh — 2026-11-02 (CONTEXT D42)
+## Story refresh — 2026-11-03 (bắt đầu story)
 
-Verdict kỹ năng giờ do code tính ([US-3.5](US-3.5-skill-evidence-code-matching.md), [US-3.6](US-3.6-language-cefr-major-match.md)) và có thêm dữ liệu giải thích. Phần giải thích của shortlist phải hiển thị, trên điện thoại vẫn đọc được:
-
-- **Từng kỹ năng:** kiểu khớp (Đúng kỹ năng / Kéo theo từ *X* / Cùng họ với *X*), bậc bằng chứng (Đã nêu, Đã dùng, Dùng nhiều, Thành thạo) và nguồn trong CV (dự án, kinh nghiệm, chứng chỉ).
-- **Độ phủ theo vùng** của JD, ví dụ Backend 80 %, DevOps 0 %. Hiển thị bằng danh sách thanh ngang, không thêm thư viện biểu đồ.
-- **Ngoại ngữ:** yêu cầu và chứng chỉ của SV kèm bậc CEFR; lý do `LANGUAGE_NOT_MET` hiện bậc CEFR đọc được.
-- **Gợi ý cải thiện:** lấy `suggestions` của Matching Agent; `gaps` là kỹ năng `NOT_MET`/`PARTIAL` do code lập.
-- Nhãn tiếng Việt của kiểu khớp, bậc và vùng dùng chung với US-2.7 (`labels.ts`).
-
-Khi bắt đầu story, thêm AC cho các mục trên và kiểm tay ở 360 / 768 / 1024 px.
+Người dùng chốt ở phiên Plan ([CONTEXT D47](../../CONTEXT.md)): Q1, Q6 theo Đề xuất; một route `/sv/preferences` hai tab, từ `lg` hai cột, giải thích trong `Sheet`; lưu bằng nút (một `PUT` thay cả danh sách); nhắc hạn chọn NV làm ở đây (AC-18). Refresh 2026-11-02 thành AC-16, AC-17; D46 thêm cảnh báo `evidence_check`; tham số đợt mới thành AC-19.
 
 ## Goal
 
-SV mở cổng trên điện thoại và thấy shortlist: các JD phù hợp với mình, mỗi JD kèm S_cv, thành phần điểm, bằng chứng, kỹ năng còn thiếu và gợi ý cải thiện. SV chọn và sắp tối đa N_NV nguyện vọng từ shortlist. Hết hạn thì danh sách bị khóa. Story cũng đưa bảng chuyển trạng thái đầy đủ của hồ sơ ứng tuyển vào `packages/shared/states`, nhờ vậy EPIC-4 và EPIC-5 chỉ cần gọi `transitionTo` mà không phải định nghĩa lại vòng đời.
+SV mở cổng trên điện thoại và thấy shortlist: các JD phù hợp, mỗi JD có S_cv, thành phần điểm, bằng chứng, kỹ năng còn thiếu và gợi ý cải thiện. SV chọn và sắp tối đa N_NV nguyện vọng từ shortlist. Hết hạn thì danh sách bị khóa; SV không chọn được xử lý theo Q6. Story cũng đưa bảng chuyển trạng thái của hồ sơ ứng tuyển vào `packages/shared/states`, để EPIC-4, EPIC-5 chỉ cần gọi `transitionTo`.
 
 ## Background
 
-Story phủ GĐ3 bước 3–4 và GĐ4 (PRD › *Quy trình nghiệp vụ theo giai đoạn*), tức UC-12 và UC-13. Shortlist của SV gồm các JD đủ điều kiện cứng có S_cv ≥ θ_cv, sắp giảm dần theo S_cv (FR-15). SV chọn tối đa N_NV JD **từ shortlist** và sắp thứ tự ưu tiên; NV1 là ưu tiên cao nhất (FR-16, BR-04). Hết hạn chọn NV thì danh sách bị khóa. SV không chọn NV nào được xử lý theo chính sách Q6. Dữ liệu điểm do [US-3.2](US-3.2-batch-matching-agent.md) ghi vào `match_results`; hàm lập shortlist có sẵn ở [US-3.1](US-3.1-hard-filters-and-scv-formula.md).
+GĐ3 bước 3–4 và GĐ4 (UC-12, UC-13). Shortlist = JD đủ điều kiện cứng có S_cv ≥ θ_cv, sắp giảm dần (FR-15); SV chọn tối đa N_NV JD từ shortlist, NV1 ưu tiên cao nhất (FR-16, BR-04). Điểm do [US-3.2](US-3.2-batch-matching-agent.md) ghi ở `match_results`; giải thích được là yêu cầu cứng (NFR-4); SV chỉ thấy dữ liệu của mình, HR không thấy shortlist hay NV (BR-11). Mức cạnh tranh thuộc [US-3.4](US-3.4-competition-level-and-suggestions.md).
 
-Giải thích được là yêu cầu cứng (NFR-4): mỗi điểm hiển thị kèm thành phần và bằng chứng. PRD › Personas giới hạn quyền xem: SV chỉ thấy điểm của chính mình, không thấy điểm hay thứ hạng của người khác. HR không thấy shortlist hay nguyện vọng; HR chỉ thấy hồ sơ được đề cử (BR-11). ARCH › *Màn hình theo cổng* mô tả màn Shortlist là thẻ JD có S_cv, kỹ năng thiếu, gợi ý cải thiện và mức cạnh tranh, còn màn Chọn nguyện vọng cho kéo-thả sắp thứ tự (dnd-kit). Phần sinh viên phải dùng tốt trên điện thoại (NFR-13). Mức cạnh tranh thuộc [US-3.4](US-3.4-competition-level-and-suggestions.md).
+**Vòng đời hồ sơ ứng tuyển** (PRD › *Vòng đời trạng thái*, AD-8): 13 trạng thái, 17 chuyển (16 cạnh của sơ đồ cộng bước tạo ở `PENDING_TEST`) ở `packages/shared/states/application.ts`; các cạnh sau `PENDING_TEST` thuộc US-4.3, US-4.4, US-5.2–US-5.5.
 
-Hồ sơ ứng tuyển là một cặp SV–JD, có vòng đời tính từ lúc SV chọn NV (PRD › *Vòng đời trạng thái* › *Hồ sơ ứng tuyển*). Theo AD-8 ([CONTEXT D8](../../CONTEXT.md)), mỗi vòng đời có kiểu trạng thái và bảng chuyển trạng thái trong `packages/shared/states`; mọi thay đổi đi qua `transitionTo` của [US-1.2](US-1.2-core-db-schema-transition-audit-log.md). Story này chỉ thực hiện bước tạo NV, nhưng phải định nghĩa toàn bộ bảng chuyển để các story sau dùng chung:
+**Lessons applied**: §6, §7, §10, §12, §15, §21, §22 (lọc theo loại / `dedupeKey`), §30 (`CORE_TABLES`, `ai-service-role`). **Lessons**: §34 mới (Q6 chỉ nằm trong listener sự kiện).
 
-| Mã trạng thái (đề xuất) | Nhãn PRD |
-|---|---|
-| `PENDING_TEST` | Chờ làm test |
-| `TEST_GRADED` | Đã chấm test |
-| `BELOW_THRESHOLD` | Không đạt ngưỡng |
-| `WAITING_NEXT_ROUND` | Chờ vòng sau |
-| `NOMINATED` | Được đề cử |
-| `INTERVIEW` | Mời phỏng vấn |
-| `HR_REJECTED` | HR từ chối |
-| `PASSED` | Đạt phỏng vấn |
-| `RESERVE` | Dự bị |
-| `INTERVIEW_FAILED` | Không đạt phỏng vấn |
-| `ACCEPTED` | Đã nhận thực tập |
-| `DECLINED` | SV từ chối / quá hạn |
-| `CLOSED` | Đóng |
-
-`NOMINATED`, `INTERVIEW`, `PASSED`, `RESERVE` lấy từ AGENTS › *Thuật ngữ* (BR-08); các mã còn lại là đề xuất. Bảng chuyển chép đúng sơ đồ PRD:
-
-| Từ | Sang | Sự kiện (PRD) | Story dự kiến thực hiện |
-|---|---|---|---|
-| (tạo mới) | `PENDING_TEST` | SV chọn NV | US-3.3 |
-| `PENDING_TEST` | `TEST_GRADED` | Nộp bài, chấm xong | US-4.4 |
-| `PENDING_TEST` | `CLOSED` | Quá hạn không làm (BR-06) | US-4.3 |
-| `TEST_GRADED` | `BELOW_THRESHOLD` | Dưới ngưỡng θ_test | US-4.4 |
-| `TEST_GRADED` | `NOMINATED` | Thuật toán chọn | US-5.2 |
-| `TEST_GRADED` | `WAITING_NEXT_ROUND` | Không được chọn ở vòng này | US-5.2 |
-| `WAITING_NEXT_ROUND` | `NOMINATED` | Vòng bổ sung | US-5.5 |
-| `WAITING_NEXT_ROUND` | `CLOSED` | SV đã nhận nơi khác / hết vòng | US-5.4, US-5.5 |
-| `NOMINATED` | `INTERVIEW` | HR mời | US-5.3 |
-| `NOMINATED` | `HR_REJECTED` | HR từ chối | US-5.3 |
-| `INTERVIEW` | `PASSED` | Đạt | US-5.4 |
-| `INTERVIEW` | `RESERVE` | Đạt nhưng hết suất | US-5.4 |
-| `INTERVIEW` | `INTERVIEW_FAILED` | Không đạt / vắng | US-5.4 |
-| `RESERVE` | `PASSED` | Có suất trống | US-5.4 |
-| `RESERVE` | `CLOSED` | Hết hạn dự bị | US-5.4 |
-| `PASSED` | `ACCEPTED` | SV nhận | US-5.4 |
-| `PASSED` | `DECLINED` | SV từ chối / quá hạn | US-5.4 |
-
-Trạng thái kết thúc: `BELOW_THRESHOLD`, `HR_REJECTED`, `INTERVIEW_FAILED`, `ACCEPTED`, `DECLINED`, `CLOSED`.
-
-**Lessons applied**: none — LESSONS.md mới có §1 (Claude Code chỉ nạp skill từ `.claude/skills`), không liên quan nội dung story này; đọc lại khi bắt đầu story.
+**Design applied**: §4 (hai cột rộng tới `80rem`), §5 (360 px, vùng chạm 44 px, nút chính `w-full` dưới `sm`), §6 (`tabs` `forceMount`, `sheet` dưới/phải, `progress` có `aria-label` và số %, `alert`, `badge`, `card`, `empty`, `select` trong `Field`, `ConfirmActionDialog`), §7, §9, §10, §11 (verdict có chữ và icon), §12.
 
 ## Acceptance criteria
 
-- [ ] **AC-1** — **Given** SV có `match_results` cho phiên bản CV hiệu lực, **When** gọi `GET /api/me/shortlist`, **Then** response chỉ gồm các JD có `eligible = true` và S_cv ≥ θ_cv, lấy theo phiên bản CV hiện hành, phiên bản JD hiện hành và `prompt_version` của đợt, sắp bằng `selectShortlist` (US-3.1). Mỗi JD có: thông tin JD (vị trí, doanh nghiệp, nhóm vị trí, địa điểm, hình thức), S_cv, bảng thành phần (sᵢ, wᵢ của 5 tiêu chí), từng kỹ năng với verdict và bằng chứng, kỹ năng còn thiếu, gợi ý cải thiện, nhận xét ngắn, và `preference_rank` (null nếu chưa chọn) (FR-15, NFR-4).
-- [ ] **AC-2** — Response có thêm danh sách JD "Không đủ điều kiện" kèm lý do hiển thị bằng tiếng Việt (ánh xạ từ mã lý do của US-3.1). Các JD này không có S_cv và không chọn được.
-- [ ] **AC-3** — Response không chứa dữ liệu, điểm hay thứ hạng của SV khác (PRD › Personas). HR, CENTER hoặc ADMIN gọi `GET /api/me/shortlist` hay `PUT /api/me/preferences` thì nhận `403`. Test IDOR: SV A gửi `PUT /api/me/preferences` có `jd_id` chỉ nằm trong shortlist của SV B thì nhận `422`, và dữ liệu của cả A lẫn B không đổi.
-- [ ] **AC-4** — **Given** lượt chấm của đợt chưa xong hoặc SV chưa có hồ sơ được chấm, **When** mở shortlist, **Then** API trả trạng thái "đang chấm" phân biệt được với trường hợp "đã chấm nhưng không có JD nào đạt θ_cv"; giao diện hiện hai thông điệp khác nhau.
-- [ ] **AC-5** — **Given** đợt đang ở `PREFERENCE_SELECTION` và chưa qua `phase_deadlines.preference_end`, **When** SV gửi `PUT /api/me/preferences` với danh sách có thứ tự gồm 1…N_NV JD khác nhau trong shortlist của mình, **Then** danh sách cũ được thay toàn bộ trong một giao dịch: mỗi NV có `rank` liên tục từ 1 và `status = PENDING_TEST`; `audit_logs` ghi trước/sau trong cùng giao dịch (FR-7); response trả danh sách mới.
-- [ ] **AC-6** — **Given** danh sách vượt N_NV, có JD ngoài shortlist (BR-04), có JD trùng, hoặc `rank` không liên tục, **When** gửi `PUT /api/me/preferences`, **Then** API trả `422` kèm mã lỗi có thông điệp tiếng Việt, và dữ liệu không đổi. Danh sách rỗng là hợp lệ (SV bỏ hết NV trước hạn).
-- [ ] **AC-7** — Ràng buộc DB: chèn thẳng vào `preferences` (bỏ qua service) mà vi phạm `unique(campaign_id, student_id, rank)`, `unique(student_id, jd_id)` hoặc `CHECK (rank >= 1)` thì bị từ chối ở tầng DB (AGENTS › Nguyên tắc 11).
-- [ ] **AC-8** — **Given** `campaigns.config.require_full_preferences = true` (đề xuất; GĐ4 bước 3 cho phép cấu hình bắt buộc), **When** SV gửi ít hơn min(N_NV, số JD trong shortlist) NV, **Then** API trả `422`. Khi tham số là `false` (mặc định), API nhận danh sách và giao diện hiện khuyến nghị chọn đủ N_NV.
-- [ ] **AC-9** — **Given** giờ server đã qua `phase_deadlines.preference_end` (kể cả khi scheduler của US-1.4 chưa kịp chuyển pha), hoặc đợt đã rời `PREFERENCE_SELECTION`, **When** SV gửi `PUT /api/me/preferences`, **Then** API trả `409` mã `CAMPAIGN_PHASE_MISMATCH` (qua `CampaignService.assertPhase` của US-1.4) và dữ liệu không đổi. Giao diện hiện danh sách ở chế độ chỉ đọc kèm thông báo đã khóa.
-- [ ] **AC-10** — Chạm Q6. **Given** `campaigns.config.no_preference_policy = AUTO_ASSIGN_TOP_SCV` (mặc định theo Đề xuất của Q6), **When** đợt chuyển `PREFERENCE_SELECTION → TESTING`, **Then** mỗi SV có shortlist không rỗng mà chưa có NV nào được gán min(N_NV, số JD trong shortlist) JD có S_cv cao nhất, theo đúng thứ tự shortlist. Việc gán dùng actor `SYSTEM`, ghi audit có lý do, và SV nhận thông báo qua `NotificationService` (US-1.7). **Given** tham số là `NONE`, **Then** hệ thống không gán gì. Chạy lại không tạo NV trùng.
-- [ ] **AC-11** — `packages/shared/states` có kiểu trạng thái và bảng chuyển của hồ sơ ứng tuyển như ở Background. Unit test duyệt mọi cặp (từ, sang): đúng 17 chuyển trong bảng được phép, mọi cặp khác bị từ chối, trạng thái kết thúc không có chuyển ra. Kèm nhãn tiếng Việt cho giao diện.
-- [ ] **AC-12** — **Given** một NV ở `PENDING_TEST`, **When** gọi `transitionTo` với `row_version` cũ, **Then** trả `409` và không có gì thay đổi. **When** ghi audit lỗi, **Then** cả giao dịch rollback. Kiểm bằng helper test `transitionTo` của US-1.2 trên bảng `preferences`.
-- [ ] **AC-13** — **Given** hai request `PUT /api/me/preferences` đồng thời của cùng SV, **When** cả hai chạy, **Then** chúng được tuần tự hóa: kết quả cuối là đúng một trong hai danh sách, không lẫn dòng, không có lỗi `500` do vi phạm ràng buộc, và mỗi lần ghi có audit riêng.
-- [ ] **AC-14** — Giao diện ở chiều rộng 375 px: thẻ shortlist đọc được không cần cuộn ngang; sắp thứ tự NV được bằng kéo-thả cảm ứng và bằng nút lên/xuống (dùng được bằng bàn phím); có trạng thái loading, rỗng, lỗi, đang chấm và đã khóa; mọi chuỗi bằng tiếng Việt; verdict hiển thị "Đáp ứng" / "Một phần" / "Không có bằng chứng". Story ghi `Design applied:`.
-- [ ] **AC-15** — Màn chọn nguyện vọng luôn hiện thông điệp của GĐ4 bước 4: hãy xếp NV đúng mong muốn thật, vì thuật toán phân bổ bảo đảm việc đặt một công ty cạnh tranh ở NV1 không làm SV mất cơ hội ở NV2, NV3.
+- [x] **AC-1** — **Given** SV có CV `active` đã xác nhận và có kết quả chấm, **When** gọi `GET /api/me/shortlist`, **Then** response chỉ gồm JD `eligible` có S_cv ≥ θ_cv, sắp bằng `selectShortlist`.
+  - Đợt: đợt có CV `active` mới nhất của SV, không ở `DRAFT`/`CLOSED`.
+  - Dòng hiện hành: phiên bản CV `active`, phiên bản hiện hành của JD `APPROVED`/`RECRUITING`, `rules_version` hiện hành, prompt đã ghim của đợt (D46).
+  - Mỗi JD có: vị trí, doanh nghiệp, nhóm vị trí, địa điểm, hình thức; S_cv; thành phần điểm (sᵢ, wᵢ của 5 tiêu chí); kỹ năng còn thiếu (`criteria.gaps`); gợi ý, điểm mạnh, nhận xét; `preferenceRank` (null nếu chưa chọn) (FR-15, NFR-4).
+- [x] **AC-2** — Response có danh sách "Không đủ điều kiện" kèm `IneligibleReason`; giao diện hiện lý do bằng tiếng Việt. Các JD này không có S_cv và không chọn được. Cặp bị lọc top-M hoặc `needs_review` không hiện, chỉ đếm.
+- [x] **AC-3** — Response không chứa dữ liệu, điểm hay thứ hạng của SV khác. HR, CENTER, ADMIN gọi `GET /api/me/shortlist` hay `PUT /api/me/preferences` nhận `403`. IDOR: SV A gửi `jd_id` chỉ nằm trong shortlist của SV B thì nhận `422`, dữ liệu của A và B không đổi.
+- [x] **AC-4** — `state` là `NO_CONFIRMED_CV` | `SCORING` (lượt chấm của đợt đang chạy, hoặc CV chưa có kết quả) | `READY`. "Đang chấm" phân biệt được với "đã chấm nhưng không JD nào đạt θ_cv"; giao diện hiện thông điệp khác nhau.
+- [x] **AC-5** — **Given** đợt ở `PREFERENCE_SELECTION`, chưa qua `preference_end`, **When** SV gửi `PUT /api/me/preferences` (`campaignId`, 1…N_NV JD khác nhau trong shortlist của mình, `rank` liên tục từ 1), **Then** danh sách cũ được thay toàn bộ trong một giao dịch, mỗi NV ở `PENDING_TEST`; `audit_logs` ghi `PREFERENCES_REPLACED` có trước/sau trong cùng giao dịch (FR-7); response trả danh sách mới.
+- [x] **AC-6** — Vượt N_NV, JD ngoài shortlist (BR-04), JD trùng, `rank` không liên tục: `422` với mã `PREFERENCES_TOO_MANY` / `PREFERENCE_NOT_IN_SHORTLIST` / `PREFERENCE_DUPLICATE_JD` / `PREFERENCE_RANK_NOT_CONTIGUOUS`, thông điệp tiếng Việt, dữ liệu không đổi. Danh sách rỗng hợp lệ.
+- [x] **AC-7** — Chèn thẳng vào `preferences` vi phạm `unique(campaign_id, student_id, rank)`, `unique(student_id, jd_id)` hoặc `CHECK (rank >= 1)` bị DB từ chối (Nguyên tắc 11).
+- [x] **AC-8** — `require_full_preferences = true`: gửi ít hơn min(N_NV, số JD trong shortlist) NV thì `422 PREFERENCES_INCOMPLETE`. `false` (mặc định): API nhận, giao diện khuyến nghị chọn đủ.
+- [x] **AC-9** — Đã qua `preference_end` theo giờ server (kể cả khi scheduler chưa chuyển pha) hoặc đợt đã rời `PREFERENCE_SELECTION`: `PUT` trả `409 CAMPAIGN_PHASE_MISMATCH`, dữ liệu không đổi. Giao diện ở chế độ chỉ đọc kèm thông báo đã khóa.
+- [x] **AC-10** — Q6 (D47). Đợt chuyển `PREFERENCE_SELECTION → TESTING` với `no_preference_policy = AUTO_ASSIGN_TOP_SCV` (mặc định): mỗi SV có shortlist không rỗng mà chưa có NV được gán min(N_NV, số JD trong shortlist) JD đầu shortlist, actor `SYSTEM`, audit có lý do, thông báo `PREFERENCES_AUTO_ASSIGNED`. `NONE`: không gán. Chạy lại không tạo NV trùng.
+- [x] **AC-11** — `packages/shared/states/application.ts`: kiểu, bảng chuyển, trạng thái kết thúc và nhãn tiếng Việt như Background. Unit test duyệt mọi cặp (từ, sang): đúng 17 chuyển được phép, trạng thái kết thúc không có chuyển ra.
+- [x] **AC-12** — NV ở `PENDING_TEST`: `transitionTo` với `row_version` cũ trả `409`, không đổi gì; ghi audit lỗi thì cả giao dịch rollback. Kiểm bằng helper của US-1.2 trên bảng `preferences`.
+- [x] **AC-13** — Hai `PUT` đồng thời của cùng SV được tuần tự hóa (`pg_advisory_xact_lock(3_303, student_id)`): kết quả cuối là đúng một trong hai danh sách, không lẫn dòng, không `500`, mỗi lần ghi có audit riêng.
+- [ ] **AC-14** — Giao diện `/sv/preferences` ở 360 / 768 / 1024 px: không cuộn ngang; sắp NV bằng kéo-thả cảm ứng và bằng nút lên/xuống (dùng được bằng bàn phím); có trạng thái tải, rỗng, lỗi, đang chấm, chưa xác nhận hồ sơ, đã khóa; có dấu hiệu "chưa lưu" và cảnh báo khi rời trang; chuỗi tiếng Việt; verdict "Đáp ứng" / "Một phần" / "Không có bằng chứng".
+- [ ] **AC-15** — Tab nguyện vọng luôn hiện thông điệp GĐ4 bước 4: hãy xếp NV đúng mong muốn thật, vì thuật toán bảo đảm đặt công ty cạnh tranh ở NV1 không làm SV mất cơ hội ở NV2, NV3.
+- [x] **AC-16** — Giải thích từng kỹ năng: kiểu khớp ("Đúng kỹ năng" / "Kéo theo từ *X*" / "Cùng họ với *X*"), bậc bằng chứng (Đã nêu, Đã dùng, Dùng nhiều, Thành thạo) và nguồn trong CV (dự án, kinh nghiệm, chứng chỉ, danh sách kỹ năng). Ngoại ngữ hiện yêu cầu và chứng chỉ của SV kèm bậc CEFR; lý do `LANGUAGE_NOT_MET` hiện yêu cầu và chứng chỉ đang có. Nhãn vùng, bậc dùng chung với US-2.7.
+- [x] **AC-17** — Độ phủ theo vùng của JD (ví dụ Backend 80 %) bằng danh sách thanh ngang `Progress` có số %, không thêm thư viện biểu đồ. Phần dự án hiện điểm, lý do, trích dẫn; trích dẫn có `evidence_check.matched = false` có cảnh báo (D46).
+- [x] **AC-18** — Nguồn nhắc `preference-selection` (D31): đợt `PREFERENCE_SELECTION` có `preference_end` trong khung `reminder_hours_before`, người nhận là SV có shortlist không rỗng mà chưa có NV; một lần mỗi hạn (`deadline:{id}:preference_end:{ISO}`).
+- [ ] **AC-19** — `campaigns.config` có `no_preference_policy` (`AUTO_ASSIGN_TOP_SCV` | `NONE`) và `require_full_preferences` (boolean, mặc định `false`); đợt cũ nhận mặc định khi parse; form đợt của Trung tâm sửa được cả hai, khóa sau khi mở đợt như tham số khác.
 
 ## Tasks
 
-- [ ] **TASK-3.3.1** — Vòng đời hồ sơ ứng tuyển trong `packages/shared/states` — một định nghĩa cho FE, BE và các epic sau; merge trước (AC: 11)
-  - [ ] Subtask 3.3.1.1 — `packages/shared/states/application.ts`: union literal 13 trạng thái, bảng chuyển 17 cạnh, danh sách trạng thái kết thúc, nhãn tiếng Việt.
-  - [ ] Subtask 3.3.1.2 — `packages/shared/states/application.spec.ts`: duyệt toàn bộ ma trận (từ, sang).
-  - [ ] Subtask 3.3.1.3 — Merge trước các story phụ thuộc ([sprints/README › Chạy song song](../README.md#chạy-song-song)).
-- [ ] **TASK-3.3.2** — Bảng `preferences` — quy tắc BR-04 có ràng buộc DB (AC: 5, 7, 12)
-  - [ ] Subtask 3.3.2.1 — Drizzle schema trong `apps/api/src/db/` và migration trong `apps/api/drizzle/`: cột theo ARCH › *Các bảng chính* (`id`, `campaign_id`, `student_id`, `jd_id`, `rank`, `status`), thêm `row_version` (đề xuất, AD-8 cần cột này cho vòng đời) và `created_at`. Ràng buộc `unique(student_id, jd_id)`, `unique(campaign_id, student_id, rank)`, `CHECK (rank >= 1)`.
-  - [ ] Subtask 3.3.2.2 — `apps/api/src/modules/matching/infrastructure/preferences.repository.ts`.
-  - [ ] Subtask 3.3.2.3 — Theo [D20](../../CONTEXT.md), mỗi đợt merge chỉ một story được sinh migration.
-- [ ] **TASK-3.3.3** — API shortlist có giải thích — SV hiểu vì sao có điểm đó (AC: 1, 2, 3, 4)
-  - [ ] Subtask 3.3.3.1 — Zod schema response `ShortlistResponse` trong `packages/shared/schemas/`.
-  - [ ] Subtask 3.3.3.2 — `apps/api/src/modules/matching/application/shortlist.service.ts`: lấy CV hiệu lực qua service export của `student`, thông tin JD qua service export của `company`, đọc `match_results` của module mình, gọi `selectShortlist`. Kỹ năng còn thiếu suy ra từ verdict `NOT_MET` sau kiểm tra trích dẫn; `gaps` của LLM hiển thị như nhận xét (đề xuất).
-  - [ ] Subtask 3.3.3.3 — `apps/api/src/modules/matching/api/me-shortlist.controller.ts`: `GET /api/me/shortlist`, `@Roles('STUDENT')`, chủ thể lấy từ JWT, không nhận `student_id` từ request.
-- [ ] **TASK-3.3.4** — API chọn nguyện vọng — kiểm tra ở service, chặn lần nữa ở DB (AC: 3, 5, 6, 8, 9, 13)
-  - [ ] Subtask 3.3.4.1 — Zod schema request `ReplacePreferencesRequest` trong `packages/shared/schemas/`; mã lỗi và thông điệp tiếng Việt.
-  - [ ] Subtask 3.3.4.2 — `apps/api/src/modules/matching/application/preferences.service.ts`: gọi `CampaignService.assertPhase(campaignId, ['PREFERENCE_SELECTION'])` và so giờ server với `phase_deadlines.preference_end`; đọc `n_nv` qua service của `campaign`; kiểm tra N_NV, BR-04, trùng lặp, `require_full_preferences`; tuần tự hóa theo (campaign, SV) bằng khóa dòng trong giao dịch; thay danh sách; tạo NV ở `PENDING_TEST` và ghi audit trong cùng giao dịch.
-  - [ ] Subtask 3.3.4.3 — Sau khi commit, phát sự kiện thay đổi NV (`@nestjs/event-emitter`; tên sự kiện đề xuất `matching.preferences.replaced`, kèm `campaign_id` và các `jd_id` bị ảnh hưởng) để US-3.4 cập nhật mức cạnh tranh.
-  - [ ] Subtask 3.3.4.4 — `apps/api/src/modules/matching/api/me-preferences.controller.ts`: `PUT /api/me/preferences`, `@Roles('STUDENT')`.
-- [ ] **TASK-3.3.5** — Khóa danh sách và chính sách Q6 — xử lý khi hết hạn (AC: 9, 10)
-  - [ ] Subtask 3.3.5.1 — Khóa dựa trên pha của đợt và giờ server (`assertPhase` + `preference_end`); không tin giờ client.
-  - [ ] Subtask 3.3.5.2 — `apps/api/src/modules/matching/application/auto-assign-preferences.service.ts`: chạy khi nhận sự kiện đợt chuyển `PREFERENCE_SELECTION → TESTING` (US-1.4 hiện chỉ phát `campaign.opened`; tên đề xuất `campaign.phase_changed`, phối hợp với US-1.4); đọc `campaigns.config.no_preference_policy` (đề xuất, giá trị `AUTO_ASSIGN_TOP_SCV` | `NONE`); idempotent; gửi thông báo cho SV qua US-1.7. Xong thì phát sự kiện để US-3.4 gửi cảnh báo cho Trung tâm.
-  - [ ] Subtask 3.3.5.3 — Thêm `no_preference_policy` và `require_full_preferences` vào schema `campaigns.config` (`packages/shared/schemas/`), phối hợp với US-1.4.
-- [ ] **TASK-3.3.6** — Giao diện Shortlist và Chọn nguyện vọng cho điện thoại (AC: 1, 2, 4, 9, 14, 15)
-  - [ ] Subtask 3.3.6.1 — Đọc `DESIGN.md` trước khi code, ghi `Design applied: …` vào story; dùng skill shadcn để chọn và ghép component.
-  - [ ] Subtask 3.3.6.2 — `apps/web/src/features/student/shortlist/`: thẻ JD (S_cv, thành phần điểm thu gọn/mở rộng, bằng chứng, kỹ năng còn thiếu, gợi ý cải thiện), nhóm "Không đủ điều kiện" kèm lý do; chừa chỗ cho mức cạnh tranh của US-3.4.
-  - [ ] Subtask 3.3.6.3 — `apps/web/src/features/student/preferences/`: danh sách sắp được bằng dnd-kit (cảm ứng, bàn phím) và nút lên/xuống, đếm "x/N_NV", thông điệp GĐ4 bước 4, chế độ chỉ đọc khi khóa. Route đề xuất `/sv/shortlist`, `/sv/preferences`.
-  - [ ] Subtask 3.3.6.4 — Gọi API bằng TanStack Query qua API client sinh từ OpenAPI; kiểm tra form bằng Zod schema dùng chung.
-- [ ] **TASK-3.3.7** — Test (AC: 3, 5–13)
-  - [ ] Subtask 3.3.7.1 — `apps/api/test/integration/shortlist.int-spec.ts`: nội dung shortlist, trạng thái đang chấm, IDOR, `403`.
-  - [ ] Subtask 3.3.7.2 — `apps/api/test/integration/preferences.int-spec.ts`: BR-04, ràng buộc DB, khóa, cấu hình bắt buộc đủ NV, Q6, audit, `409`, đồng thời.
-  - [ ] Subtask 3.3.7.3 — Kiểm tra giao diện ở 375 px theo `DESIGN.md`, ghi kết quả vào Implementation notes; chạy `/code-review` cho phần web.
+- [x] **TASK-3.3.1** — Vòng đời hồ sơ ứng tuyển, test bằng `mismatchedPairs` (AC: 11).
+- [x] **TASK-3.3.2** — Bảng `preferences`, migration `0026_preferences.sql`, `applicationLifecycle`, helper test (AC: 5, 7, 12).
+- [x] **TASK-3.3.3** — `GET /api/me/shortlist`, hàm thuần `shortlist-view.ts` dùng chung cho GET, PUT, Q6, nhắc hạn (AC: 1–4, 16, 17).
+- [x] **TASK-3.3.4** — `PUT /api/me/preferences`, `checkPreferenceList`, sự kiện `matching.preferences.replaced` (AC: 3, 5, 6, 8, 9, 13).
+- [x] **TASK-3.3.5** — Hai tham số đợt, Q6 qua `campaign.phase_changed`, thông báo `PREFERENCES_AUTO_ASSIGNED`, nguồn nhắc `preference-selection` (AC: 8, 10, 18, 19).
+- [x] **TASK-3.3.6** — Giao diện: dnd-kit ghim bản (LESSONS §8), `features/student/preferences/`, route, việc ở trang chủ SV, hai `Select` trên form đợt (AC: 1, 2, 4, 9, 14–17, 19).
+- [ ] **TASK-3.3.7** — Test theo *Verification commands* (xong); kiểm tay 360 / 768 / 1024 px (chờ người dùng).
 
 ## Dev notes
 
-### Architecture constraints
-
-- AD-8 ([ARCHITECTURE › Architecture decisions](../../ARCHITECTURE.md#architecture-decisions), [CONTEXT D8](../../CONTEXT.md)): bảng chuyển trạng thái tự viết trong `packages/shared/states`, mọi thay đổi đi qua `transitionTo` + `row_version` + audit trong cùng giao dịch. Bị loại: thư viện state machine (XState). Story chỉ dùng AD-8, không hiện thực hóa nó, nên `arch_ref` để trống.
-- AD-2: shortlist chỉ hiển thị S_cv do code tính ở US-3.2; không gọi LLM khi SV xem hay chọn NV.
-- AGENTS › Nguyên tắc 7: phân quyền cấp bản ghi. Endpoint `/me/*` lấy chủ thể từ JWT và không nhận ID SV từ request; mọi `jd_id` gửi lên phải thuộc shortlist của chính SV.
-- AGENTS › Nguyên tắc 11: BR-04 có ràng buộc DB tương ứng (hai unique index và `CHECK`). Giới hạn N_NV phụ thuộc cấu hình đợt nên kiểm tra ở service.
-- AGENTS › Nguyên tắc 13: module `matching` sở hữu `preferences` và `match_results` (ARCH › *Các module*); đọc CV, JD và đợt qua service export.
-- AGENTS › Nguyên tắc 14: response, request, trạng thái và nhãn đặt ở `packages/shared`.
-- Chạm Q1: tạm dùng Đề xuất (SV chọn tối đa 3 NV từ shortlist). Tham số đã có là `campaigns.config.n_nv` của US-1.4; hỏi trước khi chốt.
-- Chạm Q6: tạm dùng Đề xuất (tự gán N_NV JD có S_cv cao nhất trong shortlist và thông báo cho SV), đưa thành tham số `campaigns.config.no_preference_policy`; hỏi trước khi chốt.
-- Các điểm spec chưa nói rõ. Story tạm dùng phương án dưới đây và **hỏi trước khi chốt**:
-  - Vòng đời hồ sơ ứng tuyển và cột trạng thái: `preferences.status` và `nominations.status` (`NOMINATED`, `INTERVIEW`, `PASSED`, `RESERVE`) chồng lên nhau. Story chỉ định nghĩa bảng chuyển; trạng thái nào lưu ở bảng nào do EPIC-5 chốt. Mã trạng thái ngoài 4 mã của AGENTS là đề xuất.
-  - Sơ đồ PRD thiếu `TEST_GRADED → CLOSED`, trường hợp SV nhận nơi khác (BR-15) khi NV vừa chấm test xong mà chưa qua vòng phân bổ (VD ở vòng bổ sung). Story giữ đúng sơ đồ; thêm cạnh thì cần mục D mới.
-  - Vòng đời "Sinh viên trong đợt" (`… → Đã chọn NV → …`) không có cột hay bảng nào trong ARCH. Story không lưu trạng thái này.
-  - `GET /api/me/shortlist` không có tham số đợt. Tạm lấy đợt đang mở mà SV có CV hiệu lực.
-  - NV đã chọn mà sau đó cặp rơi khỏi shortlist (JD có phiên bản mới theo BR-18): spec không nói xử lý thế nào. Story không tự hủy NV.
-  - Sự kiện đổi pha: US-1.4 chỉ phát `campaign.opened`. Q6 và cảnh báo của US-3.4 cần sự kiện khi đợt chuyển `PREFERENCE_SELECTION → TESTING`; tên tạm `campaign.phase_changed`.
-  - Kỹ năng còn thiếu: tạm suy ra từ verdict `NOT_MET` sau kiểm tra trích dẫn; `gaps` của LLM chỉ hiển thị như nhận xét.
-
-### Cross-story dependencies
-
-- Builds on [US-3.2](US-3.2-batch-matching-agent.md) — `match_results` (S_cv, `criteria` có verdict, bằng chứng, `evidence_check`, `suggestions`, `summary`; `ineligible_reasons`).
-- Builds on [US-3.1](US-3.1-hard-filters-and-scv-formula.md) — `selectShortlist`, `IneligibleReasonCode`.
-- Builds on [US-1.4](US-1.4-campaign-setup-and-config.md) — `campaigns.config` (`n_nv`, `theta_cv`), `phase_deadlines.preference_end`, pha `PREFERENCE_SELECTION`, `CampaignService.assertPhase`, scheduler chuyển pha.
-- Builds on [US-1.2](US-1.2-core-db-schema-transition-audit-log.md) — `transitionTo`, `audit_logs`, helper test chuyển trạng thái.
-- Builds on [US-1.3](US-1.3-auth-rbac-design-system-app-shell.md) — `@Roles()`, helper đăng nhập theo vai trò cho test IDOR, `DESIGN.md`, khung cổng `/sv/*`.
-- Builds on [US-1.7](US-1.7-notifications-sse-email-reminders.md) — `NotificationService` để báo SV khi tự gán NV (Q6). US-1.7 xong ở T4, không nằm trong `depends_on` theo bảng kế hoạch.
-- Required by [US-3.4](US-3.4-competition-level-and-suggestions.md) — nghe sự kiện thay đổi NV và sự kiện sau khi tự gán NV; thêm trường `competition` vào `ShortlistResponse`.
-- Required by [US-4.3](US-4.3-exam-room.md) — bắt đầu bài test từ một NV ở `PENDING_TEST` (`POST /api/preferences/{id}/exam/start`); hủy NV quá hạn (`PENDING_TEST → CLOSED`).
-- Required by [US-4.4](US-4.4-grading-stest-sfinal.md), [US-5.2](US-5.2-allocation-round-draft-adjust-publish.md), [US-5.3](US-5.3-hr-nomination-review.md), [US-5.4](US-5.4-interviews-reserve-and-offers.md) — dùng bảng chuyển trạng thái trong `packages/shared/states/application.ts`.
-- Required by [US-5.5](US-5.5-supplementary-rounds-and-campaign-close.md) — dùng lại màn và endpoint chọn NV để SV trong hàng chờ thêm NV.
-- Sibling [US-3.4](US-3.4-competition-level-and-suggestions.md) — cùng tuần T8, làn A; cùng sửa `ShortlistResponse` và `preferences.service.ts`. US-3.3 merge trước.
-
-### Performance budget
-
-- Epic không đặt budget riêng cho story này. Truy vấn shortlist đi theo `cv_id`, là cột đầu của unique index trên `match_results`, nên không cần thêm index.
-
-### What we explicitly did NOT do
-
-- Không hiển thị mức cạnh tranh và gợi ý ít cạnh tranh; việc này thuộc US-3.4.
-- Không cho thêm NV ở vòng bổ sung; việc này thuộc US-5.5, dùng lại màn này.
-- Không có màn để Trung tâm xem hay sửa NV của SV. Trung tâm chỉ điều chỉnh kết quả phân bổ (US-5.2). Trigger để xem lại: Trung tâm cần xử lý ngoại lệ NV.
-- Không mở khóa NV sau hạn. Spec không có luồng này.
-- Không lưu trạng thái "Sinh viên trong đợt" (xem Dev notes).
-
-### References
-
-- [Source: PRD › Functional Requirements — FR-15, FR-16](../../PRD.md#functional-requirements)
-- [Source: PRD › Non-Functional Requirements — NFR-4, NFR-13](../../PRD.md#non-functional-requirements)
-- Source: PRD › GĐ3 (bước 3–4), GĐ4; *Vòng đời trạng thái* › *Hồ sơ ứng tuyển*; *Quy tắc nghiệp vụ* BR-04, BR-06, BR-08, BR-11; Personas; *Các điểm cần chốt* Q1, Q6 ([PRD.md](../../PRD.md))
-- [Source: ARCHITECTURE › Architecture decisions — AD-2, AD-8](../../ARCHITECTURE.md#architecture-decisions)
-- Source: ARCHITECTURE › *Màn hình theo cổng*, *Các module* (`matching`), *Quản lý trạng thái* ([ARCHITECTURE.md](../../ARCHITECTURE.md))
-- [Source: ARCHITECTURE › Data architecture](../../ARCHITECTURE.md#data-architecture) — `preferences`, `match_results`
-- [Source: ARCHITECTURE › API architecture](../../ARCHITECTURE.md#api-architecture) — `GET /api/me/shortlist`, `PUT /api/me/preferences`
-- [Source: ARCHITECTURE › Security architecture](../../ARCHITECTURE.md#security-architecture)
-- [Source: CONTEXT D8, D14](../../CONTEXT.md)
-- [Source: Epic EPIC-3](../epics/EPIC-3.md)
+- AD-2 (không gọi LLM khi xem, chọn NV), AD-8, Nguyên tắc 7, 11, 13.
+- Để mở (D47): trạng thái nào lưu ở `nominations` (EPIC-5); cạnh `TEST_GRADED → CLOSED` (BR-15) cần mục D mới; NV có JD ra phiên bản mới (BR-18) không tự hủy, giao diện đánh dấu và chặn lưu.
+- US-3.4: hai sự kiện `matching.preferences.*`, chỗ đặt mức cạnh tranh ở `shortlist-card.tsx`; rebase sau US-3.3 rồi mới sinh migration. Không làm: mức cạnh tranh, màn Trung tâm xem/sửa NV, mở khóa NV sau hạn.
 
 ## Verification commands
 
-> Lệnh chạy cụ thể (`pnpm …`) sẽ điền khi US-1.1 tạo script (AGENTS › Lệnh). Bảng dưới ghi file test và tên case.
+> `pnpm --filter @srm/shared test`; `pnpm --filter @srm/api test:unit`; `pnpm --filter @srm/api exec jest --testPathPatterns 'test/integration/(shortlist|preferences|deadline-reminder|core-schema|ai-service-role)' --selectProjects integration`. Tên test mở đầu bằng mã GĐ/BR; dưới đây là file › phần đầu tên.
 
-| AC | Command |
+| AC | Test |
 |---|---|
-| AC-1 | `apps/api/test/integration/shortlist.int-spec.ts` › `GĐ3 shortlist: eligible JDs with S_cv >= theta, sorted, with breakdown and evidence` |
-| AC-2 | `apps/api/test/integration/shortlist.int-spec.ts` › `GĐ3 shortlist: ineligible JDs listed with reasons, not selectable` |
-| AC-3 | `apps/api/test/integration/shortlist.int-spec.ts` › `shortlist IDOR: no other student data, non-STUDENT 403, foreign jd_id 422` |
-| AC-4 | `apps/api/test/integration/shortlist.int-spec.ts` › `GĐ3 shortlist: scoring in progress vs empty shortlist` |
-| AC-5 | `apps/api/test/integration/preferences.int-spec.ts` › `GĐ4 BR-04 replace preferences in one transaction with audit` |
-| AC-6 | `apps/api/test/integration/preferences.int-spec.ts` › `BR-04 rejects over N_NV, outside shortlist, duplicates, gaps in rank` |
-| AC-7 | `apps/api/test/integration/preferences.int-spec.ts` › `BR-04 DB constraints reject direct inserts` |
-| AC-8 | `apps/api/test/integration/preferences.int-spec.ts` › `GĐ4 require_full_preferences enforced when enabled` |
-| AC-9 | `apps/api/test/integration/preferences.int-spec.ts` › `GĐ4 preferences locked after deadline (server time)` |
-| AC-10 | `apps/api/test/integration/preferences.int-spec.ts` › `GĐ4 Q6 auto-assign top S_cv when policy enabled, idempotent; none when NONE` |
-| AC-11 | `packages/shared/states/application.spec.ts` › `application lifecycle allows exactly the 17 PRD transitions` |
-| AC-12 | `apps/api/test/integration/preferences.int-spec.ts` › `transitionTo on preference: stale row_version 409, audit failure rolls back` |
-| AC-13 | `apps/api/test/integration/preferences.int-spec.ts` › `concurrent preference replacements are serialized` |
-| AC-14 | Kiểm tra thủ công ở 375 px theo `DESIGN.md`, ghi vào Implementation notes; `/code-review` phần `apps/web/src/features/student/` |
-| AC-15 | Kiểm tra thủ công màn `/sv/preferences`; chuỗi thông điệp có trong `apps/web/src/features/student/preferences/` |
+| 1, 16, 17 | `shortlist.int-spec` › `GĐ3 shortlist: eligible JDs…`; `shortlist-view.spec` |
+| 2, 4 | `shortlist.int-spec` › `…ineligible JDs listed…`, `…scoring in progress vs empty…` |
+| 3 | `shortlist.int-spec` › `BR-11 shortlist…`; `preferences.int-spec` › `BR-04 IDOR…` |
+| 5–9 | `preferences.int-spec` › `GĐ4 BR-04 replace…`, `BR-04 rejects…`, `BR-04 DB constraints…`, `GĐ4 require_full…`, `GĐ4 preferences locked…`; `preference-list.spec` |
+| 10 | `preferences.int-spec` › `GĐ4 Q6 auto-assign…`, `GĐ4 Q6 sweep…`; `shortlist-view.spec` (property) |
+| 11 | `states/__tests__/application.spec` › `application lifecycle allows exactly the 17 PRD transitions` |
+| 12, 13 | `preferences.int-spec` › `transitionTo on preference…`, `concurrent preference replacements…` |
+| 18 | `deadline-reminder.int-spec` › `GĐ4 preference_end reminder…` |
+| 19 | `schemas/__tests__/campaign.spec`; kiểm tay form đợt |
+| 14, 15 | Kiểm tay `/sv/preferences` ở 360 / 768 / 1024 px |
 
 ## Changelog entry
 
-### Added
-- `GET /api/me/shortlist`: shortlist của SV kèm S_cv, thành phần điểm, bằng chứng, kỹ năng còn thiếu và gợi ý cải thiện; JD không đủ điều kiện có lý do.
-- `PUT /api/me/preferences`: chọn và sắp tối đa N_NV nguyện vọng từ shortlist; ràng buộc DB `unique(campaign_id, student_id, rank)` và `unique(student_id, jd_id)`; khóa khi hết hạn chọn NV.
-- Bảng chuyển trạng thái hồ sơ ứng tuyển (13 trạng thái theo PRD) trong `packages/shared/states`.
-- Tự gán NV cho SV không chọn đến hạn, theo tham số `no_preference_policy` (PRD Q6, chưa chốt).
-- Màn Shortlist và Chọn nguyện vọng ở cổng Sinh viên, dùng tốt trên điện thoại.
+Xem [CHANGELOG 0.18.0](../../CHANGELOG.md).
 
-**Commit**:
+**Commit**: cc22be2
 
 ## Implementation notes
 
-_Chưa bắt đầu._
+- **Backend:** `n_nv` ≤ `PREFERENCES_MAX` = 20. `SCORING` = lượt chấm `RUNNING`, hoặc CV chưa có kết quả cho JD hiện hành. AC-9 test bằng `preference_end` đã qua theo giờ thật (scheduler tắt trong test).
+- **Web:** dnd-kit `core` 6.3.1, `sortable` 10.0.0, `utilities` 3.2.2 (peer `react >=16.8`); modifier dọc tự viết, không thêm `@dnd-kit/modifiers`.
+  - Đợt ở `INTAKE` thì hiện "chưa đến giai đoạn", kể cả khi đã chấm sớm. `SCORING` tự tải lại mỗi 30 s. Bản nháp chỉ có sau khi SV sửa.
+  - Lưu bị `409`: tải lại, chuyển chỉ đọc, giữ lỗi.
+  - `apps/web` chưa có trình chạy test, nên `draft.ts` chưa có unit test.
+- **Review (2026-11-04):** `/code-review` nêu 10 điểm, đã sửa 8:
+  - Q6 thêm tác vụ quét và chờ lượt chấm `RUNNING` (D47, LESSONS §34).
+  - Q6 và nhắc hạn đọc gọn (`shortlistSummary`, property test). `userIdsByStudent` bỏ N+1. `lockEntityInTx` dùng chung.
+  - Việc ở trang chủ chỉ hiện cho đợt mà `/sv/preferences` hiển thị, khi CV đã xác nhận.
+  - `PUT` kiểm pha trước khi đọc shortlist. Sửa comment về thông điệp `422`.
+  - **Chưa sửa:** CV không có kết quả cho JD hiện hành (JD ra phiên bản mới sau lượt chấm) mà không lượt nào chạy thì vẫn `SCORING` tới khi Trung tâm chạy lại; tab mở thì tải lại mỗi 30 s.
+  - koni-qc: mọi AC có test, trừ phần kiểm tay. Thêm vào test IDOR một ca gửi thừa trường (`studentId`, `status`).
+- **Self-verify cuối:** typecheck, lint, depcruise, build web; `pnpm test` 764/764, shared 322/322.
+- **Chờ người dùng kiểm tay** (chế độ cảm ứng; xong thì `[x]` AC-14, AC-15, AC-19, TASK-3.3.7, story `done`):
+  1. `/sv/preferences` ở 360 / 768 / 1024 px, mọi trạng thái của AC-14: không cuộn ngang, từ 1024 px hai cột.
+  2. `Sheet` giải thích (dưới khi < 768 px, phải khi rộng hơn): đủ mục, có cảnh báo trích dẫn.
+  3. Đủ N_NV thì "Chọn" tắt; sắp bằng kéo cảm ứng, bàn phím, nút lên/xuống 44 px.
+  4. "Chưa lưu", hỏi khi rời trang; lưu có toast, thứ tự giữ sau khi tải lại.
+  5. `Alert` GĐ4 luôn hiện; sau hạn chỉ đọc; trang chủ có việc "Chọn nguyện vọng".
+  6. Form đợt: hai `Select` sửa, lưu được ở đợt nháp; chỉ đọc sau khi mở.
 
 ## Files modified
 
-_Chưa bắt đầu._
+- `packages/shared`: `states/application.ts`; `schemas/matching.ts`, `campaign.ts`, `notification.ts`, `errors.ts`; test.
+- `apps/api`: bảng `preferences` + `drizzle/0026`; `modules/matching` (domain, application, api, repository); service export ở `student`, `company`, `campaign`, `notification`; `common/`; test integration và helper.
+- `apps/web`: `features/student/preferences/` (mới), router, trang chủ SV, `center/campaigns/`, `shared/api`, thông báo; dnd-kit trong `package.json`, `pnpm-lock.yaml`.
+- `DESIGN.md` §6; `docs/` (PRD, ARCHITECTURE, CONTEXT D47, LESSONS §34, CHANGELOG).
 
 ## Cross-references
 
 - [PRD FR-15, FR-16](../../PRD.md#functional-requirements)
 - [Epic EPIC-3](../epics/EPIC-3.md)
 - [CHANGELOG](../../CHANGELOG.md)
-- [CONTEXT D8](../../CONTEXT.md)
-- [LESSONS](../../LESSONS.md)
+- [CONTEXT D8, D31, D46, D47](../../CONTEXT.md)
+- [LESSONS §34](../../LESSONS.md)

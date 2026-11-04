@@ -225,6 +225,14 @@ export class CampaignService {
     return settingsOf(record);
   }
 
+  /**
+   * What `assertPhase` would answer now for settings already read, without reading or locking the
+   * row again; for display, e.g. whether preferences can still be edited (US-3.3).
+   */
+  isPhaseOpen(campaign: CampaignSettings, allowed: readonly CampaignStatus[]): boolean {
+    return checkPhase(campaign.status, campaign.phaseDeadlines, allowed, this.clock.now()).ok;
+  }
+
   /** Parameters, target and deadlines of a campaign, for other modules. 404 when it does not exist. */
   async getSettings(campaignId: number): Promise<CampaignSettings> {
     return settingsOf(await this.requireRecord(campaignId));

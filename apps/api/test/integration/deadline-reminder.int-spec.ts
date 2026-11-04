@@ -11,9 +11,10 @@ import { Clock } from '../../src/common/clock/index.js';
 import { campaigns } from '../../src/db/schema/index.js';
 import { DeadlineReminderScheduler } from '../../src/modules/notification/application/deadline-reminder.scheduler.js';
 import { type AuthTestApp, createAuthTestApp, type TestUser } from '../helpers/auth.js';
-import { createCampaign, createCv, createStudent, uniqueValue } from '../helpers/factories.js';
+import { createCampaign, createCv, createPreference, createStudent, uniqueValue } from '../helpers/factories.js';
 import { FakeClock } from '../helpers/fake-clock.js';
 import { notificationsOf } from '../helpers/notifications.js';
+import { createApprovedJds, createConfirmedCv, scorePair } from '../helpers/shortlist.js';
 import { runConcurrently } from '../helpers/state.js';
 
 const INTAKE_END = '2001-03-01T00:00:00.000Z';
@@ -133,6 +134,57 @@ describe('GĐ2: CV deadline reminders (US-1.7 AC-6)', () => {
       const reminders = await remindersOf(user);
       expect(reminders.map((row) => (row.payload as { deadline: string }).deadline)).toEqual([INTAKE_END, extended]);
     }
+  });
+
+  it('GĐ4 preference_end reminder to students without preferences', async () => {
+    const preferenceEnd = '2001-04-01T00:00:00.000Z';
+    const campaign = await createCampaign(instance1.db, {
+      status: 'PREFERENCE_SELECTION',
+      phaseDeadlines: deadlines('2001-03-01T00:00:00.000Z'),
+      config: { ...DEFAULT_CAMPAIGN_CONFIG, target: { cohorts: [uniqueValue('K')], majors: ['CNTT'] } },
+    });
+    const [jd, weakJd] = await createApprovedJds(instance1.db, campaign.id, 2);
+    const cohort = uniqueValue('K');
+    const [noPreference, chose, belowTheta, noCv] = await Promise.all([
+      studentUser(cohort),
+      studentUser(cohort),
+      studentUser(cohort),
+      studentUser(cohort),
+    ]);
+    for (const [user, sCv] of [
+      [noPreference, 80],
+      [chose, 80],
+      [belowTheta, 20],
+    ] as const) {
+      const cv = await createConfirmedCv(instance1.db, user.studentId, campaign.id);
+      const ref = { id: cv.id, version: cv.version, studentId: user.studentId, campaignId: campaign.id };
+      await scorePair(instance1.db, ref, sCv >= 50 ? jd! : weakJd!, sCv);
+    }
+    await createPreference(instance1.db, { campaignId: campaign.id, studentId: chose.studentId, jdId: jd!.id, rank: 1 });
+
+    const dedupeKey = `deadline:${campaign.id}:preference_end:${preferenceEnd}`;
+    clock.set('2001-03-30T23:59:59.000Z');
+    const early = await scheduler1.runOnce();
+    expect(early.batches.filter((batch) => batch.dedupeKey === dedupeKey)).toEqual([]);
+
+    clock.set('2001-03-31T06:00:00.000Z');
+    const report = await scheduler1.runOnce();
+    expect(report.batches.filter((batch) => batch.dedupeKey === dedupeKey)).toEqual([
+      { source: 'preference-selection', dedupeKey, created: 1 },
+    ]);
+    const reminders = await remindersOf(noPreference);
+    expect(reminders).toEqual([
+      expect.objectContaining({
+        dedupeKey,
+        channels: ['IN_APP', 'EMAIL'],
+        payload: { campaignId: campaign.id, campaignName: campaign.name, deadlineKey: 'preference_end', deadline: preferenceEnd },
+      }),
+    ]);
+    for (const user of [chose, belowTheta, noCv]) expect(await remindersOf(user)).toEqual([]);
+
+    // Once per deadline.
+    await scheduler2.runOnce();
+    expect(await remindersOf(noPreference)).toHaveLength(1);
   });
 
   it('GĐ2: the reminder lead time follows the campaign parameter', async () => {

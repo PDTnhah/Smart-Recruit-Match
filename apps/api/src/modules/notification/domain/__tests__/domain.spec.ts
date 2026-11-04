@@ -91,3 +91,11 @@ describe('GĐ2: CV analysis notices (US-2.4, CONTEXT D37)', () => {
     expect(DEDUPE_KEYS.cvAnalysis('failed', 5, 'job-2')).not.toBe(DEDUPE_KEYS.cvAnalysis('failed', 5, 'job-1'));
   });
 });
+
+describe('GĐ4: preferences given at the deadline (US-3.3, CONTEXT D47)', () => {
+  it('GĐ4 Q6 notice: one key per campaign, still worth an email later', () => {
+    expect(DEDUPE_KEYS.preferencesAutoAssigned(7)).toBe('preferences_auto_assigned:7');
+    const payload = { campaignId: 7, campaignName: 'Đợt', count: 3 };
+    expect(emailStillRelevant({ type: 'PREFERENCES_AUTO_ASSIGNED', payload }, at('2030-01-01T00:00:00.000Z'))).toBe(true);
+  });
+});

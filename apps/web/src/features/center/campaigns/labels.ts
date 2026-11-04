@@ -1,4 +1,4 @@
-import type { CampaignConfig, CampaignDeadlineKey, CampaignStatus } from '@srm/shared';
+import type { CampaignConfig, CampaignDeadlineKey, CampaignStatus, NoPreferencePolicy, ScvCriterion } from '@srm/shared';
 import type { badgeVariants } from '@/components/ui/badge';
 import type { VariantProps } from 'class-variance-authority';
 
@@ -42,8 +42,11 @@ export const DEADLINE_LABELS: Record<CampaignDeadlineKey, { label: string; descr
   },
 };
 
+/** Parameters entered as numbers; the policy keys of US-3.3 are choices, not numbers. */
+export type NumericConfigKey = { [K in keyof CampaignConfig]: CampaignConfig[K] extends number ? K : never }[keyof CampaignConfig];
+
 export interface ParameterField {
-  key: keyof CampaignConfig;
+  key: NumericConfigKey;
   label: string;
   description: string;
   /** Step of the number input; decimals use 0.01, counts use 1. */
@@ -96,14 +99,49 @@ export const PARAMETER_FIELDS: readonly ParameterField[] = [
   },
 ];
 
+/** The five S_cv criteria (PRD › S_cv table); the student's explanation of a score uses the same names. */
+export const SCV_CRITERION_LABELS: Record<ScvCriterion, string> = {
+  must_have: 'Kỹ năng bắt buộc',
+  nice_to_have: 'Kỹ năng bổ trợ',
+  project: 'Dự án, kinh nghiệm liên quan',
+  education: 'Học vấn (ngành, GPA)',
+  language: 'Ngoại ngữ, chứng chỉ',
+};
+
 /** Weights wᵢ of the five S_cv criteria, in PRD › S_cv table order (US-3.1, CONTEXT D41). */
 export const SCV_WEIGHT_FIELDS: readonly ParameterField[] = [
-  { key: 'scv_weight_must_have', label: 'Kỹ năng bắt buộc', description: 'Mặc định 0,4.', step: 0.01 },
-  { key: 'scv_weight_nice_to_have', label: 'Kỹ năng bổ trợ', description: 'Mặc định 0,15.', step: 0.01 },
-  { key: 'scv_weight_project', label: 'Dự án, kinh nghiệm liên quan', description: 'Mặc định 0,2.', step: 0.01 },
-  { key: 'scv_weight_education', label: 'Học vấn (ngành, GPA)', description: 'Mặc định 0,15.', step: 0.01 },
-  { key: 'scv_weight_language', label: 'Ngoại ngữ, chứng chỉ', description: 'Mặc định 0,1.', step: 0.01 },
+  { key: 'scv_weight_must_have', label: SCV_CRITERION_LABELS.must_have, description: 'Mặc định 0,4.', step: 0.01 },
+  { key: 'scv_weight_nice_to_have', label: SCV_CRITERION_LABELS.nice_to_have, description: 'Mặc định 0,15.', step: 0.01 },
+  { key: 'scv_weight_project', label: SCV_CRITERION_LABELS.project, description: 'Mặc định 0,2.', step: 0.01 },
+  { key: 'scv_weight_education', label: SCV_CRITERION_LABELS.education, description: 'Mặc định 0,15.', step: 0.01 },
+  { key: 'scv_weight_language', label: SCV_CRITERION_LABELS.language, description: 'Mặc định 0,1.', step: 0.01 },
 ];
+
+/** Q6 (CONTEXT D47): what happens at `preference_end` to a student with suggestions and no saved preference. */
+export const NO_PREFERENCE_POLICY_LABELS: Record<NoPreferencePolicy, string> = {
+  AUTO_ASSIGN_TOP_SCV: 'Tự gán các JD có điểm phù hợp cao nhất',
+  NONE: 'Không tự gán',
+};
+
+/** `require_full_preferences`, keyed by the value the Select carries. */
+export const REQUIRE_FULL_PREFERENCES_LABELS: Record<'true' | 'false', string> = {
+  false: 'Khuyến nghị chọn đủ N_NV',
+  true: 'Bắt buộc chọn đủ N_NV',
+};
+
+/** The two choices of GĐ4 (US-3.3 AC-19), after the numbers. */
+export const PREFERENCE_POLICY_FIELDS = {
+  no_preference_policy: {
+    label: 'Khi sinh viên không chọn nguyện vọng',
+    description:
+      'Đến hạn chọn nguyện vọng, sinh viên có JD được gợi ý mà chưa lưu nguyện vọng nào được xử lý theo lựa chọn này. Mặc định: tự gán tối đa N_NV JD đầu danh sách gợi ý.',
+  },
+  require_full_preferences: {
+    label: 'Số nguyện vọng phải chọn',
+    description:
+      'Bắt buộc: sinh viên phải chọn đủ N_NV nguyện vọng (hoặc tất cả JD được gợi ý nếu ít hơn) mới lưu được. Mặc định: khuyến nghị.',
+  },
+} as const satisfies Partial<Record<keyof CampaignConfig, { label: string; description: string }>>;
 
 /** Why a draft could not be opened, by `reasonCode` of the 422 answer (US-1.4 AC-5). */
 export const OPEN_FAILURE_MESSAGES: Record<string, string> = {

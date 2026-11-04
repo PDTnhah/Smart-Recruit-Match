@@ -1,6 +1,8 @@
 import {
   ACTOR_KINDS,
   type ActorKind,
+  APPLICATION_STATES,
+  type ApplicationStatus,
   type HardFilterFacts,
   type IneligibleReason,
   MATCH_RUN_STATUSES,
@@ -12,7 +14,7 @@ import {
 import { sql } from 'drizzle-orm';
 import { boolean, check, index, integer, jsonb, numeric, text, unique, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 import { campaigns } from './campaigns.js';
-import { id, oneOf, ref, timestamptz, timestamps } from './columns.js';
+import { id, oneOf, ref, rowVersion, timestamptz, timestamps } from './columns.js';
 import { core } from './core.js';
 import { cvs } from './cvs.js';
 import { jobDescriptions } from './job-descriptions.js';
@@ -146,5 +148,41 @@ export const matchRuns = core.table(
       'match_runs_counts_check',
       sql`least(${t.pairsTotal}, ${t.pairsIneligible}, ${t.pairsSkipped}, ${t.pairsCached}, ${t.pairsSent}, ${t.pairsScored}, ${t.pairsFailed}) >= 0`,
     ),
+  ],
+);
+
+/**
+ * A student's preferences in a campaign, NV1 = rank 1 (FR-16, BR-04, US-3.3, CONTEXT D47). Each row
+ * is also an application: its status follows `applicationMachine` from PENDING_TEST, moved on by
+ * EPIC-4 and EPIC-5 with `transitionTo`. During PREFERENCE_SELECTION the student's whole list is
+ * replaced at once; N_NV and "from the shortlist" are campaign rules, checked by the service.
+ */
+export const preferences = core.table(
+  'preferences',
+  {
+    id: id(),
+    campaignId: ref('campaign_id')
+      .notNull()
+      .references(() => campaigns.id),
+    studentId: ref('student_id')
+      .notNull()
+      .references(() => students.id),
+    jdId: ref('jd_id')
+      .notNull()
+      .references(() => jobDescriptions.id),
+    rank: integer('rank').notNull(),
+    status: text('status').$type<ApplicationStatus>().notNull().default('PENDING_TEST'),
+    rowVersion: rowVersion(),
+    ...timestamps(),
+  },
+  (t) => [
+    // BR-04 (AGENTS › Invariant 11): one JD per rank, and a JD at most once per student. A JD
+    // belongs to one campaign, so the second key holds within the campaign too.
+    unique('preferences_campaign_student_rank_key').on(t.campaignId, t.studentId, t.rank),
+    unique('preferences_student_jd_key').on(t.studentId, t.jdId),
+    check('preferences_rank_check', sql`${t.rank} >= 1`),
+    oneOf('preferences_status_check', t.status, APPLICATION_STATES),
+    // US-3.4 counts the preferences of a JD by status.
+    index('preferences_jd_id_status_idx').on(t.jdId, t.status),
   ],
 );

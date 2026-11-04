@@ -30,7 +30,14 @@ import { AuditService, userActor } from '../../audit/index.js';
 import { CampaignService } from '../../campaign/index.js';
 import { STUDENT_AUDIT_ACTIONS } from '../domain/audit-actions.js';
 import { CV_SUBMITTED, type CvSubmittedEvent } from '../domain/events.js';
-import { type CenterCvRecord, type ConfirmedCv, type CvRecord, CvRepository } from '../infrastructure/cv.repository.js';
+import {
+  type ActiveCv,
+  type CenterCvRecord,
+  type ConfirmedCv,
+  type ConfirmedCvKey,
+  type CvRecord,
+  CvRepository,
+} from '../infrastructure/cv.repository.js';
 import { ConsentService } from './consent.service.js';
 import { studentIdOf } from './current-student.js';
 
@@ -141,6 +148,22 @@ export class CvService implements OnModuleInit {
    */
   async listConfirmedForMatching(campaignId: number): Promise<ConfirmedCv[]> {
     return this.repository.listConfirmedActive(campaignId);
+  }
+
+  /**
+   * The same CVs as `listConfirmedForMatching`, without the profile: whose shortlist to read, for
+   * the auto-assignment of Q6 and the preference reminder (US-3.3).
+   */
+  async listConfirmedKeys(campaignId: number): Promise<ConfirmedCvKey[]> {
+    return this.repository.listConfirmedActiveKeys(campaignId);
+  }
+
+  /**
+   * The student's active CV in each campaign, newest first, with its status: the shortlist of
+   * US-3.3 picks its campaign from them. Student id from the caller's token only (Invariant 7).
+   */
+  async activeCvsOf(studentId: number): Promise<ActiveCv[]> {
+    return this.repository.listActiveOf(studentId);
   }
 
   /** AC-8: the caller's own versions, newest first. */

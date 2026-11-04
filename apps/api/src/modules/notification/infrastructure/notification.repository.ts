@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { NotificationChannel, NotificationType } from '@srm/shared';
 import { and, count, desc, eq, isNull, lt, lte, sql } from 'drizzle-orm';
-import { ADVISORY_LOCK_KEYS } from '../../../common/scheduling/advisory-lock.js';
+import { ADVISORY_LOCK_KEYS, lockEntityInTx } from '../../../common/scheduling/advisory-lock.js';
 import { type EmailStatus, notifications } from '../../../db/schema/index.js';
 import { DRIZZLE } from '../../../db/tokens.js';
 import type { Database, DbTx } from '../../../db/types.js';
@@ -137,10 +137,7 @@ export class NotificationRepository {
    * two invitations sent close together are handled one after the other.
    */
   async lockInvitationEmails(tx: DbTx, userId: number): Promise<void> {
-    // Two-key form; `hashtext` maps the bigint id to int4 (a collision only serializes two users).
-    await tx.execute(
-      sql`select pg_advisory_xact_lock(${ADVISORY_LOCK_KEYS.HR_INVITATION_EMAIL}, hashtext(${String(userId)}))`,
-    );
+    await lockEntityInTx(tx, ADVISORY_LOCK_KEYS.HR_INVITATION_EMAIL, userId);
   }
 
   /**

@@ -3,6 +3,7 @@ export { StudentModule } from './student.module.js';
 export { StudentService, type NewStudent, type StudentSchoolRecord } from './application/student.service.js';
 export { ConsentService } from './application/consent.service.js';
 export { CvService } from './application/cv.service.js';
-export type { ConfirmedCv } from './infrastructure/cv.repository.js';
+export type { ActiveCv, ConfirmedCv, ConfirmedCvKey } from './infrastructure/cv.repository.js';
+export { studentIdOf } from './application/current-student.js';
 export { CvAnalysisService, type RedispatchSummary } from './application/cv-analysis.service.js';
 export { CV_ANALYSIS_SETTLED, CV_SUBMITTED, type CvAnalysisSettledEvent, type CvSubmittedEvent } from './domain/events.js';

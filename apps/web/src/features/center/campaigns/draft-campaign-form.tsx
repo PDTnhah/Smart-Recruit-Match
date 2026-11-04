@@ -36,6 +36,8 @@ const FIELDS = [
   'target.majors',
   ...CAMPAIGN_DEADLINE_KEYS.map((key) => `phaseDeadlines.${key}`),
   ...[...PARAMETER_FIELDS, ...SCV_WEIGHT_FIELDS].map((parameter) => `config.${parameter.key}`),
+  'config.no_preference_policy',
+  'config.require_full_preferences',
 ];
 
 function defaultsOf(campaign: Campaign | undefined): FormInput {

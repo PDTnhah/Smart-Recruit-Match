@@ -257,12 +257,12 @@ Quyết định kiến trúc và quy trình được ghi trong [CONTEXT.md](CONT
 
 | # | Câu hỏi | Đề xuất |
 |---|---|---|
-| Q1 | Sinh viên tự chọn NV hay hệ thống phân bổ hoàn toàn theo điểm? | Sinh viên chọn tối đa 3 NV từ shortlist — vừa tôn trọng mong muốn, thuật toán vẫn chống dồn hồ sơ |
+| Q1 | Sinh viên tự chọn NV hay hệ thống phân bổ hoàn toàn theo điểm? | Sinh viên chọn tối đa 3 NV từ shortlist — vừa tôn trọng mong muốn, thuật toán vẫn chống dồn hồ sơ. **Chốt ([CONTEXT D47](CONTEXT.md)):** theo đề xuất; số NV là tham số `n_nv` của đợt, mặc định 3 |
 | Q2 | Làm 1 bài test cho mỗi NV hay 1 bài chung theo nhóm vị trí? | Theo JD; các JD cùng nhóm vị trí được phép dùng chung |
 | Q3 | Hệ số đề cử k? | 1,5 — HR có dư lựa chọn mà không quá tải |
 | Q4 | Sinh viên từ chối lời mời thực tập thì xử lý thế nào? | Xếp ưu tiên thấp nhất ở vòng sau |
 | Q5 | HR có được chủ động chọn sinh viên ngoài danh sách đề cử? | Không; chỉ "yêu cầu bổ sung hồ sơ" qua hệ thống |
-| Q6 | Sinh viên không chọn NV đến hạn? | Hệ thống tự gán N_NV JD có S_cv cao nhất trong shortlist và thông báo cho sinh viên |
+| Q6 | Sinh viên không chọn NV đến hạn? | Hệ thống tự gán N_NV JD có S_cv cao nhất trong shortlist và thông báo cho sinh viên. **Chốt ([CONTEXT D47](CONTEXT.md)):** theo đề xuất, là mặc định của tham số `no_preference_policy`; Trung tâm đổi được thành `NONE` (không gán) |
 | Q7 | Có chấm bài lập trình tự động? | Để ở phần mở rộng; MVP dùng trắc nghiệm + tự luận |
 | Q8 | Dùng LLM qua API thương mại hay mô hình mở tự triển khai? | Quyết định theo yêu cầu bảo mật dữ liệu và ngân sách; thiết kế lớp trừu tượng để đổi được. **Chốt một phần ([CONTEXT D34](CONTEXT.md)):** API thương mại, Gemini mặc định, Claude thay thế, sau lớp `LLMClient`; mô hình tự host còn mở |
 
@@ -290,6 +290,8 @@ Quyết định kiến trúc và quy trình được ghi trong [CONTEXT.md](CONT
 | SLA_HR | Thời hạn HR phản hồi danh sách đề cử | 5 ngày làm việc |
 | T_offer | Thời hạn sinh viên xác nhận lời mời thực tập | 3 ngày |
 | H_nhắc (`reminder_hours_before`) | Nhắc sinh viên chưa hoàn thành việc của giai đoạn khi còn chừng này giờ trước hạn (nộp CV; về sau chọn NV, làm test). Thêm ở US-1.7 ([CONTEXT D31](CONTEXT.md)) | 24 giờ |
+| `no_preference_policy` | Sinh viên không chọn NV đến hạn: `AUTO_ASSIGN_TOP_SCV` (gán các JD đầu shortlist, Q6) hoặc `NONE`. Thêm ở US-3.3 ([CONTEXT D47](CONTEXT.md)) | `AUTO_ASSIGN_TOP_SCV` |
+| `require_full_preferences` | Bắt buộc chọn đủ min(N_NV, số JD trong shortlist) nguyện vọng (GĐ4 bước 3); `false` là chỉ khuyến nghị. Thêm ở US-3.3 | `false` |
 
 Trạng thái đợt: `Nháp → Mở nhận JD/CV → Chọn nguyện vọng → Làm test → Phân bổ & HR duyệt → Vòng bổ sung → Đã đóng`. Ở mỗi trạng thái hệ thống chỉ cho phép các thao tác tương ứng (VD: quá hạn nộp CV thì không nộp được nữa).
 
@@ -883,8 +885,8 @@ Mọi thông báo đều hiện trong ứng dụng (chuông ở ba cổng, cập
 | FR-12 | Sinh viên xem, sửa và xác nhận hồ sơ năng lực; chỉ hồ sơ đã xác nhận mới được chấm (UC-11, BR-01) | P0 | ✅ done | EPIC-2 |
 | FR-13 | Quản trị quản lý danh mục kỹ năng và duyệt kỹ năng mới do AI phát hiện | P1 | ✅ done | EPIC-2 |
 | FR-14 | Lọc điều kiện cứng và chấm độ phù hợp mọi cặp SV × JD: điểm từng tiêu chí (kỹ năng, ngoại ngữ, ngành do code chấm; dự án do LLM chấm), bằng chứng, kỹ năng thiếu; tính S_cv và lập shortlist (UC-31, GĐ3) | P0 | 🚧 in-progress | EPIC-3 |
-| FR-15 | Sinh viên xem shortlist kèm S_cv, kỹ năng còn thiếu và gợi ý cải thiện (UC-12) | P0 | 📋 backlog | EPIC-3 |
-| FR-16 | Sinh viên chọn và sắp thứ tự tối đa N_NV nguyện vọng từ shortlist; danh sách khóa khi hết hạn (UC-13, BR-04, GĐ4) | P0 | 📋 backlog | EPIC-3 |
+| FR-15 | Sinh viên xem shortlist kèm S_cv, kỹ năng còn thiếu và gợi ý cải thiện (UC-12) | P0 | 🚧 in-progress | EPIC-3 |
+| FR-16 | Sinh viên chọn và sắp thứ tự tối đa N_NV nguyện vọng từ shortlist; danh sách khóa khi hết hạn (UC-13, BR-04, GĐ4) | P0 | 🚧 in-progress | EPIC-3 |
 | FR-17 | Hiển thị mức cạnh tranh theo thời gian thực, gợi ý "phù hợp – ít cạnh tranh"; báo Trung tâm các JD có tỷ lệ NV/chỉ tiêu < 1 | P1 | 📋 backlog | EPIC-3 |
 | FR-18 | AI sinh ngân hàng câu hỏi theo ma trận đề (trắc nghiệm, tự luận kèm rubric); Validator kiểm định; khóa và ghi phiên bản ngân hàng (UC-32, BR-05, GĐ5) | P0 | 📋 backlog | EPIC-4 |
 | FR-19 | HR hoặc giảng viên duyệt một mẫu ngẫu nhiên của ngân hàng câu hỏi (UC-22) | P2 | 📋 backlog | EPIC-4 |

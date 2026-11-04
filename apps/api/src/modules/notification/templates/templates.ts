@@ -90,4 +90,17 @@ Hãy tải lên lại CV trước hạn nộp, tốt nhất là file PDF xuất 
 Tải lại CV tại: {{link}}
 ${TEXT_FOOTER}`,
   },
+  PREFERENCES_AUTO_ASSIGNED: {
+    subject: 'Hệ thống đã chọn nguyện vọng cho bạn trong đợt "{{campaignName}}"',
+    html: `<p>Chào {{recipientName}},</p>
+<p>Đến hạn chọn nguyện vọng của đợt thực tập <strong>{{campaignName}}</strong>, bạn chưa chọn nguyện vọng nào. Theo quy định của đợt, hệ thống đã chọn cho bạn <strong>{{count}}</strong> JD phù hợp nhất trong danh sách gợi ý; JD có điểm phù hợp cao nhất là NV1.</p>
+<p>Bạn sẽ làm bài test cho các nguyện vọng này.</p>
+${button('Xem nguyện vọng')}`,
+    text: `Chào {{recipientName}},
+
+Đến hạn chọn nguyện vọng của đợt thực tập "{{campaignName}}", bạn chưa chọn nguyện vọng nào. Theo quy định của đợt, hệ thống đã chọn cho bạn {{count}} JD phù hợp nhất trong danh sách gợi ý; JD có điểm phù hợp cao nhất là NV1.
+
+Bạn sẽ làm bài test cho các nguyện vọng này. Xem nguyện vọng tại: {{link}}
+${TEXT_FOOTER}`,
+  },
 };

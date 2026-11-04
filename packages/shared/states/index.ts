@@ -4,3 +4,4 @@ export * from './campaign.js';
 export * from './job-description.js';
 export * from './cv.js';
 export * from './skill.js';
+export * from './application.js';

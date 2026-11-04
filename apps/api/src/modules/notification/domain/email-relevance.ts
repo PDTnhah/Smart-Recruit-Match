@@ -17,6 +17,9 @@ export function emailStillRelevant(content: NotificationContent, now: Date): boo
     case 'CV_ANALYSIS_FAILED':
       // A failure stays true; asking to upload again is harmless after a newer upload (D37).
       return true;
+    case 'PREFERENCES_AUTO_ASSIGNED':
+      // A fact about the list; the student may change nothing after the deadline anyway (D47).
+      return true;
     case 'JD_REQUIREMENTS_READY':
     case 'JD_ANALYSIS_FAILED':
     case 'JD_REQUIREMENTS_VERSIONED':

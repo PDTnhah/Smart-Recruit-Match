@@ -52,6 +52,16 @@ export class MatchRunsRepository {
       );
   }
 
+  /** Whether a run of the campaign is still waiting for results: its shortlists are SCORING (US-3.3 AC-4). */
+  async hasRunning(campaignId: number): Promise<boolean> {
+    const [row] = await this.db
+      .select({ id: matchRuns.id })
+      .from(matchRuns)
+      .where(and(eq(matchRuns.campaignId, campaignId), eq(matchRuns.status, 'RUNNING')))
+      .limit(1);
+    return row !== undefined;
+  }
+
   /** AC-13: a second RUNNING run of the campaign hits the partial unique index: 409. */
   async insertRunning(tx: DbTx, campaignId: number, actor: Actor, rulesVersion: string): Promise<number> {
     try {

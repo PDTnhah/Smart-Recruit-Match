@@ -1,6 +1,8 @@
 // Each lifecycle table paired with its state machine, defined once so callers of transitionTo
 // cannot mix a table with another lifecycle's machine (AD-8).
 import {
+  type ApplicationStatus,
+  applicationMachine,
   type CampaignStatus,
   campaignMachine,
   type CvStatus,
@@ -13,7 +15,7 @@ import {
 } from '@srm/shared';
 import type { ColumnBaseConfig } from 'drizzle-orm';
 import type { PgColumn, PgTable } from 'drizzle-orm/pg-core';
-import { campaigns, cvs, jobDescriptions, skills } from './schema/index.js';
+import { campaigns, cvs, jobDescriptions, preferences, skills } from './schema/index.js';
 
 type NumberColumn = PgColumn<ColumnBaseConfig<'number', string>>;
 type StringColumn = PgColumn<ColumnBaseConfig<'string', string>>;
@@ -40,3 +42,6 @@ export const jobDescriptionLifecycle: Lifecycle<JobDescriptionStatus> = {
 export const cvLifecycle: Lifecycle<CvStatus> = { table: cvs, machine: cvMachine };
 
 export const skillLifecycle: Lifecycle<SkillStatus> = { table: skills, machine: skillMachine };
+
+/** A preference is also the application of its student to its JD (US-3.3, CONTEXT D47). */
+export const applicationLifecycle: Lifecycle<ApplicationStatus> = { table: preferences, machine: applicationMachine };

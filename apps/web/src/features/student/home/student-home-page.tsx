@@ -1,4 +1,5 @@
-import { CircleAlert, FileText, House } from 'lucide-react';
+import type { Campaign, Cv } from '@srm/shared';
+import { CircleAlert, FileText, House, ListOrdered, type LucideIcon } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { useCurrentUser } from '@/app/session';
@@ -14,9 +15,37 @@ import { formatDateTime } from '@/lib/format';
 import { apiErrorMessage } from '@/shared/api/errors';
 
 interface Todo {
-  campaignId: number;
+  key: string;
   title: string;
   description: string;
+  href: string;
+  action: string;
+  icon: LucideIcon;
+}
+
+/** Where the student chooses preferences (US-3.3). */
+const PREFERENCES_PATH = '/sv/preferences';
+
+/** GĐ4 is open for the campaign: its phase, before `preference_end` (the API decides on save anyway). */
+function choosesPreferences(campaign: Campaign, now: number): boolean {
+  const deadline = campaign.phaseDeadlines.preference_end;
+  return campaign.status === 'PREFERENCE_SELECTION' && (!deadline || Date.parse(deadline) > now);
+}
+
+/**
+ * The campaign "Nguyện vọng" shows, as `GET /api/me/shortlist` picks it (CONTEXT D47): that of the
+ * student's newest active CV, unless the campaign is a draft or closed; with that CV.
+ */
+function preferenceCampaignOf(
+  campaigns: readonly Campaign[],
+  cvs: readonly Cv[],
+): { campaign: Campaign; cv: Cv } | null {
+  const byId = new Map(campaigns.map((campaign) => [campaign.id, campaign]));
+  for (const cv of [...cvs].filter((item) => item.active).sort((a, b) => b.id - a.id)) {
+    const campaign = byId.get(cv.campaignId);
+    if (campaign && campaign.status !== 'DRAFT' && campaign.status !== 'CLOSED') return { campaign, cv };
+  }
+  return null;
 }
 
 /**
@@ -70,25 +99,49 @@ export function StudentHomePage() {
 
   const consentList = consents.data;
   const cvList = cvs.data;
-  const todos: Todo[] = campaigns.data
+  const profileTodo = (campaignId: number, title: string, description: string): Todo => ({
+    key: `cv-${campaignId}`,
+    title,
+    description,
+    href: `${PROFILE_PATH}?campaign=${campaignId}`,
+    action: 'Mở hồ sơ',
+    icon: FileText,
+  });
+  const intakeTodos: Todo[] = campaigns.data
     .filter((campaign) => takesCvs(campaign, now))
     .flatMap((campaign) => {
       const deadline = campaign.phaseDeadlines.intake_end;
       const until = deadline ? ` đến ${formatDateTime(deadline)}` : '';
       if (!hasCurrentConsent(consentList, campaign.id)) {
         return [
-          {
-            campaignId: campaign.id,
-            title: 'Đồng ý điều khoản và nộp CV',
-            description: `Đợt ${campaign.name} đang nhận CV${until}. Đọc và đồng ý điều khoản xử lý dữ liệu cá nhân, rồi nộp CV.`,
-          },
+          profileTodo(
+            campaign.id,
+            'Đồng ý điều khoản và nộp CV',
+            `Đợt ${campaign.name} đang nhận CV${until}. Đọc và đồng ý điều khoản xử lý dữ liệu cá nhân, rồi nộp CV.`,
+          ),
         ];
       }
       if (!cvList.some((cv) => cv.campaignId === campaign.id && cv.active)) {
-        return [{ campaignId: campaign.id, title: 'Nộp CV', description: `Đợt ${campaign.name} đang nhận CV${until}.` }];
+        return [profileTodo(campaign.id, 'Nộp CV', `Đợt ${campaign.name} đang nhận CV${until}.`)];
       }
       return [];
     });
+  // US-3.3: the campaign "Nguyện vọng" shows is in GĐ4 and the student's CV there is confirmed.
+  const shown = preferenceCampaignOf(campaigns.data, cvList);
+  const preferenceTodos: Todo[] = (shown ? [shown] : [])
+    .filter(({ campaign, cv }) => cv.status === 'CONFIRMED' && choosesPreferences(campaign, now))
+    .map(({ campaign }) => {
+      const deadline = campaign.phaseDeadlines.preference_end;
+      return {
+        key: `preferences-${campaign.id}`,
+        title: 'Chọn nguyện vọng',
+        description: `Đợt ${campaign.name} đang cho chọn nguyện vọng${deadline ? ` đến ${formatDateTime(deadline)}` : ''}. Xem các JD được gợi ý, chọn và xếp tối đa ${campaign.config.n_nv} nguyện vọng rồi lưu lại.`,
+        href: PREFERENCES_PATH,
+        action: 'Chọn nguyện vọng',
+        icon: ListOrdered,
+      };
+    });
+  const todos = [...intakeTodos, ...preferenceTodos];
 
   if (todos.length === 0) {
     return (
@@ -111,7 +164,7 @@ export function StudentHomePage() {
     <>
       {title}
       {todos.map((todo) => (
-        <Card key={todo.campaignId}>
+        <Card key={todo.key}>
           <CardHeader>
             <CardTitle>
               <h2>{todo.title}</h2>
@@ -120,9 +173,9 @@ export function StudentHomePage() {
           </CardHeader>
           <CardFooter className="flex justify-end">
             <Button asChild className="w-full sm:w-auto">
-              <Link to={`${PROFILE_PATH}?campaign=${todo.campaignId}`}>
-                <FileText data-icon="inline-start" />
-                Mở hồ sơ
+              <Link to={todo.href}>
+                <todo.icon data-icon="inline-start" />
+                {todo.action}
               </Link>
             </Button>
           </CardFooter>

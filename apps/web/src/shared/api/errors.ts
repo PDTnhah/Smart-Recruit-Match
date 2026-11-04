@@ -50,6 +50,11 @@ const MESSAGES: Record<ApiErrorCode, string> = {
   MATCHING_RUN_TOO_LARGE:
     'Lượt chấm này có quá nhiều cặp CV – JD cần AI chấm. Giảm "Số JD AI chấm cho mỗi CV (M)" trong cấu hình đợt rồi chạy lại.',
   AI_UNAVAILABLE: 'Chưa gửi được việc cho dịch vụ AI. Thử lại sau ít phút.',
+  PREFERENCES_TOO_MANY: 'Số nguyện vọng vượt quá mức đợt này cho phép. Bỏ bớt nguyện vọng rồi lưu lại.',
+  PREFERENCE_NOT_IN_SHORTLIST: 'Có JD không còn trong danh sách gợi ý. Tải lại trang rồi chọn lại.',
+  PREFERENCE_DUPLICATE_JD: 'Mỗi JD chỉ chọn được một lần.',
+  PREFERENCE_RANK_NOT_CONTIGUOUS: 'Thứ tự nguyện vọng phải liên tục từ NV1. Tải lại trang rồi sắp lại.',
+  PREFERENCES_INCOMPLETE: 'Đợt này yêu cầu chọn đủ số nguyện vọng. Chọn thêm rồi lưu lại.',
   INTERNAL_ERROR: 'Hệ thống đang gặp sự cố. Thử lại sau ít phút.',
 };
 

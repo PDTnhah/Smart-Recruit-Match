@@ -6,11 +6,38 @@ import type {
   ScvBreakdownRow,
   StoredMatchAssessment,
 } from '@srm/shared';
-import { and, desc, eq, isNotNull, isNull, or, type SQL, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNotNull, isNull, or, type SQL, sql } from 'drizzle-orm';
 import { matchResults } from '../../../db/schema/index.js';
 import { DRIZZLE } from '../../../db/tokens.js';
 import type { Database, DbTx } from '../../../db/types.js';
 import { type PairKey, pairKeyOf } from '../domain/match-plan.js';
+import type { ShortlistKeyRow, ShortlistRow } from '../domain/shortlist-view.js';
+
+const SHORTLIST_KEY_COLUMNS = {
+  cvId: matchResults.cvId,
+  cvVersion: matchResults.cvVersion,
+  jdId: matchResults.jdId,
+  jdVersion: matchResults.jdVersion,
+  eligible: matchResults.eligible,
+  skippedByPrefilter: matchResults.skippedByPrefilter,
+  needsReview: matchResults.needsReview,
+  promptVersion: matchResults.promptVersion,
+  sCv: matchResults.sCv,
+};
+
+function shortlistRowsOf(
+  campaignId: number,
+  rulesVersion: string,
+  pinnedPrompt: string | null,
+  cvIds?: readonly number[],
+): SQL | undefined {
+  return and(
+    eq(matchResults.campaignId, campaignId),
+    eq(matchResults.rulesVersion, rulesVersion),
+    or(isNull(matchResults.promptVersion), pinnedPrompt === null ? undefined : eq(matchResults.promptVersion, pinnedPrompt)),
+    cvIds === undefined ? undefined : inArray(matchResults.cvId, [...cvIds]),
+  );
+}
 
 /** The code part of one pair, as a run writes it; the LLM part stays empty until the result. */
 export interface MatchCodeRow extends PairKey {
@@ -77,7 +104,7 @@ export class MatchResultsRepository {
    * The prompt of the campaign's results, which later runs are pinned to (CONTEXT D46); null before
    * the first result. Should two be there, the latest result wins.
    */
-  async pinnedPrompt(tx: DbTx, campaignId: number): Promise<string | null> {
+  async pinnedPrompt(tx: DbTx | Database, campaignId: number): Promise<string | null> {
     const [row] = await tx
       .select({ promptVersion: matchResults.promptVersion })
       .from(matchResults)
@@ -85,6 +112,39 @@ export class MatchResultsRepository {
       .orderBy(desc(matchResults.updatedAt), desc(matchResults.id))
       .limit(1);
     return row?.promptVersion ?? null;
+  }
+
+  /**
+   * The rows of the campaign with these rules that may be current for a shortlist (US-3.3): the
+   * waiting ones and the ones scored with the pinned prompt. `cvIds` narrows them to some CVs.
+   */
+  async listForShortlist(
+    campaignId: number,
+    rulesVersion: string,
+    pinnedPrompt: string | null,
+    cvIds?: readonly number[],
+  ): Promise<ShortlistRow[]> {
+    if (cvIds?.length === 0) return [];
+    return this.db
+      .select({
+        ...SHORTLIST_KEY_COLUMNS,
+        ineligibleReasons: matchResults.ineligibleReasons,
+        criteria: matchResults.criteria,
+        assessment: matchResults.assessment,
+        scvBreakdown: matchResults.scvBreakdown,
+      })
+      .from(matchResults)
+      .where(shortlistRowsOf(campaignId, rulesVersion, pinnedPrompt, cvIds))
+      .orderBy(matchResults.cvId, matchResults.jdId, matchResults.id);
+  }
+
+  /** The same rows for every CV of the campaign, without the verdicts and the explanation (Q6, reminder). */
+  async listShortlistKeys(campaignId: number, rulesVersion: string, pinnedPrompt: string | null): Promise<ShortlistKeyRow[]> {
+    return this.db
+      .select(SHORTLIST_KEY_COLUMNS)
+      .from(matchResults)
+      .where(shortlistRowsOf(campaignId, rulesVersion, pinnedPrompt))
+      .orderBy(matchResults.cvId, matchResults.jdId, matchResults.id);
   }
 
   async knownPairs(tx: DbTx, campaignId: number, rulesVersion: string, pinnedPrompt: string | null): Promise<KnownPairs> {

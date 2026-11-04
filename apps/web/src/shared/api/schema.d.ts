@@ -628,6 +628,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/me/shortlist": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["MeShortlistController_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/me/preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["MePreferencesController_replace"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -996,6 +1028,13 @@ export interface components {
                 scv_weight_language: number;
                 /** @default 10 */
                 match_top_m: number;
+                /**
+                 * @default AUTO_ASSIGN_TOP_SCV
+                 * @enum {string}
+                 */
+                no_preference_policy: "AUTO_ASSIGN_TOP_SCV" | "NONE";
+                /** @default false */
+                require_full_preferences: boolean;
             };
         };
         CampaignDto_Output: {
@@ -1050,6 +1089,13 @@ export interface components {
                 scv_weight_language: number;
                 /** @default 10 */
                 match_top_m: number;
+                /**
+                 * @default AUTO_ASSIGN_TOP_SCV
+                 * @enum {string}
+                 */
+                no_preference_policy: "AUTO_ASSIGN_TOP_SCV" | "NONE";
+                /** @default false */
+                require_full_preferences: boolean;
             };
             rowVersion: number;
             /** Format: date-time */
@@ -1110,6 +1156,13 @@ export interface components {
                     scv_weight_language: number;
                     /** @default 10 */
                     match_top_m: number;
+                    /**
+                     * @default AUTO_ASSIGN_TOP_SCV
+                     * @enum {string}
+                     */
+                    no_preference_policy: "AUTO_ASSIGN_TOP_SCV" | "NONE";
+                    /** @default false */
+                    require_full_preferences: boolean;
                 };
                 rowVersion: number;
                 /** Format: date-time */
@@ -1151,6 +1204,9 @@ export interface components {
                 scv_weight_education?: number;
                 scv_weight_language?: number;
                 match_top_m?: number;
+                /** @enum {string} */
+                no_preference_policy?: "AUTO_ASSIGN_TOP_SCV" | "NONE";
+                require_full_preferences?: boolean;
             };
             reason?: string;
         };
@@ -1682,6 +1738,19 @@ export interface components {
                     /** @enum {string} */
                     reason: "ANALYSIS_FAILED" | "HIDDEN_TEXT";
                 };
+            } | {
+                id: number;
+                /** Format: date-time */
+                readAt: string | null;
+                /** Format: date-time */
+                createdAt: string;
+                /** @enum {string} */
+                type: "PREFERENCES_AUTO_ASSIGNED";
+                payload: {
+                    campaignId: number;
+                    campaignName: string;
+                    count: number;
+                };
             })[];
             unreadCount: number;
             nextBefore: number | null;
@@ -1702,6 +1771,263 @@ export interface components {
             pairsSkipped: number;
             pairsCached: number;
             pairsSent: number;
+        };
+        ShortlistResponseDto_Output: {
+            /** @enum {string} */
+            state: "NO_CONFIRMED_CV" | "SCORING" | "READY";
+            campaign: {
+                id: number;
+                name: string;
+                /** @enum {string} */
+                status: "DRAFT" | "INTAKE" | "PREFERENCE_SELECTION" | "TESTING" | "ALLOCATION_REVIEW" | "SUPPLEMENTARY" | "CLOSED";
+                /** Format: date-time */
+                preferenceEnd: string | null;
+                nNv: number;
+                requireFullPreferences: boolean;
+                editable: boolean;
+            } | null;
+            items: {
+                jd: {
+                    id: number;
+                    title: string;
+                    companyName: string;
+                    /** @enum {string|null} */
+                    positionGroup: "BACKEND" | "FRONTEND" | "MOBILE" | "DATA_AI" | "TESTER_QA" | "BA" | "DEVOPS" | "OTHER" | null;
+                    location: string | null;
+                    /** @enum {string|null} */
+                    workMode: "ONSITE" | "HYBRID" | "REMOTE" | null;
+                };
+                sCv: number;
+                breakdown: {
+                    /** @enum {string} */
+                    criterion: "must_have" | "nice_to_have" | "project" | "education" | "language";
+                    applicable: boolean;
+                    scoreX100: number | null;
+                    weightBp: number;
+                    effectiveWeightBp: number;
+                    contributionX100: number;
+                }[];
+                skills: {
+                    must_have: {
+                        /** @description Skill name exactly as the JD requirements list it */
+                        skill: string;
+                        /**
+                         * SkillLevel
+                         * @description BASIC = basic: used in at least 1 project, experience or certificate; INTERMEDIATE = working knowledge: used in at least 2 projects or experience entries; ADVANCED = proficient: at least 6 months of work or internship experience using it
+                         * @enum {string}
+                         */
+                        level_required: "BASIC" | "INTERMEDIATE" | "ADVANCED";
+                        /**
+                         * MatchVerdict
+                         * @description MET = the CV shows the required level; PARTIAL = only listed, below the required level, or a skill of the same family; NOT_MET = no evidence
+                         * @enum {string}
+                         */
+                        verdict: "MET" | "PARTIAL" | "NOT_MET";
+                        /** @description Quote copied from the CV that supports the verdict; null when NOT_MET */
+                        evidence: string | null;
+                        /**
+                         * MatchKind
+                         * @description EXACT = the CV shows the skill itself; IMPLIED = only skills that imply it; FAMILY = a skill of the same family; NONE = no match
+                         * @enum {string}
+                         */
+                        match_kind: "EXACT" | "IMPLIED" | "FAMILY" | "NONE";
+                        /** @description Evidence tier of the matched skill: 0 none, 1 listed, 2 used, 3 used often, 4 proficient (CONTEXT D44) */
+                        tier: number;
+                        /** @description Catalogue skill of the CV the match goes through for IMPLIED and FAMILY; null for EXACT and NONE */
+                        via: string | null;
+                        /** @description CV entries the tier rests on: experience, projects, certificates, then the skills list */
+                        sources: {
+                            /**
+                             * EvidenceSection
+                             * @description CV list of a source entry: skills, projects, experience or certificates
+                             * @enum {string}
+                             */
+                            section: "SKILLS_LIST" | "PROJECT" | "EXPERIENCE" | "CERTIFICATE";
+                            /** @description Position of the entry in its CV list, from 0 */
+                            index: number;
+                            /** @description The words of the entry that name the skill, copied from the CV */
+                            text: string;
+                        }[];
+                    }[];
+                    nice_to_have: {
+                        /** @description Skill name exactly as the JD requirements list it */
+                        skill: string;
+                        /**
+                         * SkillLevel
+                         * @description BASIC = basic: used in at least 1 project, experience or certificate; INTERMEDIATE = working knowledge: used in at least 2 projects or experience entries; ADVANCED = proficient: at least 6 months of work or internship experience using it
+                         * @enum {string}
+                         */
+                        level_required: "BASIC" | "INTERMEDIATE" | "ADVANCED";
+                        /**
+                         * MatchVerdict
+                         * @description MET = the CV shows the required level; PARTIAL = only listed, below the required level, or a skill of the same family; NOT_MET = no evidence
+                         * @enum {string}
+                         */
+                        verdict: "MET" | "PARTIAL" | "NOT_MET";
+                        /** @description Quote copied from the CV that supports the verdict; null when NOT_MET */
+                        evidence: string | null;
+                        /**
+                         * MatchKind
+                         * @description EXACT = the CV shows the skill itself; IMPLIED = only skills that imply it; FAMILY = a skill of the same family; NONE = no match
+                         * @enum {string}
+                         */
+                        match_kind: "EXACT" | "IMPLIED" | "FAMILY" | "NONE";
+                        /** @description Evidence tier of the matched skill: 0 none, 1 listed, 2 used, 3 used often, 4 proficient (CONTEXT D44) */
+                        tier: number;
+                        /** @description Catalogue skill of the CV the match goes through for IMPLIED and FAMILY; null for EXACT and NONE */
+                        via: string | null;
+                        /** @description CV entries the tier rests on: experience, projects, certificates, then the skills list */
+                        sources: {
+                            /**
+                             * EvidenceSection
+                             * @description CV list of a source entry: skills, projects, experience or certificates
+                             * @enum {string}
+                             */
+                            section: "SKILLS_LIST" | "PROJECT" | "EXPERIENCE" | "CERTIFICATE";
+                            /** @description Position of the entry in its CV list, from 0 */
+                            index: number;
+                            /** @description The words of the entry that name the skill, copied from the CV */
+                            text: string;
+                        }[];
+                    }[];
+                };
+                zones: {
+                    /** @enum {string} */
+                    zone: "FOUNDATION" | "BACKEND" | "FRONTEND" | "MOBILE" | "DATABASE" | "DATA_AI" | "DEVOPS_CLOUD" | "TESTING_QA" | "BUSINESS_ANALYSIS" | "PROCESS" | "SECURITY_NETWORK" | "EMBEDDED_IOT" | "GAME_DEV" | "BLOCKCHAIN" | "SOFT_SKILL";
+                    demandWeightX100: number;
+                    coverageX100: number;
+                }[];
+                /**
+                 * MatchLanguageVerdict
+                 * @description How well the languages and certificates meet the JD, computed by code (CONTEXT D42, D45)
+                 */
+                language: {
+                    /**
+                     * MatchVerdict
+                     * @description MET = the CV shows the required level; PARTIAL = only listed, below the required level, or a skill of the same family; NOT_MET = no evidence
+                     * @enum {string}
+                     */
+                    verdict: "MET" | "PARTIAL" | "NOT_MET";
+                    /** @description Quote copied from the CV that supports the verdict; null when NOT_MET */
+                    evidence: string | null;
+                    /** @description The required and preferred languages of the JD with their CEFR levels, joined by "; " */
+                    required: string;
+                    /** @description The languages and certificates of the student with their CEFR levels, joined by "; "; null when none */
+                    held: string | null;
+                } | null;
+                /**
+                 * MatchEducation
+                 * @description Major against the JD, computed by code (CONTEXT D42, D45); the GPA comes from the school record, not from the CV (CONTEXT D41)
+                 */
+                education: {
+                    /**
+                     * MajorMatch
+                     * @description EXACT = the major the JD asks for, RELATED = a close major, OTHER = unrelated
+                     * @enum {string}
+                     */
+                    major_match: "EXACT" | "RELATED" | "OTHER";
+                    /** @description The major is in no major group, or the student has none, so it counts as OTHER */
+                    major_unrecognized: boolean;
+                };
+                project: {
+                    score: number;
+                    reason: string;
+                    quotes: {
+                        quote: string;
+                        matched: boolean;
+                    }[];
+                };
+                gaps: {
+                    skill: string;
+                    /** @enum {string} */
+                    group: "must_have" | "nice_to_have";
+                    /**
+                     * SkillLevel
+                     * @description BASIC = basic: used in at least 1 project, experience or certificate; INTERMEDIATE = working knowledge: used in at least 2 projects or experience entries; ADVANCED = proficient: at least 6 months of work or internship experience using it
+                     * @enum {string}
+                     */
+                    levelRequired: "BASIC" | "INTERMEDIATE" | "ADVANCED";
+                    /** @enum {string} */
+                    verdict: "PARTIAL" | "NOT_MET";
+                }[];
+                strengths: string[];
+                suggestions: string[];
+                summary: string;
+                preferenceRank: number | null;
+            }[];
+            ineligible: {
+                jd: {
+                    id: number;
+                    title: string;
+                    companyName: string;
+                    /** @enum {string|null} */
+                    positionGroup: "BACKEND" | "FRONTEND" | "MOBILE" | "DATA_AI" | "TESTER_QA" | "BA" | "DEVOPS" | "OTHER" | null;
+                    location: string | null;
+                    /** @enum {string|null} */
+                    workMode: "ONSITE" | "HYBRID" | "REMOTE" | null;
+                };
+                reasons: ({
+                    /** @enum {string} */
+                    code: "MAJOR_NOT_ALLOWED";
+                    required: string[];
+                    actual: string;
+                } | {
+                    /** @enum {string} */
+                    code: "MAJOR_MISSING";
+                    required: string[];
+                    actual: null;
+                } | {
+                    /** @enum {string} */
+                    code: "YEAR_BELOW_MIN";
+                    required: number;
+                    actual: number;
+                } | {
+                    /** @enum {string} */
+                    code: "YEAR_MISSING";
+                    required: number;
+                    actual: null;
+                } | {
+                    /** @enum {string} */
+                    code: "GPA_BELOW_MIN";
+                    required: number;
+                    actual: number;
+                } | {
+                    /** @enum {string} */
+                    code: "GPA_MISSING";
+                    required: number;
+                    actual: null;
+                } | {
+                    /** @enum {string} */
+                    code: "LANGUAGE_NOT_MET";
+                    required: string;
+                    actual: string[];
+                })[];
+            }[];
+            belowThresholdCount: number;
+            notScoredCount: number;
+            pendingCount: number;
+            preferences: {
+                jdId: number;
+                rank: number;
+                /** @enum {string} */
+                status: "PENDING_TEST" | "TEST_GRADED" | "BELOW_THRESHOLD" | "WAITING_NEXT_ROUND" | "NOMINATED" | "INTERVIEW" | "HR_REJECTED" | "PASSED" | "RESERVE" | "INTERVIEW_FAILED" | "ACCEPTED" | "DECLINED" | "CLOSED";
+            }[];
+        };
+        ReplacePreferencesRequestDto: {
+            campaignId: number;
+            preferences: {
+                jdId: number;
+                rank: number;
+            }[];
+        };
+        PreferenceListDto_Output: {
+            campaignId: number;
+            preferences: {
+                jdId: number;
+                rank: number;
+                /** @enum {string} */
+                status: "PENDING_TEST" | "TEST_GRADED" | "BELOW_THRESHOLD" | "WAITING_NEXT_ROUND" | "NOMINATED" | "INTERVIEW" | "HR_REJECTED" | "PASSED" | "RESERVE" | "INTERVIEW_FAILED" | "ACCEPTED" | "DECLINED" | "CLOSED";
+            }[];
         };
     };
     responses: never;
@@ -2930,6 +3256,48 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MatchingRunDto_Output"];
+                };
+            };
+        };
+    };
+    MeShortlistController_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShortlistResponseDto_Output"];
+                };
+            };
+        };
+    };
+    MePreferencesController_replace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReplacePreferencesRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PreferenceListDto_Output"];
                 };
             };
         };

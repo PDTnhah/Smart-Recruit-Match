@@ -1,4 +1,6 @@
+import { sql } from 'drizzle-orm';
 import type { Pool } from 'pg';
+import type { DbTx } from '../../db/types.js';
 
 /**
  * Keys of the PostgreSQL advisory locks held by scheduled jobs (ARCHITECTURE › Tác vụ định kỳ).
@@ -19,7 +21,24 @@ export const ADVISORY_LOCK_KEYS = {
    * aliases of the skill catalogue (US-2.5), so the check that their keys stay distinct cannot race.
    */
   SKILL_CATALOGUE: 2_505,
+  /**
+   * First key of `pg_advisory_xact_lock(3_303, hashtext(studentId))`, taken by every change to a
+   * student's preference list (US-3.3, CONTEXT D47): two saves, or a save and the auto-assignment
+   * of Q6, run one after the other, even before the student has a row to lock.
+   */
+  STUDENT_PREFERENCES: 3_303,
+  /** Sweep of Q6 over the campaigns in TESTING (US-3.3). */
+  PREFERENCE_AUTO_ASSIGN: 3_304,
 } as const;
+
+/**
+ * Takes the two-key transaction lock `pg_advisory_xact_lock(key, hashtext(id))`, held until the
+ * transaction ends: the writers of one entity (a user, a student) run one after the other.
+ * `hashtext` maps the bigint id to int4, so a collision only serializes two entities.
+ */
+export async function lockEntityInTx(tx: DbTx, key: number, id: number): Promise<void> {
+  await tx.execute(sql`select pg_advisory_xact_lock(${key}, hashtext(${String(id)}))`);
+}
 
 export type AdvisoryLockResult<T> = { acquired: true; result: T } | { acquired: false };
 

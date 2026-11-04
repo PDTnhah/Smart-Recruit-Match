@@ -183,6 +183,13 @@
       "when": 1793702215389,
       "tag": "0025_ai_match_pairs_view",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1793724568283,
+      "tag": "0026_preferences",
+      "breakpoints": true
     }
   ]
 }
