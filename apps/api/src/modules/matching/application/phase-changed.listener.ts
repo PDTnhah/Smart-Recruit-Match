@@ -3,14 +3,16 @@ import { OnEvent } from '@nestjs/event-emitter';
 import { errorMessage } from '../../../common/errors/index.js';
 import { SYSTEM_ACTOR } from '../../audit/index.js';
 import { CAMPAIGN_PHASE_CHANGED, type CampaignPhaseChangedEvent } from '../../campaign/index.js';
-import { AutoAssignPreferencesService } from './auto-assign-preferences.service.js';
+import { type AutoAssignOutcome, AutoAssignPreferencesService } from './auto-assign-preferences.service.js';
+import { LowPreferenceAlertService } from './low-preference-alert.service.js';
 import { RunMatchingService } from './run-matching.service.js';
 
 /**
  * What matching does at two phase changes, by deadline or by hand. US-3.2 AC-2: when CV intake ends
  * (INTAKE → PREFERENCE_SELECTION) the system runs matching, so students choose with their scores.
  * US-3.3 AC-10: when preference selection ends (PREFERENCE_SELECTION → TESTING) Q6 gives
- * preferences to the students who chose none. Other phase changes start nothing.
+ * preferences to the students who chose none; once Q6 has nobody left, center staff hear which JDs
+ * have fewer preferences than places (US-3.4 AC-5). Other phase changes start nothing.
  */
 @Injectable()
 export class MatchingPhaseListener {
@@ -19,6 +21,7 @@ export class MatchingPhaseListener {
   constructor(
     private readonly runs: RunMatchingService,
     private readonly autoAssign: AutoAssignPreferencesService,
+    private readonly lowPreferenceAlert: LowPreferenceAlertService,
   ) {}
 
   // `async: true`: a slow or failing step never affects the phase change (campaign/domain/events.ts).
@@ -38,11 +41,15 @@ export class MatchingPhaseListener {
   }
 
   private async assignPreferences(campaignId: number): Promise<void> {
+    let outcome: AutoAssignOutcome;
     try {
-      const students = await this.autoAssign.run(campaignId);
-      this.logger.log(`campaign ${campaignId}: preferences given to ${students.length} students at the deadline (Q6)`);
+      outcome = await this.autoAssign.run(campaignId);
+      this.logger.log(`campaign ${campaignId}: preferences given to ${outcome.assigned.length} students at the deadline (Q6)`);
     } catch (error) {
+      // The Q6 sweep runs it again, then the alert.
       this.logger.error(`campaign ${campaignId}: preferences at the deadline (Q6) failed: ${errorMessage(error)}`);
+      return;
     }
+    await this.lowPreferenceAlert.afterAutoAssign(campaignId, outcome);
   }
 }

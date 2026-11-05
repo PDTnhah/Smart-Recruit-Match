@@ -82,7 +82,7 @@ Epic này **không** tính S_test hay S_final và không phân bổ. Các phần
 | US-3.1 | Lọc điều kiện cứng và công thức S_cv | Điều kiện cứng và S_cv được tính bằng hàm thuần có unit test | 👀 review | — |
 | US-3.2 | Matching Agent chạy hàng loạt | Mọi cặp SV × JD hợp lệ có điểm tiêu chí, bằng chứng đã kiểm tra và S_cv | 👀 review | 0.17.0 |
 | US-3.3 | Shortlist và chọn nguyện vọng | SV xem shortlist có giải thích và sắp tối đa N_NV nguyện vọng | 👀 review | 0.18.0 |
-| US-3.4 | Mức cạnh tranh và gợi ý ít cạnh tranh | SV thấy mức cạnh tranh khi chọn NV; Trung tâm biết JD thiếu NV | 📋 backlog | — |
+| US-3.4 | Mức cạnh tranh và gợi ý ít cạnh tranh | SV thấy mức cạnh tranh khi chọn NV; Trung tâm biết JD thiếu NV | 👀 review | 0.19.0 |
 | US-3.5 | Hồ sơ kỹ năng chi tiết và khớp kỹ năng bằng code | Mỗi kỹ năng của JD có verdict do code tính kèm kiểu khớp, bậc, nguồn trong CV | 👀 review | — |
 | US-3.6 | Quy đổi ngoại ngữ CEFR và mức khớp ngành bằng code | Chứng chỉ khác loại so theo CEFR; tiêu chí ngoại ngữ và ngành do code chấm | 👀 review | 0.16.0 |
 

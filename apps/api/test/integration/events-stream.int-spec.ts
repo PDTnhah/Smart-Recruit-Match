@@ -80,7 +80,8 @@ describe('FR-8: event stream (US-1.7 AC-3)', () => {
     // Give Bob's stream time to receive anything it wrongly would: two heartbeats.
     await bobStream.next((event) => event.event === SERVER_EVENTS.PING);
     await new Promise((resolve) => setTimeout(resolve, PING_MS * 2));
-    expect(bobStream.events.filter((event) => event.event === SERVER_EVENTS.NOTIFICATION)).toEqual([]);
+    // Only Alice's notice: other files alert every CENTER account, Bob included (LESSONS §22).
+    expect(bobStream.events.filter(isNotification('Chỉ cho Alice'))).toEqual([]);
   });
 
   it('FR-8: a second stream of the same user also receives, and closing one keeps the other', async () => {

@@ -29,6 +29,12 @@ export const ADVISORY_LOCK_KEYS = {
   STUDENT_PREFERENCES: 3_303,
   /** Sweep of Q6 over the campaigns in TESTING (US-3.3). */
   PREFERENCE_AUTO_ASSIGN: 3_304,
+  /**
+   * First key of `pg_advisory_xact_lock(3_401, hashtext(jdId))`, taken by each recount of a JD's
+   * preferences (US-3.4, CONTEXT D48): two recounts of one JD write Redis one after the other, so
+   * the last write has read every commit before it.
+   */
+  JD_COMPETITION: 3_401,
 } as const;
 
 /**
@@ -38,6 +44,22 @@ export const ADVISORY_LOCK_KEYS = {
  */
 export async function lockEntityInTx(tx: DbTx, key: number, id: number): Promise<void> {
   await tx.execute(sql`select pg_advisory_xact_lock(${key}, hashtext(${String(id)}))`);
+}
+
+/**
+ * `lockEntityInTx` for several entities in one statement, taken in order of their `hashtext` keys
+ * rather than their ids: two transactions locking overlapping sets never wait on each other in a
+ * cycle, even when two ids share a key.
+ */
+export async function lockEntitiesInTx(tx: DbTx, key: number, ids: readonly number[]): Promise<void> {
+  if (ids.length === 0) return;
+  const texts = sql.join(
+    ids.map((id) => sql`${String(id)}`),
+    sql`, `,
+  );
+  await tx.execute(
+    sql`select pg_advisory_xact_lock(${key}, k) from (select distinct hashtext(id) as k from unnest(array[${texts}]::text[]) as entity(id) order by k) as keys`,
+  );
 }
 
 export type AdvisoryLockResult<T> = { acquired: true; result: T } | { acquired: false };

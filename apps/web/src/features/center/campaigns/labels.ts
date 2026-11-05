@@ -1,4 +1,11 @@
-import type { CampaignConfig, CampaignDeadlineKey, CampaignStatus, NoPreferencePolicy, ScvCriterion } from '@srm/shared';
+import type {
+  CampaignConfig,
+  CampaignDeadlineKey,
+  CampaignStatus,
+  CompetitionThresholds,
+  NoPreferencePolicy,
+  ScvCriterion,
+} from '@srm/shared';
 import type { badgeVariants } from '@/components/ui/badge';
 import type { VariantProps } from 'class-variance-authority';
 
@@ -142,6 +149,29 @@ export const PREFERENCE_POLICY_FIELDS = {
       'Bắt buộc: sinh viên phải chọn đủ N_NV nguyện vọng (hoặc tất cả JD được gợi ý nếu ít hơn) mới lưu được. Mặc định: khuyến nghị.',
   },
 } as const satisfies Partial<Record<keyof CampaignConfig, { label: string; description: string }>>;
+
+/**
+ * The two ratios of preferences per quota where the competition level of a JD changes (US-3.4
+ * AC-9, CONTEXT D48). Labels match the shared schema's error messages.
+ */
+export const COMPETITION_THRESHOLD_FIELDS: readonly {
+  key: keyof CompetitionThresholds;
+  label: string;
+  description: string;
+}[] = [
+  {
+    key: 'low_below',
+    label: 'Ngưỡng cạnh tranh thấp',
+    description:
+      'Số nguyện vọng / chỉ tiêu dưới ngưỡng này là cạnh tranh thấp; JD được gợi ý ở mức này có nhãn "Phù hợp – ít cạnh tranh". Mặc định 1.',
+  },
+  {
+    key: 'high_from',
+    label: 'Ngưỡng cạnh tranh cao',
+    description:
+      'Số nguyện vọng / chỉ tiêu từ ngưỡng này trở lên là cạnh tranh cao; giữa hai ngưỡng là trung bình. Lớn hơn ngưỡng thấp. Mặc định 3.',
+  },
+];
 
 /** Why a draft could not be opened, by `reasonCode` of the 422 answer (US-1.4 AC-5). */
 export const OPEN_FAILURE_MESSAGES: Record<string, string> = {

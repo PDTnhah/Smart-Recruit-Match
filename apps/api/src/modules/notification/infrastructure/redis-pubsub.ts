@@ -15,9 +15,15 @@ export interface RealtimeEvent {
 export const userChannel = (userId: number) => `notify:user:${userId}`;
 
 /**
- * Publishes events to a user's SSE streams on every API instance (AD-13: Redis pub/sub). Exported
- * for later stories: EPIC-2 pushes AI job progress, US-3.4 the competition level. Publish only
- * after the change the event announces has committed.
+ * Redis channel of the events every student of a campaign receives (CONTEXT D48): the streams of a
+ * student with an active CV in the campaign subscribe to it. No other role does.
+ */
+export const campaignStudentsChannel = (campaignId: number) => `notify:campaign:${campaignId}:students`;
+
+/**
+ * Publishes events to SSE streams on every API instance (AD-13: Redis pub/sub): one user's, or
+ * those of the students of a campaign (US-3.4 competition level). Publish only after the change
+ * the event announces has committed.
  */
 @Injectable()
 export class RealtimePublisher {
@@ -25,6 +31,11 @@ export class RealtimePublisher {
 
   async publishToUser(userId: number, event: RealtimeEvent): Promise<void> {
     await this.redis.publish(userChannel(userId), JSON.stringify(event));
+  }
+
+  /** One message for all students of the campaign, whatever their number (CONTEXT D48). */
+  async publishToCampaignStudents(campaignId: number, event: RealtimeEvent): Promise<void> {
+    await this.redis.publish(campaignStudentsChannel(campaignId), JSON.stringify(event));
   }
 }
 
@@ -37,9 +48,9 @@ interface ChannelState {
 }
 
 /**
- * Delivers the events of a user to the streams open on this instance. A connection in subscriber
- * mode cannot run other commands, so it is a duplicate of the shared client, opened on first use.
- * Each user's channel is subscribed while at least one of their streams is open.
+ * Delivers the events of a set of channels to the streams open on this instance. A connection in
+ * subscriber mode cannot run other commands, so it is a duplicate of the shared client, opened on
+ * first use. Each channel is subscribed while at least one stream listening to it is open.
  */
 @Injectable()
 export class RealtimeSubscriber implements OnApplicationShutdown {
@@ -50,31 +61,28 @@ export class RealtimeSubscriber implements OnApplicationShutdown {
   constructor(@Inject(REDIS) private readonly redis: Redis) {}
 
   /**
-   * The events of one user. Emits `ready` first, once the subscription is active: a client reloads
-   * its lists on `ready`, so nothing created while it was offline is missed (AC-3).
+   * The events of the given channels (a user's own, and a student's campaigns). Emits `ready` first,
+   * once every subscription is active: a client reloads its lists on `ready`, so nothing created
+   * while it was offline is missed (US-1.7 AC-3).
    */
-  streamFor(userId: number): Observable<RealtimeEvent> {
+  streamFor(channels: readonly string[]): Observable<RealtimeEvent> {
     return new Observable<RealtimeEvent>((subscriber) => {
-      const channel = userChannel(userId);
-      let state = this.channels.get(channel);
-      if (!state) {
-        state = { listeners: new Set(), subscribed: this.subscriberConnection().subscribe(channel) };
-        this.channels.set(channel, state);
-      }
       const listener: Listener = (event) => subscriber.next(event);
-      state.listeners.add(listener);
-      state.subscribed.then(
+      const joined = [...new Set(channels)].map((channel) => {
+        let state = this.channels.get(channel);
+        if (!state) {
+          state = { listeners: new Set(), subscribed: this.subscriberConnection().subscribe(channel) };
+          this.channels.set(channel, state);
+        }
+        state.listeners.add(listener);
+        return { channel, state };
+      });
+      Promise.all(joined.map(({ state }) => state.subscribed)).then(
         () => subscriber.next({ event: SERVER_EVENTS.READY, data: {} }),
         (error: unknown) => subscriber.error(error),
       );
-      const current = state;
       return () => {
-        current.listeners.delete(listener);
-        if (current.listeners.size > 0 || this.channels.get(channel) !== current) return;
-        this.channels.delete(channel);
-        this.subscriberConnection()
-          .unsubscribe(channel)
-          .catch((error: unknown) => this.logger.warn(`unsubscribe ${channel} failed: ${errorMessage(error)}`));
+        for (const { channel, state } of joined) this.leave(channel, state, listener);
       };
     });
   }
@@ -89,6 +97,15 @@ export class RealtimeSubscriber implements OnApplicationShutdown {
       return;
     }
     await connection.quit().catch(() => connection.disconnect());
+  }
+
+  private leave(channel: string, state: ChannelState, listener: Listener): void {
+    state.listeners.delete(listener);
+    if (state.listeners.size > 0 || this.channels.get(channel) !== state) return;
+    this.channels.delete(channel);
+    this.subscriberConnection()
+      .unsubscribe(channel)
+      .catch((error: unknown) => this.logger.warn(`unsubscribe ${channel} failed: ${errorMessage(error)}`));
   }
 
   private subscriberConnection(): Redis {

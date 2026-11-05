@@ -107,6 +107,11 @@ Từ US-1.7 ([CONTEXT D31](CONTEXT.md)):
 - Stream tự đóng khi access token đã mở nó hết hạn (tối đa 15 phút); client kết nối lại bằng token mới ([CONTEXT D32](CONTEXT.md)).
 - Nhiều instance: Redis pub/sub kênh `notify:user:{userId}`. Module khác đẩy sự kiện bằng `RealtimePublisher.publishToUser` sau khi commit; web nghe bằng `useServerEvent` (`apps/web/src/shared/notifications/`).
 
+Từ US-3.4 ([CONTEXT D48](CONTEXT.md)):
+
+- Kênh theo đợt `notify:campaign:{campaignId}:students` (`RealtimePublisher.publishToCampaignStudents`). Stream của STUDENT đăng ký thêm kênh của các đợt mà SV có CV `active`; một stream nhiều kênh, `ready` gửi khi mọi kênh đã đăng ký. HR, CENTER, ADMIN không đăng ký kênh đợt.
+- Sự kiện `competition.updated` `{ campaignId, items: [{ jdId, nvCount, quota, level }] }`: gom các JD của một lần đếm lại, không chứa thông tin của SV đã đổi NV. Web vá cache shortlist tại chỗ; `ready` tải lại shortlist.
+
 ### Core Backend
 
 #### Kiểu kiến trúc
@@ -129,7 +134,7 @@ Module gọi nhau qua service đã export hoặc phát sự kiện qua `@nestjs/
 | `company` | Doanh nghiệp, JD, yêu cầu chuẩn hóa, phiên bản JD. Mời HR qua `InvitationService` của `iam`; kiểm pha bằng `CampaignService.assertPhase`; đăng ký resolver `jd` vào `FileAccessRegistry`; phát `jd.submitted`, `jd.approved` sau khi commit ([CONTEXT D28](CONTEXT.md)). Gửi `JD_ANALYZE` sau khi nộp, nghe `ai.result.JD_ANALYZE` (lưu đề xuất, không chuyển trạng thái), HR xác nhận yêu cầu; sửa JD đã duyệt tạo phiên bản mới và phát `jd.requirements.versioned` ([CONTEXT D35](CONTEXT.md)) | GĐ1 |
 | `student` | Sinh viên, CV, hồ sơ năng lực, đồng ý xử lý dữ liệu. Ghi đồng ý theo đợt và phiên bản điều khoản (`packages/shared/consent/`, kèm SHA-256 của văn bản); mỗi lần nộp CV là một dòng `cvs` mới, dòng cũ mất `active`. Export `ConsentService.hasConsent`, `CvService` (kể cả `studentIdsWithActiveCv`), `StudentService.listIdsInTarget`; đăng ký resolver `cv` vào `FileAccessRegistry`; phát `cv.submitted` (`cvId`, `cvVersion`, `campaignId`, `studentId`) sau khi commit ([CONTEXT D30](CONTEXT.md)). `CvAnalysisService` gửi `CV_PARSE` sau khi nộp, nghe `ai.result.CV_PARSE` (mã hóa `pii`, lưu hồ sơ, chuyển `PENDING_CONFIRMATION` hoặc `ANALYSIS_FAILED`), phát `cv.analysis.settled` sau khi commit để `notification` báo tin; lệnh chạy bù `cv:redispatch` ([CONTEXT D37](CONTEXT.md)) | GĐ2 |
 | `skills` | Danh mục kỹ năng (bảng `skills`). Export `SkillCatalogService.search` (kỹ năng đã duyệt, so theo khóa của tên và alias) cho `student` (US-2.6), form JD và `matching`. Nghe `ai.result.CV_PARSE` / `ai.result.JD_ANALYZE`: tên kỹ năng mới thành dòng chờ duyệt, gửi `SKILL_NORMALIZE` sau commit (mỗi job tối đa 50 kỹ năng); nghe `ai.result.SKILL_NORMALIZE`: lưu gợi ý kèm model và prompt. ADMIN duyệt, gộp, từ chối bằng `transitionTo` + audit, dưới khóa advisory `SKILL_CATALOGUE` ([CONTEXT D39](CONTEXT.md)). ADMIN gán họ và quan hệ kéo theo; đồ thị kéo theo không có chu trình. Export `SkillCatalogService.taxonomy()` (kỹ năng đã duyệt kèm vùng, họ, bao đóng kéo theo) cho `matching` ([CONTEXT D42](CONTEXT.md), US-2.7) | GĐ2 bước 3, FR-13, FR-39 |
-| `matching` | Lọc điều kiện cứng, **khớp kỹ năng, ngoại ngữ, ngành bằng code** (`domain/`: bậc bằng chứng, luật khớp, CEFR, nhóm ngành, độ phủ theo vùng, `skill_fit`), lọc top-M, gửi job chấm dự án, lưu kết quả, **tính S_cv theo trọng số**, shortlist, mức cạnh tranh, nguyện vọng ([CONTEXT D41, D42](CONTEXT.md)). Shortlist và kiểm BR-04 đọc từ một hàm thuần (`domain/shortlist-view.ts`). Lưu NV dưới khóa `pg_advisory_xact_lock(3_303, hashtext(studentId))`. Tự gán NV (Q6) khi đợt sang `TESTING` và ở tác vụ quét; đăng ký nguồn nhắc `preference-selection`. Phát `matching.preferences.replaced`, `matching.preferences.auto_assigned` sau khi commit ([CONTEXT D47](CONTEXT.md)) | GĐ3, GĐ4 |
+| `matching` | Lọc điều kiện cứng, **khớp kỹ năng, ngoại ngữ, ngành bằng code** (`domain/`: bậc bằng chứng, luật khớp, CEFR, nhóm ngành, độ phủ theo vùng, `skill_fit`), lọc top-M, gửi job chấm dự án, lưu kết quả, **tính S_cv theo trọng số**, shortlist, mức cạnh tranh, nguyện vọng ([CONTEXT D41, D42](CONTEXT.md)). Shortlist và kiểm BR-04 đọc từ một hàm thuần (`domain/shortlist-view.ts`). Lưu NV dưới khóa `pg_advisory_xact_lock(3_303, hashtext(studentId))`. Tự gán NV (Q6) khi đợt sang `TESTING` và ở tác vụ quét; đăng ký nguồn nhắc `preference-selection`. Phát `matching.preferences.replaced`, `matching.preferences.auto_assigned` sau khi commit ([CONTEXT D47](CONTEXT.md)). Mức cạnh tranh (`domain/competition.ts`, so số nguyên): `CompetitionService` nghe hai sự kiện NV, đếm lại các JD bị thêm hoặc bỏ từ DB dưới khóa theo JD, ghi Redis `competition:{jdId}` rồi đẩy `competition.updated`; các lần đếm lại trong một process chạy lần lượt và gộp JD chờ. `LowPreferenceAlertService` báo CENTER các JD có NV < chỉ tiêu sau Q6 ([CONTEXT D48](CONTEXT.md)) | GĐ3, GĐ4 |
 | `assessment` | Ngân hàng câu hỏi, ma trận đề, phiên thi, rút đề, chấm trắc nghiệm, nhận kết quả chấm tự luận, phúc khảo, **tính S_test, S_final** | GĐ5, GĐ6 |
 | `allocation` | Thuật toán Deferred Acceptance, vòng phân bổ, snapshot, dự thảo/công bố, điều chỉnh thủ công | GĐ7, GĐ10 |
 | `review` | Đề cử, HR duyệt, yêu cầu bổ sung, SLA | GĐ8 |
@@ -215,6 +220,11 @@ Từ US-3.3 ([CONTEXT D47](CONTEXT.md)):
 - Nguồn nhắc `preference-selection`: đợt `PREFERENCE_SELECTION` có `preference_end` trong khung `reminder_hours_before`; nhắc SV có shortlist không rỗng mà chưa có NV.
 - Tự gán NV (Q6): chạy khi đợt chuyển `PREFERENCE_SELECTION → TESTING`, rồi tác vụ quét `preference-auto-assign` chạy lại mỗi 10 phút cho mọi đợt ở `TESTING` (khóa `PREFERENCE_AUTO_ASSIGN` = 3304). Chỉ gán cho SV chưa có NV. Khi đợt còn lượt chấm `RUNNING`, SV còn JD chờ chấm phải đợi lần quét sau ([LESSONS §34](LESSONS.md)).
 - Lưu NV khóa `pg_advisory_xact_lock(3303, hashtext(studentId))` (`lockEntityInTx`), dùng chung cho lưu và tự gán.
+
+Từ US-3.4 ([CONTEXT D48](CONTEXT.md)):
+
+- Sau Q6 (lúc chuyển pha và mỗi lượt quét `preference-auto-assign`), khi Q6 không còn SV chờ gán, gửi CENTER thông báo `JD_LOW_PREFERENCES` (IN_APP + EMAIL) các JD có NV < chỉ tiêu, đếm từ DB; `dedupe_key` `jd_low_preferences:{campaignId}` chặn gửi trùng. Còn SV chờ thì ghi log và đợi lượt quét sau.
+- Đếm lại mức cạnh tranh khóa `pg_advisory_xact_lock(3401, hashtext(jdId))` bằng `lockEntitiesInTx`: mọi JD trong một câu lệnh, theo thứ tự của khóa.
 
 #### Thư viện chính
 
@@ -510,11 +520,12 @@ Prompt và phản hồi đầy đủ của từng lần gọi LLM lưu thành fi
 |---|---|---|
 | `exam:{sessionId}:answers` | Hash đáp án tạm | đến khi nộp + 1 ngày |
 | `exam:{sessionId}:deadline` | Thời điểm hết giờ | như trên |
-| `competition:{jdId}` | Số NV hiện có | hết giai đoạn chọn NV |
+| `competition:{jdId}` | Số NV hiện có, chỉ để đọc nhanh: mỗi lần ghi là số đếm lại từ `preferences` (`SET`, không `INCRBY`); ghi hoặc đếm lại lỗi thì xóa key, lần đọc sau dựng lại từ DB ([CONTEXT D48](CONTEXT.md)) | `EXAT` = `preference_end` (chưa có hạn: 24 giờ, làm mới mỗi lần ghi) |
 | `lock:allocation:{campaignId}` | Khóa khi đang chạy phân bổ | vài phút |
 | `ratelimit:{userId}:{route}` | Giới hạn tần suất gọi API | 1 phút |
 | `auth:refresh:{sha256}` | ID người dùng của một refresh token; khóa là SHA-256 của token, xóa bằng `GETDEL` khi xoay vòng ([CONTEXT D25](CONTEXT.md)) | `REFRESH_TOKEN_TTL_DAYS` (7 ngày) |
 | `notify:user:{userId}` (kênh pub/sub, không phải khóa) | Sự kiện SSE của một người dùng, JSON `{ event, data }`; instance nào đang giữ stream của người đó thì đăng ký ([CONTEXT D31](CONTEXT.md)) | – |
+| `notify:campaign:{campaignId}:students` (kênh pub/sub) | Sự kiện SSE cho mọi SV có CV `active` trong đợt, hiện là `competition.updated` ([CONTEXT D48](CONTEXT.md)) | – |
 
 ### Lưu trữ file và thời hạn dữ liệu
 

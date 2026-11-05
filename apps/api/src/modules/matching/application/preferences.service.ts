@@ -16,9 +16,14 @@ import { CampaignService } from '../../campaign/index.js';
 import { studentIdOf } from '../../student/index.js';
 import { MATCHING_AUDIT_ACTIONS, PREFERENCE_LIST_ENTITY } from '../domain/audit-actions.js';
 import { PREFERENCES_REPLACED, type PreferencesReplacedEvent } from '../domain/events.js';
-import { checkPreferenceList, fullPreferenceCount, type PreferenceRules } from '../domain/preference-list.js';
+import {
+  checkPreferenceList,
+  fullPreferenceCount,
+  PREFERENCE_PHASES,
+  type PreferenceRules,
+} from '../domain/preference-list.js';
 import { PreferencesRepository } from '../infrastructure/preferences.repository.js';
-import { PREFERENCE_PHASES, ShortlistService } from './shortlist.service.js';
+import { ShortlistService } from './shortlist.service.js';
 
 /** What the audit keeps of a list: its campaign and the JD of each rank, never scores (NFR-2). */
 export function preferenceListSnapshot(campaignId: number, items: readonly PreferenceItem[]): Record<string, unknown> {
@@ -85,7 +90,11 @@ export class PreferencesService {
       return { before: old, after: saved };
     });
 
-    const jdIds = [...new Set([...before, ...after].map((item) => item.jdId))].sort((a, b) => a - b);
+    // Every rank counts the same (CONTEXT D48): only a JD added or dropped changes its number of
+    // preferences, so a list merely reordered names none.
+    const was = new Set(before.map((item) => item.jdId));
+    const now = new Set(after.map((item) => item.jdId));
+    const jdIds = [...new Set([...was, ...now])].filter((jdId) => was.has(jdId) !== now.has(jdId)).sort((a, b) => a - b);
     emitSafely(this.events, this.logger, PREFERENCES_REPLACED, {
       campaignId,
       studentId,

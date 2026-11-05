@@ -30,6 +30,8 @@ export interface ShortlistJdCard {
   positionGroup: PositionGroup | null;
   location: string | null;
   workMode: WorkMode | null;
+  /** Places of the JD; the competition level of US-3.4 divides preferences by it. */
+  quota: number;
 }
 
 /** Approved by the center and still taking students (BR-02); FILLED and CLOSED have no place left. */
@@ -159,6 +161,7 @@ export class JdRepository {
         positionGroup: jobDescriptions.positionGroup,
         location: jobDescriptions.location,
         workMode: jobDescriptions.workMode,
+        quota: jobDescriptions.quota,
       })
       .from(jobDescriptions)
       .innerJoin(companies, eq(companies.id, jobDescriptions.companyId))

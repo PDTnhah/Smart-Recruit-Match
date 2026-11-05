@@ -1,12 +1,14 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type {
-  CampaignStatus,
-  PreferenceItem,
-  ShortlistCampaign,
-  ShortlistItem,
-  ShortlistJd,
-  ShortlistResponse,
-  ShortlistState,
+import {
+  type CampaignStatus,
+  isLowCompetitionSuggestion,
+  type JdCompetition,
+  type PreferenceItem,
+  type ShortlistCampaign,
+  type ShortlistItem,
+  type ShortlistJd,
+  type ShortlistResponse,
+  type ShortlistState,
 } from '@srm/shared';
 import type { AuthUser } from '../../../common/auth/index.js';
 import { DRIZZLE } from '../../../db/tokens.js';
@@ -14,6 +16,8 @@ import type { Database } from '../../../db/types.js';
 import { CampaignService, type CampaignSettings } from '../../campaign/index.js';
 import { JdService, type ShortlistJdCard } from '../../company/index.js';
 import { type ActiveCv, CvService, studentIdOf } from '../../student/index.js';
+import { jdCompetition } from '../domain/competition.js';
+import { PREFERENCE_PHASES } from '../domain/preference-list.js';
 import { RULES_VERSION } from '../domain/rules-version.js';
 import {
   type ScoredPair,
@@ -27,9 +31,7 @@ import {
 import { MatchResultsRepository } from '../infrastructure/match-results.repository.js';
 import { MatchRunsRepository } from '../infrastructure/match-runs.repository.js';
 import { PreferencesRepository } from '../infrastructure/preferences.repository.js';
-
-/** Students choose preferences in this phase only, before `preference_end` (PRD GĐ4, CONTEXT D27). */
-export const PREFERENCE_PHASES: readonly CampaignStatus[] = ['PREFERENCE_SELECTION'];
+import { CompetitionService } from './competition.service.js';
 
 /** A draft is not open yet and a closed campaign is over: neither has a shortlist to show (CONTEXT D47). */
 const NO_SHORTLIST: readonly CampaignStatus[] = ['DRAFT', 'CLOSED'];
@@ -51,6 +53,7 @@ export class ShortlistService {
     private readonly results: MatchResultsRepository,
     private readonly runs: MatchRunsRepository,
     private readonly preferences: PreferencesRepository,
+    private readonly competition: CompetitionService,
   ) {}
 
   /**
@@ -68,12 +71,19 @@ export class ShortlistService {
 
     const [view, running] = await Promise.all([this.viewOf(campaign, cv), this.runs.hasRunning(campaign.id)]);
     const ranks = new Map(preferences.map((preference) => [preference.jdId, preference.rank]));
+    const counts = await this.competition.counts(
+      campaign,
+      view.shortlist.map((pair) => pair.jdId),
+    );
+    const thresholds = campaign.config.competition_thresholds;
     // AC-4: no result for the CV yet is "still scoring", not an empty shortlist.
     const scoring = running || (!view.judged && view.pending > 0);
     return {
       state: scoring ? 'SCORING' : 'READY',
       campaign: header,
-      items: view.shortlist.map((pair) => itemOf(pair, ranks.get(pair.jdId) ?? null)),
+      items: view.shortlist.map((pair) =>
+        itemOf(pair, ranks.get(pair.jdId) ?? null, jdCompetition(counts.get(pair.jdId) ?? 0, pair.jd.quota, thresholds)),
+      ),
       ineligible: view.ineligible.map(({ jd, reasons }) => ({ jd: cardOf(jd), reasons })),
       belowThresholdCount: view.belowThreshold,
       notScoredCount: view.notScored,
@@ -184,8 +194,11 @@ function cardOf(jd: ShortlistJdCard): ShortlistJd {
   };
 }
 
-/** AC-1, AC-16, AC-17: everything the stored result says about the pair, as the student sees it. */
-function itemOf(pair: ScoredPair<ShortlistJdCard>, preferenceRank: number | null): ShortlistItem {
+/**
+ * AC-1, AC-16, AC-17: everything the stored result says about the pair, as the student sees it;
+ * with the JD's competition level and the "Phù hợp – ít cạnh tranh" label (US-3.4 AC-4, CONTEXT D48).
+ */
+function itemOf(pair: ScoredPair<ShortlistJdCard>, preferenceRank: number | null, competition: JdCompetition): ShortlistItem {
   const { criteria, assessment } = pair;
   const project = assessment.project_relevance;
   // A quote the check did not find in the CV is flagged, as is one the check missed (CONTEXT D46).
@@ -208,5 +221,7 @@ function itemOf(pair: ScoredPair<ShortlistJdCard>, preferenceRank: number | null
     suggestions: assessment.suggestions,
     summary: assessment.summary,
     preferenceRank,
+    competition,
+    lowCompetitionSuggestion: isLowCompetitionSuggestion(competition),
   };
 }

@@ -191,6 +191,48 @@ export const ShortlistProjectSchema = z.object({
   quotes: z.array(z.object({ quote: z.string(), matched: z.boolean() })),
 });
 
+// Competition level of GĐ4 step 2 (FR-17, US-3.4, CONTEXT D48): preferences of a JD per its quota,
+// counted by code, never by the LLM (AGENTS › Invariant 2). Every rank counts as one preference.
+
+export const COMPETITION_LEVELS = ['LOW', 'MEDIUM', 'HIGH'] as const;
+
+export type CompetitionLevel = (typeof COMPETITION_LEVELS)[number];
+
+export const COMPETITION_LEVEL_LABELS: Readonly<Record<CompetitionLevel, string>> = {
+  LOW: 'Thấp',
+  MEDIUM: 'Trung bình',
+  HIGH: 'Cao',
+};
+
+/** How many preferences a JD has, its quota, and the level they give. */
+export const JdCompetitionSchema = z.object({
+  nvCount: z.int().min(0),
+  quota: recordId(),
+  level: z.enum(COMPETITION_LEVELS),
+});
+
+export type JdCompetition = z.output<typeof JdCompetitionSchema>;
+
+/**
+ * "Phù hợp – ít cạnh tranh" (CONTEXT D48): every JD of the shortlist at level LOW. The API sets
+ * `lowCompetitionSuggestion` with it, and the web applies it to levels pushed over SSE.
+ */
+export function isLowCompetitionSuggestion(competition: JdCompetition): boolean {
+  return competition.level === 'LOW';
+}
+
+/**
+ * Data of the `competition.updated` SSE event (`SERVER_EVENTS.COMPETITION_UPDATED`): the new level
+ * of the JDs one change touched, sent to the students of the campaign. Nothing about the student
+ * who made the change (AC-3).
+ */
+export const CompetitionUpdatedEventSchema = z.object({
+  campaignId: recordId(),
+  items: z.array(JdCompetitionSchema.extend({ jdId: recordId() })).min(1),
+});
+
+export type CompetitionUpdatedEvent = z.output<typeof CompetitionUpdatedEventSchema>;
+
 /** One JD of the shortlist with the whole explanation of its S_cv (AC-1, AC-16, AC-17). */
 export const ShortlistItemSchema = z.object({
   jd: ShortlistJdSchema,
@@ -207,6 +249,10 @@ export const ShortlistItemSchema = z.object({
   summary: z.string(),
   /** Rank of the JD in the student's saved list; null when not chosen. */
   preferenceRank: recordId().nullable(),
+  /** Preferences of all students for the JD, now (US-3.4 AC-4). */
+  competition: JdCompetitionSchema,
+  /** "Phù hợp – ít cạnh tranh": the JD is on the shortlist and its level is LOW (CONTEXT D48). */
+  lowCompetitionSuggestion: z.boolean(),
 });
 
 export type ShortlistItem = z.output<typeof ShortlistItemSchema>;

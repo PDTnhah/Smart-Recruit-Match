@@ -1035,6 +1035,16 @@ export interface components {
                 no_preference_policy: "AUTO_ASSIGN_TOP_SCV" | "NONE";
                 /** @default false */
                 require_full_preferences: boolean;
+                /**
+                 * @default {
+                 *       "low_below": 1,
+                 *       "high_from": 3
+                 *     }
+                 */
+                competition_thresholds: {
+                    low_below: number;
+                    high_from: number;
+                };
             };
         };
         CampaignDto_Output: {
@@ -1096,6 +1106,16 @@ export interface components {
                 no_preference_policy: "AUTO_ASSIGN_TOP_SCV" | "NONE";
                 /** @default false */
                 require_full_preferences: boolean;
+                /**
+                 * @default {
+                 *       "low_below": 1,
+                 *       "high_from": 3
+                 *     }
+                 */
+                competition_thresholds: {
+                    low_below: number;
+                    high_from: number;
+                };
             };
             rowVersion: number;
             /** Format: date-time */
@@ -1163,6 +1183,16 @@ export interface components {
                     no_preference_policy: "AUTO_ASSIGN_TOP_SCV" | "NONE";
                     /** @default false */
                     require_full_preferences: boolean;
+                    /**
+                     * @default {
+                     *       "low_below": 1,
+                     *       "high_from": 3
+                     *     }
+                     */
+                    competition_thresholds: {
+                        low_below: number;
+                        high_from: number;
+                    };
                 };
                 rowVersion: number;
                 /** Format: date-time */
@@ -1207,6 +1237,10 @@ export interface components {
                 /** @enum {string} */
                 no_preference_policy?: "AUTO_ASSIGN_TOP_SCV" | "NONE";
                 require_full_preferences?: boolean;
+                competition_thresholds?: {
+                    low_below: number;
+                    high_from: number;
+                };
             };
             reason?: string;
         };
@@ -1751,6 +1785,25 @@ export interface components {
                     campaignName: string;
                     count: number;
                 };
+            } | {
+                id: number;
+                /** Format: date-time */
+                readAt: string | null;
+                /** Format: date-time */
+                createdAt: string;
+                /** @enum {string} */
+                type: "JD_LOW_PREFERENCES";
+                payload: {
+                    campaignId: number;
+                    campaignName: string;
+                    jds: {
+                        jdId: number;
+                        title: string;
+                        companyName: string;
+                        nvCount: number;
+                        quota: number;
+                    }[];
+                };
             })[];
             unreadCount: number;
             nextBefore: number | null;
@@ -1954,6 +2007,13 @@ export interface components {
                 suggestions: string[];
                 summary: string;
                 preferenceRank: number | null;
+                competition: {
+                    nvCount: number;
+                    quota: number;
+                    /** @enum {string} */
+                    level: "LOW" | "MEDIUM" | "HIGH";
+                };
+                lowCompetitionSuggestion: boolean;
             }[];
             ineligible: {
                 jd: {

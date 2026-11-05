@@ -1,18 +1,17 @@
 # Sprint Status
 
 > **AUTO-GENERATED** by `koni-docs status`. Do not hand-edit (RULE-5).
-> Last generated: 2026-11-04 08:40:12 UTC
+> Last generated: 2026-11-04 16:25:11 UTC
 > Total stories: 40
 
 ## ⏰ Deadlines (0)
 
 _No stories carry an explicit deadline._
 
-## 📋 Backlog (21)
+## 📋 Backlog (20)
 
 | ID | Title | Epic | Pri | Points | Sprint | Assignee |
 |---|---|---|---|---|---|---|
-| US-3.4 | Mức cạnh tranh và gợi ý ít cạnh tranh | EPIC-3 | P1 | 3 | — | — |
 | US-4.1 | Ma trận đề và Test Generator | EPIC-4 | P0 | 8 | — | — |
 | US-4.2 | Validator và khóa ngân hàng câu hỏi | EPIC-4 | P0 | 5 | — | — |
 | US-4.3 | Phòng thi | EPIC-4 | P0 | 8 | — | — |
@@ -42,7 +41,7 @@ _No stories_
 
 _No stories_
 
-## 👀 Review (6)
+## 👀 Review (7)
 
 | ID | Title | Epic | Pri | Points | Sprint | Assignee |
 |---|---|---|---|---|---|---|
@@ -50,6 +49,7 @@ _No stories_
 | US-3.1 | Lọc điều kiện cứng và công thức S_cv | EPIC-3 | P0 | 5 | sprint-2026-W44 | PDTnhah |
 | US-3.2 | Matching Agent chạy hàng loạt | EPIC-3 | P0 | 13 | sprint-2026-W45 | PDTnhah |
 | US-3.3 | Shortlist và chọn nguyện vọng | EPIC-3 | P0 | 8 | sprint-2026-W45 | PDTnhah |
+| US-3.4 | Mức cạnh tranh và gợi ý ít cạnh tranh | EPIC-3 | P1 | 3 | sprint-2026-W45 | — |
 | US-3.5 | Hồ sơ kỹ năng chi tiết và khớp kỹ năng bằng code | EPIC-3 | P0 | 8 | sprint-2026-W45 | PDTnhah |
 | US-3.6 | Quy đổi ngoại ngữ CEFR và mức khớp ngành bằng code | EPIC-3 | P0 | 5 | sprint-2026-W45 | PDTnhah |
 
@@ -83,10 +83,10 @@ _No stories_
 
 ## Summary
 
-- 📋 **Backlog**: 21
+- 📋 **Backlog**: 20
 - 🟢 **Ready**: 0
 - 🟡 **In Progress**: 0
-- 👀 **Review**: 6
+- 👀 **Review**: 7
 - ✅ **Done**: 13
 - 🚫 **Blocked**: 0
 - 🗑️ **Deprecated**: 0

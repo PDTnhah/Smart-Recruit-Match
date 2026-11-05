@@ -126,10 +126,10 @@ describe('GĐ4 preference lists (US-3.3)', () => {
         { campaignId: campaign.id, items: items(a!, c!, b!) },
       ],
     ]);
-    // US-3.4 recounts the JDs of both lists.
+    // US-3.4 recounts the JDs added or dropped: a and c only moved in the second save.
     expect(replaced.filter((event) => event.studentId === studentId)).toEqual([
       { campaignId: campaign.id, studentId, jdIds: [a, c].sort((x, y) => x! - y!) },
-      { campaignId: campaign.id, studentId, jdIds: [a, b, c].sort((x, y) => x! - y!) },
+      { campaignId: campaign.id, studentId, jdIds: [b] },
     ]);
 
     // The shortlist shows the saved ranks; an empty list clears it.
@@ -319,14 +319,14 @@ describe('GĐ4 preference lists (US-3.3)', () => {
 
     // Run again: nobody gets a second list, nobody a second notice.
     const service = t.app.get(AutoAssignPreferencesService);
-    expect(await service.run(campaign.id)).toEqual([]);
+    expect(await service.run(campaign.id)).toEqual({ assigned: [], outstanding: 0 });
     expect(await rowsOf(studentId)).toHaveLength(3);
     expect(await notificationsOfType(t.db, 'PREFERENCES_AUTO_ASSIGNED', student.user.id)).toHaveLength(1);
     expect(await listAudits(studentId)).toHaveLength(1);
 
     // Policy NONE: no preference is given.
     const none = await seed({ status: 'TESTING', config: { no_preference_policy: 'NONE' } });
-    expect(await service.run(none.campaign.id)).toEqual([]);
+    expect(await service.run(none.campaign.id)).toEqual({ assigned: [], outstanding: 0 });
     expect(await rowsOf(none.studentId)).toEqual([]);
   });
 

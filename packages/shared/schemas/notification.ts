@@ -25,6 +25,8 @@ export const NOTIFICATION_TYPES = [
   'CV_NEEDS_ATTENTION',
   // Preferences given by the system at the deadline (US-3.3, PRD Q6, CONTEXT D47).
   'PREFERENCES_AUTO_ASSIGNED',
+  // JDs with fewer preferences than places once preference selection ended (US-3.4, CONTEXT D48).
+  'JD_LOW_PREFERENCES',
 ] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
@@ -131,6 +133,27 @@ export const PreferencesAutoAssignedPayloadSchema = z.object({
   count: id,
 });
 
+/**
+ * Preference selection ended and Q6 is done: the JDs of the campaign with fewer preferences than
+ * places (PRD › Cơ chế hỗ trợ JD ít hồ sơ, US-3.4 AC-5), counted from the database. Sent to center
+ * staff in the app and by email, so they can contact the companies.
+ */
+export const JdLowPreferencesPayloadSchema = z.object({
+  campaignId: id,
+  campaignName: z.string().min(1),
+  jds: z
+    .array(
+      z.object({
+        jdId: id,
+        title: z.string().min(1),
+        companyName: z.string().min(1),
+        nvCount: z.number().int().min(0),
+        quota: id,
+      }),
+    )
+    .min(1),
+});
+
 /** `type` and the `payload` that goes with it. */
 export const NotificationContentSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('CAMPAIGN_OPENED'), payload: CampaignOpenedPayloadSchema }),
@@ -143,6 +166,7 @@ export const NotificationContentSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('CV_ANALYSIS_FAILED'), payload: CvAnalysisFailedPayloadSchema }),
   z.object({ type: z.literal('CV_NEEDS_ATTENTION'), payload: CvNeedsAttentionPayloadSchema }),
   z.object({ type: z.literal('PREFERENCES_AUTO_ASSIGNED'), payload: PreferencesAutoAssignedPayloadSchema }),
+  z.object({ type: z.literal('JD_LOW_PREFERENCES'), payload: JdLowPreferencesPayloadSchema }),
 ]);
 
 export type NotificationContent = z.output<typeof NotificationContentSchema>;
@@ -206,8 +230,8 @@ export type MarkAllReadResult = z.output<typeof MarkAllReadResultSchema>;
 
 /**
  * Event names on `GET /api/events/stream` (AD-13). `ready` opens every connection, so a client
- * reloads its lists after reconnecting; `ping` keeps proxies from closing an idle stream. EPIC-2
- * and US-3.4 add their names here.
+ * reloads its lists after reconnecting; `ping` keeps proxies from closing an idle stream. Later
+ * stories add their names here.
  */
 export const SERVER_EVENTS = {
   READY: 'ready',
@@ -217,6 +241,11 @@ export const SERVER_EVENTS = {
   JD_ANALYSIS: 'jd.analysis',
   /** The analysis of a CV settled (US-2.4); data is `CvAnalysisEvent`, sent to its student. */
   CV_ANALYSIS: 'cv.analysis',
+  /**
+   * Preferences of some JDs changed (US-3.4); data is `CompetitionUpdatedEvent`, sent to the
+   * students with an active CV in the campaign.
+   */
+  COMPETITION_UPDATED: 'competition.updated',
 } as const;
 
 export type ServerEventName = (typeof SERVER_EVENTS)[keyof typeof SERVER_EVENTS];

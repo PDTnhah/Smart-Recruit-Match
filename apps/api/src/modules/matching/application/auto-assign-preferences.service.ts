@@ -17,6 +17,16 @@ import { ShortlistService } from './shortlist.service.js';
 
 const REASON = 'Q6: no preference chosen by preference_end; the first JDs of the shortlist by S_cv';
 
+export interface AutoAssignOutcome {
+  /** Students given preferences by this call. */
+  assigned: number[];
+  /**
+   * Students without a preference Q6 still has to serve: waiting for a matching run that is still
+   * scoring their JDs, or whose assignment failed. 0 means Q6 is done for the campaign (US-3.4 AC-5).
+   */
+  outstanding: number;
+}
+
 /**
  * Q6 (PRD GĐ4, US-3.3 AC-10, CONTEXT D47): when preference selection ends, every student with a
  * non-empty shortlist and no preference gets the first min(N_NV, shortlist size) JDs of it, unless
@@ -40,26 +50,28 @@ export class AutoAssignPreferencesService {
   ) {}
 
   /**
-   * Returns the students given preferences by this call. One failing student does not stop the
-   * others; the next sweep tries them again. While a matching run of the campaign still waits for
-   * results, a student with JDs left to score waits too, as their shortlist is not whole yet.
+   * Gives preferences to the students due now and says how many are left. One failing student does
+   * not stop the others; the next sweep tries them again. While a matching run of the campaign
+   * still waits for results, a student with JDs left to score waits too, as their shortlist is not
+   * whole yet.
    */
-  async run(campaignId: number): Promise<number[]> {
+  async run(campaignId: number): Promise<AutoAssignOutcome> {
     const campaign = await this.campaigns.getSettings(campaignId);
-    if (campaign.config.no_preference_policy !== 'AUTO_ASSIGN_TOP_SCV') return [];
+    if (campaign.config.no_preference_policy !== 'AUTO_ASSIGN_TOP_SCV') return { assigned: [], outstanding: 0 };
     const [shortlists, withAny, scoring] = await Promise.all([
       this.shortlists.summariesByStudent(campaign),
       this.repository.studentIdsWithAny(campaignId),
       this.shortlists.isScoring(campaignId),
     ]);
-    const due = [...shortlists].filter(
-      ([studentId, { jdIds, pending }]) => jdIds.length > 0 && !withAny.has(studentId) && !(scoring && pending > 0),
-    );
-    if (due.length === 0) return [];
+    const without = [...shortlists].filter(([studentId]) => !withAny.has(studentId));
+    const waiting = without.filter(([, { pending }]) => scoring && pending > 0).length;
+    const due = without.filter(([, { jdIds, pending }]) => jdIds.length > 0 && !(scoring && pending > 0));
+    if (due.length === 0) return { assigned: [], outstanding: waiting };
     const userIds = await this.directory.userIdsByStudent(due.map(([studentId]) => studentId));
 
     const studentIds: number[] = [];
     const jdIds = new Set<number>();
+    let failed = 0;
     for (const [studentId, shortlist] of due) {
       const items = autoAssignedPreferences({ nNv: campaign.config.n_nv, shortlistJdIds: shortlist.jdIds });
       try {
@@ -67,6 +79,7 @@ export class AutoAssignPreferencesService {
         studentIds.push(studentId);
         for (const item of items) jdIds.add(item.jdId);
       } catch (error) {
+        failed += 1;
         this.logger.error(`campaign ${campaignId}: preferences of student ${studentId} not assigned: ${errorMessage(error)}`);
       }
     }
@@ -78,7 +91,7 @@ export class AutoAssignPreferencesService {
         jdIds: [...jdIds].sort((a, b) => a - b),
       } satisfies PreferencesAutoAssignedEvent);
     }
-    return studentIds;
+    return { assigned: studentIds, outstanding: waiting + failed };
   }
 
   /** False when the student has a list by the time the lock is held. */

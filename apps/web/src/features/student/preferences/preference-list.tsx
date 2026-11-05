@@ -13,7 +13,13 @@ import {
 } from '@dnd-kit/core';
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { APPLICATION_STATUS_LABELS, type PreferenceItem, type ShortlistCampaign, type ShortlistJd } from '@srm/shared';
+import {
+  APPLICATION_STATUS_LABELS,
+  type JdCompetition,
+  type PreferenceItem,
+  type ShortlistCampaign,
+  type ShortlistJd,
+} from '@srm/shared';
 import { ArrowDown, ArrowUp, CircleAlert, GripVertical, Info, ListOrdered, TriangleAlert, X } from 'lucide-react';
 import { useId } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -22,6 +28,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
 import { Spinner } from '@/components/ui/spinner';
+import { CompetitionSummary } from './competition-badge';
 import { type Draft, moveInDraft, removeFromDraft } from './draft';
 
 /** Rows only move up and down. */
@@ -36,13 +43,23 @@ interface PreferenceRowProps {
   rank: number;
   count: number;
   jd: ShortlistJd | undefined;
+  competition: JdCompetition | undefined;
   /** No longer among the suggestions: it cannot be saved again. */
   stale: boolean;
   onMove: (to: number) => void;
   onRemove: () => void;
 }
 
-function JdName({ jd, rank }: { jd: ShortlistJd | undefined; rank: number }) {
+/** The JD of a preference, with its competition level while it is on the shortlist (US-3.4 AC-8). */
+function JdName({
+  jd,
+  rank,
+  competition,
+}: {
+  jd: ShortlistJd | undefined;
+  rank: number;
+  competition: JdCompetition | undefined;
+}) {
   return (
     <div className="flex min-w-0 flex-1 items-start gap-3">
       <Badge className="mt-0.5">NV{rank}</Badge>
@@ -53,13 +70,14 @@ function JdName({ jd, rank }: { jd: ShortlistJd | undefined; rank: number }) {
             {jd.companyName}
           </span>
         )}
+        {competition && <CompetitionSummary competition={competition} className="mt-1" />}
       </div>
     </div>
   );
 }
 
 /** One preference that can be dragged by its handle, or moved with the buttons (AC-14). */
-function SortablePreference({ jdId, rank, count, jd, stale, onMove, onRemove }: PreferenceRowProps) {
+function SortablePreference({ jdId, rank, count, jd, competition, stale, onMove, onRemove }: PreferenceRowProps) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
     id: jdId,
     attributes: { roleDescription: 'nguyện vọng kéo được' },
@@ -73,7 +91,7 @@ function SortablePreference({ jdId, rank, count, jd, stale, onMove, onRemove }: 
       <Card size="sm">
         <CardContent className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <div className="flex min-w-0 flex-1 flex-col gap-1">
-            <JdName jd={jd} rank={rank} />
+            <JdName jd={jd} rank={rank} competition={competition} />
             {stale && (
               <p className="flex gap-2 text-sm text-destructive">
                 <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
@@ -126,11 +144,13 @@ function SortablePreference({ jdId, rank, count, jd, stale, onMove, onRemove }: 
 function SortablePreferences({
   draft,
   jds,
+  competitions,
   shortlistIds,
   onChange,
 }: {
   draft: Draft;
   jds: ReadonlyMap<number, ShortlistJd>;
+  competitions: ReadonlyMap<number, JdCompetition>;
   shortlistIds: ReadonlySet<number>;
   onChange: (draft: Draft) => void;
 }) {
@@ -172,6 +192,7 @@ function SortablePreferences({
               rank={index + 1}
               count={draft.length}
               jd={jds.get(jdId)}
+              competition={competitions.get(jdId)}
               stale={!shortlistIds.has(jdId)}
               onMove={(to) => onChange(moveInDraft(draft, index, to))}
               onRemove={() => onChange(removeFromDraft(draft, jdId))}
@@ -187,9 +208,11 @@ function SortablePreferences({
 function ReadOnlyPreferences({
   preferences,
   jds,
+  competitions,
 }: {
   preferences: readonly PreferenceItem[];
   jds: ReadonlyMap<number, ShortlistJd>;
+  competitions: ReadonlyMap<number, JdCompetition>;
 }) {
   return (
     <ol className="flex flex-col gap-2">
@@ -197,7 +220,7 @@ function ReadOnlyPreferences({
         <li key={preference.jdId}>
           <Card size="sm">
             <CardContent className="flex flex-col gap-2 sm:flex-row sm:items-center">
-              <JdName jd={jds.get(preference.jdId)} rank={preference.rank} />
+              <JdName jd={jds.get(preference.jdId)} rank={preference.rank} competition={competitions.get(preference.jdId)} />
               <Badge variant="secondary" className="self-start sm:self-center">
                 {APPLICATION_STATUS_LABELS[preference.status]}
               </Badge>
@@ -216,6 +239,8 @@ interface PreferenceListProps {
   saved: readonly PreferenceItem[];
   /** Cards of every JD the screen knows, by id. */
   jds: ReadonlyMap<number, ShortlistJd>;
+  /** Competition level of the JDs on the shortlist, by id (US-3.4). */
+  competitions: ReadonlyMap<number, JdCompetition>;
   shortlistIds: ReadonlySet<number>;
   /** min(N_NV, number of suggestions): what "chọn đủ" means (AC-8). */
   required: number;
@@ -238,6 +263,7 @@ export function PreferenceList({
   draft,
   saved,
   jds,
+  competitions,
   shortlistIds,
   required,
   dirty,
@@ -283,7 +309,7 @@ export function PreferenceList({
       {!editable && errorAlert}
       {!editable ? (
         saved.length > 0 ? (
-          <ReadOnlyPreferences preferences={saved} jds={jds} />
+          <ReadOnlyPreferences preferences={saved} jds={jds} competitions={competitions} />
         ) : (
           <Empty className="border">
             <EmptyHeader>
@@ -298,7 +324,13 @@ export function PreferenceList({
       ) : (
         <>
           {draft.length > 0 ? (
-            <SortablePreferences draft={draft} jds={jds} shortlistIds={shortlistIds} onChange={onChange} />
+            <SortablePreferences
+              draft={draft}
+              jds={jds}
+              competitions={competitions}
+              shortlistIds={shortlistIds}
+              onChange={onChange}
+            />
           ) : (
             <Empty className="border">
               <EmptyHeader>

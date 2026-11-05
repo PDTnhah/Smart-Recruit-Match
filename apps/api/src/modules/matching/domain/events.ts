@@ -11,7 +11,7 @@ export const PREFERENCES_AUTO_ASSIGNED = 'matching.preferences.auto_assigned';
 export interface PreferencesReplacedEvent {
   campaignId: number;
   studentId: number;
-  /** JDs of the old list and of the new one, so a JD the student dropped is recounted too. */
+  /** JDs added to the list or dropped from it; empty when the list was only reordered. */
   jdIds: number[];
 }
 

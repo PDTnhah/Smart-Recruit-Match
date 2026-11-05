@@ -103,4 +103,20 @@ ${button('Xem nguyện vọng')}`,
 Bạn sẽ làm bài test cho các nguyện vọng này. Xem nguyện vọng tại: {{link}}
 ${TEXT_FOOTER}`,
   },
+  JD_LOW_PREFERENCES: {
+    subject: 'Đợt "{{campaignName}}": {{jdCount}} JD có ít nguyện vọng hơn chỉ tiêu',
+    html: `<p>Chào {{recipientName}},</p>
+<p>Đợt thực tập <strong>{{campaignName}}</strong> đã hết hạn chọn nguyện vọng. Các JD dưới đây có số nguyện vọng ít hơn chỉ tiêu, Trung tâm có thể liên hệ doanh nghiệp để trao đổi về yêu cầu hoặc chỉ tiêu:</p>
+<ul>{{#each jds}}<li><strong>{{title}}</strong> – {{companyName}}: {{nvCount}} nguyện vọng / {{quota}} chỉ tiêu</li>{{/each}}</ul>
+${button('Xem đợt thực tập')}`,
+    text: `Chào {{recipientName}},
+
+Đợt thực tập "{{campaignName}}" đã hết hạn chọn nguyện vọng. Các JD dưới đây có số nguyện vọng ít hơn chỉ tiêu, Trung tâm có thể liên hệ doanh nghiệp để trao đổi về yêu cầu hoặc chỉ tiêu:
+{{#each jds}}
+- {{title}} – {{companyName}}: {{nvCount}} nguyện vọng / {{quota}} chỉ tiêu
+{{/each}}
+
+Xem đợt thực tập tại: {{link}}
+${TEXT_FOOTER}`,
+  },
 };

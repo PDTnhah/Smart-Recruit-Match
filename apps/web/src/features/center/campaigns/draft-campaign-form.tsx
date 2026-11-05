@@ -22,7 +22,7 @@ import { apiErrorMessage } from '@/shared/api/errors';
 import { applyServerFieldErrors } from '@/shared/forms/server-errors';
 import { useCreateCampaign, useUpdateCampaign } from './api';
 import { DeadlineField } from './deadline-field';
-import { DEADLINE_LABELS, PARAMETER_FIELDS, SCV_WEIGHT_FIELDS } from './labels';
+import { COMPETITION_THRESHOLD_FIELDS, DEADLINE_LABELS, PARAMETER_FIELDS, SCV_WEIGHT_FIELDS } from './labels';
 import { ParameterInputs } from './parameter-fields';
 import { CAMPAIGNS_PATH, campaignPath } from './paths';
 import { ValueListInput } from './value-list-input';
@@ -38,9 +38,11 @@ const FIELDS = [
   ...[...PARAMETER_FIELDS, ...SCV_WEIGHT_FIELDS].map((parameter) => `config.${parameter.key}`),
   'config.no_preference_policy',
   'config.require_full_preferences',
+  ...COMPETITION_THRESHOLD_FIELDS.map(({ key }) => `config.competition_thresholds.${key}`),
 ];
 
 function defaultsOf(campaign: Campaign | undefined): FormInput {
+  const config = campaign?.config ?? DEFAULT_CAMPAIGN_CONFIG;
   return {
     name: campaign?.name ?? '',
     target: { cohorts: [...(campaign?.target.cohorts ?? [])], majors: [...(campaign?.target.majors ?? [])] },
@@ -50,7 +52,8 @@ function defaultsOf(campaign: Campaign | undefined): FormInput {
       preference_end: campaign?.phaseDeadlines.preference_end ?? null,
       testing_end: campaign?.phaseDeadlines.testing_end ?? null,
     },
-    config: { ...(campaign?.config ?? DEFAULT_CAMPAIGN_CONFIG) },
+    // A copy of the nested thresholds too, never the shared defaults object.
+    config: { ...config, competition_thresholds: { ...config.competition_thresholds } },
   };
 }
 

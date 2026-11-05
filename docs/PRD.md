@@ -292,6 +292,7 @@ Quyết định kiến trúc và quy trình được ghi trong [CONTEXT.md](CONT
 | H_nhắc (`reminder_hours_before`) | Nhắc sinh viên chưa hoàn thành việc của giai đoạn khi còn chừng này giờ trước hạn (nộp CV; về sau chọn NV, làm test). Thêm ở US-1.7 ([CONTEXT D31](CONTEXT.md)) | 24 giờ |
 | `no_preference_policy` | Sinh viên không chọn NV đến hạn: `AUTO_ASSIGN_TOP_SCV` (gán các JD đầu shortlist, Q6) hoặc `NONE`. Thêm ở US-3.3 ([CONTEXT D47](CONTEXT.md)) | `AUTO_ASSIGN_TOP_SCV` |
 | `require_full_preferences` | Bắt buộc chọn đủ min(N_NV, số JD trong shortlist) nguyện vọng (GĐ4 bước 3); `false` là chỉ khuyến nghị. Thêm ở US-3.3 | `false` |
+| `competition_thresholds` | Ngưỡng mức cạnh tranh theo tỷ lệ NV / chỉ tiêu (GĐ4 bước 2): Thấp khi tỷ lệ < `low_below`, Cao khi tỷ lệ ≥ `high_from`, còn lại Trung bình. Số dương, tối đa 2 chữ số thập phân, `low_below < high_from`. Thêm ở US-3.4 ([CONTEXT D48](CONTEXT.md)) | `{ low_below: 1, high_from: 3 }` |
 
 Trạng thái đợt: `Nháp → Mở nhận JD/CV → Chọn nguyện vọng → Làm test → Phân bổ & HR duyệt → Vòng bổ sung → Đã đóng`. Ở mỗi trạng thái hệ thống chỉ cho phép các thao tác tương ứng (VD: quá hạn nộp CV thì không nộp được nữa).
 
@@ -841,6 +842,8 @@ Mọi thông báo đều hiện trong ứng dụng (chuông ở ba cổng, cập
 | Hồ sơ năng lực sẵn sàng để xác nhận | Sinh viên | |
 | Yêu cầu chuẩn hóa JD sẵn sàng để xác nhận; phân tích JD lỗi, cần nhập tay | HR | Chỉ trong app ([CONTEXT D35](CONTEXT.md)) |
 | Yêu cầu của JD đã duyệt có phiên bản mới (BR-18) | Cán bộ Trung tâm | Chỉ trong app ([CONTEXT D35](CONTEXT.md)) |
+| Hệ thống tự gán NV cho sinh viên không chọn (Q6) | Sinh viên | Trong app + email ([CONTEXT D47](CONTEXT.md)) |
+| Hết hạn chọn NV: danh sách JD có số NV ít hơn chỉ tiêu | Cán bộ Trung tâm | Trong app + email ([CONTEXT D48](CONTEXT.md)) |
 | Có kết quả test, kết quả phúc khảo | Sinh viên | |
 | Công bố đề cử | Sinh viên, HR | |
 | Nhắc hạn duyệt hồ sơ; quá SLA | HR, Cán bộ Trung tâm | |

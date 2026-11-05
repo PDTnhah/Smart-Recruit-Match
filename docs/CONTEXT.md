@@ -54,6 +54,7 @@
 - D45 · Bảng `language-cefr/v1`, hai thang TOEFL iBT, điểm tiêu chí ngoại ngữ, 7 nhóm ngành, bộ đọc ngôn ngữ ở `packages/shared` (US-3.6)
 - D46 · Matching hàng loạt: batch Gemini + Claude, ack sớm và bộ poll, ghim prompt theo đợt, tạm không hạ điểm dự án, năm học đọc từ hồ sơ (US-3.2)
 - D47 · Chốt Q1, Q6; vòng đời hồ sơ ứng tuyển, bảng `preferences`, shortlist của SV, màn chọn nguyện vọng (US-3.3)
+- D48 · Mức cạnh tranh: ngưỡng trong cấu hình đợt, đếm lại dưới khóa theo JD, kênh SSE theo đợt, báo Trung tâm JD thiếu NV sau Q6 (US-3.4)
 
 ---
 
@@ -1868,3 +1869,57 @@ AC-4 đòi một ngôn ngữ không nằm ở cả `required_languages` lẫn `p
 
 **Date**: 2026-11-03
 **Version**: 0.18.0
+
+### D48. Mức cạnh tranh: ngưỡng trong cấu hình đợt, đếm lại dưới khóa theo JD, kênh SSE theo đợt, báo Trung tâm JD thiếu NV sau Q6 (US-3.4)
+
+**Context**: Phiên Plan của US-3.4 gặp các điểm story ghi "hỏi trước khi chốt" và vài chỗ spec không nói:
+
+- Ngưỡng Thấp / Trung bình / Cao; "S_cv cao" trong định nghĩa gợi ý "phù hợp – ít cạnh tranh"; NV có tính trọng số theo thứ hạng không.
+- Kênh SSE hiện chỉ theo từng người dùng (`notify:user:{userId}`, D31), mà sự kiện mức cạnh tranh phải tới mọi SV của một đợt và chỉ họ (AC-7).
+- DESIGN §2 chưa có token màu trạng thái; AC-4 nói "nhóm lại" mà không nói bố cục.
+- Subtask 3.4.2.1 đề xuất cộng/trừ bằng `INCRBY`/`DECRBY` và dựng lại key từ DB khi thiếu. Hai cơ chế này giẫm lên nhau khi chạy đồng thời.
+- "Q6 đã chạy xong" (AC-5) không có mốc rõ: Q6 chạy ở sự kiện chuyển pha và ở tác vụ quét, có thể hoãn SV khi lượt chấm còn `RUNNING` (D47).
+
+**Decision** (người dùng chốt bốn điểm đầu ngày 2026-11-04; phần còn lại nằm trong plan đã được duyệt):
+
+- **Ngưỡng:** `campaigns.config.competition_thresholds` = `{ low_below, high_from }`, mặc định `{ 1, 3 }`, là tỷ lệ NV/chỉ tiêu, mỗi số dương, tối đa 2 chữ số thập phân, `low_below < high_from`. Sửa được trên form đợt (hai ô số), khóa sau khi mở đợt như mọi tham số khác; đợt cũ nhận mặc định khi parse.
+  - `competitionLevel(nvCount, quota, thresholds)` (`matching/domain/competition.ts`) so bằng số nguyên: ngưỡng ×100 làm tròn, rồi nhân chéo với `quota`. Tỷ lệ đúng bằng ngưỡng rơi vào mức cao hơn; `quota < 1` báo lỗi.
+- **Gợi ý "Phù hợp – ít cạnh tranh":** mọi JD trong shortlist (đã có S_cv ≥ θ_cv) ở mức `LOW`. Không thêm ngưỡng S_cv.
+- **Đếm NV:** mọi thứ hạng tính 1, đếm mọi dòng `preferences` của JD.
+- **Bộ đếm `competition:{jdId}`:** chỉ để đọc nhanh; số dùng cho cảnh báo đọc từ DB.
+  - Sau mỗi `matching.preferences.replaced` / `auto_assigned`: trong một giao dịch, lấy `pg_advisory_xact_lock(3_401, hashtext(jdId))` cho từng JD theo thứ tự tăng dần, đếm lại từ DB, `SET … EXAT` khi vẫn giữ khóa. Hai lần đếm của một JD nối đuôi nhau, nên lần ghi sau cùng đọc sau mọi commit đã có.
+  - Đọc: `MGET`; key thiếu thì đếm từ DB rồi `SET NX EXAT`. Ngoài pha chọn NV hoặc Redis lỗi thì đọc thẳng DB.
+  - TTL: `EXAT` = `phase_deadlines.preference_end`; hạn `null` thì 24 giờ, làm mới mỗi lần ghi; hạn đã qua thì không ghi.
+- **Kênh SSE theo đợt** `notify:campaign:{campaignId}:students`: `RealtimePublisher.publishToCampaignStudents`. Khi mở stream, tài khoản `STUDENT` đăng ký thêm kênh của các đợt có trong CV active của mình (`CvService.activeCvsOf`); `ready` gửi sau khi mọi kênh đã đăng ký. HR, CENTER, ADMIN không đăng ký kênh đợt.
+- **Sự kiện `competition.updated`:** `{ campaignId, items: [{ jdId, nvCount, quota, level }] }`, gom các JD của một lần thay đổi; không chứa gì của SV gây ra thay đổi. Trường trong API dùng camelCase như các API khác: `competition: { nvCount, quota, level }`, `lowCompetitionSuggestion`.
+- **Báo Trung tâm JD thiếu NV:** thông báo `JD_LOW_PREFERENCES` (IN_APP + EMAIL) cho mọi tài khoản CENTER đang hoạt động, `dedupe_key` `jd_low_preferences:{campaignId}`. Danh sách JD `APPROVED`/`RECRUITING` của đợt có `nvCount < quota`, số đếm từ DB; không có JD nào thì không gửi.
+  - Chạy sau Q6, ở cả listener chuyển pha và tác vụ quét `preference-auto-assign`, chỉ khi Q6 của đợt không còn SV nào chờ gán (`outstanding = 0`: không còn SV bị hoãn vì lượt chấm `RUNNING` hay gán lỗi). Theo LESSONS §34.
+  - Tài khoản CENTER tạo sau đó nhận thông báo ở lượt quét kế tiếp, vì `dedupe_key` tính theo người nhận.
+- **Giao diện:** huy hiệu dùng biến thể `Badge` có sẵn kèm icon, không thêm token màu: Thấp `outline` + `SignalLow`, Trung bình `secondary` + `SignalMedium`, Cao `default` + `SignalHigh`; nhãn "Phù hợp – ít cạnh tranh" `secondary` kèm icon. Tab Gợi ý chia hai nhóm: "Phù hợp – ít cạnh tranh" trên, "JD gợi ý khác" dưới, mỗi nhóm S_cv giảm dần. Sự kiện SSE vá cache TanStack Query tại chỗ; `ready` tải lại shortlist.
+
+**Rationale**:
+
+- Ngưỡng 1 khớp mốc cảnh báo NV/chỉ tiêu < 1. Để thành tham số vì PRD không cho số.
+- Đếm lại thay cho cộng/trừ: cộng/trừ kèm dựng lại key đếm đôi khi một lần dựng lại đọc DB đã có thay đổi mà `INCRBY` của thay đổi đó chạy sau; API dừng giữa commit và `INCRBY` thì lệch mãi. Đếm lại tự sửa ở lần thay đổi kế tiếp của JD.
+- Kênh theo đợt: một lần `PUBLISH` cho mỗi thay đổi, thay vì một lần cho mỗi SV của đợt kèm truy vấn người nhận. CV chỉ nộp được ở `INTAKE`, trước pha chọn NV, nên danh sách kênh lấy lúc mở stream (sống tối đa 15 phút, D32) không bị cũ trong lúc chọn NV.
+- Chờ Q6 xong rồi mới báo: con số gửi Trung tâm là con số sau khi đã tự gán, đúng thứ AC-5 đòi.
+
+**Alternatives considered**:
+
+- **Ngưỡng chỉ có trong schema, không có ô trên form:** người dùng không chọn.
+- **Gửi từng SV qua kênh `notify:user:{userId}`:** người dùng không chọn; N lệnh `PUBLISH` và một truy vấn người nhận cho mỗi lần lưu NV.
+- **Thêm token `success` / `warning`:** người dùng không chọn.
+- **Một danh sách theo S_cv kèm bộ lọc "Ít cạnh tranh":** người dùng không chọn.
+- **`INCRBY`/`DECRBY` theo phần chênh lệch (đề xuất của story):** loại, lý do ở trên.
+- **Đếm lại rồi `SET` không khóa:** loại; hai lần đếm chạy chéo nhau thì số cũ có thể ghi đè số mới.
+
+**Impact**:
+
+- PRD: bảng tham số GĐ0 thêm `competition_thresholds`; bảng *Thông báo* thêm `JD_LOW_PREFERENCES` (phiên Doc gate).
+- ARCHITECTURE: *Redis* (kênh `notify:campaign:{campaignId}:students`), *Cập nhật thời gian thực* (`competition.updated`), *Các module* (`matching`: mức cạnh tranh, cảnh báo; `notification`: kênh đợt), *Tác vụ định kỳ* (khóa `3_401`, cảnh báo trong lượt quét `preference-auto-assign`).
+- DESIGN: §6 (huy hiệu mức cạnh tranh, nhãn gợi ý), §12 (hai nhóm ở màn Nguyện vọng).
+- Code: `AutoAssignPreferencesService.run` trả `{ assigned, outstanding }`; `ShortlistJdCard` có `quota`; `EventStreamService.open` nhận `AuthUser`; migration `0027` thêm loại thông báo vào CHECK `notifications_type_check`.
+- Story sau: US-6.1 (heatmap) dùng lại `competitionLevel` và `countByJd`; US-5.5 dùng lại huy hiệu và kênh đợt.
+
+**Date**: 2026-11-04
+**Version**: 0.19.0

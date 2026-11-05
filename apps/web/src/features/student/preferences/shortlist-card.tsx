@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { POSITION_GROUP_LABELS, WORK_MODE_LABELS } from '@/features/jds/labels';
+import { CompetitionSummary, LowCompetitionBadge } from './competition-badge';
 import { JdExplanationSheet } from './jd-explanation-sheet';
 import { formatX100 } from './labels';
 
@@ -22,7 +23,10 @@ interface ShortlistCardProps {
   onRemove: () => void;
 }
 
-/** One suggested JD (US-3.3 AC-1): title, company, S_cv, the first missing skills, and choose. */
+/**
+ * One suggested JD (US-3.3 AC-1): title, company, S_cv, the first missing skills, the competition
+ * level (US-3.4 AC-4, AC-8), and choose.
+ */
 export function ShortlistCard({ item, rank, editable, full, onAdd, onRemove }: ShortlistCardProps) {
   const { jd } = item;
   const facts = [
@@ -71,7 +75,10 @@ export function ShortlistCard({ item, rank, editable, full, onAdd, onRemove }: S
             <span className="text-muted-foreground">Hồ sơ đáp ứng mọi kỹ năng JD yêu cầu.</span>
           )}
         </p>
-        {/* US-3.4 adds the competition level of the JD here. */}
+        <div className="flex flex-wrap items-center gap-2">
+          {item.lowCompetitionSuggestion && <LowCompetitionBadge />}
+          <CompetitionSummary competition={item.competition} />
+        </div>
       </CardContent>
       <CardFooter className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-end">
         {rank !== null && (

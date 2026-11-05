@@ -1,4 +1,5 @@
 import type { CampaignDeadlineKey, Notification } from '@srm/shared';
+import { campaignPath } from '@/features/center/campaigns/paths';
 import { centerCvsPath } from '@/features/center/cvs/paths';
 import { jdApprovalPath } from '@/features/center/jd-approval/paths';
 import { hrJdPath } from '@/features/hr/jds/paths';
@@ -95,6 +96,14 @@ export function describeNotification(notification: Notification): NotificationVi
         title: 'Hệ thống đã chọn nguyện vọng cho bạn',
         body: `Bạn chưa chọn nguyện vọng của đợt "${campaignName}" trước hạn, nên hệ thống đã chọn ${count} JD phù hợp nhất trong danh sách gợi ý.`,
         href: DEADLINES.preference_end.href,
+      };
+    }
+    case 'JD_LOW_PREFERENCES': {
+      const { campaignId, campaignName, jds } = notification.payload;
+      return {
+        title: 'Có JD ít nguyện vọng hơn chỉ tiêu',
+        body: `Đợt "${campaignName}" có ${jds.length} JD có số nguyện vọng ít hơn chỉ tiêu. Xem email để có danh sách và liên hệ doanh nghiệp.`,
+        href: campaignPath(campaignId),
       };
     }
   }
