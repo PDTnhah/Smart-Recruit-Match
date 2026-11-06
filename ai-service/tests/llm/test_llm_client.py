@@ -206,6 +206,21 @@ async def test_result_carries_model_and_prompt_version(make_client, prompts):
     assert isinstance(result.call_id, UUID)
 
 
+async def test_result_usage_adds_up_every_attempt(make_client, prompts, calls):
+    """US-4.1 AC-5: an agent bounds a job's tokens with the usage of every attempt."""
+    provider = ScriptedProvider(
+        reply(StopReason.MAX_TOKENS, text=None, usage=Usage(input_tokens=900, output_tokens=4000)),
+        reply(text="not json", usage=Usage(input_tokens=900, cache_read_tokens=800)),
+        reply(usage=Usage(input_tokens=100, cache_write_tokens=50, output_tokens=200)),
+    )
+    result = await generate(make_client(provider), prompts, "hi")
+    assert result.usage == Usage(
+        input_tokens=1900, cache_read_tokens=800, cache_write_tokens=50, output_tokens=4200
+    )
+    assert result.usage.total_tokens == 6950
+    assert sum((row.usage for row in calls.rows), Usage()) == result.usage
+
+
 async def test_nfr5_request_response_logged_to_minio(objects, calls, prompts):
     call_ids = iter([UUID(int=1)])
     client = StructuredLLMClient(

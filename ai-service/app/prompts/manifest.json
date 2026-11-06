@@ -4,5 +4,6 @@
   "jd_analyzer/v1": "e476cbf11c2cec8e1cf9b81ca03791d141b280d3bd0ecf495b0dd2433485b4ac",
   "jd_analyzer/v2": "7330494176edf082ca181fce0e21504a346065da4c22020ee799448ed3966588",
   "matching/v1": "61f5e6b6f7b6931c118babe97443e982954af7aa9280e89d72bd19f8e0fca47a",
-  "skill_normalizer/v1": "8847e77b2809f22911c5dbc6e6868a7ce437c1a7b3d24bf99f075babcc6312f7"
+  "skill_normalizer/v1": "8847e77b2809f22911c5dbc6e6868a7ce437c1a7b3d24bf99f075babcc6312f7",
+  "test_generator/v1": "a7e97d8560eaa4fd604e99f14e20a1f13ac3c1f4b1a1020c3d33766b91d106e6"
 }

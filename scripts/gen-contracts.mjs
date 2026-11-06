@@ -30,6 +30,7 @@ for (const name of readdirSync(pythonDir)) {
   if (name.endsWith('.py')) rmSync(join(pythonDir, name));
 }
 writeFileSync(join(pythonDir, 'queues.json'), toJson(contracts.aiQueueManifest()));
+writeFileSync(join(pythonDir, 'question_bank.json'), toJson(contracts.questionBankManifest()));
 
 const python = findPython();
 // Options live in ai-service/pyproject.toml [tool.datamodel-codegen], read from the working directory.

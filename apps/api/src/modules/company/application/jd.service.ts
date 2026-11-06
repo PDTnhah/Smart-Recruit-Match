@@ -46,6 +46,7 @@ import {
   type JdContent,
   type JdRecord,
   JdRepository,
+  type QuestionBankJd,
   type ShortlistJdCard,
 } from '../infrastructure/jd.repository.js';
 
@@ -96,6 +97,15 @@ export class JdService implements OnModuleInit {
    */
   async listShortlistCards(campaignId: number): Promise<ShortlistJdCard[]> {
     return this.repository.listShortlistCards(campaignId);
+  }
+
+  /**
+   * A JD as its question bank sees it (US-4.1): state, current version and requirements; undefined
+   * when there is no such JD. The assessment module decides from the state whether it may have a
+   * bank (BR-02). No record scope: only CENTER reaches the question bank.
+   */
+  async getForQuestionBank(jdId: number): Promise<QuestionBankJd | undefined> {
+    return this.repository.findForQuestionBank(jdId);
   }
 
   /**

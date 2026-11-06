@@ -40,7 +40,7 @@
 - D31 · Thông báo, SSE, email outbox, nhắc hạn (US-1.7) → sửa bởi D32
 - D32 · Link mời HR ký lúc gửi, stream đóng theo hạn token, email quá hạn bị hủy
 - D33 · Đường ống job AI, hợp đồng message, role DB (US-2.1)
-- D34 · Nhà cung cấp LLM: Gemini mặc định, Claude thay thế qua `LLMClient` (US-2.2)
+- D34 · Nhà cung cấp LLM: Gemini mặc định, Claude thay thế qua `LLMClient` (US-2.2) → sửa một phần bởi D49 (Test Generator không dùng tool-use)
 - D35 · Phân tích JD, xác nhận yêu cầu chuẩn hóa, phiên bản yêu cầu (US-2.3)
 - D36 · Ma trận S_cv đọc hai chiều: JD gợi ý cho sinh viên, CV phù hợp theo JD cho Trung tâm
 - D37 · Phân tích CV: lỗi phân tích, `pii` mã hóa, che PII bằng code, PDF scan, `TERMS_V2` (US-2.4)
@@ -55,6 +55,7 @@
 - D46 · Matching hàng loạt: batch Gemini + Claude, ack sớm và bộ poll, ghim prompt theo đợt, tạm không hạ điểm dự án, năm học đọc từ hồ sơ (US-3.2)
 - D47 · Chốt Q1, Q6; vòng đời hồ sơ ứng tuyển, bảng `preferences`, shortlist của SV, màn chọn nguyện vọng (US-3.3)
 - D48 · Mức cạnh tranh: ngưỡng trong cấu hình đợt, đếm lại dưới khóa theo JD, kênh SSE theo đợt, báo Trung tâm JD thiếu NV sau Q6 (US-3.4)
+- D49 · Test Generator: vòng lặp do code điều khiển, mỗi JD một ngân hàng (Q2 một phần, Q7), ma trận ở `question_banks`, tham số mặc định, làm tròn hai chiều (US-4.1)
 
 ---
 
@@ -1923,3 +1924,84 @@ AC-4 đòi một ngôn ngữ không nằm ở cả `required_languages` lẫn `p
 
 **Date**: 2026-11-04
 **Version**: 0.19.0
+
+### D49. Test Generator: vòng lặp do code điều khiển, mỗi JD một ngân hàng, ma trận ở `question_banks`, tham số mặc định (US-4.1) (revision of D34 › US-4.1; chốt một phần Q2, chốt Q7)
+
+**Context**: Story US-4.1 viết ngày 2026-10-07, trước D34. Story giả định Test Generator là agent tool-use của Claude: LLM tự gọi `get_blueprint_coverage()`, `find_similar_questions()`, `submit_questions()`. Từ D34, nhà cung cấp mặc định là Gemini, và `LLMClient` chỉ có `generate()`: một lượt, structured output, như nhau cho hai nhà cung cấp. Story còn để mở các điểm sau:
+
+- Q2: đề theo JD hay dùng chung theo nhóm vị trí. Q7: có phần lập trình không.
+- Ma trận nằm ở cả `job_descriptions.exam_blueprint` lẫn `question_banks.blueprint`.
+- Ai sửa ma trận, và sửa lúc nào.
+- Các giá trị chưa có số: phân bố độ khó, phần B, hệ số 3–5×, ngưỡng trùng, giới hạn vòng.
+
+**Decision** (người dùng chốt bốn mục đầu ngày 2026-11-05):
+
+- **Vòng lặp do code điều khiển.** Ba "công cụ" là phương thức của `QuestionBankTools` (`ai-service/app/agents/test_generator/tools.py`). Code gọi chúng, LLM không gọi. `LLMClient` không có thêm tool-use. Mỗi vòng:
+  1. `get_blueprint_coverage()` trả các ô còn dưới 3×. Không còn ô nào thì dừng.
+  2. Chọn nhóm ô theo thứ tự cố định (phần, kỹ năng, độ khó), tối đa `MAX_QUESTIONS_PER_CALL = 15` câu; vòng của phần B tối đa `MAX_ESSAYS_PER_CALL = 5` câu, để câu trả lời vừa `LLM_MAX_OUTPUT_TOKENS` mặc định (16K). SDK của Anthropic không nhận quá khoảng 21K token đầu ra khi không streaming, nên giới hạn đặt trên số câu.
+  3. Một lượt `LLMClient.generate`, `effort: high`, prompt `test_generator/vN`:
+     - `shared` là yêu cầu JD;
+     - `user` là các ô cần sinh, câu đã có của các ô đó và lý do bị loại ở vòng trước.
+  4. `submit_questions()` kiểm từng câu, kiểm trùng, rồi lưu câu nhận.
+
+  Dừng khi mọi ô đạt 3×, hoặc khi chạm `MAX_ROUNDS = 12` hay `MAX_TOKENS_PER_JOB = 400_000`. Chạm giới hạn thì job `PARTIAL` kèm `missing_cells`.
+  - Đầu ra của LLM là model Pydantic **lỏng**. Code kiểm chặt từng câu, nên một câu sai bị loại kèm lý do và không làm hỏng cả lượt. Các lý do: `INVALID_STEM`, `INVALID_MCQ_OPTIONS`, `NOT_ONE_CORRECT`, `MISSING_EXPLANATION`, `INVALID_RUBRIC`, `MISSING_SAMPLE_ANSWER`, `TEXT_TOO_LONG` (quá giới hạn của hợp đồng), `UNKNOWN_CELL`, `CELL_FULL`, `BANK_FULL` (ngân hàng đã có 1000 draft, mức tối đa một kết quả mang được), `DUPLICATE`.
+  - `LLMResult` có thêm `usage`, để agent cộng token và đo chi phí một ngân hàng.
+- **Q2 chốt một phần:** mỗi JD một ngân hàng (`question_banks.jd_id` unique). Việc dùng chung ngân hàng giữa các JD cùng nhóm vị trí làm ở story sau. **Q7 chốt:** MVP chỉ có trắc nghiệm và tự luận. Schema ma trận chỉ có phần A và B.
+- **Ma trận chỉ lưu ở `question_banks.blueprint`.** Bỏ cột `job_descriptions.exam_blueprint` khỏi ARCH. Module `assessment` không ghi bảng của `company`.
+  - Khi JD được duyệt (`jd.approved`), ngân hàng được tạo với ma trận mặc định và phát một job.
+  - CENTER xem và sửa ma trận sau khi duyệt, trước khi khóa. Đã khóa thì `409 QUESTION_BANK_LOCKED`; đang sinh thì `409 QUESTION_GENERATION_RUNNING`.
+  - `POST /api/jds/:id/question-bank/generate` ("Sinh câu còn thiếu") sinh bù sau khi sửa ma trận hoặc sau một job `PARTIAL`/`FAILED`. Endpoint cũng tạo ngân hàng nếu listener đã bỏ sót. Đây là cách "nút chạy lại" của [LESSONS §34](LESSONS.md).
+- **Tham số mặc định** là hằng số có tên, không nằm trong `campaigns.config`. CENTER chỉnh trên từng ma trận.
+  - Phần A: 20 câu, 60%. Độ khó Dễ/TB/Khó = 40/45/15. Chỉ lấy kỹ năng `must_have`.
+  - Phần B: 2 câu độ khó TB, 40%, gán cho 2 kỹ năng trọng số cao nhất. Khi sửa thì cho 2–3 câu.
+  - Thời gian lấy `campaigns.config.t_test_minutes`.
+  - Ngân hàng cần ít nhất 3× số câu mỗi ô; khi xin LLM sinh thì nhắm 4×; quá 5× thì `CELL_FULL` (`QUESTION_BANK_FACTORS` trong `packages/shared/contracts`).
+  - Coi là trùng khi cosine ≥ 0,9.
+- **Làm tròn ma trận mặc định** (`buildDefaultBlueprint`, hàm thuần trong `assessment/domain/`):
+  1. Chia số câu phần A cho từng kỹ năng theo trọng số, bằng phần dư lớn nhất.
+  2. Chia tổng theo độ khó, cũng bằng phần dư lớn nhất.
+  3. Mỗi ô lấy phần nguyên của `hàngᵢ × tỷ lệⱼ`. Phần còn thiếu được cộng vào từng ô theo phần dư giảm dần, chỉ ô nào còn thiếu ở cả hàng lẫn cột mới được cộng. Lượt đó đôi khi còn thiếu (ví dụ hàng 4/4/6/6): phần còn lại được đặt theo đường tăng (augmenting path) tìm theo thứ tự cố định, tức là cộng một ô của hàng thiếu, trừ một ô đã cộng cùng cột, cộng ô ở hàng kế tiếp…, cho tới một cột còn thiếu. Vì vậy mỗi ô luôn bằng phần nguyên của nó hoặc thêm 1. Đã thử mọi cách chia 10–60 câu cho tối đa 6 kỹ năng và 2 triệu bộ trọng số ngẫu nhiên tới 30 kỹ năng: không ca nào lỗi.
+
+  Hòa thì xét `skillKey`, rồi thứ tự Dễ → TB → Khó. Kỹ năng được 0 câu thì bỏ khỏi ma trận. Ví dụ GĐ5 (trọng số 6/6/5/3) cho đúng bảng của PRD: 2/3/1, 2/3/1, 2/2/1, 2/1/0, tổng 8/9/3.
+- **Dữ liệu:**
+  - `ai.question_drafts`: AI Service ghi câu nhận được; unique (`bank_id`, `stem_key`), trong đó `stem_key` là sha256 của đề đã chuẩn hóa (NFKC, chữ thường, gộp khoảng trắng); băm để đề dài vẫn vừa index B-tree. Vector của câu nằm ở `ai.embeddings` (`owner_type = question`, `owner_id` = id của draft).
+  - `core.v_ai_question_banks` (`bank_id`, `jd_id`, `jd_version`, `campaign_id`, `blueprint`): chỉ trả ngân hàng chưa khóa.
+  - `ai.results` loại `QUESTIONS_GENERATE` mang **mọi draft của ngân hàng**, nên draft của một job lỗi trước vẫn tới được backend ở lần chạy sau. Backend upsert `core.questions` theo `draft_id` unique, `status = DRAFT`, kèm `model`, `prompt_version`.
+  - `core.question_generation_runs` theo mẫu `match_runs`: `job_id` ghi trước khi dispatch, cột `dispatched_at`, partial unique (`bank_id`) WHERE `RUNNING`. Run bị đóng `STALE` khi sau 15 phút chưa dispatch được hoặc sau 24 giờ chưa xong ([LESSONS §33](LESSONS.md)).
+  - Đáp án, giải thích, đáp án mẫu nằm ở `questions.answer_key`; `content` chỉ có đề và các phương án (Nguyên tắc 8).
+- **Kiểm trùng gần nghĩa trong bộ nhớ.** Lúc bắt đầu job, `QuestionBankTools` nạp vector các câu của ngân hàng (tối đa khoảng 115 câu) bằng phép lọc join theo `bank_id`, không tìm k-NN qua HNSW. Câu mới, kể cả câu trong cùng lô, được so cosine chính xác với các vector này. Vì vậy không gặp bẫy lọc sau khi quét của [LESSONS §24](LESSONS.md).
+- **Yêu cầu JD có phiên bản mới sau khi đã có ngân hàng** (`jd.requirements.versioned`): US-4.1 không tự xử lý; US-4.2 (khóa và phiên bản ngân hàng) xử lý. `PUT` ma trận luôn kiểm kỹ năng theo requirements hiện tại.
+
+**Rationale**:
+
+- Code đã biết ô nào thiếu, nên LLM không cần tự quyết gọi công cụ nào. Code điều khiển thì dễ dự đoán, đo được và giữ đúng AD-2: code quyết định câu nào được nhận và đếm độ phủ. Đúng tinh thần ARCH › *"Agent" trong hệ thống này nghĩa là gì*: chỉ làm agent có công cụ khi thật sự cần vòng lặp tự quyết.
+- Dùng lại nguyên `StructuredLLMClient`: refusal, thử lại, `ai.llm_calls`, `llm-logs` và fixture. Chạy như nhau trên Gemini và Claude; adapter không phải giữ thought signature hay thinking block qua nhiều lượt.
+- Mỗi lượt gọi có context nhỏ và độc lập. Vòng lặp tool-use thì gửi lại toàn bộ lịch sử ở mỗi lượt, nên tốn hơn.
+- Ma trận ở một chỗ thì không phải đồng bộ hai cột, và không phải xử lý ma trận nháp của JD chưa duyệt.
+
+**Alternatives considered**:
+
+- **Tool-use thật cho hai nhà cung cấp** (`LLMClient.run_tools`, fixture nhiều lượt): người dùng không chọn. Thêm khoảng 3–5 điểm công cho hạ tầng, và context dài dần qua các lượt.
+- **Tham số `share_exam_by_position_group` ngay trong US-4.1:** người dùng không chọn. Chưa rõ ma trận chung lấy từ JD nào.
+- **Sửa ma trận trước khi duyệt, lưu ở `job_descriptions.exam_blueprint`:** người dùng không chọn. Phải thêm API ghi vào `company` và xử lý khi requirements đổi phiên bản.
+- **Tham số trong `campaigns.config`:** người dùng không chọn; phải sửa thêm form đợt.
+- **Tìm câu gần nhất bằng HNSW kèm `hnsw.iterative_scan`:** loại. Mỗi ngân hàng chỉ khoảng 100 câu, so chính xác trong bộ nhớ rẻ hơn và không phụ thuộc cấu hình planner.
+- **Kết quả chỉ mang draft của job hiện tại:** loại. Draft của job `FAILED` trước sẽ không bao giờ tới `core`.
+
+**Impact**:
+
+- ARCHITECTURE: bảng *Agent* (Test Generator thành workflow lặp), *Pipeline › Test Generator*, *Phân vùng schema* (thêm view), *Các bảng chính* (`question_banks`, `question_generation_runs`, `questions`, `ai.question_drafts`; bỏ `exam_blueprint` khỏi `job_descriptions`), *Hàng đợi*, bản đồ LLM.
+- PRD: Q2 "Chốt một phần", Q7 "Chốt".
+- Code:
+  - `packages/shared`: `contracts/exam-blueprint.ts`, `contracts/questions.ts`, `schemas/exam-blueprint.ts`, `states/question.ts`.
+  - Module `assessment` mới; `JdService.getForQuestionBank`.
+  - Migration `0028` (bảng, CHECK `ai.jobs.type`) và `0029` (view, quyền).
+  - `ai-service/app/agents/test_generator/`; `LLMResult.usage`.
+- Story sau:
+  - US-4.2: Validator chạy trên câu `DRAFT`, mở rộng `QUESTION_STATES`, khóa ngân hàng, xử lý `jd.requirements.versioned`.
+  - US-4.3: rút đề theo `question_banks.blueprint`, không gửi `answer_key`.
+  - US-4.8: không còn dùng chung fixture tool-use, vì không có fixture nào như vậy.
+
+**Date**: 2026-11-05
+**Version**: 0.20.0

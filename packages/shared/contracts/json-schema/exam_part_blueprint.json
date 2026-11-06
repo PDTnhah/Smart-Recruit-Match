@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./exam_part_blueprint.json",
+  "type": "object",
+  "properties": {
+    "weight_percent": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Share of the part in S_test, in percent; the parts add up to 100"
+    },
+    "question_count": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 60,
+      "description": "Questions of the part in each exam; the counts of its cells add up to it"
+    },
+    "cells": {
+      "minItems": 1,
+      "maxItems": 180,
+      "type": "array",
+      "items": {
+        "$ref": "./blueprint_cell.json"
+      },
+      "description": "Skill × difficulty cells, each once"
+    }
+  },
+  "required": [
+    "weight_percent",
+    "question_count",
+    "cells"
+  ],
+  "additionalProperties": false,
+  "title": "ExamPartBlueprint",
+  "description": "One part of the exam blueprint"
+}

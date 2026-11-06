@@ -21,6 +21,16 @@ export interface ApprovedJd {
   requirements: JdRequirements;
 }
 
+/** What the question bank of a JD reads (US-4.1): its state, current version and requirements. */
+export interface QuestionBankJd {
+  jdId: number;
+  campaignId: number;
+  jdVersion: number;
+  status: JobDescriptionStatus;
+  /** Null until HR confirms them, and before the JD Analyzer proposes them. */
+  requirements: JdRequirements | null;
+}
+
 /** What a student's shortlist shows of a JD (US-3.3): the current version and its card. */
 export interface ShortlistJdCard {
   jdId: number;
@@ -148,6 +158,20 @@ export class JdRepository {
     return rows.flatMap(({ requirements, positionGroup, ...row }) =>
       requirements === null ? [] : [{ ...row, positionGroup: positionGroup ?? 'OTHER', requirements }],
     );
+  }
+
+  async findForQuestionBank(id: number): Promise<QuestionBankJd | undefined> {
+    const [row] = await this.db
+      .select({
+        jdId: jobDescriptions.id,
+        campaignId: jobDescriptions.campaignId,
+        jdVersion: jobDescriptions.version,
+        status: jobDescriptions.status,
+        requirements: jobDescriptions.requirements,
+      })
+      .from(jobDescriptions)
+      .where(eq(jobDescriptions.id, id));
+    return row;
   }
 
   /** The JDs `listApproved` returns without `withEnded`, with their company, by JD id (US-3.3). */

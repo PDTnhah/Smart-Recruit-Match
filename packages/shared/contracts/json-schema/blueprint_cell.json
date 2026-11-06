@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./blueprint_cell.json",
+  "type": "object",
+  "properties": {
+    "skill": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100,
+      "description": "Skill name as the JD requirements write it"
+    },
+    "difficulty": {
+      "$ref": "./question_difficulty.json"
+    },
+    "count": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 60,
+      "description": "Questions of this skill and difficulty drawn for each exam"
+    }
+  },
+  "required": [
+    "skill",
+    "difficulty",
+    "count"
+  ],
+  "additionalProperties": false,
+  "title": "BlueprintCell",
+  "description": "Questions of one skill and difficulty drawn for each exam"
+}

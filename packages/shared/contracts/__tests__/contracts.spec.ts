@@ -126,11 +126,13 @@ describe('AD-6: contracts are generated, not written by hand', () => {
       'ai.jd.analyze',
       'ai.skills.normalize',
       'ai.match.run',
+      'ai.questions.generate',
       'ai.results',
       'ai.cv.parse.dlq',
       'ai.jd.analyze.dlq',
       'ai.skills.normalize.dlq',
       'ai.match.run.dlq',
+      'ai.questions.generate.dlq',
       'ai.results.dlq',
     ]);
   });

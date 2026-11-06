@@ -1,7 +1,7 @@
 ---
 id: EPIC-4
 title: "Bài test — sinh đề, làm bài, chấm điểm"
-status: backlog
+status: in-progress
 prd_ref:
   - FR-18
   - FR-19
@@ -15,7 +15,7 @@ arch_ref:
   - AD-2
   - AD-12
 created: 2026-10-07
-updated: 2026-10-07
+updated: 2026-11-06
 ---
 
 ## Goal
@@ -34,7 +34,7 @@ Ranh giới mà epic này giữ: chấm trắc nghiệm, tính S_test, S_final v
 
 | # | Pillar | Stories | Purpose |
 |---|---|---|---|
-| 1 | **Ngân hàng câu hỏi** | US-4.1, US-4.2, US-4.9 | Ma trận đề, Test Generator (agent có công cụ), Validator, khóa ngân hàng, duyệt mẫu |
+| 1 | **Ngân hàng câu hỏi** | US-4.1, US-4.2, US-4.9 | Ma trận đề, Test Generator (vòng lặp do code điều khiển, [CONTEXT D49](../../CONTEXT.md)), Validator, khóa ngân hàng, duyệt mẫu |
 | 2 | **Phòng thi** | US-4.3, US-4.7 | Rút đề, đồng hồ server, tự lưu, làm tiếp; tín hiệu gian lận chỉ để cảnh báo |
 | 3 | **Chấm và tính điểm** | US-4.4, US-4.5 | Chấm trắc nghiệm, Grader 2 lần, chuyển người chấm, S_test, S_final, bản đồ năng lực |
 | 4 | **Khiếu nại và độ tin cậy** | US-4.6, US-4.8 | Phúc khảo, báo lỗi câu hỏi; câu hỏi xác minh CV và chỉ số tin cậy |
@@ -64,7 +64,7 @@ Ranh giới mà epic này giữ: chấm trắc nghiệm, tính S_test, S_final v
 
 | FR | Story | Status |
 |----|-------|--------|
-| FR-18 | US-4.1, US-4.2 | 📋 backlog |
+| FR-18 | US-4.1, US-4.2 | 🚧 in-progress |
 | FR-19 | US-4.9 | 📋 backlog |
 | FR-20 | US-4.3 | 📋 backlog |
 | FR-21 | US-4.7 | 📋 backlog |
@@ -86,7 +86,7 @@ Ranh giới mà epic này giữ: chấm trắc nghiệm, tính S_test, S_final v
 
 | ID | Title | Goal | Status | Version |
 |---|---|---|---|---|
-| US-4.1 | Ma trận đề và Test Generator | Mỗi JD được duyệt có ngân hàng câu hỏi nháp phủ đủ ma trận đề | 📋 backlog | — |
+| US-4.1 | Ma trận đề và Test Generator | Mỗi JD được duyệt có ngân hàng câu hỏi nháp phủ đủ ma trận đề | 👀 review | 0.20.0 |
 | US-4.2 | Validator và khóa ngân hàng câu hỏi | Chỉ câu đã kiểm định vào ngân hàng; ngân hàng khóa và có phiên bản | 📋 backlog | — |
 | US-4.3 | Phòng thi | SV làm bài 1 lần, giờ do server tính, tự lưu, làm tiếp khi mất mạng | 📋 backlog | — |
 | US-4.4 | Chấm bài, S_test và S_final | Mỗi bài có S_test, bản đồ năng lực và S_final | 📋 backlog | — |
@@ -102,7 +102,7 @@ Ranh giới mà epic này giữ: chấm trắc nghiệm, tính S_test, S_final v
 
 | US | Primary entity / subsystem | FR |
 |---|---|---|
-| US-4.1 | `question_banks`, `questions`, `job_descriptions.exam_blueprint`; agent `test_generator` | FR-18 |
+| US-4.1 | `question_banks` (gồm `blueprint`), `question_generation_runs`, `questions`, `ai.question_drafts`; agent `test_generator` | FR-18 |
 | US-4.2 | agent `validator`; `question_banks.locked_at`, `version` | FR-18 |
 | US-4.3 | `exam_sessions`, `exam_answers`, `exam_events`; Redis `exam:{sessionId}:*`; `apps/web/src/features/exam/` | FR-20 |
 | US-4.4 | agent `grader`; queue `ai.essay.grade`; `exam_answers.ai_grading`, `needs_human`; `exam_sessions.s_test`, `skill_scores` | FR-22 |

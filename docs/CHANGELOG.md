@@ -15,6 +15,41 @@ Lịch sử phát hành của Smart Recruit Match. Mỗi commit ship code tăng 
 
 ---
 
+## [0.20.0] — 2026-11-06 — Ma trận đề và Test Generator — v0.20.0
+
+US-4.1. Mỗi JD đã duyệt có một ma trận đề và một ngân hàng câu hỏi nháp. AI sinh câu theo ma trận, gấp 3–5 lần số câu mỗi ô; code chọn ô, kiểm từng câu và loại câu trùng (FR-18, BR-05, [CONTEXT D49](CONTEXT.md)). Validator và khóa ngân hàng thuộc US-4.2.
+
+### Added
+- **Ma trận đề mặc định** (`buildDefaultBlueprint`, hàm thuần):
+  - phần A 20 câu trắc nghiệm 4 phương án, chia cho kỹ năng `must_have` theo trọng số và theo độ khó Dễ/TB/Khó = 40/45/15;
+  - phần B 2 câu tự luận độ khó TB cho 2 kỹ năng trọng số cao nhất;
+  - tỷ trọng 60/40, thời gian bằng `t_test_minutes`.
+
+  Tổng hàng, tổng cột luôn đúng và tất định (test cố định ví dụ GĐ5, property test).
+- **`examBlueprintRequestSchema(requirements)`**: tổng ô bằng số câu, tỷ trọng cộng 100, phần B 2–3 câu, kỹ năng thuộc yêu cầu của JD, không có ô trùng. Không có phần C (Q7).
+- **Module `assessment`**:
+  - Duyệt JD thì tạo ngân hàng và gửi job `ai.questions.generate`; `job_id` được ghi trước khi gửi.
+  - `GET`/`PUT /api/jds/{id}/exam-blueprint` và `POST /api/jds/{id}/question-bank/generate` ("Sinh câu còn thiếu"), chỉ cho `CENTER`.
+  - Mã `409`: `QUESTION_BANK_LOCKED`, `QUESTION_GENERATION_RUNNING`, `JD_NOT_APPROVED`, lệch `row_version`.
+  - Run không còn chờ được kết quả thì đóng `STALE`: chưa gửi sau 15 phút, hoặc chạy quá 24 giờ.
+- **Bảng** `question_banks` (một ngân hàng mỗi JD, Q2 chốt một phần), `question_generation_runs`, `questions` (`answer_key` tách khỏi `content`), `ai.question_drafts`, view `core.v_ai_question_banks`. Migration `0028`, `0029`.
+- **Test Generator** (`ai-service/app/agents/test_generator/`):
+  - Vòng lặp do code điều khiển, tối đa 12 vòng và 400K token mỗi job, kể cả các lần chạy lại.
+  - Ba công cụ là hàm code: `get_blueprint_coverage`, `find_similar_questions`, `submit_questions`.
+  - Câu sai bị loại kèm lý do riêng; câu trùng (cùng nội dung hoặc cosine ≥ 0,9) bị loại kèm câu gần nhất.
+  - Hai phần thay phiên nhau, ô ít được hỏi nhất đi trước.
+  - Prompt `test_generator/v1`. `LLMResult.usage`. `evals/smoke_llm.py --bank` để đo chi phí một ngân hàng.
+- **Tab "Ngân hàng câu hỏi"** ở trang duyệt JD:
+  - trạng thái lượt sinh (tự cập nhật mỗi 5 giây khi đang sinh), độ phủ từng ô, danh sách ô còn thiếu, nút "Sinh câu còn thiếu";
+  - bảng ma trận và form sửa kiểm bằng cùng schema với API.
+
+### Changed
+- ARCHITECTURE: Test Generator là workflow lặp do code điều khiển; ma trận đề nằm ở `question_banks.blueprint`, không còn ở `job_descriptions`.
+- PRD: Q2 chốt một phần, Q7 chốt.
+- DESIGN.md §6: tab trên trang chi tiết, bảng ma trận, badge ngân hàng câu hỏi. §8: resolver tự viết.
+
+---
+
 ## [0.19.0] — 2026-11-04 — Mức cạnh tranh và gợi ý ít cạnh tranh — v0.19.0
 
 US-3.4. Khi chọn nguyện vọng, sinh viên thấy mức cạnh tranh của từng JD, cập nhật ngay khi sinh viên khác đổi NV, và thấy nhãn "Phù hợp – ít cạnh tranh". Hết hạn chọn NV, Trung tâm được báo các JD có ít NV hơn chỉ tiêu. Đây là biện pháp 1 và 4 của PRD › *Cơ chế hỗ trợ JD ít hồ sơ*. Toàn bộ là phép đếm, không dùng LLM (FR-17, [CONTEXT D48](CONTEXT.md)).

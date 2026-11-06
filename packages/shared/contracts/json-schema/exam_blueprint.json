@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./exam_blueprint.json",
+  "type": "object",
+  "properties": {
+    "duration_minutes": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 600,
+      "description": "Time a student has for the exam, in minutes"
+    },
+    "parts": {
+      "type": "object",
+      "properties": {
+        "A": {
+          "description": "Part A: multiple choice (MCQ)",
+          "$ref": "./exam_part_blueprint.json"
+        },
+        "B": {
+          "description": "Part B: essays (ESSAY)",
+          "$ref": "./exam_part_blueprint.json"
+        }
+      },
+      "required": [
+        "A",
+        "B"
+      ],
+      "additionalProperties": false,
+      "description": "Part A draws MCQ questions, part B ESSAY questions"
+    }
+  },
+  "required": [
+    "duration_minutes",
+    "parts"
+  ],
+  "additionalProperties": false,
+  "title": "ExamBlueprint",
+  "description": "Exam blueprint of a JD (BR-05)"
+}

@@ -386,3 +386,35 @@ export class PreferencesRejectedError extends DomainError {
     super(message, details);
   }
 }
+
+// Exam blueprint and question bank (US-4.1, CONTEXT D49).
+
+/** The JD has no question bank before the center approves it (BR-02, US-4.1 AC-3). */
+export class JdNotApprovedError extends DomainError {
+  readonly code = 'JD_NOT_APPROVED';
+  readonly httpStatus = 409;
+
+  constructor(jdId: number, status: string) {
+    super(`job_description ${jdId} is ${status}; its question bank comes once it is approved`, { jdId, status });
+  }
+}
+
+/** The bank was locked by the Validator step (US-4.2): its blueprint and questions are final. */
+export class QuestionBankLockedError extends DomainError {
+  readonly code = 'QUESTION_BANK_LOCKED';
+  readonly httpStatus = 409;
+
+  constructor(bankId: number) {
+    super(`question bank ${bankId} is locked`, { bankId });
+  }
+}
+
+/** A generation job of the bank is running: the blueprint cannot change under it (US-4.1 AC-3). */
+export class QuestionGenerationRunningError extends DomainError {
+  readonly code = 'QUESTION_GENERATION_RUNNING';
+  readonly httpStatus = 409;
+
+  constructor(bankId: number, runId: number) {
+    super(`question bank ${bankId} has generation run ${runId} in progress`, { bankId, runId });
+  }
+}

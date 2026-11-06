@@ -12,6 +12,8 @@ adapters match the live APIs, so run it after changing an adapter or upgrading a
 `--cv FILE` runs the CV Parser on a sample CV instead (US-2.4); a scan checks that the adapter
 sends a document: `--cv tests/fixtures/cv/cv_scanned.pdf`. Its skills all come back NEW: the run
 has an empty catalogue and keeps no embedding (US-2.5).
+`--bank` runs the Test Generator on the Backend Java blueprint of PRD GĐ5 (US-4.1), drafts kept in
+memory, and prints the cost of one bank: the number the story's performance budget asks for.
 Use synthetic data only: the free tier of Gemini may use requests to improve Google's products.
 """
 
@@ -28,7 +30,10 @@ from uuid import uuid4
 from pydantic import BaseModel, Field
 
 from app.agents.cv_parser import CvParser
+from app.agents.test_generator import BankSource, Draft, NewDraft, TestGenerator
 from app.contracts.cv_parse_job import CvParseJob
+from app.contracts.exam_blueprint import ExamBlueprint
+from app.contracts.questions_generate_job import QuestionsGenerateJob
 from app.embedding import (
     CatalogSkill,
     EmbeddingRow,
@@ -135,7 +140,109 @@ async def parse_cv(client, settings, path: Path) -> str:
     return output.model_dump_json(indent=2)
 
 
-async def main(record: str, cv: Path | None) -> int:
+GD5_REQUIREMENTS = {
+    "must_have": [
+        {"skill": "Java", "level": "INTERMEDIATE", "weight": 6},
+        {"skill": "Spring Boot", "level": "BASIC", "weight": 6},
+        {"skill": "SQL", "level": "BASIC", "weight": 5},
+        {"skill": "Git", "level": "BASIC", "weight": 3},
+    ],
+    "nice_to_have": [],
+}
+GD5_CELLS = [
+    ("Java", "EASY", 2), ("Java", "MEDIUM", 3), ("Java", "HARD", 1),
+    ("Spring Boot", "EASY", 2), ("Spring Boot", "MEDIUM", 3), ("Spring Boot", "HARD", 1),
+    ("SQL", "EASY", 2), ("SQL", "MEDIUM", 2), ("SQL", "HARD", 1),
+    ("Git", "EASY", 2), ("Git", "MEDIUM", 1),
+]  # fmt: skip
+"""buildDefaultBlueprint for the GĐ5 example: 2/3/1, 2/3/1, 2/2/1, 2/1/0."""
+
+
+class OneBank:
+    """core.v_ai_question_banks of the bank run: the GĐ5 blueprint."""
+
+    async def fetch(self, bank_id: int) -> BankSource:
+        cells = [{"skill": s, "difficulty": d, "count": c} for s, d, c in GD5_CELLS]
+        essays = [{"skill": s, "difficulty": "MEDIUM", "count": 1} for s in ("Java", "Spring Boot")]
+        blueprint = {
+            "duration_minutes": 60,
+            "parts": {
+                "A": {"weight_percent": 60, "question_count": 20, "cells": cells},
+                "B": {"weight_percent": 40, "question_count": 2, "cells": essays},
+            },
+        }
+        return BankSource(
+            bank_id=bank_id,
+            jd_id=1,
+            jd_version=1,
+            requirements_version=1,
+            blueprint=ExamBlueprint.model_validate(blueprint),
+            position_group="BACKEND",
+            requirements=GD5_REQUIREMENTS,
+        )
+
+
+class MemoryDrafts:
+    """ai.question_drafts of the bank run, in memory."""
+
+    def __init__(self) -> None:
+        self.rows: list[Draft] = []
+        self.vectors_of: dict[int, list[float]] = {}
+
+    async def drafts(self, bank_id: int) -> list[Draft]:
+        return list(self.rows)
+
+    async def vectors(self, bank_id: int, model: str) -> dict[int, list[float]]:
+        return dict(self.vectors_of)
+
+    async def insert(self, drafts: Sequence[NewDraft], model: str) -> list[int | None]:
+        ids: list[int | None] = []
+        for new in drafts:
+            if any(row.stem_key == new.stem_key for row in self.rows):
+                ids.append(None)
+                continue
+            draft_id = len(self.rows) + 1
+            fields = {
+                key: getattr(new, key) for key in Draft.__dataclass_fields__ if key != "draft_id"
+            }
+            self.rows.append(Draft(draft_id=draft_id, **fields))
+            self.vectors_of[draft_id] = new.embedding
+            ids.append(draft_id)
+        return ids
+
+    async def add_vectors(self, model: str, rows: Sequence[EmbeddingRow]) -> None:
+        return None
+
+
+class NewJob:
+    """A job id made for this run: no earlier attempt has spent tokens."""
+
+    async def tokens_spent(self, job_id) -> int:
+        return 0
+
+
+async def generate_bank(client, settings) -> str:
+    agent = TestGenerator(
+        sources=OneBank(),
+        drafts=MemoryDrafts(),
+        embedder=HashingEmbedder(),
+        llm=client,
+        prompts=build_prompt_registry(settings),
+        spend=NewJob(),
+    )
+    output = await agent(QuestionsGenerateJob(job_id=uuid4(), bank_id=1))
+    OUT.mkdir(parents=True, exist_ok=True)
+    (OUT / "bank.json").write_text(output.model_dump_json(indent=2), "utf-8")
+    missing = [
+        f"{c.type} {c.skill} {c.difficulty} {c.drafted}/{c.required}" for c in output.missing_cells
+    ]
+    return (
+        f"{len(output.questions)} drafts in {output.rounds} rounds, in {OUT / 'bank.json'}; "
+        f"missing cells: {', '.join(missing) or 'none'}"
+    )
+
+
+async def main(record: str, cv: Path | None, bank: bool) -> int:
     settings = load_llm_settings()
     pool = None
     if record == "db":
@@ -150,7 +257,9 @@ async def main(record: str, cv: Path | None) -> int:
         objects, calls = LocalObjects(), LocalCalls()
     try:
         client = build_llm_client(settings, objects=objects, calls=calls)
-        if cv is not None:
+        if bank:
+            print(await generate_bank(client, settings))
+        elif cv is not None:
             print(await parse_cv(client, settings, cv))
         else:
             prompt = PromptRegistry(HERE / "prompts", active={"smoke": "smoke/v1"}).render(
@@ -175,6 +284,10 @@ async def main(record: str, cv: Path | None) -> int:
             f"out={row.usage.output_tokens} cost=${row.cost_usd} {row.latency_ms} ms "
             f"log={row.log_key}"
         )
+    rows = getattr(calls, "rows", [])
+    if rows:
+        cost = sum((row.cost_usd or 0 for row in rows), start=0)
+        print(f"{len(rows)} attempt(s), total cost ${cost}")
     return 0
 
 
@@ -183,7 +296,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--record", choices=["local", "db"], default="local")
     parser.add_argument("--cv", type=Path, help="run the CV Parser on this sample CV")
+    parser.add_argument("--bank", action="store_true", help="fill the GĐ5 question bank")
     # psycopg's async driver needs the selector loop on Windows.
     loop_factory = asyncio.SelectorEventLoop if sys.platform == "win32" else None
     args = parser.parse_args()
-    sys.exit(asyncio.run(main(args.record, args.cv), loop_factory=loop_factory))
+    sys.exit(asyncio.run(main(args.record, args.cv, args.bank), loop_factory=loop_factory))

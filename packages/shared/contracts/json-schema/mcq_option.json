@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./mcq_option.json",
+  "type": "object",
+  "properties": {
+    "text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1000,
+      "description": "Option text"
+    },
+    "correct": {
+      "type": "boolean",
+      "description": "Whether this option is the answer"
+    }
+  },
+  "required": [
+    "text",
+    "correct"
+  ],
+  "additionalProperties": false,
+  "title": "McqOption",
+  "description": "One option of a multiple-choice question"
+}

@@ -13,6 +13,9 @@
     },
     {
       "$ref": "./match_run_result.json"
+    },
+    {
+      "$ref": "./questions_generate_result.json"
     }
   ],
   "title": "AiResultMessage",

@@ -15,6 +15,9 @@ const CORE_TABLES = [
   'match_runs',
   'notifications',
   'preferences',
+  'question_banks',
+  'question_generation_runs',
+  'questions',
   'skill_implications',
   'skills',
   'students',
@@ -84,7 +87,7 @@ describe('AD-9: migrations apply on empty DB and create core tables with constra
        WHERE table_schema = 'core' AND column_name = 'row_version' ORDER BY table_name`,
     );
     expect(rows).toEqual(
-      ['campaigns', 'cvs', 'job_descriptions', 'preferences', 'skills'].map((table_name) => ({
+      ['campaigns', 'cvs', 'job_descriptions', 'preferences', 'question_banks', 'questions', 'skills'].map((table_name) => ({
         table_name,
         column_default: '0',
         is_nullable: 'NO',

@@ -3,7 +3,8 @@
     "CV_PARSE": "ai.cv.parse",
     "JD_ANALYZE": "ai.jd.analyze",
     "SKILL_NORMALIZE": "ai.skills.normalize",
-    "MATCH": "ai.match.run"
+    "MATCH": "ai.match.run",
+    "QUESTIONS_GENERATE": "ai.questions.generate"
   },
   "results": "ai.results",
   "dlq_suffix": ".dlq",

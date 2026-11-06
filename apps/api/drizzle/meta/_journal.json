@@ -197,6 +197,20 @@
       "when": 1793786132276,
       "tag": "0027_jd_low_preferences_notification",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1793894454290,
+      "tag": "0028_question_banks",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1793894471378,
+      "tag": "0029_ai_question_banks_view",
+      "breakpoints": true
     }
   ]
 }

@@ -23,6 +23,11 @@ from app.agents.cv_parser import CvParser
 from app.agents.jd_analyzer import JdAnalyzer, PostgresJdSourceRepo
 from app.agents.matching import MatchCompletion, MatchingAgent, PostgresMatchSourceRepo
 from app.agents.skill_normalizer import SkillNormalizerAgent
+from app.agents.test_generator import (
+    PostgresBankSourceRepo,
+    PostgresQuestionDraftRepo,
+    TestGenerator,
+)
 from app.config import load_settings
 from app.consumers.base import Handler, JobRunner
 from app.consumers.batch_poller import BatchCoordinator
@@ -130,6 +135,14 @@ def create_app() -> FastStream:
         ),
         skill_normalizer=SkillNormalizerAgent(catalog=catalog, llm=llm, prompts=prompts),
         matching=MatchingAgent(sources=match_sources, prompts=prompts, batches=batches),
+        test_generator=TestGenerator(
+            sources=PostgresBankSourceRepo(pool),
+            drafts=PostgresQuestionDraftRepo(pool),
+            embedder=embedder,
+            llm=llm,
+            prompts=prompts,
+            spend=calls,
+        ),
         fake_file_keys=settings.fake_file_keys,
     )
     subscribe_all(broker, build_runners(PostgresJobStore(pool), outbox, handlers))

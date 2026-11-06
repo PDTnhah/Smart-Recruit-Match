@@ -16,6 +16,7 @@ export * from './notification.js';
 export * from './skill.js';
 export * from './matching.js';
 export * from './majors.js';
+export * from './exam-blueprint.js';
 
 /** Global route prefix of the Core Backend; the web client builds API URLs from it. */
 export const API_PREFIX = 'api';
