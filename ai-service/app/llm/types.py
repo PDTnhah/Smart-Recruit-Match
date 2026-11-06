@@ -123,6 +123,23 @@ class Usage(BaseModel):
     cache_write_tokens: int = 0
     output_tokens: int = 0
 
+    def __add__(self, other: "Usage") -> "Usage":
+        return Usage(
+            input_tokens=self.input_tokens + other.input_tokens,
+            cache_read_tokens=self.cache_read_tokens + other.cache_read_tokens,
+            cache_write_tokens=self.cache_write_tokens + other.cache_write_tokens,
+            output_tokens=self.output_tokens + other.output_tokens,
+        )
+
+    @property
+    def total_tokens(self) -> int:
+        return (
+            self.input_tokens
+            + self.cache_read_tokens
+            + self.cache_write_tokens
+            + self.output_tokens
+        )
+
 
 class ProviderResponse(BaseModel):
     """One provider reply, normalised. Fixtures store exactly this shape (AC-11)."""
@@ -161,3 +178,6 @@ class LLMResult[T: BaseModel]:
     model: str
     prompt_version: str
     call_id: UUID
+    usage: Usage = field(default_factory=Usage)
+    """Tokens of every attempt of the call, the truncated and invalid ones too, so an agent can
+    bound what one job spends (US-4.1 AC-5, CONTEXT D49)."""

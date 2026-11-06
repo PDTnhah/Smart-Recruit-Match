@@ -25,6 +25,8 @@ import {
   MatchFailedPairSchema,
   MatchRunOutputSchema,
   MatchRunResultSchema,
+  QuestionsGenerateOutputSchema,
+  QuestionsGenerateResultSchema,
   SkillNormalizeOutputSchema,
   SkillNormalizeResultSchema,
 } from './envelope.js';
@@ -36,7 +38,21 @@ import {
   PositionGroupSchema,
   SkillLevelSchema,
 } from './jd.js';
-import { CvParseJobSchema, JdAnalyzeJobSchema, MatchPairRefSchema, MatchRunJobSchema, SkillNormalizeJobSchema } from './jobs.js';
+import {
+  BlueprintCellSchema,
+  ExamBlueprintSchema,
+  ExamPartBlueprintSchema,
+  QuestionDifficultySchema,
+  QuestionTypeSchema,
+} from './exam-blueprint.js';
+import {
+  CvParseJobSchema,
+  JdAnalyzeJobSchema,
+  MatchPairRefSchema,
+  MatchRunJobSchema,
+  QuestionsGenerateJobSchema,
+  SkillNormalizeJobSchema,
+} from './jobs.js';
 import {
   EvidenceCheckSchema,
   EvidenceSectionSchema,
@@ -51,6 +67,14 @@ import {
   MatchSkillVerdictSchema,
   MatchVerdictSchema,
 } from './matching.js';
+import {
+  EssayQuestionSchema,
+  GeneratedQuestionSchema,
+  McqOptionSchema,
+  McqQuestionSchema,
+  MissingCellSchema,
+  RubricCriterionSchema,
+} from './questions.js';
 import { SkillGroupSchema, SkillMatchSchema, SkillSuggestionSchema, SkillSuggestionsSchema } from './skills.js';
 
 /**
@@ -64,6 +88,7 @@ const CONTRACTS: ReadonlyArray<[z.ZodType, string]> = [
   [SkillNormalizeJobSchema, 'skill_normalize_job'],
   [MatchPairRefSchema, 'match_pair_ref'],
   [MatchRunJobSchema, 'match_run_job'],
+  [QuestionsGenerateJobSchema, 'questions_generate_job'],
   [AiResultStatusSchema, 'ai_result_status'],
   [AiJobErrorSchema, 'ai_job_error'],
   [SkillLevelSchema, 'skill_level'],
@@ -106,10 +131,23 @@ const CONTRACTS: ReadonlyArray<[z.ZodType, string]> = [
   [MatchAssessmentItemSchema, 'match_assessment_item'],
   [MatchFailedPairSchema, 'match_failed_pair'],
   [MatchRunOutputSchema, 'match_run_output'],
+  [QuestionDifficultySchema, 'question_difficulty'],
+  [QuestionTypeSchema, 'question_type'],
+  [BlueprintCellSchema, 'blueprint_cell'],
+  [ExamPartBlueprintSchema, 'exam_part_blueprint'],
+  [ExamBlueprintSchema, 'exam_blueprint'],
+  [McqOptionSchema, 'mcq_option'],
+  [RubricCriterionSchema, 'rubric_criterion'],
+  [McqQuestionSchema, 'mcq_question'],
+  [EssayQuestionSchema, 'essay_question'],
+  [GeneratedQuestionSchema, 'generated_question'],
+  [MissingCellSchema, 'missing_cell'],
+  [QuestionsGenerateOutputSchema, 'questions_generate_output'],
   [CvParseResultSchema, 'cv_parse_result'],
   [JdAnalyzeResultSchema, 'jd_analyze_result'],
   [SkillNormalizeResultSchema, 'skill_normalize_result'],
   [MatchRunResultSchema, 'match_run_result'],
+  [QuestionsGenerateResultSchema, 'questions_generate_result'],
   [AiResultMessageSchema, 'ai_result_message'],
 ];
 

@@ -2,173 +2,175 @@
 id: US-4.1
 title: "Ma trận đề và Test Generator"
 epic: EPIC-4
-status: backlog
+status: review
 priority: P0
 points: 8
-sprint:
-version_shipped:
+sprint: sprint-2026-W45
+version_shipped: 0.20.0
 prd_ref: [FR-18, NFR-11]
 depends_on: [US-2.3, US-2.5]
 assignee:
-commit:
+commit: 43e1a54
 created: 2026-10-07
-updated: 2026-10-07
+updated: 2026-11-06
 ---
+
+## Story refresh — 2026-11-05 (bắt đầu story)
+
+Người dùng chốt [CONTEXT D49](../../CONTEXT.md) (bản cũ viết trước D34). Đã viết lại AC-1, 3, 5, 6, 10, 11, task và lệnh kiểm tra.
 
 ## Goal
 
-Mỗi JD đã được HR xác nhận yêu cầu và Trung tâm duyệt có một ma trận đề và một ngân hàng câu hỏi nháp phủ đủ mọi ô kỹ năng × độ khó. Mỗi ô có số câu gấp 3–5 lần số câu cần rút, và không có câu trùng. Ngân hàng là đầu vào cho Validator ([US-4.2](US-4.2-validator-and-question-bank-lock.md)) và phòng thi ([US-4.3](US-4.3-exam-room.md)). Ngân hàng sinh một lần cho mỗi JD, nên chi phí LLM không tăng theo số sinh viên.
+Mỗi JD đã được HR xác nhận yêu cầu và Trung tâm duyệt (BR-02) có một ma trận đề (BR-05) và một ngân hàng câu hỏi nháp. Ngân hàng phủ mọi ô kỹ năng × độ khó; mỗi ô có từ 3 đến 5 lần số câu cần rút, và không có câu trùng. Ngân hàng là đầu vào cho Validator ([US-4.2](US-4.2-validator-and-question-bank-lock.md)) và phòng thi ([US-4.3](US-4.3-exam-room.md)). Ngân hàng sinh một lần cho mỗi JD, nên chi phí LLM không tăng theo số sinh viên (NFR-11).
 
 ## Background
 
-FR-18 yêu cầu AI sinh ngân hàng câu hỏi theo ma trận đề (trắc nghiệm, tự luận kèm rubric). Story này làm phần **sinh**. Validator, khóa và phiên bản ngân hàng thuộc [US-4.2](US-4.2-validator-and-question-bank-lock.md). Theo PRD › GĐ5, sinh đề chạy một lần khi JD được duyệt, trước khi sinh viên làm bài. Test Generator nhận yêu cầu chuẩn hóa và ma trận đề, sinh 3–5 lần số câu cần cho mỗi ô. Câu trắc nghiệm có kỹ năng, độ khó, đáp án, giải thích. Câu tự luận có thêm rubric chấm và đáp án mẫu.
+FR-18: AI sinh ngân hàng theo ma trận đề (trắc nghiệm, tự luận kèm rubric). Story này làm phần sinh; Validator, khóa, phiên bản thuộc US-4.2. Cấu trúc mặc định theo PRD › GĐ5: phần A 20 câu trắc nghiệm 4 phương án (60%), phần B 2–3 câu tự luận (40%). Quyết định liên quan: D2, D5, D12, D33, D34, D39, D46, D49.
 
-Ma trận đề là cách giữ BR-05: mọi sinh viên dự tuyển cùng JD làm đề tương đương, cùng phân bố kỹ năng × độ khó, số câu và thời gian; chỉ khác câu cụ thể. Cấu trúc đề mặc định theo PRD › GĐ5: phần A 20 câu trắc nghiệm 4 phương án (60% S_test), phần B 2–3 câu tự luận (40%). Phần C (lập trình) là mở rộng (Q7), ngoài phạm vi theo D20. Phần D (xác minh CV) thuộc [US-4.8](US-4.8-cv-verification-questions-trust-score.md).
-
-Theo ARCH › *"Agent" trong hệ thống này nghĩa là gì*, Test Generator là agent duy nhất trong MVP chạy **vòng lặp có công cụ**: `get_blueprint_coverage()`, `find_similar_questions(text)`, `submit_questions(questions)`. Công cụ chỉ ghi được câu hỏi nháp. ARCH › *Bản đồ sử dụng LLM theo giai đoạn* xếp tác vụ này `effort: high`, chạy job nền. NFR-11 và ARCH › *Tối ưu chi phí* yêu cầu sinh ngân hàng một lần cho mỗi JD (hoặc mỗi nhóm vị trí), không sinh riêng cho từng sinh viên. Ước tính thô ở ARCH là khoảng 145 USD cho 50 ngân hàng.
-
-Quyết định liên quan: D2 (LLM không tính điểm), D5 (job AI bất đồng bộ, payload chỉ có ID), D10 (một model, `effort` theo tác vụ, mọi lượt gọi qua `LLMClient`), D12 (prompt có phiên bản, kết quả lưu `model` + `prompt_version`).
-
-**Lessons applied**: none — LESSONS.md mới có §1 (Claude Code chỉ nạp skill từ `.claude/skills`), không liên quan nội dung story này; đọc lại khi bắt đầu story.
+**Lessons applied**: §6, §10, §12, §15, §19, §21, §22, §24 (kiểm trùng trong bộ nhớ), §25, §26, §30, §31, §32, §33 (`job_id` trước khi dispatch), §34 (nút chạy lại).
 
 ## Acceptance criteria
 
-- [ ] **AC-1** — **Given** một JD có `requirements` đã được HR xác nhận, kỹ năng bắt buộc có trọng số, **When** hàm thuần `buildDefaultBlueprint(requirements, defaults)` chạy, **Then** nó trả về ma trận phần A có 20 câu, chia theo kỹ năng tỷ lệ với trọng số, mỗi kỹ năng chia theo độ khó Dễ/Trung bình/Khó, cùng phần B 2–3 câu tự luận, tỷ trọng A/B = 0,6/0,4 và thời gian bằng `campaigns.config.T_test` **And** cùng đầu vào luôn cho cùng ma trận (cách làm tròn số câu mỗi ô là tất định, tổng luôn đúng số câu).
-- [ ] **AC-2** — Ma trận đề có Zod schema `examBlueprintSchema` trong `packages/shared/schemas`. Schema bắt buộc: tổng số câu các ô phần A bằng số câu phần A; tỷ trọng các phần cộng lại bằng 1; mọi kỹ năng trong ma trận có trong `requirements` của JD; chỉ có phần A và B (không có phần C, Q7). Dữ liệu sai schema thì API trả `400` kèm lỗi theo từng trường.
-- [ ] **AC-3** — **Given** người dùng vai trò `CENTER`, **When** gọi `GET`/`PUT /api/jds/{id}/exam-blueprint` (đề xuất) trước khi ngân hàng của JD bị khóa, **Then** xem và sửa được ma trận **And** vai trò `HR`, `STUDENT` nhận `403` **And** sửa khi ngân hàng đã khóa thì nhận `409`.
-- [ ] **AC-4** — **Given** JD chuyển sang *Đã duyệt* (HR đã xác nhận yêu cầu và Trung tâm đã duyệt, BR-02), **When** module `assessment` nhận sự kiện JD được duyệt, **Then** nó tạo một bản ghi `question_banks` với `blueprint` là bản chụp ma trận của JD, `version = 1`, và phát đúng một message `ai.questions.generate` có payload `{ job_id, bank_id }` **And** nhận trùng sự kiện không tạo thêm ngân hàng hay job **And** JD chưa đủ hai bước xác nhận/duyệt thì không có ngân hàng.
-- [ ] **AC-5** — **Given** LLM được thay bằng fixture nhiều lượt, **When** agent chạy, **Then** nó gọi `get_blueprint_coverage()`, `find_similar_questions()`, `submit_questions()` lặp lại cho đến khi mọi ô có từ 3 đến 5 lần số câu cần **And** khi chạm giới hạn số vòng hoặc số token thì dừng, trả `status = PARTIAL` kèm danh sách ô còn thiếu, không lặp vô hạn.
-- [ ] **AC-6** — Agent có đúng ba công cụ ở trên. Công cụ chỉ ghi vào bảng nháp `ai.question_drafts` (đề xuất) và `ai.embeddings`; không có công cụ nào ghi schema `core`, đổi trạng thái hay gọi mạng ngoài. Integration test xác nhận tài khoản DB của AI Service bị từ chối khi ghi `core.questions`.
-- [ ] **AC-7** — **Given** `submit_questions` nhận một lô câu, **When** một câu sai schema (trắc nghiệm không đủ 4 phương án hoặc không đúng 1 đáp án đúng; thiếu giải thích; tự luận thiếu rubric có điểm tối đa từng tiêu chí hoặc thiếu đáp án mẫu; kỹ năng hoặc độ khó không có trong ma trận), **Then** câu đó bị loại, không được lưu, và agent nhận lý do loại cho từng câu **And** các câu hợp lệ trong cùng lô vẫn được lưu.
-- [ ] **AC-8** — **Given** ngân hàng đã có câu X, **When** agent nộp câu trùng nguyên văn (sau khi chuẩn hóa khoảng trắng, hoa thường) hoặc câu có cosine embedding với X ≥ ngưỡng trùng (tham số, đề xuất 0,9), **Then** câu mới bị loại với lý do `DUPLICATE` kèm mã câu gần nhất **And** ngân hàng cuối cùng không có cặp câu nào vượt ngưỡng.
-- [ ] **AC-9** — **Given** job xong, **When** AI Service trả `ai.results` loại `QUESTIONS_GENERATE` (đề xuất) với `status` `SUCCEEDED`/`PARTIAL`/`FAILED`, **Then** Core Backend upsert các câu vào `questions` với `status = DRAFT`, mỗi câu lưu kèm `model` và `prompt_version` **And** nhận trùng message cùng `job_id` không sinh dòng trùng.
-- [ ] **AC-10** — Mọi lượt gọi LLM của agent đi qua `LLMClient` (US-2.2) với `effort: high`, kiểm tra `stop_reason == "refusal"` trước khi đọc nội dung, và ghi một dòng `ai.llm_calls` với `agent = test_generator`. Prompt nằm ở `ai-service/app/prompts/test_generator/v1.md`. Yêu cầu JD là khối dữ liệu riêng, JSON có `sort_keys=True`. `system` không chứa thời gian hay ID ngẫu nhiên. Thư mục agent không import SDK Anthropic trực tiếp.
-- [ ] **AC-11** — **Given** Cán bộ Trung tâm mở JD đã duyệt ở cổng Trung tâm, **When** job đang chạy hoặc đã xong, **Then** màn hình hiện trạng thái job và độ phủ từng ô (số câu cần, số câu nháp hiện có) **And** có trạng thái rỗng, đang tải, lỗi, chuỗi giao diện tiếng Việt.
+- [x] **AC-1** — **Given** `requirements` đã được HR xác nhận, **When** hàm thuần `buildDefaultBlueprint(requirements, { durationMinutes })` chạy, **Then** nó trả về:
+  - phần A gồm 20 câu MCQ, chia cho các kỹ năng `must_have` theo trọng số và chia theo độ khó Dễ/TB/Khó = 40/45/15;
+  - phần B gồm 2 câu ESSAY độ khó TB, gán cho 2 kỹ năng trọng số cao nhất;
+  - `weight_percent` 60/40, thời gian bằng `t_test_minutes`.
+
+  **And** tổng hàng, tổng cột, tổng câu luôn đúng, và cùng đầu vào luôn cho cùng ma trận (làm tròn hai chiều theo D49) **And** ví dụ "Backend Java" ở GĐ5 cho đúng 2/3/1, 2/3/1, 2/2/1, 2/1/0.
+- [x] **AC-2** — `ExamBlueprintSchema` (`packages/shared/contracts`) chỉ có phần A và B. `examBlueprintRequestSchema(requirements)` (`packages/shared/schemas`) bắt buộc:
+  - tổng các ô bằng `question_count`;
+  - `weight_percent` của hai phần cộng lại bằng 100;
+  - phần B có 2–3 câu;
+  - mọi kỹ năng có trong `requirements`, so bằng `skillKey`;
+  - không có ô trùng.
+
+  Dữ liệu sai thì API trả `400` kèm lỗi theo từng trường.
+- [x] **AC-3** — **Given** người dùng vai trò `CENTER`, **When** gọi `GET`/`PUT /api/jds/{id}/exam-blueprint` và `POST /api/jds/{id}/question-bank/generate`, **Then** xem được ma trận và độ phủ, sửa được ma trận, và chạy được lượt sinh câu còn thiếu **And** `HR`, `STUDENT` nhận `403` **And** sửa khi ngân hàng đã khóa nhận `409 QUESTION_BANK_LOCKED`, khi đang sinh nhận `409 QUESTION_GENERATION_RUNNING`, khi lệch `row_version` nhận `409` **And** JD chưa duyệt nhận `409 JD_NOT_APPROVED`.
+- [x] **AC-4** — **Given** JD chuyển sang `APPROVED`, **When** `assessment` nhận `jd.approved`, **Then**:
+  - nó tạo một `question_banks` với `blueprint` mặc định và `version = 1`;
+  - nó ghi `question_generation_runs` kèm `job_id` trước khi phát đúng một message `ai.questions.generate` `{ job_id, bank_id }`.
+
+  **And** nhận trùng sự kiện, hoặc gọi `POST …/generate` khi đang có run `RUNNING`, không tạo thêm ngân hàng hay job **And** JD chưa duyệt thì không có ngân hàng.
+- [x] **AC-5** — **Given** LLM được thay bằng fixture, **When** Test Generator chạy, **Then** code lặp lại `get_blueprint_coverage()` → một lượt `generate` cho nhóm ô còn thiếu → `submit_questions()`, cho đến khi mọi ô có ít nhất 3× số câu cần **And** khi chạm `MAX_ROUNDS` hoặc `MAX_TOKENS_PER_JOB` thì dừng, trả `PARTIAL` kèm `missing_cells`.
+- [x] **AC-6** — `QuestionBankTools` có đúng ba phương thức công khai: `get_blueprint_coverage`, `find_similar_questions`, `submit_questions`. LLM không gọi công cụ. Công cụ chỉ ghi `ai.question_drafts` và `ai.embeddings`; không ghi `core`, không đổi trạng thái, không gọi mạng. `ai-service-role.int-spec.ts` xác nhận role `ai_service` bị từ chối khi ghi `core.questions`.
+- [x] **AC-7** — **Given** `submit_questions` nhận một lô, **When** một câu sai, **Then** câu đó không được lưu và có lý do riêng. Các trường hợp sai:
+  - MCQ không đủ 4 phương án hoặc không đúng 1 đáp án đúng;
+  - thiếu giải thích;
+  - ESSAY thiếu rubric có điểm tối đa từng tiêu chí, hoặc thiếu đáp án mẫu;
+  - ô không có trong ma trận;
+  - ô đã đủ 5×.
+
+  **And** các câu hợp lệ trong cùng lô vẫn được lưu.
+- [x] **AC-8** — **Given** ngân hàng đã có câu X, **When** nộp câu trùng nguyên văn (sau khi chuẩn hóa khoảng trắng và hoa thường) hoặc có cosine với X ≥ 0,9, kể cả câu trong cùng lô, **Then** câu bị loại với lý do `DUPLICATE` kèm `nearest_draft_id` **And** ngân hàng cuối cùng không có cặp câu nào vượt ngưỡng.
+- [x] **AC-9** — **Given** `ai.results` loại `QUESTIONS_GENERATE` (`SUCCEEDED`/`PARTIAL`/`FAILED`), **When** Core Backend nhận, **Then**:
+  - nó upsert mọi draft vào `questions` theo `draft_id`, `status = DRAFT`, kèm `model` và `prompt_version`;
+  - nó đóng run với `missing_cells`.
+
+  **And** nhận trùng message, hoặc kết quả về trước khi `dispatch` trả, không sinh dòng trùng và không làm kẹt run.
+- [x] **AC-10** — Mọi lượt gọi LLM đi qua `LLMClient` với `effort: high` (`EFFORT_BY_AGENT["test_generator"]`). Refusal thì job `FAILED`, `needs_human`, và có dòng `ai.llm_calls` với `agent = test_generator`. Prompt nằm ở `ai-service/app/prompts/test_generator/v1.md`:
+  - yêu cầu JD ở block `shared`, dùng `tojson_sorted` và `untrusted`;
+  - `system` không có biến.
+
+  Thư mục agent không import SDK của nhà cung cấp.
+- [ ] **AC-11** — **Given** CENTER mở JD đã duyệt ở cổng Trung tâm, **When** job đang chạy hoặc đã xong, **Then** tab "Ngân hàng câu hỏi" hiện ma trận (sửa được trước khi khóa), độ phủ từng ô (đã có / cần, 3×–5×), trạng thái run và các ô còn thiếu **And** có trạng thái rỗng, đang tải, lỗi; chuỗi tiếng Việt; dùng được ở 360 / 768 / 1024 px (kiểm tay).
 
 ## Tasks
 
-- [ ] **TASK-4.1.1** — Đọc skill `claude-api` trước khi viết code gọi LLM — không viết tham số API theo trí nhớ (AC: 5, 10)
-  - [ ] Subtask 4.1.1.1 — Ghi vào Implementation notes: cách khai báo `tools`, vòng lặp `tool_use`/`tool_result`, `output_config.effort`, xử lý `refusal` của `claude-opus-5-5`; không dùng `tool_choice` để ép gọi công cụ (AGENTS › Gọi Claude API).
-- [ ] **TASK-4.1.2** — Ma trận đề: schema và hàm thuần (AC: 1, 2)
-  - [ ] Subtask 4.1.2.1 — `packages/shared/schemas/exam-blueprint.ts`: `examBlueprintSchema` (phần A theo ô kỹ năng × độ khó, phần B, tỷ trọng, thời gian).
-  - [ ] Subtask 4.1.2.2 — `apps/api/src/modules/assessment/domain/blueprint.ts`: `buildDefaultBlueprint()`, chia số câu theo trọng số bằng cách làm tròn tất định (đề xuất: phần dư lớn nhất, hòa thì theo tên kỹ năng).
-  - [ ] Subtask 4.1.2.3 — `apps/api/src/modules/assessment/domain/blueprint.spec.ts`: ví dụ "Thực tập sinh Backend Java" ở PRD › GĐ5 là một test cố định.
-- [ ] **TASK-4.1.3** — Bảng, API ma trận và khởi tạo ngân hàng (AC: 3, 4)
-  - [ ] Subtask 4.1.3.1 — `apps/api/src/db/` + migration `apps/api/drizzle/`: bảng `question_banks`, `questions` theo ARCH › *Các bảng chính* (`index(bank_id, skill, difficulty, status)`).
-  - [ ] Subtask 4.1.3.2 — `apps/api/src/modules/assessment/api/blueprint.controller.ts`: `GET`/`PUT /api/jds/{id}/exam-blueprint`, guard `@Roles('CENTER')`.
-  - [ ] Subtask 4.1.3.3 — `apps/api/src/modules/assessment/application/question-bank.service.ts`: nghe sự kiện JD được duyệt (qua `@nestjs/event-emitter`, không đọc bảng của `company`), tạo ngân hàng, gọi `aigateway` phát job.
-  - [ ] Subtask 4.1.3.4 — `packages/shared/contracts/questions-generate.ts`: Zod schema cho `ai.questions.generate` và kết quả `QUESTIONS_GENERATE`, sinh JSON Schema → Pydantic theo AD-6.
-- [ ] **TASK-4.1.4** — Công cụ và vòng lặp agent (AC: 5, 6, 7)
-  - [ ] Subtask 4.1.4.1 — `ai-service/app/schemas/question.py`: model Pydantic cho câu trắc nghiệm và tự luận (đầu ra LLM).
-  - [ ] Subtask 4.1.4.2 — `ai-service/app/agents/test_generator/tools.py`: ba công cụ; `submit_questions` kiểm schema rồi ghi `ai.question_drafts` (đề xuất; migration theo cách US-2.1 quản lý schema `ai`).
-  - [ ] Subtask 4.1.4.3 — `ai-service/app/agents/test_generator/agent.py`: vòng lặp đến khi đủ độ phủ hoặc chạm giới hạn số vòng/token (hằng số trong `ai-service/app/agents/test_generator/config.py`, đề xuất).
-- [ ] **TASK-4.1.5** — Chống trùng bằng embedding (AC: 8)
-  - [ ] Subtask 4.1.5.1 — `find_similar_questions` và bước kiểm trùng trong `submit_questions` dùng `ai-service/app/embedding/` (US-2.5), lưu vector câu vào `ai.embeddings` với `owner_type = question`.
-- [ ] **TASK-4.1.6** — Prompt, consumer và nhận kết quả ở backend (AC: 9, 10)
-  - [ ] Subtask 4.1.6.1 — `ai-service/app/prompts/test_generator/v1.md`: phần cố định (hướng dẫn, ràng buộc chất lượng, câu hỏi viết tiếng Việt) ở đầu; yêu cầu JD và ma trận ở cuối, trong thẻ dữ liệu riêng.
-  - [ ] Subtask 4.1.6.2 — `ai-service/app/consumers/questions_generate.py`: FastStream subscriber, kiểm `ai.jobs` trước khi xử lý (idempotent).
-  - [ ] Subtask 4.1.6.3 — `apps/api/src/modules/assessment/application/question-results.handler.ts`: upsert `questions` (`DRAFT`, `model`, `prompt_version`) theo `job_id`.
-- [ ] **TASK-4.1.7** — Màn hình độ phủ ngân hàng ở cổng Trung tâm (AC: 3, 11)
-  - [ ] Subtask 4.1.7.1 — Đọc `DESIGN.md` trước khi code, ghi `Design applied: …` vào story.
-  - [ ] Subtask 4.1.7.2 — `apps/web/src/features/center/question-bank/`: bảng ma trận (sửa được trước khi khóa), độ phủ từng ô, trạng thái job; dùng component shadcn.
-- [ ] **TASK-4.1.8** — Fixture và test (AC: 4, 5, 6, 7, 8, 9)
-  - [ ] Subtask 4.1.8.1 — `ai-service/tests/fixtures/test_generator/`: kịch bản nhiều lượt (gọi công cụ → nhận kết quả → gọi tiếp → kết thúc), một kịch bản chạm giới hạn vòng, một kịch bản `refusal`. Đây là hạ tầng dùng chung với US-4.8.
-  - [ ] Subtask 4.1.8.2 — `ai-service/tests/agents/test_test_generator.py` và `apps/api/test/assessment/question-bank.spec.ts`.
+- [x] **TASK-4.1.1** — Hợp đồng và ma trận (AC: 1, 2), phiên 2a: `contracts/exam-blueprint.ts`, `questions.ts`, `QUESTIONS_GENERATE`; `schemas/exam-blueprint.ts`, `states/question.ts`; `assessment/domain/blueprint.ts` + test GĐ5 + property test.
+- [x] **TASK-4.1.2** — DB (AC: 4, 6, 9), phiên 2a: `0028`; `0029` (view `core.v_ai_question_banks`, GRANT); `CORE_TABLES`.
+- [x] **TASK-4.1.3** — Module `assessment` (AC: 3, 4, 9), phiên 2a: `JdService.getForQuestionBank`, `question-bank.service.ts`, `blueprint.service.ts` + controller, `question-results.handler.ts`, `question-bank.int-spec.ts`.
+- [x] **TASK-4.1.4** — Test Generator (AC: 5–8, 10), phiên 2b: `LLMResult.usage`, `app/agents/test_generator/`, prompt `test_generator/v1`, `kinds.py` (`PARTIAL`), `worker.py`, test + fixture.
+- [ ] **TASK-4.1.5** — Giao diện (AC: 3, 11), phiên 2c
+  - [x] 4.1.5.1 — Đọc `DESIGN.md`, ghi `Design applied: …`.
+  - [x] 4.1.5.2 — `features/center/question-bank/`: tab, bảng ma trận và độ phủ, form RHF, "Sinh câu còn thiếu", poll khi `RUNNING`.
+  - [ ] 4.1.5.3 — Kiểm tay ở 360 / 768 / 1024 px (người dùng, checklist ở *Implementation notes*).
 
 ## Dev notes
 
 ### Architecture constraints
 
-- [AD-2](../../ARCHITECTURE.md#architecture-decisions): LLM chỉ sinh nội dung câu hỏi theo schema. Code quyết định câu nào được nhận (kiểm schema, kiểm trùng) và đếm độ phủ.
-- [AD-4](../../ARCHITECTURE.md#architecture-decisions): AI Service chỉ ghi schema `ai`. ARCH › *Pipeline từng agent* nói `submit_questions` "lưu dạng nháp", nhưng `questions` thuộc `core`. Vì vậy nháp nằm ở `ai.question_drafts` (tên đề xuất), còn Core Backend ghi `questions` khi nhận `ai.results`. Phương án cho AI Service ghi thẳng `core.questions` bị loại vì trái AD-4 và nguyên tắc 3 ở AGENTS.
-- [AD-5](../../ARCHITECTURE.md#architecture-decisions): queue `ai.questions.generate` chỉ mang `job_id`, `bank_id`. AI Service đọc yêu cầu JD qua view `core.v_ai_jd_requirements`; ma trận đọc qua view chỉ đọc của `question_banks` (đề xuất `core.v_ai_question_banks`).
-- [AD-6](../../ARCHITECTURE.md#architecture-decisions): hợp đồng message định nghĩa một lần bằng Zod ở `packages/shared/contracts`, không viết tay model Pydantic.
-- [AD-10](../../ARCHITECTURE.md#architecture-decisions): một model `claude-opus-5-5`, `effort: high`. Không dùng `tool_choice` để ép gọi công cụ (Opus 5.5 không hỗ trợ).
-- [AD-12](../../ARCHITECTURE.md#architecture-decisions): prompt là file có phiên bản; đã dùng thì không sửa mà tạo `v2`.
-- Ranh giới module (AGENTS › Nguyên tắc 13): `assessment` không đọc bảng `job_descriptions`. Nó nhận ma trận và yêu cầu qua service đã export của `company` hoặc qua sự kiện.
-- Ma trận có ở hai chỗ trong ARCH: `job_descriptions.exam_blueprint` và `question_banks.blueprint`. Story này hiểu cột thứ nhất là cấu hình đề theo JD, cột thứ hai là bản chụp lúc sinh ngân hàng. Cách hiểu này cần xác nhận.
-- **Chạm Q2:** tạm dùng Đề xuất "Theo JD; các JD cùng nhóm vị trí được phép dùng chung". Đưa thành tham số `campaigns.config.share_exam_by_position_group` (mặc định `false`, nghĩa là mỗi JD một ngân hàng). Khi bật, `question_banks` gắn với `position_group` thay vì `jd_id`. Chưa rõ ma trận chung của nhóm lấy từ JD nào. Hỏi trước khi chốt.
-- **Chạm Q7:** tạm dùng Đề xuất "MVP dùng trắc nghiệm + tự luận"; phần C ngoài phạm vi (D20). Schema ma trận không có phần C. Hỏi trước khi chốt.
-- **Điểm chưa rõ trong spec:** ai sửa ma trận đề (story tạm cho `CENTER`); ngưỡng cosine coi là trùng; giới hạn số vòng/token của agent; phân bố độ khó mặc định (tạm theo ví dụ GĐ5: 8/9/3 trên 20 câu). Các giá trị này để thành tham số và hỏi trước khi chốt.
+- AD-2: LLM chỉ sinh nội dung theo schema. Code chọn ô, kiểm từng câu, kiểm trùng, đếm độ phủ.
+- AD-4 (Nguyên tắc 3): AI Service chỉ ghi `ai.question_drafts` và `ai.embeddings`. Core Backend ghi `questions` khi nhận `ai.results`.
+- Nguyên tắc 8: `answer_key` (đáp án, giải thích, đáp án mẫu) tách khỏi `content`.
+- Nguyên tắc 13: `assessment` không đọc bảng của `company`; chỉ dùng `JdService`, `CampaignService`, `AiGatewayService`.
+- Giới hạn của agent (`config.py`) theo D49.
 
 ### Cross-story dependencies
 
-- Builds on [US-2.3](US-2.3-jd-analyzer-hr-requirement-confirmation.md): `job_descriptions.requirements` đã xác nhận, `position_group`, sự kiện JD được duyệt; view `core.v_ai_jd_requirements`.
-- Builds on [US-2.5](US-2.5-embeddings-skill-catalog.md): `ai-service/app/embedding/` (bge-m3) và `ai.embeddings` để tìm câu gần nhất.
-- Builds on [US-2.1](US-2.1-ai-job-pipeline-message-contracts.md) và [US-2.2](US-2.2-llm-client-versioned-prompts.md): `aigateway`, `ai.jobs`, `ai.results`, `LLMClient` có chế độ fixture.
-- Builds on [US-1.4](US-1.4-campaign-setup-and-config.md): `campaigns.config` (`T_test`) và [US-1.3](US-1.3-auth-rbac-design-system-app-shell.md): `@Roles()`, `DESIGN.md`.
-- Required by [US-4.2](US-4.2-validator-and-question-bank-lock.md): Validator chạy trên câu `DRAFT` và đẩy câu bị loại về vòng sinh tiếp theo của agent này.
-- Required by [US-4.3](US-4.3-exam-room.md): rút đề theo `question_banks.blueprint`.
-- Required by [US-4.8](US-4.8-cv-verification-questions-trust-score.md): dùng lại fixture nhiều lượt `ai-service/tests/fixtures/test_generator/`.
-- Required by [US-6.3](US-6.3-labeled-dataset-and-ai-evals.md): đo tỷ lệ câu hợp lệ, độ khó thực tế.
-- Sibling [US-3.2](US-3.2-batch-matching-agent.md) (cùng tuần T7): cả hai thêm loại message vào `packages/shared/contracts`; story nào xong trước merge trước (D20).
+- Builds on: US-2.3, US-2.5 (`app/embedding/`), US-2.1/US-2.2 (`LLMClient`), US-1.4 (`t_test_minutes`), US-3.2 (mẫu `match_runs`).
+- Required by: US-4.2 (Validator, `QUESTION_STATES`, `locked_at`, `jd.requirements.versioned`), US-4.3, US-6.3.
 
 ### Performance budget
 
-- Kích thước ngân hàng: mỗi ô có 3–5 lần số câu cần rút (EPIC-4 › *Performance budgets*). Đo bằng `get_blueprint_coverage()` ở cuối job và bằng test AC-5.
-- Chi phí: ARCH ước tính khoảng 145 USD cho 50 ngân hàng, tức khoảng 2,9 USD/ngân hàng (vào ~170K, ra ~110K token, gồm cả Validator). Đo lại bằng `ai.llm_calls` sau khi chạy thử một JD, ghi số thật vào Implementation notes.
+- Mỗi ô có 3–5× số câu cần, đo bằng `coverage` trong kết quả.
+- Chi phí: ARCH ước tính khoảng 2,9 USD mỗi ngân hàng, gồm cả Validator. Đo lại bằng `ai.llm_calls` (`agent = test_generator`) sau một lần chạy thật, ghi số vào *Implementation notes*.
 
 ### What we explicitly did NOT do
 
-- Không có Validator, khóa ngân hàng hay phiên bản sau khóa: thuộc [US-4.2](US-4.2-validator-and-question-bank-lock.md).
-- Không sinh câu riêng cho từng sinh viên: trái BR-05 và NFR-11.
-- Không có phần C lập trình (Q7, D20) và phần D xác minh CV ([US-4.8](US-4.8-cv-verification-questions-trust-score.md)).
-- Không có HR/giảng viên duyệt mẫu: thuộc [US-4.9](US-4.9-question-bank-sample-review.md).
-- Không dùng Message Batches: vòng lặp công cụ cần phản hồi từng lượt. Xem lại nếu chi phí đo được vượt nhiều so với ước tính.
+- Không có: tool-use trong `LLMClient` (D49); Validator, khóa ngân hàng, phiên bản sau khóa (US-4.2); dùng chung theo nhóm vị trí (Q2 còn mở); phần C (Q7), phần D (US-4.8); duyệt mẫu (US-4.9); SSE (web poll khi run đang chạy).
+- Không sinh câu riêng cho từng SV (BR-05, NFR-11). Không dùng Message Batches, vì mỗi vòng cần kết quả vòng trước.
 
 ### References
 
-- [Source: PRD › GĐ5 – Sinh và tổ chức bài test](../../PRD.md)
-- [Source: PRD › Functional Requirements (FR-18), Non-Functional Requirements (NFR-11)](../../PRD.md#functional-requirements)
-- [Source: PRD › Quy tắc nghiệp vụ (BR-02, BR-05)](../../PRD.md)
-- [Source: ARCHITECTURE › AI Service và các AI Agent (Test Generator, Quản lý prompt)](../../ARCHITECTURE.md)
-- [Source: ARCHITECTURE › LLM usage and cost](../../ARCHITECTURE.md#llm-usage-and-cost)
-- [Source: ARCHITECTURE › Data architecture (Các bảng chính, Phân vùng schema)](../../ARCHITECTURE.md#data-architecture)
-- [Source: ARCHITECTURE › Messaging and data flow (Hàng đợi)](../../ARCHITECTURE.md#messaging-and-data-flow)
-- [Source: CONTEXT D2, D5, D10, D12, D20](../../CONTEXT.md)
-- [Source: Epic EPIC-4](../epics/EPIC-4.md)
+PRD › GĐ5, FR-18, NFR-11, BR-02, BR-05, Q2, Q7 · ARCHITECTURE › *Pipeline › Test Generator*, *Các bảng chính*, *Hàng đợi* · CONTEXT D33, D34, D39, D46, D49 · [EPIC-4](../epics/EPIC-4.md).
 
 ## Verification commands
 
-> Chưa có `package.json`/`pyproject.toml`. Lệnh chạy cụ thể sẽ điền khi US-1.1 tạo script (AGENTS › Lệnh). Bảng dưới ghi file test và tên case.
-
 | AC | Command |
 |---|---|
-| AC-1 | `apps/api/src/modules/assessment/domain/blueprint.spec.ts` › `GĐ5 default blueprint: 20 MC split by skill weight, deterministic rounding`; `GĐ5 PRD example Backend Java blueprint` |
-| AC-2 | `packages/shared/schemas/exam-blueprint.spec.ts` › `BR-05 blueprint rejects cell sum mismatch, weights ≠ 1, unknown skill, part C` |
-| AC-3 | `apps/api/test/assessment/blueprint.spec.ts` › `GĐ5 CENTER edits blueprint; HR/STUDENT 403; 409 after bank locked` |
-| AC-4 | `apps/api/test/assessment/question-bank.spec.ts` › `BR-02 approved JD creates one bank and one ai.questions.generate job; duplicate event is idempotent` |
-| AC-5 | `ai-service/tests/agents/test_test_generator.py` › `test_gd5_loop_until_every_cell_3x`, `test_gd5_stops_at_turn_limit_returns_partial` |
-| AC-6 | `ai-service/tests/agents/test_test_generator.py` › `test_tool_registry_has_exactly_three_tools`; `ai-service/tests/integration/test_db_permissions.py` › `test_ai_role_cannot_write_core_questions` |
-| AC-7 | `ai-service/tests/agents/test_test_generator.py` › `test_submit_rejects_invalid_questions_with_reasons_keeps_valid_ones` |
-| AC-8 | `ai-service/tests/agents/test_test_generator.py` › `test_submit_rejects_exact_and_near_duplicates` |
-| AC-9 | `apps/api/test/assessment/question-results.spec.ts` › `GĐ5 results upsert DRAFT questions with model and prompt_version; duplicate job_id no new rows` |
-| AC-10 | `rg -n "import anthropic\|from anthropic" ai-service/app/agents/test_generator` trả về 0 dòng; `ai-service/tests/agents/test_test_generator.py` › `test_effort_high_refusal_checked_llm_call_logged` |
-| AC-11 | `apps/web/e2e/center-question-bank.spec.ts` (Playwright, đề xuất) › `GĐ5 coverage table shows needed/drafted per cell, empty/loading/error states` |
+| AC-1 | `pnpm --filter @srm/api test:unit` › `assessment/domain/__tests__/blueprint.spec.ts` (`GĐ5 …`, `BR-05 … (property)`) |
+| AC-2 | `pnpm --filter @srm/shared test` › `schemas/__tests__/exam-blueprint.spec.ts` (`BR-05 …`) |
+| AC-3, AC-4, AC-9 | `pnpm --filter @srm/api exec jest --testPathPatterns 'test/integration/question-bank' --selectProjects integration` |
+| AC-5, AC-7, AC-8, AC-10 | `ai-service/.venv/Scripts/pytest ai-service/tests/agents/test_test_generator.py` (`test_gd5_*`) |
+| AC-6 | `test_gd5_tools_expose_exactly_three` + như AC-3 với `'test/integration/(ai-service-role\|core-schema)'` |
+| AC-10 | Test chặn import SDK ngoài `app/llm/` (có sẵn) + `test_gd5_refusal_fails_with_llm_call_logged` |
+| AC-11 | Kiểm tay theo checklist trong *Implementation notes* |
 
 ## Changelog entry
 
 ### Added
-- Ma trận đề theo JD (`examBlueprintSchema`, `buildDefaultBlueprint`): mặc định 20 câu trắc nghiệm chia theo trọng số kỹ năng và độ khó, 2–3 câu tự luận, tỷ trọng 60/40; Trung tâm xem và sửa trước khi khóa.
-- Test Generator, agent có công cụ (`get_blueprint_coverage`, `find_similar_questions`, `submit_questions`), sinh ngân hàng câu hỏi nháp gấp 3–5 lần số câu mỗi ô, loại câu sai schema và câu trùng.
-- Bảng `question_banks`, `questions`; queue `ai.questions.generate`; ngân hàng tự tạo khi JD được duyệt.
-- Fixture nhiều lượt cho vòng lặp tool-use ở `ai-service/tests/fixtures/test_generator/`.
+- Ma trận đề theo JD, Test Generator (3–5× mỗi ô, loại câu sai và câu trùng), các bảng của ngân hàng câu hỏi, tab "Ngân hàng câu hỏi". Chi tiết ở [CHANGELOG 0.20.0](../../CHANGELOG.md).
 
-**Commit**:
+**Commit**: 43e1a54
 
 ## Implementation notes
 
-_Chưa bắt đầu._
+- Phiên: 2a (TASK 1–3), 2b (TASK 4), 2c (TASK 5), 3 (Review, v0.20.0). Plan: `~/.claude/plans/l-n-plan-th-c-hi-n-purrfect-quiche.md` (máy PDTnhah).
+- `GET`/`PUT exam-blueprint` tự tạo ngân hàng (không gửi job) khi JD đã duyệt mà chưa có; listener `jd.approved` gửi job khi ngân hàng chưa có run nào, nên màn hình tạo trước cũng không làm mất job đầu.
+- Fixture 3 vòng ở `tests/fixtures/llm/test_generator/` ghi bằng script tạm từ `BANK` của `tests/agents/generator_support.py`; đổi prompt, `BANK` hay cách dựng request thì ghi lại (LESSONS §31).
+- Zod 4: ô có số câu lẻ che lỗi tổng, tỷ trọng tới khi sửa (LESSONS §10, test ghim).
+- **Design applied**: §1, §3–§11; thêm vào §6 (tab trang chi tiết, bảng ma trận, badge ngân hàng) và §8 (resolver tự viết).
+- **Phiên 3, `/code-review`** (10 điểm, sửa 8):
+  - `GET` đóng run quá hạn `STALE`, vì giao diện tắt cả hai nút khi run `RUNNING` (LESSONS §34);
+  - các phần thay phiên, ô ít được hỏi đi trước, nên một ô không đầy được không chặn ô khác hay phần B;
+  - `MAX_TOKENS_PER_JOB` cộng token các lần chạy lại của job (`ai.llm_calls`);
+  - kiểm trùng chạy trong thread; `PUT` ghi `jd_version` của yêu cầu đã dùng để kiểm;
+  - tab chỉ gắn panel khi đã mở, chỉ poll khi tab hiện;
+  - `QUESTION_BANK_JD_STATES` và `part_types` (manifest) dùng chung.
+- **Giới hạn đã biết**:
+  - Hai job cùng một ngân hàng (chỉ khi `markDispatched` lỗi và job đầu chạy quá 15 phút) có thể vượt 5× một ô; khóa theo ngân hàng phía AI Service để US-4.2.
+  - Kết quả mang mọi draft của ngân hàng (D49), khoảng 110 câu với ma trận mặc định; ngân hàng rất lớn thì message lớn.
+  - `apps/web` chưa có test runner: logic form ma trận (`blueprint-form-values.ts`) chỉ kiểm bằng script tạm và kiểm tay.
+- **koni-qc**: AC-1…AC-10 có ca đúng, sai, biên; thêm test `BANK_FULL`, chạy lại job, thay phiên phần, `GET` đóng run `STALE`. Self-verify: typecheck, lint, depcruise, `pnpm test` 808/808 + shared 340/340, pytest 397, ruff, `pnpm build`.
+- **Checklist AC-11** (cần `db:migrate`):
+  1. Chỉ JD đã duyệt có tab; tải lại vẫn ở tab đó. Có trạng thái tải, lỗi ("Thử lại"), rỗng.
+  2. "Sinh câu còn thiếu": hiện "Đang sinh câu", nút và "Sửa ma trận" tắt, tự cập nhật khi xong; ô thiếu có "Thiếu n".
+  3. Sửa: lỗi tổng mất khi sửa một ô; tỷ trọng khác 100 báo ở phần B; lưu sau khi tab khác đã lưu thì báo xung đột.
+  4. 360 / 768 / 1024 px: bảng cuộn ngang trong khung riêng, trang không cuộn ngang.
+- **Còn chờ người dùng**: `db:migrate` `0028`–`0029`; đo chi phí một ngân hàng bằng `evals/smoke_llm.py --bank` với key thật, ghi số vào đây; kiểm tay AC-11 (xong thì `[x]` AC-11, 4.1.5.3, story `done`).
 
 ## Files modified
 
-_Chưa bắt đầu._
+- `packages/shared` (`contracts/`, `schemas/`, `states/`), `scripts/gen-contracts.mjs`.
+- `apps/api`: module `assessment`, `company`, `db/schema/`, `drizzle/0028`–`0029`, `common/`, `test/integration/`.
+- `ai-service`: `app/agents/test_generator/`, `app/prompts/test_generator/`, `app/llm/` (`usage`), `app/contracts/`, `consumers/kinds.py`, `handlers/`, `worker.py`, `evals/smoke_llm.py`, `tests/`.
+- `apps/web`: `features/center/question-bank/`, `jd-approval-detail-page.tsx`, `shared/api/`, `shared/forms/server-errors.ts`; `DESIGN.md`; docs: CONTEXT D49, ARCHITECTURE, PRD, sprint W45.
 
 ## Cross-references
 
 - [PRD FR-18, NFR-11](../../PRD.md#functional-requirements)
 - [Epic EPIC-4](../epics/EPIC-4.md)
 - [CHANGELOG](../../CHANGELOG.md)
-- [CONTEXT D2, D5, D10, D12, D20](../../CONTEXT.md)
+- [CONTEXT D49](../../CONTEXT.md)
 - [US-4.2 Validator và khóa ngân hàng](US-4.2-validator-and-question-bank-lock.md)
-- [US-4.8 Câu hỏi xác minh CV](US-4.8-cv-verification-questions-trust-score.md)
+- [US-4.3 Phòng thi](US-4.3-exam-room.md)

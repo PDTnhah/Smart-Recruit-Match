@@ -10,6 +10,8 @@ from app.contracts.jd_analyze_job import JdAnalyzeJob
 from app.contracts.jd_analyze_result import JdAnalyzeResult
 from app.contracts.match_run_job import MatchRunJob
 from app.contracts.match_run_result import MatchRunResult
+from app.contracts.questions_generate_job import QuestionsGenerateJob
+from app.contracts.questions_generate_result import QuestionsGenerateResult
 from app.contracts.skill_normalize_job import SkillNormalizeJob
 from app.contracts.skill_normalize_result import SkillNormalizeResult
 from app.queues import QUEUES
@@ -19,6 +21,13 @@ def match_status(output: BaseModel) -> AiResultStatus:
     """A MATCH result lists the pairs left without an assessment; any makes it PARTIAL (AC-9)."""
     failed = getattr(output, "failed_pairs", None)
     return AiResultStatus.PARTIAL if failed else AiResultStatus.SUCCEEDED
+
+
+def questions_status(output: BaseModel) -> AiResultStatus:
+    """A QUESTIONS_GENERATE result lists the cells still short of drafts; any makes it PARTIAL
+    (US-4.1 AC-5)."""
+    missing = getattr(output, "missing_cells", None)
+    return AiResultStatus.PARTIAL if missing else AiResultStatus.SUCCEEDED
 
 
 JOB_KINDS: dict[str, JobKind] = {
@@ -32,5 +41,12 @@ JOB_KINDS: dict[str, JobKind] = {
     ),
     "MATCH": JobKind(
         "MATCH", QUEUES.jobs["MATCH"], MatchRunJob, MatchRunResult, status_of=match_status
+    ),
+    "QUESTIONS_GENERATE": JobKind(
+        "QUESTIONS_GENERATE",
+        QUEUES.jobs["QUESTIONS_GENERATE"],
+        QuestionsGenerateJob,
+        QuestionsGenerateResult,
+        status_of=questions_status,
     ),
 }

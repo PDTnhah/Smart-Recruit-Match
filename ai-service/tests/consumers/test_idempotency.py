@@ -18,6 +18,9 @@ from app.contracts.jd_analyze_output import JdAnalyzeOutput
 from app.contracts.match_failed_pair import MatchFailedPair
 from app.contracts.match_run_job import MatchRunJob
 from app.contracts.match_run_output import MatchRunOutput
+from app.contracts.missing_cell import MissingCell
+from app.contracts.questions_generate_job import QuestionsGenerateJob
+from app.contracts.questions_generate_output import QuestionsGenerateOutput
 from app.contracts.skill_normalize_job import SkillNormalizeJob
 from app.contracts.skill_normalize_output import SkillNormalizeOutput
 from app.handlers import build_handlers
@@ -82,11 +85,23 @@ async def stub_match(job: MatchRunJob) -> MatchRunOutput | Deferred:
     )
 
 
+async def stub_questions_generate(job: QuestionsGenerateJob) -> QuestionsGenerateOutput:
+    """Stands in for the Test Generator (tests/agents): bank 404 is left with a cell short."""
+    missing = [
+        MissingCell(type="MCQ", skill="Java", difficulty="EASY", drafted=1, required=3)
+        for _ in range(job.bank_id == 404)
+    ]
+    return QuestionsGenerateOutput(
+        bank_id=job.bank_id, questions=[], missing_cells=missing, rounds=12
+    )
+
+
 STUBS = {
     "cv_parser": stub_cv_parse,
     "jd_analyzer": stub_jd_analyze,
     "skill_normalizer": stub_skill_normalize,
     "matching": stub_match,
+    "test_generator": stub_questions_generate,
 }
 HANDLERS = build_handlers(**STUBS, fake_file_keys=True)
 
@@ -182,6 +197,20 @@ async def test_ad5_match_job_with_failed_pairs_finishes_partial(store) -> None:
     assert [p["code"] for p in result["result"]["failed_pairs"]] == ["SOURCE_MISSING"]
     [row] = store.rows.values()
     assert row["status"] == "PARTIAL"
+
+
+@pytest.mark.parametrize(("bank_id", "status"), [(7, "SUCCEEDED"), (404, "PARTIAL")])
+async def test_gd5_questions_job_with_missing_cells_finishes_partial(store, bank_id, status):
+    """US-4.1 AC-5: a QUESTIONS_GENERATE result that lists missing cells is PARTIAL."""
+    broker, results, _ = wired_broker(store, HANDLERS)
+    job = {"job_id": str(uuid4()), "bank_id": bank_id}
+    async with TestRabbitBroker(broker) as test_broker:
+        await test_broker.publish(json.dumps(job), queue=QUEUES.jobs["QUESTIONS_GENERATE"])
+
+    [result] = results
+    assert (result["type"], result["status"]) == ("QUESTIONS_GENERATE", status)
+    [row] = store.rows.values()
+    assert row["status"] == status
 
 
 async def test_nfr10_permanent_marker_fails_without_dlq(store) -> None:

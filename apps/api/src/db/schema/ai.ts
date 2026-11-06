@@ -1,4 +1,13 @@
-import { AI_JOB_RUN_STATUSES, AI_JOB_TYPES, type AiJobRunStatus, type AiJobType } from '@srm/shared';
+import {
+  AI_JOB_RUN_STATUSES,
+  AI_JOB_TYPES,
+  type AiJobRunStatus,
+  type AiJobType,
+  QUESTION_DIFFICULTIES,
+  QUESTION_TYPES,
+  type QuestionDifficulty,
+  type QuestionType,
+} from '@srm/shared';
 import { sql } from 'drizzle-orm';
 import { check, index, integer, jsonb, numeric, pgSchema, text, unique, uuid, vector } from 'drizzle-orm/pg-core';
 import { id, oneOf, ref, timestamptz } from './columns.js';
@@ -154,6 +163,43 @@ export const aiLlmBatches = ai.table(
     ),
     check('llm_batches_finished_check', sql`(${t.status} in ('PROCESSED', 'FAILED')) = (${t.finishedAt} is not null)`),
     check('llm_batches_error_check', sql`${t.status} <> 'FAILED' or ${t.errorMessage} is not null`),
+  ],
+);
+
+/**
+ * Questions the Test Generator accepted for a bank (US-4.1 AC-6–AC-8, CONTEXT D49), before the
+ * Core Backend stores them in `core.questions` from the job result. `id` is the `owner_id` of the
+ * question's vector in `ai.embeddings` (`owner_type = 'question'`). `stem_key` is the sha256 of the
+ * stem in NFKC, lower-cased, whitespace collapsed (hashed so a long stem fits the B-tree index): the
+ * same stem twice in a bank is refused here. `payload` holds the checked question as the result
+ * sends it (`GeneratedQuestion` without `draft_id`, `model` and `prompt_version`).
+ * `bank_id` points at `core.question_banks` without a foreign key: each service owns its schema.
+ */
+export const aiQuestionDrafts = ai.table(
+  'question_drafts',
+  {
+    id: id(),
+    bankId: ref('bank_id').notNull(),
+    jobId: uuid('job_id')
+      .notNull()
+      .references(() => aiJobs.jobId),
+    type: text('type').$type<QuestionType>().notNull(),
+    skill: text('skill').notNull(),
+    skillKey: text('skill_key').notNull(),
+    difficulty: text('difficulty').$type<QuestionDifficulty>().notNull(),
+    stemKey: text('stem_key').notNull(),
+    payload: jsonb('payload').$type<Record<string, unknown>>().notNull(),
+    model: text('model').notNull(),
+    promptVersion: text('prompt_version').notNull(),
+    createdAt: timestamptz('created_at').notNull().defaultNow(),
+  },
+  (t) => [
+    // AC-8: a stem is drafted once per bank; this key also lists a bank's drafts.
+    unique('question_drafts_bank_stem_key').on(t.bankId, t.stemKey),
+    index('question_drafts_job_id_idx').on(t.jobId),
+    oneOf('question_drafts_type_check', t.type, QUESTION_TYPES),
+    oneOf('question_drafts_difficulty_check', t.difficulty, QUESTION_DIFFICULTIES),
+    check('question_drafts_prompt_version_check', sql`${t.promptVersion} ~ '^[a-z][a-z0-9_]*/v[1-9][0-9]*$'`),
   ],
 );
 

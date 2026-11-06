@@ -102,8 +102,21 @@ class ObjectStore(Protocol):
     async def get_json(self, key: str) -> dict[str, Any]: ...
 
 
+TOKENS_SPENT_SQL = (
+    "SELECT coalesce(sum(input_tokens + cache_read_tokens + cache_write_tokens + output_tokens), "
+    "0) FROM ai.llm_calls WHERE job_id = %s"
+)
+"""Tokens as Usage.total_tokens counts them, over every call logged for the job."""
+
+
 class LlmCallStore(Protocol):
     async def insert(self, record: CallRecord) -> None: ...
+
+
+class LlmSpend(Protocol):
+    async def tokens_spent(self, job_id: UUID) -> int:
+        """Tokens of every LLM call logged for the job so far, earlier attempts included."""
+        ...
 
 
 class CallRecorder:
@@ -125,6 +138,12 @@ class PostgresLlmCallStore:
     async def insert(self, record: CallRecord) -> None:
         async with self._pool.connection() as conn:
             await conn.execute(INSERT_SQL, record.row())
+
+    async def tokens_spent(self, job_id: UUID) -> int:
+        async with self._pool.connection() as conn:
+            cursor = await conn.execute(TOKENS_SPENT_SQL, (job_id,))
+            row = await cursor.fetchone()
+        return int(row[0]) if row else 0
 
 
 class MinioObjectStore:

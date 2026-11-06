@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./rubric_criterion.json",
+  "type": "object",
+  "properties": {
+    "criterion": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1000,
+      "description": "What the grader looks for"
+    },
+    "max_points": {
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "maximum": 100,
+      "description": "Points this criterion is worth at most"
+    }
+  },
+  "required": [
+    "criterion",
+    "max_points"
+  ],
+  "additionalProperties": false,
+  "title": "RubricCriterion",
+  "description": "One criterion of an essay rubric"
+}

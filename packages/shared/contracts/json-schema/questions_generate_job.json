@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./questions_generate_job.json",
+  "type": "object",
+  "properties": {
+    "job_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique id of this job; the AI Service processes each job_id once (AD-5)"
+    },
+    "bank_id": {
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "maximum": 9007199254740991,
+      "description": "core.question_banks.id; a locked bank is no longer generated for"
+    }
+  },
+  "required": [
+    "job_id",
+    "bank_id"
+  ],
+  "additionalProperties": false,
+  "title": "QuestionsGenerateJob",
+  "description": "Job on ai.questions.generate: draft the missing questions of a bank"
+}

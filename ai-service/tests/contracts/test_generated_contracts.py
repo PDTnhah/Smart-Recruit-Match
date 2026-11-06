@@ -60,4 +60,17 @@ def test_ad6_no_contract_model_is_redefined_outside_app_contracts() -> None:
 def test_ad6_queues_json_ships_with_the_package() -> None:
     manifest = json.loads((CONTRACTS_DIR / "queues.json").read_text(encoding="utf-8"))
     assert manifest["max_attempts"] == len(manifest["retry_delays_seconds"]) + 1
-    assert set(manifest["jobs"]) == {"CV_PARSE", "JD_ANALYZE", "SKILL_NORMALIZE", "MATCH"}
+    assert set(manifest["jobs"]) == {
+        "CV_PARSE",
+        "JD_ANALYZE",
+        "SKILL_NORMALIZE",
+        "MATCH",
+        "QUESTIONS_GENERATE",
+    }
+
+
+def test_br05_question_bank_json_ships_with_the_package() -> None:
+    manifest = json.loads((CONTRACTS_DIR / "question_bank.json").read_text(encoding="utf-8"))
+    assert manifest["factors"] == {"min": 3, "target": 4, "max": 5}
+    assert manifest["part_types"] == {"A": "MCQ", "B": "ESSAY"}
+    assert manifest["mcq_option_count"] == 4

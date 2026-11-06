@@ -15,7 +15,7 @@
 - Ranh giới module: §5 `exclude: node_modules` làm dependency-cruiser bỏ sót
 - Thư viện API, web: §8 CLI shadcn 4.21 · §10 Zod 4 bỏ qua `refine` khi trường khác lỗi · §13 multer đọc tên file theo latin1 · §25 form gửi `row_version` của query mới nhất, bỏ qua khóa lạc quan · §26 lỗi tổng của form không mất khi sửa ô khác của tổng · §28 react-pdf 11 mặc định Suspense, PDF lỗi làm sập route · §29 Esc trong combobox tự viết đóng cả dialog Radix · §35 Handlebars bỏ dòng chỉ chứa `{{#each}}`, email văn bản dính dòng
 - RabbitMQ, job AI: §16 `RabbitMQModule` giữ connection static · §17 mặc định sai của thư viện message · §32 kiểm chéo trên schema hợp đồng message làm cả kết quả AI vào DLQ · §33 kết quả AI về trước khi API ghi `job_id`, message của một job xử lý song song
-- Sự kiện, tác vụ định kỳ: §34 việc phải chạy một lần ở mốc pha mà chỉ nằm trong listener `campaign.phase_changed` thì mất khi lỗi hoặc API dừng
+- Sự kiện, tác vụ định kỳ: §34 việc phải chạy một lần ở mốc pha mà chỉ nằm trong listener `campaign.phase_changed` thì mất khi lỗi hoặc API dừng · §36 `emitAsync` không chờ listener `async: true`, test sự kiện trùng xanh mà không kiểm gì
 - ai-service (Python): §19 chặn mạng trong pytest trên Windows · §20 PyMuPDF cắt chữ ngoài trang, màu nền theo thứ tự vẽ · §23 `HF_HUB_OFFLINE` đọc lúc import, bge-m3 tải 4,5 GB · §31 fixture LLM mất khóa khi nâng prompt hoặc sửa dữ liệu test nằm trong prompt
 
 ---
@@ -162,6 +162,7 @@ See [US-1.4](sprints/stories/US-1.4-campaign-setup-and-config.md) › Implementa
 - Không trông đợi lỗi chéo khi một trường nó đọc đang sai kiểu.
 - (0.9.0) Ngược lại, `when` **có** chạy khi chính object sai kiểu (thiếu hẳn, `undefined`): lỗi đó có `path` rỗng nên không khớp tên trường nào, và hàm kiểm tra nhận `undefined`. `JdRequirementsSchema` lồng trong `JdAnalyzeOutput` đã ném `TypeError` khi `requirements` vắng mặt (US-2.3). `when` phải trả `false` khi có lỗi `path.length === 0`, và hàm kiểm tra không giả định kiểu của dữ liệu. Xem `whenSkillListsParsed` trong `packages/shared/contracts/jd.ts`; test bằng `safeParse(undefined)`.
 - (0.14.0) Một lỗi có `abort: true` ở **bất kỳ** trường nào cũng làm Zod 4.6 bỏ qua `superRefine(fn, { when })`, kể cả khi `when` không đọc trường đó. US-2.7: tên kỹ năng rỗng (`skillName()` có `abort`) làm mất lỗi "họ không hợp nhóm". Trường nằm trong object có kiểm tra chéo thì không dùng `abort`; `skillName()` đã bỏ.
+- (0.20.0) Lỗi chặn nằm sâu trong mảng lồng cũng vậy: ô ma trận đề có số câu 1,5 làm mất lỗi tổng số câu và tỷ trọng (US-4.1). Form báo lỗi hai lượt; test `BR-05 an invalid cell count hides the cross-field errors` ghim hành vi này.
 
 See [US-1.4](sprints/stories/US-1.4-campaign-setup-and-config.md) › Implementation notes.
 
@@ -511,6 +512,7 @@ Pha đợt không quay lại, nên không có lần chạy thứ hai.
 - Việc đọc dữ liệu còn đang được tính (lượt chấm `RUNNING`) thì bỏ qua phần chưa đủ và để lần quét sau. Không chặn cả đợt.
 - Tác vụ quét đọc ít cột nhất có thể, vì nó chạy suốt pha.
 - Listener chạy lượt chấm khi hết `INTAKE` (US-3.2) có cùng dạng, nhưng Trung tâm chạy lại được bằng endpoint. Listener mới của EPIC-4, EPIC-5 phải chọn một trong hai cách: tác vụ quét, hoặc nút chạy lại.
+- (0.20.0) Nút chạy lại phải bấm được đúng lúc việc bị kẹt. US-4.1 tắt "Sinh câu còn thiếu" khi run `RUNNING`, còn run mất kết quả chỉ được đóng `STALE` trong chính endpoint của nút, nên run đó kẹt mãi (`/code-review`). Việc dọn trạng thái kẹt cũng chạy ở lần đọc mà màn hình gọi.
 
 See [US-3.3](sprints/stories/US-3.3-shortlist-and-preferences.md), [CONTEXT D47](CONTEXT.md).
 
@@ -525,3 +527,15 @@ See [US-3.3](sprints/stories/US-3.3-shortlist-and-preferences.md), [CONTEXT D47]
 - Test email có danh sách: dựng ít nhất hai phần tử và kiểm cả đoạn có `\n` giữa chúng, không chỉ `toContain` một dòng.
 
 See [US-3.4](sprints/stories/US-3.4-competition-level-and-suggestions.md).
+
+## 36. `emitAsync` không chờ listener `async: true`: test sự kiện trùng xanh mà không kiểm gì
+
+**What happened (0.20.0)**: Test AC-4 của US-4.1 phát `jd.approved` hai lần bằng `EventEmitter2.emitAsync`, rồi kiểm ngân hàng chỉ có một job. Test vẫn xanh. Khi thêm test cho trường hợp màn hình tạo ngân hàng trước listener, test mới đỏ với 0 job: lúc kiểm, listener chưa chạy. Test cũ xanh chỉ vì "không quá một job" vẫn đúng khi listener chưa gửi job nào.
+
+**Why**: `@OnEvent(name, { async: true })` đăng ký listener ở chế độ async của EventEmitter2: thân listener chạy ở lượt sau của event loop, còn hàm bọc trả về ngay. `emitAsync` chỉ chờ giá trị mà các hàm bọc trả về, nên xong trước khi listener làm gì.
+
+**How to avoid**:
+- Test listener `async: true` bằng cách gọi thẳng phương thức của nó (`t.app.get(QuestionBankService).onJdApproved(event)`), hoặc chờ kết quả trong DB bằng `waitFor`.
+- Test "lần sau không sinh thêm" phải chứng minh lần đầu đã sinh đúng một kết quả, rồi mới kiểm lần sau.
+
+See [US-4.1](sprints/stories/US-4.1-exam-blueprint-test-generator.md).

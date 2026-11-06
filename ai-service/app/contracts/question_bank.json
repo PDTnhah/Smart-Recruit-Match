@@ -1,0 +1,14 @@
+{
+  "factors": {
+    "min": 3,
+    "target": 4,
+    "max": 5
+  },
+  "mcq_option_count": 4,
+  "rubric_max_criteria": 10,
+  "max_drafts": 1000,
+  "part_types": {
+    "A": "MCQ",
+    "B": "ESSAY"
+  }
+}

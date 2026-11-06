@@ -2209,6 +2209,128 @@
           "preferences"
         ]
       }
+    },
+    "/api/jds/{id}/exam-blueprint": {
+      "get": {
+        "operationId": "BlueprintController_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "maximum": 9007199254740991,
+              "exclusiveMinimum": true,
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExamBlueprintViewDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "assessment"
+        ]
+      },
+      "put": {
+        "operationId": "BlueprintController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "maximum": 9007199254740991,
+              "exclusiveMinimum": true,
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateExamBlueprintRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExamBlueprintViewDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "assessment"
+        ]
+      }
+    },
+    "/api/jds/{id}/question-bank/generate": {
+      "post": {
+        "operationId": "BlueprintController_generate",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "maximum": 9007199254740991,
+              "exclusiveMinimum": true,
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuestionGenerationRunDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "assessment"
+        ]
+      }
     }
   },
   "info": {
@@ -8692,6 +8814,830 @@
         "required": [
           "campaignId",
           "preferences"
+        ],
+        "additionalProperties": false
+      },
+      "ExamBlueprintViewDto_Output": {
+        "type": "object",
+        "properties": {
+          "jdId": {
+            "type": "integer",
+            "exclusiveMinimum": true,
+            "maximum": 9007199254740991,
+            "minimum": 0
+          },
+          "bankId": {
+            "type": "integer",
+            "exclusiveMinimum": true,
+            "maximum": 9007199254740991,
+            "minimum": 0
+          },
+          "jdVersion": {
+            "type": "integer",
+            "exclusiveMinimum": true,
+            "maximum": 9007199254740991,
+            "minimum": 0
+          },
+          "rowVersion": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "locked": {
+            "type": "boolean"
+          },
+          "editable": {
+            "type": "boolean"
+          },
+          "blueprint": {
+            "type": "object",
+            "properties": {
+              "duration_minutes": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 600,
+                "description": "Time a student has for the exam, in minutes"
+              },
+              "parts": {
+                "type": "object",
+                "properties": {
+                  "A": {
+                    "type": "object",
+                    "properties": {
+                      "weight_percent": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 100,
+                        "description": "Share of the part in S_test, in percent; the parts add up to 100"
+                      },
+                      "question_count": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 60,
+                        "description": "Questions of the part in each exam; the counts of its cells add up to it"
+                      },
+                      "cells": {
+                        "minItems": 1,
+                        "maxItems": 180,
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "skill": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 100,
+                              "description": "Skill name as the JD requirements write it"
+                            },
+                            "difficulty": {
+                              "type": "string",
+                              "enum": [
+                                "EASY",
+                                "MEDIUM",
+                                "HARD"
+                              ],
+                              "title": "QuestionDifficulty",
+                              "description": "EASY, MEDIUM or HARD (PRD GĐ5)"
+                            },
+                            "count": {
+                              "type": "integer",
+                              "minimum": 1,
+                              "maximum": 60,
+                              "description": "Questions of this skill and difficulty drawn for each exam"
+                            }
+                          },
+                          "required": [
+                            "skill",
+                            "difficulty",
+                            "count"
+                          ],
+                          "additionalProperties": false,
+                          "title": "BlueprintCell",
+                          "description": "Questions of one skill and difficulty drawn for each exam"
+                        },
+                        "description": "Skill × difficulty cells, each once"
+                      }
+                    },
+                    "required": [
+                      "weight_percent",
+                      "question_count",
+                      "cells"
+                    ],
+                    "additionalProperties": false,
+                    "title": "ExamPartBlueprint",
+                    "description": "Part A: multiple choice (MCQ)"
+                  },
+                  "B": {
+                    "type": "object",
+                    "properties": {
+                      "weight_percent": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 100,
+                        "description": "Share of the part in S_test, in percent; the parts add up to 100"
+                      },
+                      "question_count": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 60,
+                        "description": "Questions of the part in each exam; the counts of its cells add up to it"
+                      },
+                      "cells": {
+                        "minItems": 1,
+                        "maxItems": 180,
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "skill": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 100,
+                              "description": "Skill name as the JD requirements write it"
+                            },
+                            "difficulty": {
+                              "type": "string",
+                              "enum": [
+                                "EASY",
+                                "MEDIUM",
+                                "HARD"
+                              ],
+                              "title": "QuestionDifficulty",
+                              "description": "EASY, MEDIUM or HARD (PRD GĐ5)"
+                            },
+                            "count": {
+                              "type": "integer",
+                              "minimum": 1,
+                              "maximum": 60,
+                              "description": "Questions of this skill and difficulty drawn for each exam"
+                            }
+                          },
+                          "required": [
+                            "skill",
+                            "difficulty",
+                            "count"
+                          ],
+                          "additionalProperties": false,
+                          "title": "BlueprintCell",
+                          "description": "Questions of one skill and difficulty drawn for each exam"
+                        },
+                        "description": "Skill × difficulty cells, each once"
+                      }
+                    },
+                    "required": [
+                      "weight_percent",
+                      "question_count",
+                      "cells"
+                    ],
+                    "additionalProperties": false,
+                    "title": "ExamPartBlueprint",
+                    "description": "Part B: essays (ESSAY)"
+                  }
+                },
+                "required": [
+                  "A",
+                  "B"
+                ],
+                "additionalProperties": false,
+                "description": "Part A draws MCQ questions, part B ESSAY questions"
+              }
+            },
+            "required": [
+              "duration_minutes",
+              "parts"
+            ],
+            "additionalProperties": false,
+            "title": "ExamBlueprint",
+            "description": "Exam blueprint of a JD (BR-05)"
+          },
+          "requirements": {
+            "type": "object",
+            "properties": {
+              "must_have": {
+                "minItems": 1,
+                "maxItems": 30,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "skill": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100,
+                      "description": "Skill name as written in the JD"
+                    },
+                    "level": {
+                      "type": "string",
+                      "enum": [
+                        "BASIC",
+                        "INTERMEDIATE",
+                        "ADVANCED"
+                      ],
+                      "title": "SkillLevel",
+                      "description": "BASIC = basic: used in at least 1 project, experience or certificate; INTERMEDIATE = working knowledge: used in at least 2 projects or experience entries; ADVANCED = proficient: at least 6 months of work or internship experience using it"
+                    },
+                    "weight": {
+                      "type": "number",
+                      "exclusiveMinimum": true,
+                      "maximum": 10,
+                      "description": "Relative importance within its group, greater than 0 and at most 10",
+                      "minimum": 0
+                    }
+                  },
+                  "required": [
+                    "skill",
+                    "level",
+                    "weight"
+                  ],
+                  "additionalProperties": false,
+                  "title": "JdSkillRequirement",
+                  "description": "One required skill with its level and weight"
+                },
+                "description": "Must-have skills"
+              },
+              "nice_to_have": {
+                "maxItems": 30,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "skill": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100,
+                      "description": "Skill name as written in the JD"
+                    },
+                    "level": {
+                      "type": "string",
+                      "enum": [
+                        "BASIC",
+                        "INTERMEDIATE",
+                        "ADVANCED"
+                      ],
+                      "title": "SkillLevel",
+                      "description": "BASIC = basic: used in at least 1 project, experience or certificate; INTERMEDIATE = working knowledge: used in at least 2 projects or experience entries; ADVANCED = proficient: at least 6 months of work or internship experience using it"
+                    },
+                    "weight": {
+                      "type": "number",
+                      "exclusiveMinimum": true,
+                      "maximum": 10,
+                      "description": "Relative importance within its group, greater than 0 and at most 10",
+                      "minimum": 0
+                    }
+                  },
+                  "required": [
+                    "skill",
+                    "level",
+                    "weight"
+                  ],
+                  "additionalProperties": false,
+                  "title": "JdSkillRequirement",
+                  "description": "One required skill with its level and weight"
+                },
+                "description": "Nice-to-have skills; never repeats a must-have skill"
+              },
+              "hard_conditions": {
+                "type": "object",
+                "properties": {
+                  "majors": {
+                    "maxItems": 20,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100
+                    },
+                    "description": "Accepted majors; empty when the JD accepts any major"
+                  },
+                  "min_study_year": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 6,
+                    "description": "Lowest year of study accepted (1 = first year); null when the JD states none",
+                    "nullable": true
+                  },
+                  "min_gpa": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 4,
+                    "description": "Minimum GPA on a 4-point scale; null when the JD states none",
+                    "nullable": true
+                  },
+                  "required_languages": {
+                    "maxItems": 10,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100
+                    },
+                    "description": "Mandatory foreign languages with any stated level, e.g. \"English (TOEIC 550)\""
+                  }
+                },
+                "required": [
+                  "majors",
+                  "min_study_year",
+                  "min_gpa",
+                  "required_languages"
+                ],
+                "additionalProperties": false,
+                "title": "JdHardConditions",
+                "description": "Eligibility conditions checked by code, not scored (US-3.1)"
+              },
+              "preferred_languages": {
+                "maxItems": 10,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100
+                },
+                "description": "Foreign languages the JD prefers but does not require, with any stated level; a language is either required or preferred, never both"
+              }
+            },
+            "required": [
+              "must_have",
+              "nice_to_have",
+              "hard_conditions",
+              "preferred_languages"
+            ],
+            "additionalProperties": false,
+            "title": "JdRequirements",
+            "description": "Normalised requirements of a JD (FR-9)"
+          },
+          "coverage": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "part": {
+                  "type": "string",
+                  "enum": [
+                    "A",
+                    "B"
+                  ]
+                },
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "MCQ",
+                    "ESSAY"
+                  ]
+                },
+                "skill": {
+                  "type": "string"
+                },
+                "difficulty": {
+                  "type": "string",
+                  "enum": [
+                    "EASY",
+                    "MEDIUM",
+                    "HARD"
+                  ]
+                },
+                "needed": {
+                  "type": "integer",
+                  "exclusiveMinimum": true,
+                  "maximum": 9007199254740991,
+                  "minimum": 0
+                },
+                "drafted": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "min": {
+                  "type": "integer",
+                  "exclusiveMinimum": true,
+                  "maximum": 9007199254740991,
+                  "minimum": 0
+                },
+                "max": {
+                  "type": "integer",
+                  "exclusiveMinimum": true,
+                  "maximum": 9007199254740991,
+                  "minimum": 0
+                }
+              },
+              "required": [
+                "part",
+                "type",
+                "skill",
+                "difficulty",
+                "needed",
+                "drafted",
+                "min",
+                "max"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "run": {
+            "type": "object",
+            "properties": {
+              "runId": {
+                "type": "integer",
+                "exclusiveMinimum": true,
+                "maximum": 9007199254740991,
+                "minimum": 0
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "RUNNING",
+                  "SUCCEEDED",
+                  "PARTIAL",
+                  "FAILED"
+                ]
+              },
+              "missingCells": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "MCQ",
+                        "ESSAY"
+                      ],
+                      "title": "QuestionType",
+                      "description": "MCQ: 4 options, one correct; ESSAY: graded by rubric"
+                    },
+                    "skill": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100,
+                      "description": "Skill of the blueprint cell"
+                    },
+                    "difficulty": {
+                      "type": "string",
+                      "enum": [
+                        "EASY",
+                        "MEDIUM",
+                        "HARD"
+                      ],
+                      "title": "QuestionDifficulty",
+                      "description": "EASY, MEDIUM or HARD (PRD GĐ5)"
+                    },
+                    "drafted": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991,
+                      "description": "Drafts the bank holds for the cell"
+                    },
+                    "required": {
+                      "type": "integer",
+                      "exclusiveMinimum": true,
+                      "maximum": 9007199254740991,
+                      "description": "Drafts the cell needs: 3 × its count",
+                      "minimum": 0
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "skill",
+                    "difficulty",
+                    "drafted",
+                    "required"
+                  ],
+                  "additionalProperties": false,
+                  "title": "MissingCell",
+                  "description": "A blueprint cell with fewer drafts than it needs"
+                },
+                "nullable": true
+              },
+              "questionsReceived": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "errorCode": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              },
+              "finishedAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                "nullable": true
+              }
+            },
+            "required": [
+              "runId",
+              "status",
+              "missingCells",
+              "questionsReceived",
+              "errorCode",
+              "createdAt",
+              "finishedAt"
+            ],
+            "additionalProperties": false,
+            "nullable": true
+          }
+        },
+        "required": [
+          "jdId",
+          "bankId",
+          "jdVersion",
+          "rowVersion",
+          "locked",
+          "editable",
+          "blueprint",
+          "requirements",
+          "coverage",
+          "run"
+        ],
+        "additionalProperties": false
+      },
+      "UpdateExamBlueprintRequestDto": {
+        "type": "object",
+        "properties": {
+          "rowVersion": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "blueprint": {
+            "type": "object",
+            "properties": {
+              "duration_minutes": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 600,
+                "description": "Time a student has for the exam, in minutes"
+              },
+              "parts": {
+                "type": "object",
+                "properties": {
+                  "A": {
+                    "type": "object",
+                    "properties": {
+                      "weight_percent": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 100,
+                        "description": "Share of the part in S_test, in percent; the parts add up to 100"
+                      },
+                      "question_count": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 60,
+                        "description": "Questions of the part in each exam; the counts of its cells add up to it"
+                      },
+                      "cells": {
+                        "minItems": 1,
+                        "maxItems": 180,
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "skill": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 100,
+                              "description": "Skill name as the JD requirements write it"
+                            },
+                            "difficulty": {
+                              "type": "string",
+                              "enum": [
+                                "EASY",
+                                "MEDIUM",
+                                "HARD"
+                              ],
+                              "title": "QuestionDifficulty",
+                              "description": "EASY, MEDIUM or HARD (PRD GĐ5)"
+                            },
+                            "count": {
+                              "type": "integer",
+                              "minimum": 1,
+                              "maximum": 60,
+                              "description": "Questions of this skill and difficulty drawn for each exam"
+                            }
+                          },
+                          "required": [
+                            "skill",
+                            "difficulty",
+                            "count"
+                          ],
+                          "additionalProperties": false,
+                          "title": "BlueprintCell",
+                          "description": "Questions of one skill and difficulty drawn for each exam"
+                        },
+                        "description": "Skill × difficulty cells, each once"
+                      }
+                    },
+                    "required": [
+                      "weight_percent",
+                      "question_count",
+                      "cells"
+                    ],
+                    "additionalProperties": false,
+                    "title": "ExamPartBlueprint",
+                    "description": "Part A: multiple choice (MCQ)"
+                  },
+                  "B": {
+                    "type": "object",
+                    "properties": {
+                      "weight_percent": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 100,
+                        "description": "Share of the part in S_test, in percent; the parts add up to 100"
+                      },
+                      "question_count": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 60,
+                        "description": "Questions of the part in each exam; the counts of its cells add up to it"
+                      },
+                      "cells": {
+                        "minItems": 1,
+                        "maxItems": 180,
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "skill": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 100,
+                              "description": "Skill name as the JD requirements write it"
+                            },
+                            "difficulty": {
+                              "type": "string",
+                              "enum": [
+                                "EASY",
+                                "MEDIUM",
+                                "HARD"
+                              ],
+                              "title": "QuestionDifficulty",
+                              "description": "EASY, MEDIUM or HARD (PRD GĐ5)"
+                            },
+                            "count": {
+                              "type": "integer",
+                              "minimum": 1,
+                              "maximum": 60,
+                              "description": "Questions of this skill and difficulty drawn for each exam"
+                            }
+                          },
+                          "required": [
+                            "skill",
+                            "difficulty",
+                            "count"
+                          ],
+                          "additionalProperties": false,
+                          "title": "BlueprintCell",
+                          "description": "Questions of one skill and difficulty drawn for each exam"
+                        },
+                        "description": "Skill × difficulty cells, each once"
+                      }
+                    },
+                    "required": [
+                      "weight_percent",
+                      "question_count",
+                      "cells"
+                    ],
+                    "additionalProperties": false,
+                    "title": "ExamPartBlueprint",
+                    "description": "Part B: essays (ESSAY)"
+                  }
+                },
+                "required": [
+                  "A",
+                  "B"
+                ],
+                "additionalProperties": false,
+                "description": "Part A draws MCQ questions, part B ESSAY questions"
+              }
+            },
+            "required": [
+              "duration_minutes",
+              "parts"
+            ],
+            "additionalProperties": false,
+            "title": "ExamBlueprint",
+            "description": "Exam blueprint of a JD (BR-05)"
+          }
+        },
+        "required": [
+          "rowVersion",
+          "blueprint"
+        ]
+      },
+      "QuestionGenerationRunDto_Output": {
+        "type": "object",
+        "properties": {
+          "runId": {
+            "type": "integer",
+            "exclusiveMinimum": true,
+            "maximum": 9007199254740991,
+            "minimum": 0
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "RUNNING",
+              "SUCCEEDED",
+              "PARTIAL",
+              "FAILED"
+            ]
+          },
+          "missingCells": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "MCQ",
+                    "ESSAY"
+                  ],
+                  "title": "QuestionType",
+                  "description": "MCQ: 4 options, one correct; ESSAY: graded by rubric"
+                },
+                "skill": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100,
+                  "description": "Skill of the blueprint cell"
+                },
+                "difficulty": {
+                  "type": "string",
+                  "enum": [
+                    "EASY",
+                    "MEDIUM",
+                    "HARD"
+                  ],
+                  "title": "QuestionDifficulty",
+                  "description": "EASY, MEDIUM or HARD (PRD GĐ5)"
+                },
+                "drafted": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991,
+                  "description": "Drafts the bank holds for the cell"
+                },
+                "required": {
+                  "type": "integer",
+                  "exclusiveMinimum": true,
+                  "maximum": 9007199254740991,
+                  "description": "Drafts the cell needs: 3 × its count",
+                  "minimum": 0
+                }
+              },
+              "required": [
+                "type",
+                "skill",
+                "difficulty",
+                "drafted",
+                "required"
+              ],
+              "additionalProperties": false,
+              "title": "MissingCell",
+              "description": "A blueprint cell with fewer drafts than it needs"
+            },
+            "nullable": true
+          },
+          "questionsReceived": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "errorCode": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "finishedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+            "nullable": true
+          }
+        },
+        "required": [
+          "runId",
+          "status",
+          "missingCells",
+          "questionsReceived",
+          "errorCode",
+          "createdAt",
+          "finishedAt"
         ],
         "additionalProperties": false
       }

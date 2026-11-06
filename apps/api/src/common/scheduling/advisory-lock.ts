@@ -35,6 +35,12 @@ export const ADVISORY_LOCK_KEYS = {
    * the last write has read every commit before it.
    */
   JD_COMPETITION: 3_401,
+  /**
+   * First key of `pg_advisory_xact_lock(4_101, hashtext(jdId))`, taken by every change to the
+   * question bank of a JD (US-4.1, CONTEXT D49): its creation, its blueprint and the start of a
+   * generation run happen one after the other, even before the bank has a row to lock.
+   */
+  QUESTION_BANK: 4_101,
 } as const;
 
 /**

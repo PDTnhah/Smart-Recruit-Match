@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./generated_question.json",
+  "oneOf": [
+    {
+      "$ref": "./mcq_question.json"
+    },
+    {
+      "$ref": "./essay_question.json"
+    }
+  ],
+  "title": "GeneratedQuestion",
+  "description": "A draft question of the bank, checked by the AI Service"
+}

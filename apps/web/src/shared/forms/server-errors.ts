@@ -1,12 +1,15 @@
 import type { FieldValues, Path, UseFormSetError } from 'react-hook-form';
 import { ApiRequestError } from '@/shared/api/errors';
 
-interface Issue {
+export interface ServerValidationIssue {
   path: string;
   message: string;
 }
 
-function issuesOf(error: unknown): Issue[] {
+type Issue = ServerValidationIssue;
+
+/** The field errors of a 400 VALIDATION_FAILED answer; none for any other error. */
+export function serverValidationIssues(error: unknown): Issue[] {
   if (!(error instanceof ApiRequestError) || error.body?.code !== 'VALIDATION_FAILED') return [];
   const issues = error.body.details?.issues;
   if (!Array.isArray(issues)) return [];
@@ -28,7 +31,7 @@ export function applyServerFieldErrors<T extends FieldValues>(
   fields: readonly string[],
 ): boolean {
   let applied = false;
-  for (const issue of issuesOf(error)) {
+  for (const issue of serverValidationIssues(error)) {
     const path = issue.path.replace(/\.\d+$/, '');
     if (!fields.includes(path)) continue;
     setError(path as Path<T>, { type: 'server', message: issue.message });
@@ -48,7 +51,7 @@ export function applyNestedServerErrors<T extends FieldValues>(
   prefix: string,
 ): boolean {
   let applied = false;
-  for (const issue of issuesOf(error)) {
+  for (const issue of serverValidationIssues(error)) {
     if (!issue.path.startsWith(`${prefix}.`)) continue;
     const path = issue.path.slice(prefix.length + 1) as Path<T>;
     setError(path, { type: 'server', message: issue.message }, { shouldFocus: !applied });

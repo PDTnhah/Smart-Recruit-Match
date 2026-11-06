@@ -660,6 +660,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/jds/{id}/exam-blueprint": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["BlueprintController_get"];
+        put: operations["BlueprintController_update"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jds/{id}/question-bank/generate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["BlueprintController_generate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2089,6 +2121,254 @@ export interface components {
                 status: "PENDING_TEST" | "TEST_GRADED" | "BELOW_THRESHOLD" | "WAITING_NEXT_ROUND" | "NOMINATED" | "INTERVIEW" | "HR_REJECTED" | "PASSED" | "RESERVE" | "INTERVIEW_FAILED" | "ACCEPTED" | "DECLINED" | "CLOSED";
             }[];
         };
+        ExamBlueprintViewDto_Output: {
+            jdId: number;
+            bankId: number;
+            jdVersion: number;
+            rowVersion: number;
+            locked: boolean;
+            editable: boolean;
+            /**
+             * ExamBlueprint
+             * @description Exam blueprint of a JD (BR-05)
+             */
+            blueprint: {
+                /** @description Time a student has for the exam, in minutes */
+                duration_minutes: number;
+                /** @description Part A draws MCQ questions, part B ESSAY questions */
+                parts: {
+                    /**
+                     * ExamPartBlueprint
+                     * @description Part A: multiple choice (MCQ)
+                     */
+                    A: {
+                        /** @description Share of the part in S_test, in percent; the parts add up to 100 */
+                        weight_percent: number;
+                        /** @description Questions of the part in each exam; the counts of its cells add up to it */
+                        question_count: number;
+                        /** @description Skill × difficulty cells, each once */
+                        cells: {
+                            /** @description Skill name as the JD requirements write it */
+                            skill: string;
+                            /**
+                             * QuestionDifficulty
+                             * @description EASY, MEDIUM or HARD (PRD GĐ5)
+                             * @enum {string}
+                             */
+                            difficulty: "EASY" | "MEDIUM" | "HARD";
+                            /** @description Questions of this skill and difficulty drawn for each exam */
+                            count: number;
+                        }[];
+                    };
+                    /**
+                     * ExamPartBlueprint
+                     * @description Part B: essays (ESSAY)
+                     */
+                    B: {
+                        /** @description Share of the part in S_test, in percent; the parts add up to 100 */
+                        weight_percent: number;
+                        /** @description Questions of the part in each exam; the counts of its cells add up to it */
+                        question_count: number;
+                        /** @description Skill × difficulty cells, each once */
+                        cells: {
+                            /** @description Skill name as the JD requirements write it */
+                            skill: string;
+                            /**
+                             * QuestionDifficulty
+                             * @description EASY, MEDIUM or HARD (PRD GĐ5)
+                             * @enum {string}
+                             */
+                            difficulty: "EASY" | "MEDIUM" | "HARD";
+                            /** @description Questions of this skill and difficulty drawn for each exam */
+                            count: number;
+                        }[];
+                    };
+                };
+            };
+            /**
+             * JdRequirements
+             * @description Normalised requirements of a JD (FR-9)
+             */
+            requirements: {
+                /** @description Must-have skills */
+                must_have: {
+                    /** @description Skill name as written in the JD */
+                    skill: string;
+                    /**
+                     * SkillLevel
+                     * @description BASIC = basic: used in at least 1 project, experience or certificate; INTERMEDIATE = working knowledge: used in at least 2 projects or experience entries; ADVANCED = proficient: at least 6 months of work or internship experience using it
+                     * @enum {string}
+                     */
+                    level: "BASIC" | "INTERMEDIATE" | "ADVANCED";
+                    /** @description Relative importance within its group, greater than 0 and at most 10 */
+                    weight: number;
+                }[];
+                /** @description Nice-to-have skills; never repeats a must-have skill */
+                nice_to_have: {
+                    /** @description Skill name as written in the JD */
+                    skill: string;
+                    /**
+                     * SkillLevel
+                     * @description BASIC = basic: used in at least 1 project, experience or certificate; INTERMEDIATE = working knowledge: used in at least 2 projects or experience entries; ADVANCED = proficient: at least 6 months of work or internship experience using it
+                     * @enum {string}
+                     */
+                    level: "BASIC" | "INTERMEDIATE" | "ADVANCED";
+                    /** @description Relative importance within its group, greater than 0 and at most 10 */
+                    weight: number;
+                }[];
+                /**
+                 * JdHardConditions
+                 * @description Eligibility conditions checked by code, not scored (US-3.1)
+                 */
+                hard_conditions: {
+                    /** @description Accepted majors; empty when the JD accepts any major */
+                    majors: string[];
+                    /** @description Lowest year of study accepted (1 = first year); null when the JD states none */
+                    min_study_year: number | null;
+                    /** @description Minimum GPA on a 4-point scale; null when the JD states none */
+                    min_gpa: number | null;
+                    /** @description Mandatory foreign languages with any stated level, e.g. "English (TOEIC 550)" */
+                    required_languages: string[];
+                };
+                /** @description Foreign languages the JD prefers but does not require, with any stated level; a language is either required or preferred, never both */
+                preferred_languages: string[];
+            };
+            coverage: {
+                /** @enum {string} */
+                part: "A" | "B";
+                /** @enum {string} */
+                type: "MCQ" | "ESSAY";
+                skill: string;
+                /** @enum {string} */
+                difficulty: "EASY" | "MEDIUM" | "HARD";
+                needed: number;
+                drafted: number;
+                min: number;
+                max: number;
+            }[];
+            run: {
+                runId: number;
+                /** @enum {string} */
+                status: "RUNNING" | "SUCCEEDED" | "PARTIAL" | "FAILED";
+                missingCells: {
+                    /**
+                     * QuestionType
+                     * @description MCQ: 4 options, one correct; ESSAY: graded by rubric
+                     * @enum {string}
+                     */
+                    type: "MCQ" | "ESSAY";
+                    /** @description Skill of the blueprint cell */
+                    skill: string;
+                    /**
+                     * QuestionDifficulty
+                     * @description EASY, MEDIUM or HARD (PRD GĐ5)
+                     * @enum {string}
+                     */
+                    difficulty: "EASY" | "MEDIUM" | "HARD";
+                    /** @description Drafts the bank holds for the cell */
+                    drafted: number;
+                    /** @description Drafts the cell needs: 3 × its count */
+                    required: number;
+                }[] | null;
+                questionsReceived: number;
+                errorCode: string | null;
+                /** Format: date-time */
+                createdAt: string;
+                /** Format: date-time */
+                finishedAt: string | null;
+            } | null;
+        };
+        UpdateExamBlueprintRequestDto: {
+            rowVersion: number;
+            /**
+             * ExamBlueprint
+             * @description Exam blueprint of a JD (BR-05)
+             */
+            blueprint: {
+                /** @description Time a student has for the exam, in minutes */
+                duration_minutes: number;
+                /** @description Part A draws MCQ questions, part B ESSAY questions */
+                parts: {
+                    /**
+                     * ExamPartBlueprint
+                     * @description Part A: multiple choice (MCQ)
+                     */
+                    A: {
+                        /** @description Share of the part in S_test, in percent; the parts add up to 100 */
+                        weight_percent: number;
+                        /** @description Questions of the part in each exam; the counts of its cells add up to it */
+                        question_count: number;
+                        /** @description Skill × difficulty cells, each once */
+                        cells: {
+                            /** @description Skill name as the JD requirements write it */
+                            skill: string;
+                            /**
+                             * QuestionDifficulty
+                             * @description EASY, MEDIUM or HARD (PRD GĐ5)
+                             * @enum {string}
+                             */
+                            difficulty: "EASY" | "MEDIUM" | "HARD";
+                            /** @description Questions of this skill and difficulty drawn for each exam */
+                            count: number;
+                        }[];
+                    };
+                    /**
+                     * ExamPartBlueprint
+                     * @description Part B: essays (ESSAY)
+                     */
+                    B: {
+                        /** @description Share of the part in S_test, in percent; the parts add up to 100 */
+                        weight_percent: number;
+                        /** @description Questions of the part in each exam; the counts of its cells add up to it */
+                        question_count: number;
+                        /** @description Skill × difficulty cells, each once */
+                        cells: {
+                            /** @description Skill name as the JD requirements write it */
+                            skill: string;
+                            /**
+                             * QuestionDifficulty
+                             * @description EASY, MEDIUM or HARD (PRD GĐ5)
+                             * @enum {string}
+                             */
+                            difficulty: "EASY" | "MEDIUM" | "HARD";
+                            /** @description Questions of this skill and difficulty drawn for each exam */
+                            count: number;
+                        }[];
+                    };
+                };
+            };
+        };
+        QuestionGenerationRunDto_Output: {
+            runId: number;
+            /** @enum {string} */
+            status: "RUNNING" | "SUCCEEDED" | "PARTIAL" | "FAILED";
+            missingCells: {
+                /**
+                 * QuestionType
+                 * @description MCQ: 4 options, one correct; ESSAY: graded by rubric
+                 * @enum {string}
+                 */
+                type: "MCQ" | "ESSAY";
+                /** @description Skill of the blueprint cell */
+                skill: string;
+                /**
+                 * QuestionDifficulty
+                 * @description EASY, MEDIUM or HARD (PRD GĐ5)
+                 * @enum {string}
+                 */
+                difficulty: "EASY" | "MEDIUM" | "HARD";
+                /** @description Drafts the bank holds for the cell */
+                drafted: number;
+                /** @description Drafts the cell needs: 3 × its count */
+                required: number;
+            }[] | null;
+            questionsReceived: number;
+            errorCode: string[];
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            finishedAt: string | null;
+        };
     };
     responses: never;
     parameters: never;
@@ -3358,6 +3638,73 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PreferenceListDto_Output"];
+                };
+            };
+        };
+    };
+    BlueprintController_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExamBlueprintViewDto_Output"];
+                };
+            };
+        };
+    };
+    BlueprintController_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateExamBlueprintRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExamBlueprintViewDto_Output"];
+                };
+            };
+        };
+    };
+    BlueprintController_generate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuestionGenerationRunDto_Output"];
                 };
             };
         };

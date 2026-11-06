@@ -5,7 +5,7 @@ import { SKILL_NORMALIZE_BATCH } from './skills.js';
  * Job types handled by the AI Service. Each later agent story adds its own type, payload schema,
  * queue and result output (US-3.2, US-4.1, …).
  */
-export const AI_JOB_TYPES = ['CV_PARSE', 'JD_ANALYZE', 'SKILL_NORMALIZE', 'MATCH'] as const;
+export const AI_JOB_TYPES = ['CV_PARSE', 'JD_ANALYZE', 'SKILL_NORMALIZE', 'MATCH', 'QUESTIONS_GENERATE'] as const;
 
 export type AiJobType = (typeof AI_JOB_TYPES)[number];
 
@@ -88,11 +88,26 @@ export const MatchRunJobSchema = z
 
 export type MatchRunJob = z.infer<typeof MatchRunJobSchema>;
 
+/**
+ * Payload on `ai.questions.generate` (US-4.1 AC-4, CONTEXT D49): fill the question bank of one JD
+ * up to its blueprint. The AI Service reads the blueprint and the requirements from
+ * `core.v_ai_question_banks` and `core.v_ai_jd_requirements`.
+ */
+export const QuestionsGenerateJobSchema = z
+  .strictObject({
+    job_id: jobId(),
+    bank_id: rowId().describe('core.question_banks.id; a locked bank is no longer generated for'),
+  })
+  .meta({ title: 'QuestionsGenerateJob', description: 'Job on ai.questions.generate: draft the missing questions of a bank' });
+
+export type QuestionsGenerateJob = z.infer<typeof QuestionsGenerateJobSchema>;
+
 export const AI_JOB_SCHEMAS = {
   CV_PARSE: CvParseJobSchema,
   JD_ANALYZE: JdAnalyzeJobSchema,
   SKILL_NORMALIZE: SkillNormalizeJobSchema,
   MATCH: MatchRunJobSchema,
+  QUESTIONS_GENERATE: QuestionsGenerateJobSchema,
 } as const satisfies Record<AiJobType, z.ZodType>;
 
 export type AiJobPayload<T extends AiJobType> = z.infer<(typeof AI_JOB_SCHEMAS)[T]>;

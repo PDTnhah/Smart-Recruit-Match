@@ -7,10 +7,12 @@ import {
   MATCH_RUN_MAX_PAIRS,
   MatchPairRefSchema,
   MatchRunJobSchema,
+  QuestionsGenerateJobSchema,
   SkillNormalizeJobSchema,
   type AiJobType,
 } from './jobs.js';
 import { EvidenceCheckSchema, MatchAssessmentSchema, PROJECT_EVIDENCE_MAX } from './matching.js';
+import { GeneratedQuestionSchema, MISSING_CELLS_MAX, MissingCellSchema, QUESTION_BANK_MAX_DRAFTS } from './questions.js';
 import { SKILL_NORMALIZE_BATCH, SkillSuggestionSchema } from './skills.js';
 
 /** Outcome of a job as reported on `ai.results` (ARCHITECTURE › Hàng đợi). */
@@ -170,6 +172,25 @@ export const MatchRunOutputSchema = z
 export type MatchRunOutput = z.output<typeof MatchRunOutputSchema>;
 
 /**
+ * Output of QUESTIONS_GENERATE (US-4.1 AC-5, AC-9, CONTEXT D49): every draft the bank holds, those
+ * of earlier jobs too, so drafts a failed job stored still reach the backend, which stores each
+ * once by `draft_id`. PARTIAL when cells are still missing drafts after the job's last round.
+ */
+export const QuestionsGenerateOutputSchema = z
+  .strictObject({
+    bank_id: z.int().positive().describe('core.question_banks.id of the job'),
+    questions: z.array(GeneratedQuestionSchema).max(QUESTION_BANK_MAX_DRAFTS).describe('Every draft of the bank'),
+    missing_cells: z
+      .array(MissingCellSchema)
+      .max(MISSING_CELLS_MAX)
+      .describe('Cells with fewer drafts than they need; empty when the bank is complete'),
+    rounds: z.int().min(0).describe('LLM rounds the job ran'),
+  })
+  .meta({ title: 'QuestionsGenerateOutput', description: 'Result of QUESTIONS_GENERATE' });
+
+export type QuestionsGenerateOutput = z.output<typeof QuestionsGenerateOutputSchema>;
+
+/**
  * One result message per job type. `job` echoes the job payload so a FAILED result still tells the
  * backend which CV or JD it is about (CONTEXT D33).
  */
@@ -208,6 +229,15 @@ export const MatchRunResultSchema = resultMessage('MATCH', MatchRunJobSchema, Ma
   description: 'Message on ai.results for a MATCH job',
 });
 
+export const QuestionsGenerateResultSchema = resultMessage(
+  'QUESTIONS_GENERATE',
+  QuestionsGenerateJobSchema,
+  QuestionsGenerateOutputSchema,
+).meta({
+  title: 'QuestionsGenerateResult',
+  description: 'Message on ai.results for a QUESTIONS_GENERATE job',
+});
+
 /**
  * A message on `ai.results`. The status/result/error checks live here only: `z.toJSONSchema` drops
  * refinements, so the AI Service builds the message in one place and tests it (CONTEXT D33).
@@ -218,6 +248,7 @@ export const AiResultMessageSchema = z
     JdAnalyzeResultSchema,
     SkillNormalizeResultSchema,
     MatchRunResultSchema,
+    QuestionsGenerateResultSchema,
   ])
   .superRefine((msg, ctx) => {
     if (msg.job.job_id !== msg.job_id) {

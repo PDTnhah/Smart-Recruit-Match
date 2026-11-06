@@ -7,7 +7,8 @@ For each attempt, at most MAX_ATTEMPTS:
 2. A refusal is logged and raised as NeedsHumanReview, without reading the answer.
 3. A truncated, unfinished or schema-invalid answer is logged and the same request is sent again.
    Resending it unchanged keeps the prompt prefix cacheable.
-4. A valid answer is logged and returned with the model that actually answered.
+4. A valid answer is logged and returned with the model that actually answered and the tokens of
+   every attempt.
 
 Every attempt writes one ai.llm_calls row and one llm-logs file. The log of an answer that will be
 used is required: if it cannot be written, the error propagates and the job layer retries, because
@@ -113,6 +114,7 @@ class StructuredLLMClient:
         )
         params = self._provider.build_params(request)
         problems: list[str] = []
+        spent = Usage()
         for number in range(1, MAX_ATTEMPTS + 1):
             attempt = _Attempt(
                 request=request,
@@ -138,6 +140,7 @@ class StructuredLLMClient:
                 await self._record_failure(attempt, Outcome.API_ERROR, None, repr(error))
                 raise
 
+            spent += response.usage
             if response.stop_reason is StopReason.REFUSAL:
                 await self._record_failure(attempt, Outcome.REFUSED, response)
                 category = response.stop_category or "no category"
@@ -169,6 +172,7 @@ class StructuredLLMClient:
                 model=response.model,
                 prompt_version=request.prompt_version,
                 call_id=attempt.call_id,
+                usage=spent,
             )
         raise NeedsHumanReview(
             f"{request.agent}: no valid output after {MAX_ATTEMPTS} attempts: "

@@ -3,6 +3,8 @@
 // US-2.2 AC-5 (CONTEXT D34): ai.llm_calls takes the row the AI Service writes for each LLM call.
 // US-2.5 AC-5 (CONTEXT D39): the skill catalogue views, and ai.embeddings.
 // US-3.2 AC-5, AC-17 (CONTEXT D46): the pairs awaiting the Matching Agent, and ai.llm_batches.
+// US-4.1 AC-6 (CONTEXT D49): the question banks not yet locked, and ai.question_drafts; ai_service
+// cannot write core.questions (the core tables loop below).
 import {
   CV_STATES,
   JOB_DESCRIPTION_STATES,
@@ -19,7 +21,7 @@ import {
 import { randomUUID } from 'node:crypto';
 import { Client } from 'pg';
 import { aiDatabaseUrl, createTestDb, ownerDatabaseUrl, type TestDb } from '../helpers/db.js';
-import { matchResults } from '../../src/db/schema/index.js';
+import { matchResults, questionBanks } from '../../src/db/schema/index.js';
 import { createCv, createJobDescription, SAMPLE_CV_PROFILE } from '../helpers/factories.js';
 import { SAMPLE_REQUIREMENTS } from '../helpers/jd.js';
 
@@ -29,6 +31,7 @@ const JD_SOURCE_VIEW = 'core.v_ai_jd_source';
 const SKILLS_VIEW = 'core.v_ai_skills';
 const SKILL_CANDIDATES_VIEW = 'core.v_ai_skill_candidates';
 const MATCH_PAIRS_VIEW = 'core.v_ai_match_pairs';
+const QUESTION_BANKS_VIEW = 'core.v_ai_question_banks';
 
 /** PostgreSQL's insufficient_privilege, raised before the statement touches any row. */
 async function expectDenied(promise: Promise<unknown>): Promise<void> {
@@ -153,10 +156,15 @@ describe('AD-4: database roles of the AI Service and the API', () => {
       'ai.llm_batches UPDATE',
       'ai.llm_calls INSERT',
       'ai.llm_calls SELECT',
+      'ai.question_drafts DELETE',
+      'ai.question_drafts INSERT',
+      'ai.question_drafts SELECT',
+      'ai.question_drafts UPDATE',
       `${CV_VIEW} SELECT`,
       `${JD_VIEW} SELECT`,
       `${JD_SOURCE_VIEW} SELECT`,
       `${MATCH_PAIRS_VIEW} SELECT`,
+      `${QUESTION_BANKS_VIEW} SELECT`,
       `${SKILL_CANDIDATES_VIEW} SELECT`,
       `${SKILLS_VIEW} SELECT`,
     ]);
@@ -178,7 +186,7 @@ describe('AD-4: database roles of the AI Service and the API', () => {
       expect([table, await can(`core.${table}`, 'DELETE')]).toEqual([table, !audit]);
       expect([table, await can(`core.${table}`, 'TRUNCATE')]).toEqual([table, false]);
     }
-    for (const table of ['ai.jobs', 'ai.llm_calls', 'ai.llm_batches', 'ai.embeddings']) {
+    for (const table of ['ai.jobs', 'ai.llm_calls', 'ai.llm_batches', 'ai.embeddings', 'ai.question_drafts']) {
       expect([table, await can(table, 'SELECT')]).toEqual([table, true]);
       for (const privilege of ['INSERT', 'UPDATE', 'DELETE']) {
         expect([table, privilege, await can(table, privilege)]).toEqual([table, privilege, false]);
@@ -237,6 +245,32 @@ describe('AD-4: views the AI Service reads', () => {
       'rules_version',
       'criteria',
     ]);
+    // The blueprint and which JD version it was made for; no question, no answer (US-4.1).
+    expect(await columnsOf(QUESTION_BANKS_VIEW)).toEqual(['bank_id', 'jd_id', 'jd_version', 'campaign_id', 'blueprint']);
+  });
+
+  it('US-4.1 v_ai_question_banks shows only banks not yet locked', async () => {
+    const blueprint = {
+      duration_minutes: 45,
+      parts: {
+        A: { weight_percent: 60, question_count: 1, cells: [{ skill: 'SQL', difficulty: 'EASY' as const, count: 1 }] },
+        B: { weight_percent: 40, question_count: 2, cells: [{ skill: 'SQL', difficulty: 'MEDIUM' as const, count: 2 }] },
+      },
+    };
+    const ids: number[] = [];
+    for (const lockedAt of [null, new Date()]) {
+      const jd = await createJobDescription(seed.db, { status: 'APPROVED' });
+      const [bank] = await seed.db
+        .insert(questionBanks)
+        .values({ campaignId: jd.campaignId, jdId: jd.id, jdVersion: jd.version, blueprint, lockedAt })
+        .returning({ id: questionBanks.id });
+      ids.push(bank!.id);
+    }
+    const { rows } = await ai.query<{ bank_id: string; blueprint: unknown }>(
+      `SELECT bank_id, blueprint FROM ${QUESTION_BANKS_VIEW} WHERE bank_id = ANY($1)`,
+      [ids],
+    );
+    expect(rows).toEqual([{ bank_id: String(ids[0]), blueprint }]);
   });
 
   it('US-3.2 v_ai_match_pairs shows only eligible top-M pairs awaiting the LLM', async () => {

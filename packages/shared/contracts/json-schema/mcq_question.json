@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./mcq_question.json",
+  "type": "object",
+  "properties": {
+    "draft_id": {
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "maximum": 9007199254740991,
+      "description": "ai.question_drafts.id; the backend stores each draft once by it"
+    },
+    "skill": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100,
+      "description": "Skill of the blueprint cell, as the blueprint writes it"
+    },
+    "difficulty": {
+      "$ref": "./question_difficulty.json"
+    },
+    "stem": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4000,
+      "description": "The question as the student reads it"
+    },
+    "explanation": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4000,
+      "description": "Why the answer is right; for staff, never sent to students"
+    },
+    "model": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Model id that wrote the question"
+    },
+    "prompt_version": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Versioned prompt the question was written with, e.g. test_generator/v1"
+    },
+    "type": {
+      "type": "string",
+      "const": "MCQ"
+    },
+    "options": {
+      "minItems": 4,
+      "maxItems": 4,
+      "type": "array",
+      "items": {
+        "$ref": "./mcq_option.json"
+      },
+      "description": "The options, in the order shown"
+    }
+  },
+  "required": [
+    "draft_id",
+    "skill",
+    "difficulty",
+    "stem",
+    "explanation",
+    "model",
+    "prompt_version",
+    "type",
+    "options"
+  ],
+  "additionalProperties": false,
+  "title": "McqQuestion",
+  "description": "A draft multiple-choice question"
+}

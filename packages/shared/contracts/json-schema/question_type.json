@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./question_type.json",
+  "type": "string",
+  "enum": [
+    "MCQ",
+    "ESSAY"
+  ],
+  "title": "QuestionType",
+  "description": "MCQ: 4 options, one correct; ESSAY: graded by rubric"
+}
