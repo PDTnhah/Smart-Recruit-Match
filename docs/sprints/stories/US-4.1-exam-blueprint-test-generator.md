@@ -10,7 +10,7 @@ version_shipped: 0.20.0
 prd_ref: [FR-18, NFR-11]
 depends_on: [US-2.3, US-2.5]
 assignee:
-commit:
+commit: 43e1a54
 created: 2026-10-07
 updated: 2026-11-06
 ---
@@ -131,7 +131,7 @@ PRD › GĐ5, FR-18, NFR-11, BR-02, BR-05, Q2, Q7 · ARCHITECTURE › *Pipeline 
 ### Added
 - Ma trận đề theo JD, Test Generator (3–5× mỗi ô, loại câu sai và câu trùng), các bảng của ngân hàng câu hỏi, tab "Ngân hàng câu hỏi". Chi tiết ở [CHANGELOG 0.20.0](../../CHANGELOG.md).
 
-**Commit**:
+**Commit**: 43e1a54
 
 ## Implementation notes
 
