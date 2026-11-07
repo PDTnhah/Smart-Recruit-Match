@@ -265,4 +265,41 @@ describe('transitionTo (US-1.2, AD-8)', () => {
     ).rejects.toBeInstanceOf(EntityNotFoundError);
     expect(await readState(testDb.db, 'campaign', campaign.id)).toEqual(campaign);
   });
+
+  it('AD-8 US-4.2: `set` writes other columns in the same UPDATE and shows them in the audit', async () => {
+    const campaign = await insertInState(testDb.db, 'campaign', 'DRAFT', 2);
+    const { result, audit } = await transitionAndReadAudit(ctx.service, testDb.db, {
+      lifecycle: lifecycle('campaign'),
+      id: campaign.id,
+      to: 'INTAKE',
+      expectedRowVersion: 2,
+      actor: CENTER,
+      reason: 'Mở nhận JD/CV',
+      set: { name: 'Đợt đã đổi tên' },
+    });
+    expect(result.rowVersion).toBe(3);
+    const { rows } = await testDb.pool.query<{ name: string; status: string }>(
+      'SELECT name, status FROM core.campaigns WHERE id = $1',
+      [campaign.id],
+    );
+    expect(rows[0]).toMatchObject({ name: 'Đợt đã đổi tên', status: 'INTAKE' });
+    expect(audit.after).toEqual({ name: 'Đợt đã đổi tên', status: 'INTAKE', rowVersion: 3 });
+  });
+
+  it('AD-8 US-4.2: `set` may not name the columns transitionTo owns, nor a column the table lacks', async () => {
+    const campaign = await insertInState(testDb.db, 'campaign', 'DRAFT');
+    const base = {
+      lifecycle: lifecycle('campaign'),
+      id: campaign.id,
+      to: 'INTAKE' as const,
+      actor: CENTER,
+      expectedRowVersion: 0,
+      reason: 'open',
+    };
+    for (const set of [{ status: 'CLOSED' }, { rowVersion: 9 }, { id: 1 }, { nmae: 'typo' }]) {
+      await expect(ctx.service.transitionTo({ ...base, set })).rejects.toThrow(/is not a column it may write/);
+    }
+    expect(await readState(testDb.db, 'campaign', campaign.id)).toEqual(campaign);
+    expect(await auditEntries(testDb.db, 'campaign', campaign.id)).toEqual([]);
+  });
 });

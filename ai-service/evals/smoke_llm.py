@@ -12,8 +12,9 @@ adapters match the live APIs, so run it after changing an adapter or upgrading a
 `--cv FILE` runs the CV Parser on a sample CV instead (US-2.4); a scan checks that the adapter
 sends a document: `--cv tests/fixtures/cv/cv_scanned.pdf`. Its skills all come back NEW: the run
 has an empty catalogue and keeps no embedding (US-2.5).
-`--bank` runs the Test Generator on the Backend Java blueprint of PRD GĐ5 (US-4.1), drafts kept in
-memory, and prints the cost of one bank: the number the story's performance budget asks for.
+`--bank` runs the Test Generator with its Validator on the Backend Java blueprint of PRD GĐ5
+(US-4.1, US-4.2), drafts and verdicts kept in memory, and prints the cost of one bank and the share
+of drafts the Validator rejected: the numbers the stories' performance budgets ask for.
 Use synthetic data only: the free tier of Gemini may use requests to improve Google's products.
 """
 
@@ -31,8 +32,10 @@ from pydantic import BaseModel, Field
 
 from app.agents.cv_parser import CvParser
 from app.agents.test_generator import BankSource, Draft, NewDraft, TestGenerator
+from app.agents.validator import Validator, Verdict
 from app.contracts.cv_parse_job import CvParseJob
 from app.contracts.exam_blueprint import ExamBlueprint
+from app.contracts.question_validation import QuestionValidation
 from app.contracts.questions_generate_job import QuestionsGenerateJob
 from app.embedding import (
     CatalogSkill,
@@ -86,6 +89,9 @@ class LocalCalls:
         with (OUT / "llm_calls.jsonl").open("a", encoding="utf-8") as file:
             row = {**asdict(record), "usage": record.usage.model_dump()}
             file.write(json.dumps(row, ensure_ascii=False, default=str) + "\n")
+
+    async def tokens_spent(self, job_id) -> int:
+        return sum(row.usage.total_tokens for row in self.rows if row.job_id == job_id)
 
 
 class LocalFile:
@@ -214,31 +220,50 @@ class MemoryDrafts:
         return None
 
 
-class NewJob:
-    """A job id made for this run: no earlier attempt has spent tokens."""
+class MemoryValidations:
+    """ai.question_validations of the bank run, in memory."""
 
-    async def tokens_spent(self, job_id) -> int:
-        return 0
+    def __init__(self) -> None:
+        self.rows: dict[int, QuestionValidation] = {}
+
+    async def validations(self, bank_id: int) -> dict[int, QuestionValidation]:
+        return dict(self.rows)
+
+    async def insert(self, job_id, verdicts: Sequence[Verdict]) -> None:
+        for verdict in verdicts:
+            self.rows.setdefault(verdict.draft_id, verdict.validation)
 
 
-async def generate_bank(client, settings) -> str:
+async def generate_bank(client, settings, calls) -> str:
+    """`calls` is the store the client logs to: the job's budget reads the tokens spent there."""
+    prompts = build_prompt_registry(settings)
     agent = TestGenerator(
         sources=OneBank(),
         drafts=MemoryDrafts(),
+        validator=Validator(llm=client, prompts=prompts, repo=MemoryValidations()),
         embedder=HashingEmbedder(),
         llm=client,
-        prompts=build_prompt_registry(settings),
-        spend=NewJob(),
+        prompts=prompts,
+        spend=calls,
     )
     output = await agent(QuestionsGenerateJob(job_id=uuid4(), bank_id=1))
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / "bank.json").write_text(output.model_dump_json(indent=2), "utf-8")
     missing = [
-        f"{c.type} {c.skill} {c.difficulty} {c.drafted}/{c.required}" for c in output.missing_cells
+        f"{c.type} {c.skill} {c.difficulty} {c.validated}/{c.required}"
+        for c in output.missing_cells
     ]
+    checked = [q.root.validation for q in output.questions if q.root.validation]
+    rejected = [v for v in checked if v.status.value == "REJECTED"]
+    reasons: dict[str, int] = {}
+    for validation in rejected:
+        for reason in validation.reasons:
+            reasons[reason.value] = reasons.get(reason.value, 0) + 1
     return (
         f"{len(output.questions)} drafts in {output.rounds} rounds, in {OUT / 'bank.json'}; "
-        f"missing cells: {', '.join(missing) or 'none'}"
+        f"{len(checked)} checked, {len(rejected)} rejected "
+        f"({', '.join(f'{r} ×{n}' for r, n in sorted(reasons.items())) or '-'}); "
+        f"missing cells (validated/required): {', '.join(missing) or 'none'}"
     )
 
 
@@ -258,7 +283,7 @@ async def main(record: str, cv: Path | None, bank: bool) -> int:
     try:
         client = build_llm_client(settings, objects=objects, calls=calls)
         if bank:
-            print(await generate_bank(client, settings))
+            print(await generate_bank(client, settings, calls))
         elif cv is not None:
             print(await parse_cv(client, settings, cv))
         else:

@@ -11,12 +11,13 @@
 - Jest, ESM: §9 gói chỉ có ESM (`@nestjs/schedule`, `file-type`, `promise-breaker`…) · §11 `testTimeout` trong `projects` bị bỏ qua · §21 `--selectProjects` nuốt đường dẫn test
 - Integration test: §22 các file dùng chung DB, thông báo gửi mọi tài khoản CENTER và tác vụ quét mọi đợt lọt vào test khác · §30 bảng mới trong `core` làm đỏ `core-schema` và `ai-service-role`
 - Drizzle, migration: §6 migration có mốc thời gian cũ bị bỏ qua · §7 hàm dùng chung nhiều bảng: khai kiểu cụ thể · §12 `FOR UPDATE OF` sinh tên có schema
+- Giao dịch, khóa: §38 đọc bản ghi của module khác ngoài giao dịch rồi chuyển trạng thái không đảo ngược
 - pgvector: §24 index HNSW lọc sau khi quét, hàng cũ chiếm chỗ ứng viên
 - Ranh giới module: §5 `exclude: node_modules` làm dependency-cruiser bỏ sót
 - Thư viện API, web: §8 CLI shadcn 4.21 · §10 Zod 4 bỏ qua `refine` khi trường khác lỗi · §13 multer đọc tên file theo latin1 · §25 form gửi `row_version` của query mới nhất, bỏ qua khóa lạc quan · §26 lỗi tổng của form không mất khi sửa ô khác của tổng · §28 react-pdf 11 mặc định Suspense, PDF lỗi làm sập route · §29 Esc trong combobox tự viết đóng cả dialog Radix · §35 Handlebars bỏ dòng chỉ chứa `{{#each}}`, email văn bản dính dòng
 - RabbitMQ, job AI: §16 `RabbitMQModule` giữ connection static · §17 mặc định sai của thư viện message · §32 kiểm chéo trên schema hợp đồng message làm cả kết quả AI vào DLQ · §33 kết quả AI về trước khi API ghi `job_id`, message của một job xử lý song song
 - Sự kiện, tác vụ định kỳ: §34 việc phải chạy một lần ở mốc pha mà chỉ nằm trong listener `campaign.phase_changed` thì mất khi lỗi hoặc API dừng · §36 `emitAsync` không chờ listener `async: true`, test sự kiện trùng xanh mà không kiểm gì
-- ai-service (Python): §19 chặn mạng trong pytest trên Windows · §20 PyMuPDF cắt chữ ngoài trang, màu nền theo thứ tự vẽ · §23 `HF_HUB_OFFLINE` đọc lúc import, bge-m3 tải 4,5 GB · §31 fixture LLM mất khóa khi nâng prompt hoặc sửa dữ liệu test nằm trong prompt
+- ai-service (Python): §19 chặn mạng trong pytest trên Windows · §20 PyMuPDF cắt chữ ngoài trang, màu nền theo thứ tự vẽ · §23 `HF_HUB_OFFLINE` đọc lúc import, bge-m3 tải 4,5 GB · §31 fixture LLM mất khóa khi nâng prompt hoặc sửa dữ liệu test nằm trong prompt · §37 nhóm gửi LLM lỗi tất định được gửi lại y nguyên, câu chờ giữ chỗ của ô
 
 ---
 
@@ -539,3 +540,30 @@ See [US-3.4](sprints/stories/US-3.4-competition-level-and-suggestions.md).
 - Test "lần sau không sinh thêm" phải chứng minh lần đầu đã sinh đúng một kết quả, rồi mới kiểm lần sau.
 
 See [US-4.1](sprints/stories/US-4.1-exam-blueprint-test-generator.md).
+
+## 37. Nhóm câu gửi LLM lỗi tất định được gửi lại y nguyên mỗi vòng: không bao giờ có kết quả, và câu chờ giữ chỗ của ô
+
+**What happened (0.21.0)**: Review US-4.2 thấy Validator gặp `LLM_INVALID_OUTPUT` thì để cả nhóm chờ vòng sau. `batches()` tất định, nên vòng sau và job sau lại gửi đúng nhóm 15 câu đó. Với `effort: high`, phần suy nghĩ cũng tính vào `max_output_tokens` (16K), nên nhóm đã bị cắt thì sẽ bị cắt mãi, mỗi lần tốn 3 lượt thử. Câu chờ vẫn được tính vào mức 4× của ô, nên ô không xin câu mới: ô thiếu mãi và ngân hàng không khóa được. Nhóm bị từ chối thì được gửi lại từng câu mà không kiểm ngân sách giữa các lượt.
+
+**Why**: Thử lại chỉ có ích với lỗi ngẫu nhiên. Lỗi do chính đầu vào (đầu ra quá dài, một câu làm hỏng JSON) cho cùng kết quả khi gửi lại y nguyên. Còn phần tử "đang chờ" được coi như sắp đạt, nên không ai sinh phần tử thay.
+
+**How to avoid**:
+- Lượt gọi LLM cho một nhóm mà đầu ra sai thì gửi lại phần nhỏ hơn (chia đôi, tới từng phần tử), không gửi lại y nguyên.
+- Giới hạn số lần gửi một phần tử trong một job (`MAX_CHECKS_PER_DRAFT`). Quá giới hạn thì phần tử đó không còn được tính là "đang chờ", để vòng sau sinh phần tử khác thay.
+- Kiểm ngân sách trước mọi lượt gọi phát sinh (gửi lại từng câu, chia đôi), không chỉ trước mỗi nhóm.
+- Đọc lại kết quả LLM đã lưu bằng các trường cần dùng, không parse lại bằng schema đầu ra hiện tại: prompt `vN+1` đổi schema thì các dòng cũ vẫn đọc được.
+
+See [US-4.2](sprints/stories/US-4.2-validator-and-question-bank-lock.md), [CONTEXT D50](CONTEXT.md).
+
+## 38. Đọc bản ghi của module khác ngoài giao dịch rồi chuyển trạng thái không đảo ngược
+
+**What happened (0.21.0)**: `lock()` của ngân hàng câu hỏi đọc phiên bản JD qua `JdService` trước giao dịch, rồi mới lấy advisory lock và khóa dòng ngân hàng. Lưu yêu cầu JD không lấy khóa nào của `assessment`. HR lưu yêu cầu mới giữa hai bước thì ngân hàng vẫn bị khóa theo yêu cầu cũ. Sau khi khóa, `jdOutdated` luôn `false`, nên không sửa lại được.
+
+**Why**: Advisory lock và khóa dòng chỉ xếp hàng những bên cùng lấy chúng. Bản ghi của module khác đổi theo đường của module đó; đọc nó ngoài giao dịch là đọc một ảnh có thể đã cũ khi giao dịch commit.
+
+**How to avoid**:
+- Điều kiện quyết định một chuyển trạng thái không đảo ngược phải được đọc trong cùng giao dịch, có khóa: service của module kia nhận `{ tx }` và đọc `FOR SHARE` (`JdService.getForQuestionBank(jdId, { tx })`, như `CampaignService.assertPhase(..., { tx })`). Lần lưu bên kia hoặc commit trước và được thấy, hoặc phải chờ.
+- Vẫn có thể đọc trước giao dịch để trả 404/409 sớm, nhưng không dùng kết quả đó để quyết định.
+- Test: giao dịch thứ hai UPDATE dòng đó mà chưa commit; gọi API; chờ tới khi `pg_locks` có khóa `not granted`, rồi commit. API phải thấy bản mới. Test này đỏ với bản đọc ngoài giao dịch (`question-bank-lock.int-spec.ts`).
+
+See [US-4.2](sprints/stories/US-4.2-validator-and-question-bank-lock.md).

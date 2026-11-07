@@ -1,5 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { type ExamBlueprintView, examBlueprintRequestSchema, type UpdateExamBlueprintRequest } from '@srm/shared';
+import {
+  type ExamBlueprintView,
+  examBlueprintRequestSchema,
+  type LockQuestionBankRequest,
+  type UpdateExamBlueprintRequest,
+} from '@srm/shared';
 import type { AuthUser } from '../../../common/auth/index.js';
 import {
   QuestionBankLockedError,
@@ -12,6 +17,7 @@ import type { Database } from '../../../db/types.js';
 import { AuditService, SYSTEM_ACTOR, userActor } from '../../audit/index.js';
 import { ASSESSMENT_AUDIT_ACTIONS, QUESTION_BANK_ENTITY } from '../domain/audit-actions.js';
 import { coverageOf } from '../domain/blueprint.js';
+import { lockBlockers } from '../domain/lock-readiness.js';
 import { type QuestionBankRecord, QuestionBanksRepository } from '../infrastructure/question-banks.repository.js';
 import {
   type QuestionGenerationRunRecord,
@@ -68,7 +74,7 @@ export class BlueprintService {
     const actor = userActor(user);
     await this.db.transaction(async (tx) => {
       const bank = await this.questionBanks.lockBank(tx, jd, actor);
-      if (bank.lockedAt !== null) throw new QuestionBankLockedError(bank.id);
+      if (bank.status === 'LOCKED') throw new QuestionBankLockedError(bank.id);
       const running = await this.questionBanks.runningRun(tx, bank.id);
       if (running) throw new QuestionGenerationRunningError(bank.id, running.id);
       if (bank.rowVersion !== body.rowVersion) {
@@ -87,23 +93,42 @@ export class BlueprintService {
     return this.get(jdId);
   }
 
+  /** US-4.2 AC-6: `POST /api/question-banks/{id}/lock`; the view of the locked bank. */
+  async lock(user: AuthUser, bankId: number, body: LockQuestionBankRequest): Promise<ExamBlueprintView> {
+    const { jdId } = await this.questionBanks.lock(bankId, userActor(user), body.rowVersion);
+    return this.get(jdId);
+  }
+
   private async viewOf(
     jd: BankJd,
     bank: QuestionBankRecord,
     run: QuestionGenerationRunRecord | undefined,
   ): Promise<ExamBlueprintView> {
-    const drafts = await this.banks.countDrafts(bank.id);
-    const locked = bank.lockedAt !== null;
+    const [counts, reasons] = await Promise.all([
+      this.banks.countQuestions(bank.id),
+      this.banks.countRejectReasons(bank.id),
+    ]);
+    const coverage = coverageOf(bank.blueprint, counts, reasons);
+    const locked = bank.status === 'LOCKED';
+    const generationRunning = run?.status === 'RUNNING';
+    // A locked bank keeps the requirements it was locked with (US-4.2 AC-11).
+    const jdOutdated = !locked && bank.jdVersion < jd.jdVersion;
+    const blockers = lockBlockers({ status: bank.status, generationRunning, jdOutdated, coverage });
     return {
       jdId: jd.jdId,
       bankId: bank.id,
       jdVersion: bank.jdVersion,
+      jdOutdated,
       rowVersion: bank.rowVersion,
+      status: bank.status,
       locked,
-      editable: !locked && run?.status !== 'RUNNING',
+      version: bank.version,
+      lockedAt: bank.lockedAt?.toISOString() ?? null,
+      lock: { allowed: blockers.length === 0, blockers },
+      editable: !locked && !generationRunning,
       blueprint: bank.blueprint,
       requirements: jd.requirements,
-      coverage: coverageOf(bank.blueprint, drafts),
+      coverage,
       run: run ? runView(run) : null,
     };
   }

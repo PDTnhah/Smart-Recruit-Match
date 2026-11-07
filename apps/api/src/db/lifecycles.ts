@@ -9,13 +9,17 @@ import {
   cvMachine,
   type JobDescriptionStatus,
   jobDescriptionMachine,
+  type QuestionBankStatus,
+  questionBankMachine,
+  type QuestionStatus,
+  questionMachine,
   type SkillStatus,
   skillMachine,
   type StateMachine,
 } from '@srm/shared';
 import type { ColumnBaseConfig } from 'drizzle-orm';
 import type { PgColumn, PgTable } from 'drizzle-orm/pg-core';
-import { campaigns, cvs, jobDescriptions, preferences, skills } from './schema/index.js';
+import { campaigns, cvs, jobDescriptions, preferences, questionBanks, questions, skills } from './schema/index.js';
 
 type NumberColumn = PgColumn<ColumnBaseConfig<'number', string>>;
 type StringColumn = PgColumn<ColumnBaseConfig<'string', string>>;
@@ -45,3 +49,9 @@ export const skillLifecycle: Lifecycle<SkillStatus> = { table: skills, machine: 
 
 /** A preference is also the application of its student to its JD (US-3.3, CONTEXT D47). */
 export const applicationLifecycle: Lifecycle<ApplicationStatus> = { table: preferences, machine: applicationMachine };
+
+/** A question of a bank: the Validator's verdict, then retirement (US-4.2, CONTEXT D50). */
+export const questionLifecycle: Lifecycle<QuestionStatus> = { table: questions, machine: questionMachine };
+
+/** A JD's question bank: CENTER locks it, with `locked_at` set by `transitionTo` `set` (US-4.2). */
+export const questionBankLifecycle: Lifecycle<QuestionBankStatus> = { table: questionBanks, machine: questionBankMachine };

@@ -6,7 +6,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from . import mcq_option, question_difficulty
+from . import mcq_option, question_difficulty, question_validation
 
 
 class McqQuestion(BaseModel):
@@ -41,6 +41,10 @@ class McqQuestion(BaseModel):
     prompt_version: Annotated[str, Field(min_length=1)]
     """
     Versioned prompt the question was written with, e.g. test_generator/v1
+    """
+    validation: question_validation.QuestionValidation | None
+    """
+    Verdict of the Validator; null while the draft waits for it
     """
     type: Literal['MCQ']
     options: Annotated[list[mcq_option.McqOption], Field(max_length=4, min_length=4)]

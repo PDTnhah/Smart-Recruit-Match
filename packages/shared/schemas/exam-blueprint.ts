@@ -8,7 +8,8 @@ import {
   type QuestionDifficulty,
 } from '../contracts/exam-blueprint.js';
 import { type JdRequirements, JdRequirementsSchema, skillKey } from '../contracts/jd.js';
-import { MissingCellSchema, type RubricCriterion } from '../contracts/questions.js';
+import { MissingCellSchema, QUESTION_REJECT_REASONS, type RubricCriterion } from '../contracts/questions.js';
+import { QUESTION_BANK_STATES } from '../states/question-bank.js';
 import { RowVersionSchema } from './common.js';
 
 // Exam blueprint and question bank of a JD as CENTER sees and edits them (BR-05, PRD GĐ5, US-4.1,
@@ -125,7 +126,7 @@ export const UpdateExamBlueprintRequestSchema = z.object({
 
 export type UpdateExamBlueprintRequest = z.output<typeof UpdateExamBlueprintRequestSchema>;
 
-// --- Question bank and its generation runs (US-4.1 AC-3, AC-11) ------------------------------------
+// --- Question bank and its generation runs (US-4.1 AC-3, AC-11; US-4.2) ----------------------------
 
 /** `questions.content`: what a student may see (AGENTS › Invariant 8); MCQ options in display order. */
 export interface QuestionContent {
@@ -152,7 +153,10 @@ export type QuestionGenerationRunStatus = (typeof QUESTION_GENERATION_RUN_STATUS
 
 const count = () => z.int().min(0);
 
-/** Drafts of one blueprint cell against what it needs: `min` and `max` are the BR-05 bounds. */
+/**
+ * Questions of one blueprint cell against what it needs: `min` VALIDATED ones and `max` drafts are
+ * the BR-05 bounds (US-4.2 AC-4, AC-10).
+ */
 export const CellCoverageSchema = z.object({
   part: z.enum(EXAM_PARTS),
   type: z.enum(QUESTION_TYPES),
@@ -160,7 +164,15 @@ export const CellCoverageSchema = z.object({
   difficulty: z.enum(QUESTION_DIFFICULTIES),
   /** Questions of the cell in each exam. */
   needed: z.int().positive(),
+  /** Every question of the cell, whatever its status. */
   drafted: count(),
+  /** Passed by the Validator: the questions an exam is drawn from. */
+  validated: count(),
+  rejected: count(),
+  /** Drafts still waiting for the Validator. */
+  pending: count(),
+  /** Rejected questions per reason; a question rejected for two reasons counts under both. */
+  rejectReasons: z.partialRecord(z.enum(QUESTION_REJECT_REASONS), z.int().positive()),
   min: z.int().positive(),
   max: z.int().positive(),
 });
@@ -181,14 +193,38 @@ export const QuestionGenerationRunSchema = z.object({
 
 export type QuestionGenerationRun = z.output<typeof QuestionGenerationRunSchema>;
 
-/** Body of `GET`/`PUT /api/jds/{id}/exam-blueprint`. */
+/**
+ * Why the bank cannot be locked now (US-4.2 AC-6, AC-11), in the order the API checks them:
+ * already locked, a generation runs, the JD has newer requirements than the blueprint, a cell is
+ * short of VALIDATED questions.
+ */
+export const QUESTION_BANK_LOCK_BLOCKERS = ['LOCKED', 'GENERATION_RUNNING', 'JD_OUTDATED', 'INCOMPLETE'] as const;
+
+export type QuestionBankLockBlocker = (typeof QUESTION_BANK_LOCK_BLOCKERS)[number];
+
+/** Body of `POST /api/question-banks/{id}/lock`: the `rowVersion` of the view CENTER confirmed. */
+export const LockQuestionBankRequestSchema = z.object({ rowVersion: RowVersionSchema });
+
+export type LockQuestionBankRequest = z.output<typeof LockQuestionBankRequestSchema>;
+
+/** Body of `GET`/`PUT /api/jds/{id}/exam-blueprint` and of the lock. */
 export const ExamBlueprintViewSchema = z.object({
   jdId: z.int().positive(),
   bankId: z.int().positive(),
   /** JD version the bank was made for. */
   jdVersion: z.int().positive(),
+  /** The JD's requirements are newer than the blueprint (BR-18): save the blueprint again. */
+  jdOutdated: z.boolean(),
   rowVersion: z.int().min(0),
+  status: z.enum(QUESTION_BANK_STATES),
   locked: z.boolean(),
+  /** Raised by each question retired after locking (US-4.2 AC-7). */
+  version: z.int().positive(),
+  lockedAt: z.iso.datetime().nullable(),
+  lock: z.object({
+    allowed: z.boolean(),
+    blockers: z.array(z.enum(QUESTION_BANK_LOCK_BLOCKERS)),
+  }),
   /** Not locked and no generation running: CENTER may change the blueprint. */
   editable: z.boolean(),
   blueprint: ExamBlueprintSchema,

@@ -1,9 +1,12 @@
-"""Stand-ins for the Test Generator tests (US-4.1): the bank view, ai.question_drafts with its
-vectors, and the LLM providers behind the real StructuredLLMClient.
+"""Stand-ins for the Test Generator and Validator tests (US-4.1, US-4.2): the bank view,
+ai.question_drafts with its vectors, ai.question_validations, and the LLM providers behind the real
+StructuredLLMClient.
 
 `MemoryDrafts` follows the rules of the SQL in app/agents/test_generator/drafts.py: a stem once per
-bank, a draft and its vector written together. `ScriptedProvider` answers each attempt with the
-next reply and keeps the request, so a test reads the cells and rejections each round sent.
+bank, a draft and its vector written together. `MemoryValidations` follows those of
+app/agents/validator/repo.py: one verdict per draft, the first one kept, read back through
+`stored_validation`. `ScriptedProvider` answers each attempt with the next reply and keeps the
+request, so a test reads the cells, rejections and questions each call sent.
 """
 
 import json
@@ -19,7 +22,17 @@ from app.agents.test_generator import (
     TestGenerator,
     stem_key,
 )
+from app.agents.validator import (
+    OPTION_LABELS,
+    QuestionCheck,
+    Validator,
+    Verdict,
+    decide,
+    stored_validation,
+)
+from app.agents.validator.request import answer_key
 from app.contracts.exam_blueprint import ExamBlueprint
+from app.contracts.question_validation import QuestionValidation
 from app.contracts.questions_generate_job import QuestionsGenerateJob
 from app.contracts.questions_generate_output import QuestionsGenerateOutput
 from app.embedding import Embedder, EmbeddingRow, HashingEmbedder, skill_match_key
@@ -141,6 +154,54 @@ def answer(*questions: dict[str, Any], usage: Usage = ROUND_USAGE) -> ProviderRe
     )
 
 
+def check(
+    ref: int,
+    correct: Sequence[str] = ("A",),
+    *,
+    difficulty: str = "EASY",
+    on_skill: bool = True,
+    answer_leaked: bool = False,
+    distractors_plausible: bool = True,
+    clear: bool = True,
+    gradeable_by_criteria: bool = True,
+    duplicate_of: int | None = None,
+    note: str = "",
+) -> dict[str, Any]:
+    """One result of a Validator answer; by default an MCQ whose answer is option A, that passes."""
+    return {
+        "ref": ref,
+        "correct_options": list(correct),
+        "on_skill": on_skill,
+        "estimated_difficulty": difficulty,
+        "answer_leaked": answer_leaked,
+        "distractors_plausible": distractors_plausible,
+        "clear": clear,
+        "gradeable_by_criteria": gradeable_by_criteria,
+        "duplicate_of": duplicate_of,
+        "note": note,
+    }
+
+
+CHECK_USAGE = Usage(input_tokens=3000, output_tokens=900)
+
+
+def verdicts(*results: dict[str, Any], usage: Usage = CHECK_USAGE) -> ProviderResponse:
+    """A Validator answer holding `results`."""
+    return ProviderResponse(
+        stop_reason=StopReason.END_TURN,
+        raw_stop_reason="STOP",
+        text=json.dumps({"results": list(results)}, ensure_ascii=False),
+        model=MODEL,
+        usage=usage,
+    )
+
+
+def passes(count: int, difficulty: str = "EASY", *, essays: bool = False) -> ProviderResponse:
+    """A Validator answer passing questions 1 to `count`."""
+    correct: Sequence[str] = () if essays else ("A",)
+    return verdicts(*(check(ref, correct, difficulty=difficulty) for ref in range(1, count + 1)))
+
+
 def refusal() -> ProviderResponse:
     return ProviderResponse(
         stop_reason=StopReason.REFUSAL,
@@ -258,6 +319,39 @@ class MemoryDrafts:
         return draft_id
 
 
+class MemoryValidations:
+    """ai.question_validations, read with the type of each draft of `drafts`."""
+
+    def __init__(self, drafts: MemoryDrafts) -> None:
+        self._drafts = drafts
+        self.rows: dict[int, tuple[UUID, Verdict]] = {}
+
+    async def validations(self, bank_id: int) -> dict[int, QuestionValidation]:
+        types = {d.draft_id: d.type for d in await self._drafts.drafts(bank_id)}
+        return {
+            draft_id: stored_validation(
+                draft_type=types[draft_id],
+                reasons=[reason.value for reason in verdict.validation.reasons],
+                answer=verdict.answer,
+                model=verdict.validation.model,
+                prompt_version=verdict.validation.prompt_version,
+            )
+            for draft_id, (_, verdict) in self.rows.items()
+            if draft_id in types
+        }
+
+    async def insert(self, job_id: UUID, verdicts: Sequence[Verdict]) -> None:
+        for verdict in verdicts:
+            self.rows.setdefault(verdict.draft_id, (job_id, verdict))
+
+    def pass_draft(self, draft: Draft) -> None:
+        """A verdict an earlier job stored: the draft passed, as `decide` itself decides it."""
+        correct = [OPTION_LABELS[answer_key(draft)]] if draft.type == "MCQ" else []
+        passed = QuestionCheck.model_validate(check(1, correct, difficulty=draft.difficulty))
+        [verdict] = decide([draft], [passed], model=MODEL, prompt_version="validator/v1")
+        self.rows[draft.draft_id] = (EARLIER_JOB, verdict)
+
+
 class MemoryObjects:
     async def put_json(self, key: str, document: dict[str, Any]) -> None:
         pass
@@ -313,6 +407,7 @@ class Harness:
     ) -> None:
         self.banks = MemoryBanks(*banks)
         self.drafts = MemoryDrafts()
+        self.validations = MemoryValidations(self.drafts)
         self.embedder = embedder or HashingEmbedder()
         self.provider = provider
         self.calls = MemoryCalls()
@@ -324,9 +419,11 @@ class Harness:
         )
         # The production registry: only the released, unchanged prompt renders (AD-12).
         prompts = PromptRegistry(active=load_active(), manifest=load_manifest())
+        self.validator = Validator(llm=llm, prompts=prompts, repo=self.validations)
         self.agent = TestGenerator(
             sources=self.banks,
             drafts=self.drafts,
+            validator=self.validator,
             embedder=self.embedder,
             llm=llm,
             prompts=prompts,
@@ -336,9 +433,25 @@ class Harness:
     async def run(self, bank_id: int = BANK.bank_id) -> QuestionsGenerateOutput:
         return await self.agent(QuestionsGenerateJob(job_id=JOB_ID, bank_id=bank_id))
 
-    def sent_block(self, round_number: int, tag: str) -> Any:
-        """The JSON inside <tag> of the user prompt the round sent, or None without that block."""
-        user = self.provider.sent[round_number - 1]["user"]
-        if f"<{tag}>" not in user:
-            return None
-        return json.loads(user.split(f"<{tag}>\n", 1)[1].split(f"\n</{tag}>", 1)[0])
+    def seed_checked(
+        self, bank_id: int, question: dict[str, Any], *, vector: Sequence[float] | None = None
+    ) -> int:
+        """A draft an earlier job stored and the Validator passed."""
+        draft_id = self.drafts.seed(bank_id, question, vector=vector)
+        self.validations.pass_draft(next(d for d in self.drafts.rows if d.draft_id == draft_id))
+        return draft_id
+
+    def sent_to(self, agent: str) -> list[dict[str, Any]]:
+        """The requests of one agent, in the order sent."""
+        return [params for params in self.provider.sent if params["agent"] == agent]
+
+    def sent_block(self, call: int, tag: str, agent: str = "test_generator") -> Any:
+        """The JSON inside <tag> of the user prompt of the agent's call number `call`, or None
+        without that block."""
+        return block(self.sent_to(agent)[call - 1]["user"], tag)
+
+
+def block(user: str, tag: str) -> Any:
+    if f"<{tag}>" not in user:
+        return None
+    return json.loads(user.split(f"<{tag}>\n", 1)[1].split(f"\n</{tag}>", 1)[0])

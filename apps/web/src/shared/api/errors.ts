@@ -58,6 +58,9 @@ const MESSAGES: Record<ApiErrorCode, string> = {
   JD_NOT_APPROVED: 'JD này chưa được duyệt nên chưa có ngân hàng câu hỏi.',
   QUESTION_BANK_LOCKED: 'Ngân hàng câu hỏi đã khóa nên không sửa được ma trận đề hay sinh thêm câu.',
   QUESTION_GENERATION_RUNNING: 'AI đang sinh câu hỏi cho JD này. Chờ lượt sinh xong rồi sửa ma trận đề.',
+  QUESTION_BANK_JD_OUTDATED: 'Yêu cầu của JD đã có phiên bản mới. Lưu lại ma trận đề theo yêu cầu mới trước khi sinh câu hay khóa ngân hàng.',
+  QUESTION_BANK_INCOMPLETE: 'Còn ô của ma trận đề chưa đủ câu đạt kiểm định nên chưa khóa được ngân hàng.',
+  BANK_NOT_LOCKED: 'Ngân hàng câu hỏi chưa khóa nên chưa rút đề được.',
   INTERNAL_ERROR: 'Hệ thống đang gặp sự cố. Thử lại sau ít phút.',
 };
 

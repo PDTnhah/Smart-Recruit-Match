@@ -33,9 +33,18 @@ class NeedsHumanReview(PermanentError):
     """The LLM refused, or its output stayed invalid after LLMClient's retries (US-2.2 AC-3, AC-4).
 
     `category` is the provider's refusal category when it gave one, e.g. Claude's
-    `stop_details.category` or Gemini's finish reason.
+    `stop_details.category` or Gemini's finish reason. `model` is the model that refused, so an
+    agent that records a refusal as a verdict stores it too (Invariant 12, US-4.2).
     """
 
-    def __init__(self, message: str, *, code: str, category: str | None = None) -> None:
+    def __init__(
+        self,
+        message: str,
+        *,
+        code: str,
+        category: str | None = None,
+        model: str | None = None,
+    ) -> None:
         super().__init__(message, code=code)
         self.category = category
+        self.model = model

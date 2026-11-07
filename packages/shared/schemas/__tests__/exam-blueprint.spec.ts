@@ -138,6 +138,7 @@ describe('AD-6: draft question contract (US-4.1 AC-9)', () => {
     explanation: '`final` khiến biến chỉ gán được một lần.',
     model: 'fixture',
     prompt_version: 'test_generator/v1',
+    validation: null,
   };
   const options = ['final', 'const', 'static', 'let'].map((text, index) => ({ text, correct: index === 0 }));
 
@@ -151,5 +152,27 @@ describe('AD-6: draft question contract (US-4.1 AC-9)', () => {
     expect(GeneratedQuestionSchema.safeParse(essay).success).toBe(true);
     expect(GeneratedQuestionSchema.safeParse({ ...essay, rubric: [] }).success).toBe(false);
     expect(GeneratedQuestionSchema.safeParse({ ...essay, options }).success).toBe(false);
+  });
+
+  it('GĐ5 a draft carries the verdict of the Validator, reasons from the fixed list (US-4.2 AC-5)', () => {
+    const validation = {
+      status: 'REJECTED',
+      reasons: ['ANSWER_MISMATCH', 'DIFFICULTY_MISMATCH'],
+      correct_options: [2],
+      estimated_difficulty: 'HARD',
+      note: null,
+      model: 'fixture',
+      prompt_version: 'validator/v1',
+    };
+    expect(GeneratedQuestionSchema.safeParse({ ...base, type: 'MCQ', options, validation }).success).toBe(true);
+    const unknownReason = { ...validation, reasons: ['TOO_LONG'] };
+    expect(GeneratedQuestionSchema.safeParse({ ...base, type: 'MCQ', options, validation: unknownReason }).success).toBe(
+      false,
+    );
+    const outOfRange = { ...validation, correct_options: [4] };
+    expect(GeneratedQuestionSchema.safeParse({ ...base, type: 'MCQ', options, validation: outOfRange }).success).toBe(false);
+    const withoutKey: Record<string, unknown> = { ...base, type: 'MCQ', options };
+    delete withoutKey.validation;
+    expect(GeneratedQuestionSchema.safeParse(withoutKey).success).toBe(false);
   });
 });

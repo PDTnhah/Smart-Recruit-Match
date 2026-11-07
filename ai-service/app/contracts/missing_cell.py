@@ -11,7 +11,7 @@ from . import question_difficulty, question_type
 
 class MissingCell(BaseModel):
     """
-    A blueprint cell with fewer drafts than it needs
+    A blueprint cell with fewer validated drafts than it needs
     """
 
     model_config = ConfigDict(
@@ -25,9 +25,13 @@ class MissingCell(BaseModel):
     difficulty: question_difficulty.QuestionDifficulty
     drafted: Annotated[int, Field(ge=0, le=9007199254740991)]
     """
-    Drafts the bank holds for the cell
+    Drafts the bank holds for the cell, rejected ones too
+    """
+    validated: Annotated[int, Field(ge=0, le=9007199254740991)]
+    """
+    Drafts of the cell the Validator passed
     """
     required: Annotated[int, Field(gt=0, le=9007199254740991)]
     """
-    Drafts the cell needs: 3 × its count
+    VALIDATED drafts the cell needs: 3 × its count
     """

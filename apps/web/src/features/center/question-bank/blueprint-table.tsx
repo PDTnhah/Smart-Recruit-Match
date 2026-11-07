@@ -1,9 +1,16 @@
-import { type CellCoverage, type ExamPart, type ExamPartBlueprint, QUESTION_DIFFICULTIES, skillKey } from '@srm/shared';
+import {
+  type CellCoverage,
+  type ExamPart,
+  type ExamPartBlueprint,
+  QUESTION_DIFFICULTIES,
+  QUESTION_REJECT_REASONS,
+  skillKey,
+} from '@srm/shared';
 import { CircleAlert } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCaption, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatNumber } from '@/lib/format';
-import { DIFFICULTY_LABELS, EXAM_PART_TITLES } from './labels';
+import { DIFFICULTY_LABELS, EXAM_PART_TITLES, REJECT_REASON_LABELS } from './labels';
 
 interface SkillRow {
   skill: string;
@@ -24,7 +31,10 @@ function rowsOf(coverage: readonly CellCoverage[]): SkillRow[] {
 
 const sum = (values: readonly number[]) => values.reduce((total, value) => total + value, 0);
 
-/** A cell: its questions per exam, the drafts it has against the 3×–5× it needs (AC-11). */
+/**
+ * A cell (US-4.2 AC-10): its questions per exam, the VALIDATED ones against the 3× it needs, the
+ * rejected and still unchecked ones, and why questions were rejected.
+ */
 function CoverageCell({ cell }: { cell: CellCoverage | undefined }) {
   if (!cell) {
     return (
@@ -33,17 +43,39 @@ function CoverageCell({ cell }: { cell: CellCoverage | undefined }) {
       </span>
     );
   }
-  const short = cell.min - cell.drafted;
+  const short = cell.min - cell.validated;
+  const reasons = QUESTION_REJECT_REASONS.flatMap((reason) => {
+    const count = cell.rejectReasons[reason];
+    return count ? [{ reason, count }] : [];
+  });
   return (
     <div className="flex flex-col items-start gap-1">
       <span className="font-medium tabular-nums">{formatNumber(cell.needed)} câu</span>
-      <span className="text-muted-foreground tabular-nums">
-        <span className="sr-only">Câu nháp: có </span>
-        {formatNumber(cell.drafted)}
+      <span className="tabular-nums">
+        Đạt {formatNumber(cell.validated)}
         <span aria-hidden="true">/</span>
         <span className="sr-only">, cần </span>
-        {formatNumber(cell.min)}–{formatNumber(cell.max)}
+        {formatNumber(cell.min)}
       </span>
+      {(cell.rejected > 0 || cell.pending > 0) && (
+        <span className="text-muted-foreground tabular-nums">
+          {[
+            cell.rejected > 0 && `Bị loại ${formatNumber(cell.rejected)}`,
+            cell.pending > 0 && `Chờ kiểm ${formatNumber(cell.pending)}`,
+          ]
+            .filter(Boolean)
+            .join(' · ')}
+        </span>
+      )}
+      {reasons.length > 0 && (
+        <ul className="flex flex-col text-muted-foreground" aria-label="Lý do loại">
+          {reasons.map(({ reason, count }) => (
+            <li key={reason} className="tabular-nums">
+              {REJECT_REASON_LABELS[reason]}: {formatNumber(count)}
+            </li>
+          ))}
+        </ul>
+      )}
       {short > 0 && (
         <Badge variant="outline">
           <CircleAlert data-icon="inline-start" />
@@ -55,8 +87,8 @@ function CoverageCell({ cell }: { cell: CellCoverage | undefined }) {
 }
 
 /**
- * One part of the saved blueprint, read only (US-4.1 AC-11): a row per skill, a column per
- * difficulty, and the totals. Coverage counts the drafts of the bank (`questions`, DRAFT).
+ * One part of the saved blueprint, read only (US-4.1 AC-11, US-4.2 AC-10): a row per skill, a
+ * column per difficulty, and the totals. Coverage counts the questions the Validator passed.
  */
 export function BlueprintTable({
   part,
@@ -83,13 +115,13 @@ export function BlueprintTable({
       </div>
       <Table>
         <TableCaption className="text-left">
-          Mỗi ô: số câu của một đề; câu nháp đã có / cần (3–5 lần số câu).
+          Mỗi ô: số câu của một đề; câu đạt kiểm định / cần (3 lần số câu); câu bị loại, câu chờ kiểm và lý do loại.
         </TableCaption>
         <TableHeader>
           <TableRow>
             <TableHead className="min-w-36">Kỹ năng</TableHead>
             {QUESTION_DIFFICULTIES.map((difficulty) => (
-              <TableHead key={difficulty} className="min-w-28">
+              <TableHead key={difficulty} className="min-w-36">
                 {DIFFICULTY_LABELS[difficulty]}
               </TableHead>
             ))}

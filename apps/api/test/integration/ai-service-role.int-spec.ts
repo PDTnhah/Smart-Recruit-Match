@@ -5,6 +5,7 @@
 // US-3.2 AC-5, AC-17 (CONTEXT D46): the pairs awaiting the Matching Agent, and ai.llm_batches.
 // US-4.1 AC-6 (CONTEXT D49): the question banks not yet locked, and ai.question_drafts; ai_service
 // cannot write core.questions (the core tables loop below).
+// US-4.2 AC-5 (CONTEXT D50): ai.question_validations, insert only.
 import {
   CV_STATES,
   JOB_DESCRIPTION_STATES,
@@ -160,6 +161,9 @@ describe('AD-4: database roles of the AI Service and the API', () => {
       'ai.question_drafts INSERT',
       'ai.question_drafts SELECT',
       'ai.question_drafts UPDATE',
+      // US-4.2: one verdict per draft, insert only (migration 0031).
+      'ai.question_validations INSERT',
+      'ai.question_validations SELECT',
       `${CV_VIEW} SELECT`,
       `${JD_VIEW} SELECT`,
       `${JD_SOURCE_VIEW} SELECT`,
@@ -186,7 +190,14 @@ describe('AD-4: database roles of the AI Service and the API', () => {
       expect([table, await can(`core.${table}`, 'DELETE')]).toEqual([table, !audit]);
       expect([table, await can(`core.${table}`, 'TRUNCATE')]).toEqual([table, false]);
     }
-    for (const table of ['ai.jobs', 'ai.llm_calls', 'ai.llm_batches', 'ai.embeddings', 'ai.question_drafts']) {
+    for (const table of [
+      'ai.jobs',
+      'ai.llm_calls',
+      'ai.llm_batches',
+      'ai.embeddings',
+      'ai.question_drafts',
+      'ai.question_validations',
+    ]) {
       expect([table, await can(table, 'SELECT')]).toEqual([table, true]);
       for (const privilege of ['INSERT', 'UPDATE', 'DELETE']) {
         expect([table, privilege, await can(table, privilege)]).toEqual([table, privilege, false]);
@@ -262,7 +273,14 @@ describe('AD-4: views the AI Service reads', () => {
       const jd = await createJobDescription(seed.db, { status: 'APPROVED' });
       const [bank] = await seed.db
         .insert(questionBanks)
-        .values({ campaignId: jd.campaignId, jdId: jd.id, jdVersion: jd.version, blueprint, lockedAt })
+        .values({
+          campaignId: jd.campaignId,
+          jdId: jd.id,
+          jdVersion: jd.version,
+          blueprint,
+          status: lockedAt === null ? 'OPEN' : 'LOCKED',
+          lockedAt,
+        })
         .returning({ id: questionBanks.id });
       ids.push(bank!.id);
     }

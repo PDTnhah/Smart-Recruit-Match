@@ -28,6 +28,7 @@ from app.agents.test_generator import (
     PostgresQuestionDraftRepo,
     TestGenerator,
 )
+from app.agents.validator import PostgresQuestionValidationRepo, Validator
 from app.config import load_settings
 from app.consumers.base import Handler, JobRunner
 from app.consumers.batch_poller import BatchCoordinator
@@ -138,6 +139,9 @@ def create_app() -> FastStream:
         test_generator=TestGenerator(
             sources=PostgresBankSourceRepo(pool),
             drafts=PostgresQuestionDraftRepo(pool),
+            validator=Validator(
+                llm=llm, prompts=prompts, repo=PostgresQuestionValidationRepo(pool)
+            ),
             embedder=embedder,
             llm=llm,
             prompts=prompts,

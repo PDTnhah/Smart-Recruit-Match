@@ -88,7 +88,7 @@ async def stub_match(job: MatchRunJob) -> MatchRunOutput | Deferred:
 async def stub_questions_generate(job: QuestionsGenerateJob) -> QuestionsGenerateOutput:
     """Stands in for the Test Generator (tests/agents): bank 404 is left with a cell short."""
     missing = [
-        MissingCell(type="MCQ", skill="Java", difficulty="EASY", drafted=1, required=3)
+        MissingCell(type="MCQ", skill="Java", difficulty="EASY", drafted=1, validated=0, required=3)
         for _ in range(job.bank_id == 404)
     ]
     return QuestionsGenerateOutput(

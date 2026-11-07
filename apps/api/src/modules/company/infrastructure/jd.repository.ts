@@ -160,8 +160,8 @@ export class JdRepository {
     );
   }
 
-  async findForQuestionBank(id: number): Promise<QuestionBankJd | undefined> {
-    const [row] = await this.db
+  async findForQuestionBank(id: number, options: { tx?: DbTx; lock?: 'share' } = {}): Promise<QuestionBankJd | undefined> {
+    const query = (options.tx ?? this.db)
       .select({
         jdId: jobDescriptions.id,
         campaignId: jobDescriptions.campaignId,
@@ -171,6 +171,7 @@ export class JdRepository {
       })
       .from(jobDescriptions)
       .where(eq(jobDescriptions.id, id));
+    const [row] = options.lock ? await query.for(options.lock) : await query;
     return row;
   }
 

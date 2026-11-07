@@ -15,6 +15,36 @@ Lịch sử phát hành của Smart Recruit Match. Mỗi commit ship code tăng 
 
 ---
 
+## [0.21.0] — 2026-11-07 — Validator và khóa ngân hàng câu hỏi — v0.21.0
+
+US-4.2. Chỉ câu đã qua Validator mới được dùng để rút đề. Khi mọi ô của ma trận đủ câu đạt, Trung tâm khóa ngân hàng; sau đó DB giữ nguyên ngân hàng, loại câu thì tăng phiên bản (FR-18, BR-05, BR-18, [CONTEXT D50](CONTEXT.md)).
+
+### Added
+- **Validator** (`ai-service/app/agents/validator/`), chạy trong job sinh câu:
+  - mỗi lượt là một lời gọi LLM mới cho ≤ 15 câu trắc nghiệm hoặc ≤ 5 câu tự luận, `effort: high`, prompt `validator/v1`. Request không có đáp án, giải thích, đáp án mẫu hay điểm tối đa;
+  - LLM tự giải và trả từng mục checklist; code so đáp án và quyết định `VALIDATED`/`REJECTED` kèm mọi mã lý do. Độ khó chỉ bị loại khi lệch 2 bậc;
+  - nhóm bị từ chối thì gửi lại từng câu, câu vẫn bị từ chối thì loại với `VALIDATOR_REFUSAL`. Nhóm sai schema thì chia đôi gửi lại. Ngân sách token được kiểm trước mỗi lượt gửi lại;
+  - kết quả lưu ở `ai.question_validations` và `questions.validation`, kèm `model` và `prompt_version`.
+- **Test Generator đếm độ phủ theo câu đạt**: ô đủ khi có 3× câu `VALIDATED`. Draft chưa kiểm của run trước được kiểm trước vòng đầu, mỗi ô chỉ gửi số câu nó cần. Câu gửi hai lần vẫn chưa có kết quả thì ô sinh câu khác thay. Prompt `test_generator/v2` kèm lý do loại; `MAX_TOKENS_PER_JOB` 400K → 600K.
+- **Trạng thái câu và ngân hàng** (`packages/shared/states`): `DRAFT → VALIDATED | REJECTED`, `VALIDATED → RETIRED`; `OPEN → LOCKED`. `transitionTo` có tùy chọn `set`, ghi cột khác của cùng dòng trong cùng lệnh UPDATE.
+- **Khóa ngân hàng** `POST /api/question-banks/{id}/lock` `{ rowVersion }`, chỉ `CENTER`. Mã `409`: `QUESTION_BANK_INCOMPLETE` (kèm ô thiếu), `QUESTION_GENERATION_RUNNING`, `QUESTION_BANK_JD_OUTDATED`, `QUESTION_BANK_LOCKED`, lệch `row_version`. Phiên bản JD được đọc lại trong giao dịch khóa.
+- **Migration** `0030` (`questions.validation`, `question_banks.status`, `ai.question_validations`) và `0031` (trigger). Sau khi khóa, DB không nhận thêm hay xóa câu, chỉ cho `VALIDATED → RETIRED`; ma trận, `locked_at` không đổi được, `version` chỉ tăng.
+- **`QuestionBankService`**:
+  - `getDrawableQuestions(bankId)` cho phòng thi: câu `VALIDATED` của các ô có trong ma trận; `answerKey` chỉ dùng phía server;
+  - `retireQuestion()`: ngân hàng đã khóa thì tăng `version` và ghi audit.
+- **Seed** `pnpm --filter @srm/api db:seed:question-bank` (hàm `seedLockedQuestionBank(db)` cho test): một JD Backend Java đã duyệt, ngân hàng đã khóa có 66 câu `VALIDATED`, không gọi LLM.
+- **Tab "Ngân hàng câu hỏi"**:
+  - mỗi ô hiện số câu Đạt / Bị loại / Chờ kiểm và lý do loại;
+  - thẻ "Khóa ngân hàng" có hộp thoại xác nhận; nút tắt thì có lý do; đã khóa thì hiện giờ khóa và phiên bản;
+  - banner khi JD có yêu cầu mới.
+
+### Changed
+- JD có phiên bản yêu cầu mới (BR-18): ngân hàng chưa khóa thì khóa và "Sinh câu còn thiếu" bị chặn tới khi lưu lại ma trận; câu của kỹ năng đã bỏ không được tính. Ngân hàng đã khóa giữ nguyên.
+- `evals/smoke_llm.py --bank` chạy cả Validator và in số câu bị loại theo mã.
+- ARCHITECTURE: bảng *Agent*, *Pipeline › Test Generator*, *Các bảng chính*. DESIGN.md §6: badge "Đã khóa", hộp thoại khóa ngân hàng.
+
+---
+
 ## [0.20.0] — 2026-11-06 — Ma trận đề và Test Generator — v0.20.0
 
 US-4.1. Mỗi JD đã duyệt có một ma trận đề và một ngân hàng câu hỏi nháp. AI sinh câu theo ma trận, gấp 3–5 lần số câu mỗi ô; code chọn ô, kiểm từng câu và loại câu trùng (FR-18, BR-05, [CONTEXT D49](CONTEXT.md)). Validator và khóa ngân hàng thuộc US-4.2.

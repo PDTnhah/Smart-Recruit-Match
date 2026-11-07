@@ -29,6 +29,8 @@ Code đã có các mẫu sau. Dùng lại thay vì dò code hay viết mới:
 | Chặn thao tác ngoài pha của đợt; thời gian trong test | `CampaignService.assertPhase`; `Clock` / `FakeClock` ([CONTEXT D27](docs/CONTEXT.md)) |
 | Lưu, tải file | `common/storage`: MinIO SSE-S3, URL tạm qua nginx, `FileAccessRegistry` ([CONTEXT D28, D29](docs/CONTEXT.md)) |
 | Điều khoản xử lý dữ liệu | `packages/shared/consent/`, bảng `consents` ([CONTEXT D30](docs/CONTEXT.md)) |
+| Câu hỏi để rút đề; ngân hàng đã khóa cho test, demo | `QuestionBankService.getDrawableQuestions(bankId)` (module `assessment`): chỉ ngân hàng `LOCKED`, câu `VALIDATED` của các ô trong ma trận; `answerKey` chỉ dùng phía server (Nguyên tắc 8). Loại câu: `retireQuestion()`. Test và demo: `seedLockedQuestionBank(db)` ở `apps/api/src/db/seed/locked-question-bank.ts` ([CONTEXT D50](docs/CONTEXT.md)) |
+| Đổi trạng thái kèm cột khác của cùng dòng | `transitionTo({ ..., set: { lockedAt } })`: cột ghi trong cùng lệnh UPDATE với `status`, nên CHECK giữa hai cột luôn đúng |
 
 ## Tài liệu
 

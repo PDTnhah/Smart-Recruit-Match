@@ -73,6 +73,7 @@ import {
   McqOptionSchema,
   McqQuestionSchema,
   MissingCellSchema,
+  QuestionValidationSchema,
   RubricCriterionSchema,
 } from './questions.js';
 import { SkillGroupSchema, SkillMatchSchema, SkillSuggestionSchema, SkillSuggestionsSchema } from './skills.js';
@@ -138,6 +139,7 @@ const CONTRACTS: ReadonlyArray<[z.ZodType, string]> = [
   [ExamBlueprintSchema, 'exam_blueprint'],
   [McqOptionSchema, 'mcq_option'],
   [RubricCriterionSchema, 'rubric_criterion'],
+  [QuestionValidationSchema, 'question_validation'],
   [McqQuestionSchema, 'mcq_question'],
   [EssayQuestionSchema, 'essay_question'],
   [GeneratedQuestionSchema, 'generated_question'],

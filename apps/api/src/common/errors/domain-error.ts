@@ -1,4 +1,4 @@
-import type { ApiErrorCode, PreferenceRejectionCode } from '@srm/shared';
+import type { ApiErrorCode, MissingCell, PreferenceRejectionCode } from '@srm/shared';
 
 // Plain classes without NestJS imports, so domain/ code may throw them too.
 // ApiExceptionFilter (or DomainErrorFilter) turns them into `{ code, message, details }` responses.
@@ -399,7 +399,7 @@ export class JdNotApprovedError extends DomainError {
   }
 }
 
-/** The bank was locked by the Validator step (US-4.2): its blueprint and questions are final. */
+/** CENTER locked the bank (US-4.2 AC-6): its blueprint and questions are final. */
 export class QuestionBankLockedError extends DomainError {
   readonly code = 'QUESTION_BANK_LOCKED';
   readonly httpStatus = 409;
@@ -416,5 +416,45 @@ export class QuestionGenerationRunningError extends DomainError {
 
   constructor(bankId: number, runId: number) {
     super(`question bank ${bankId} has generation run ${runId} in progress`, { bankId, runId });
+  }
+}
+
+/**
+ * The JD's requirements are newer than the bank's blueprint (BR-18, US-4.2 AC-11): CENTER saves the
+ * blueprint again against them before the bank is locked or filled.
+ */
+export class QuestionBankJdOutdatedError extends DomainError {
+  readonly code = 'QUESTION_BANK_JD_OUTDATED';
+  readonly httpStatus = 409;
+
+  constructor(bankId: number, bankJdVersion: number, jdVersion: number) {
+    super(`question bank ${bankId} was made for JD version ${bankJdVersion}; the JD is at version ${jdVersion}`, {
+      bankId,
+      bankJdVersion,
+      jdVersion,
+    });
+  }
+}
+
+/** A cell has fewer VALIDATED questions than 3× the questions it draws (US-4.2 AC-6). */
+export class QuestionBankIncompleteError extends DomainError {
+  readonly code = 'QUESTION_BANK_INCOMPLETE';
+  readonly httpStatus = 409;
+
+  constructor(bankId: number, missingCells: readonly MissingCell[]) {
+    super(`question bank ${bankId} has ${missingCells.length} cells short of validated questions`, {
+      bankId,
+      missingCells,
+    });
+  }
+}
+
+/** Questions are drawn only from a locked bank (US-4.2 AC-8). */
+export class BankNotLockedError extends DomainError {
+  readonly code = 'BANK_NOT_LOCKED';
+  readonly httpStatus = 409;
+
+  constructor(bankId: number) {
+    super(`question bank ${bankId} is not locked`, { bankId });
   }
 }

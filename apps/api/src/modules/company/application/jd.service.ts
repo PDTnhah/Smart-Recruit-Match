@@ -102,10 +102,11 @@ export class JdService implements OnModuleInit {
   /**
    * A JD as its question bank sees it (US-4.1): state, current version and requirements; undefined
    * when there is no such JD. The assessment module decides from the state whether it may have a
-   * bank (BR-02). No record scope: only CENTER reaches the question bank.
+   * bank (BR-02). No record scope: only CENTER reaches the question bank. With `tx`, the row is
+   * read FOR SHARE, so a save of the JD waits for that transaction (US-4.2: locking the bank).
    */
-  async getForQuestionBank(jdId: number): Promise<QuestionBankJd | undefined> {
-    return this.repository.findForQuestionBank(jdId);
+  async getForQuestionBank(jdId: number, options: { tx?: DbTx } = {}): Promise<QuestionBankJd | undefined> {
+    return this.repository.findForQuestionBank(jdId, options.tx ? { tx: options.tx, lock: 'share' } : {});
   }
 
   /**

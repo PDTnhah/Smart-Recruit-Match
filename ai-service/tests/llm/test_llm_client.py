@@ -110,6 +110,7 @@ async def test_refusal_checked_before_content(make_client, prompts, calls):
         await generate(make_client(provider), prompts, "hi", output_model=MustNotBeParsed)
     assert isinstance(caught.value, PermanentError)
     assert (caught.value.code, caught.value.category) == ("LLM_REFUSED", "cyber")
+    assert caught.value.model == provider.model
     assert "cyber" in str(caught.value)
     assert len(provider.sent) == 1, "a refusal is not retried"
     [row] = calls.rows

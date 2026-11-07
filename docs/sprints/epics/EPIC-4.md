@@ -15,7 +15,7 @@ arch_ref:
   - AD-2
   - AD-12
 created: 2026-10-07
-updated: 2026-11-06
+updated: 2026-11-07
 ---
 
 ## Goal
@@ -44,7 +44,7 @@ Ranh giới mà epic này giữ: chấm trắc nghiệm, tính S_test, S_final v
 | Story | Điểm | Tuần | Làn | Phụ thuộc |
 |---|---|---|---|---|
 | US-4.1 | 8 | T7 (W47) | B | US-2.3, US-2.5 |
-| US-4.2 | 5 | T8 (W48) | B | US-4.1 |
+| US-4.2 | 8 | T8 (W48) | B | US-4.1 |
 | US-4.3 | 8 | T9 (W49) | A | US-4.1, US-3.3 |
 | US-4.8 | 5 | T9 (W49) | B | US-4.1, US-2.4 |
 | US-4.9 | 2 | T9 (W49) | A | US-4.2 |
@@ -87,7 +87,7 @@ Ranh giới mà epic này giữ: chấm trắc nghiệm, tính S_test, S_final v
 | ID | Title | Goal | Status | Version |
 |---|---|---|---|---|
 | US-4.1 | Ma trận đề và Test Generator | Mỗi JD được duyệt có ngân hàng câu hỏi nháp phủ đủ ma trận đề | 👀 review | 0.20.0 |
-| US-4.2 | Validator và khóa ngân hàng câu hỏi | Chỉ câu đã kiểm định vào ngân hàng; ngân hàng khóa và có phiên bản | 📋 backlog | — |
+| US-4.2 | Validator và khóa ngân hàng câu hỏi | Chỉ câu đã kiểm định vào ngân hàng; ngân hàng khóa và có phiên bản | 👀 review | 0.21.0 |
 | US-4.3 | Phòng thi | SV làm bài 1 lần, giờ do server tính, tự lưu, làm tiếp khi mất mạng | 📋 backlog | — |
 | US-4.4 | Chấm bài, S_test và S_final | Mỗi bài có S_test, bản đồ năng lực và S_final | 📋 backlog | — |
 | US-4.5 | Chấm tay câu tự luận được chuyển | Người chấm chấm các câu AI không chắc chắn | 📋 backlog | — |
@@ -103,7 +103,7 @@ Ranh giới mà epic này giữ: chấm trắc nghiệm, tính S_test, S_final v
 | US | Primary entity / subsystem | FR |
 |---|---|---|
 | US-4.1 | `question_banks` (gồm `blueprint`), `question_generation_runs`, `questions`, `ai.question_drafts`; agent `test_generator` | FR-18 |
-| US-4.2 | agent `validator`; `question_banks.locked_at`, `version` | FR-18 |
+| US-4.2 | agent `validator`; `ai.question_validations`, `questions.validation`, `question_banks.status`, `locked_at`, `version`; seed `db/seed/locked-question-bank.ts` | FR-18 |
 | US-4.3 | `exam_sessions`, `exam_answers`, `exam_events`; Redis `exam:{sessionId}:*`; `apps/web/src/features/exam/` | FR-20 |
 | US-4.4 | agent `grader`; queue `ai.essay.grade`; `exam_answers.ai_grading`, `needs_human`; `exam_sessions.s_test`, `skill_scores` | FR-22 |
 | US-4.5 | `exam_answers.final_score` | FR-23 |
