@@ -10,7 +10,7 @@ version_shipped: 0.21.0
 prd_ref: [FR-18]
 depends_on: [US-4.1]
 assignee:
-commit:
+commit: a860c67
 created: 2026-10-07
 updated: 2026-11-07
 ---
@@ -108,7 +108,7 @@ PRD › GĐ5, FR-18, *Risks*, BR-18 · ARCHITECTURE › *Pipeline › Test Gener
 - Khóa ngân hàng câu hỏi (`OPEN → LOCKED`, `locked_at`, `version`), chỉ khi mọi ô đủ câu đã kiểm định. Sau khi khóa, trigger DB chặn sửa câu; loại câu thì tăng phiên bản và ghi nhật ký.
 - Seed ngân hàng câu hỏi đã khóa cho test và demo, không gọi LLM.
 
-**Commit**:
+**Commit**: a860c67
 
 ## Implementation notes
 
