@@ -2,148 +2,147 @@
 id: US-4.2
 title: "Validator và khóa ngân hàng câu hỏi"
 epic: EPIC-4
-status: backlog
+status: review
 priority: P0
-points: 5
-sprint:
-version_shipped:
+points: 8
+sprint: sprint-2026-W45
+version_shipped: 0.21.0
 prd_ref: [FR-18]
 depends_on: [US-4.1]
 assignee:
-commit:
+commit: a860c67
 created: 2026-10-07
-updated: 2026-10-07
+updated: 2026-11-07
 ---
+
+## Story refresh — 2026-11-06 (bắt đầu story)
+
+Người dùng chốt bốn điểm mở theo cột Đề xuất ([CONTEXT D50](../../CONTEXT.md)): câu tự luận gửi Validator đề và tên tiêu chí; chỉ CENTER khóa ngân hàng, bằng tay; JD có phiên bản yêu cầu mới thì phải lưu lại ma trận; độ khó chỉ bị loại khi lệch 2 bậc. Thêm AC-11. Validator chạy trong job `QUESTIONS_GENERATE` (không có `pipeline.py`). Nâng từ 5 lên 8 điểm. Nhánh `us-4.2` từ `dev` `907473b`.
 
 ## Goal
 
-Chỉ câu đã qua Validator mới được dùng để rút đề. Câu sai đáp án, có nhiều đáp án đúng, lộ đáp án trong đề hoặc lệch độ khó bị loại và được sinh lại. Ngân hàng đủ câu thì Trung tâm khóa nó. Sau khi khóa, mọi thay đổi đều tăng phiên bản và ghi nhật ký. Từ đây phòng thi ([US-4.3](US-4.3-exam-room.md)) và các story sau có một ngân hàng ổn định để dùng, kèm seed ngân hàng đã khóa cho test và demo.
+Chỉ câu đã qua Validator mới được dùng để rút đề; câu sai bị loại và được sinh bù. Ngân hàng đủ câu thì Trung tâm khóa; sau đó mọi thay đổi đều tăng phiên bản và ghi nhật ký. Phòng thi ([US-4.3](US-4.3-exam-room.md)) có một ngân hàng ổn định, kèm seed cho test và demo.
 
 ## Background
 
-FR-18 gồm ba phần: sinh ngân hàng ([US-4.1](US-4.1-exam-blueprint-test-generator.md)), Validator kiểm định, khóa và ghi phiên bản ngân hàng. Story này làm hai phần sau. PRD › GĐ5 bước 2: Validator kiểm từng câu theo checklist (đúng chủ đề, chỉ một đáp án đúng, phương án nhiễu hợp lý, không trùng lặp, không lộ đáp án trong đề, độ khó khớp nhãn). Câu không đạt bị loại hoặc sinh lại. Bước 4: khóa ngân hàng, mọi thay đổi sau đó đều có phiên bản. PRD › *Risks* coi "câu hỏi test sai đáp án" là rủi ro, biện pháp là Validator tự giải lại.
+PRD › GĐ5 bước 2 và 4, phần còn lại của FR-18. ARCH › *Pipeline › Validator*: ngữ cảnh độc lập, không kèm đáp án, `effort: high`; code quyết định (D2). Seed theo EPIC-4 › *Cross-story testing requirements*.
 
-ARCH › *Pipeline từng agent* mô tả Validator là workflow 1 lượt cho mỗi nhóm câu, **ngữ cảnh độc lập**: nhận câu hỏi **không kèm đáp án**, tự giải, rồi so với đáp án của Generator. Câu bị loại quay lại Generator ở vòng sau. ARCH › *Bản đồ sử dụng LLM* đặt `effort: high`. Theo D2, LLM chỉ trả verdict từng mục checklist và đáp án tự giải; code so đáp án và quyết định trạng thái câu.
+Quyết định liên quan: D2, D8, D12, D33, D34, D49, D50.
 
-Seed ngân hàng đã khóa là hạ tầng dùng chung (EPIC-4 › *Cross-story testing requirements*): US-4.3 trở đi và US-6.6 dùng nó để không phải gọi LLM khi test.
-
-**Lessons applied**: none — LESSONS.md mới có §1 (Claude Code chỉ nạp skill từ `.claude/skills`), không liên quan nội dung story này; đọc lại khi bắt đầu story.
+**Lessons applied**: §6, §7, §12, §15, §19, §21, §22, §25 (nút khóa gửi `row_version` của view lúc mở hộp thoại), §30, §31 (ghi lại fixture khi lên `test_generator/v2`), §32, §33, §36.
 
 ## Acceptance criteria
 
-- [ ] **AC-1** — **Given** một câu nháp, **When** Validator dựng request, **Then** request chỉ chứa đề và phương án (trắc nghiệm) hoặc đề (tự luận). Không có `answer_key`, giải thích hay đáp án mẫu. Test chụp request đi qua `LLMClient` ở chế độ fixture và kiểm không có các trường đó.
-- [ ] **AC-2** — Mỗi lượt gọi Validator là một hội thoại mới, không chứa tin nhắn của Generator. Prompt `ai-service/app/prompts/validator/v1.md`, `effort: high`, đầu ra theo structured output `ValidationResult` (đáp án tự giải, verdict từng mục checklist, lý do). `stop_reason == "refusal"` thì câu bị loại với lý do `VALIDATOR_REFUSAL`, không đọc nội dung.
-- [ ] **AC-3** — **Given** kết quả Validator, **When** code tổng hợp, **Then** câu trắc nghiệm có đáp án tự giải khác `answer_key` bị loại với lý do `ANSWER_MISMATCH` **And** câu trượt bất kỳ mục checklist nào bị loại với mã lý do tương ứng (`MULTIPLE_CORRECT`, `WEAK_DISTRACTORS`, `OFF_SKILL`, `DIFFICULTY_MISMATCH`, `ANSWER_LEAKED`, `DUPLICATE`; mã đề xuất) **And** chỉ câu qua hết mới có `status = VALIDATED`.
-- [ ] **AC-4** — **Given** một số ô thiếu câu sau khi loại, **When** pipeline chạy vòng tiếp, **Then** `get_blueprint_coverage()` chỉ đếm câu `VALIDATED` và Generator sinh bù cho đúng các ô thiếu **And** dừng khi mọi ô có ít nhất 3 lần số câu cần hoặc chạm số vòng tối đa (tham số); trường hợp sau trả `PARTIAL` kèm danh sách ô thiếu.
-- [ ] **AC-5** — Kết quả kiểm định của mỗi câu lưu kèm `model` và `prompt_version` (đề xuất cột `questions.validation` JSONB). Đổi trạng thái câu (`DRAFT` → `VALIDATED`/`REJECTED`) đi qua `transitionTo` theo bảng chuyển trạng thái ở `packages/shared/states`, ghi `audit_logs` trong cùng giao dịch, actor là hệ thống.
-- [ ] **AC-6** — **Given** người dùng `CENTER` và mọi ô có ít nhất 3 lần số câu cần ở trạng thái `VALIDATED`, **When** gọi `POST /api/question-banks/{id}/lock` (đề xuất), **Then** `locked_at` được đặt, `version` giữ nguyên, có audit **And** chưa đủ câu thì trả `409` kèm danh sách ô thiếu **And** `HR`/`STUDENT` nhận `403` **And** hai yêu cầu khóa đồng thời với cùng `row_version` thì một yêu cầu nhận `409`.
-- [ ] **AC-7** — **Given** ngân hàng đã khóa, **When** có lệnh `UPDATE` nội dung, `answer_key` hoặc `rubric` của một câu trong ngân hàng, **Then** DB từ chối bằng trigger (AGENTS › Nguyên tắc 11) **And** chỉ được loại câu bằng chuyển trạng thái. Mỗi lần loại câu tăng `question_banks.version` lên 1 và ghi audit trong cùng giao dịch.
-- [ ] **AC-8** — Module `assessment` export `QuestionBankService.getDrawableQuestions(bankId)` (đề xuất). Hàm chỉ trả câu `VALIDATED` của ngân hàng đã khóa; ngân hàng chưa khóa thì báo lỗi `BANK_NOT_LOCKED`.
-- [ ] **AC-9** — Script seed `apps/api/src/db/seeds/locked-question-bank.ts` (đề xuất) tạo một đợt, một JD đã duyệt và một ngân hàng đã khóa. Ngân hàng có câu `VALIDATED` đủ 3 lần số câu mỗi ô của ma trận mặc định, sinh tất định, không gọi LLM. Chạy hai lần không sinh dữ liệu trùng.
-- [ ] **AC-10** — **Given** Cán bộ Trung tâm mở ngân hàng, **When** kiểm định đang chạy hoặc đã xong, **Then** màn hình hiện số câu `VALIDATED`/`REJECTED` từng ô, mã lý do loại, nút khóa (bị vô hiệu kèm lý do khi chưa đủ câu), và sau khi khóa thì hiện `version`, `locked_at`.
+- [x] **AC-1** — Request của Validator: mỗi câu chỉ có `ref`, loại, kỹ năng, nhãn độ khó, đề, cộng phương án không kèm cờ đúng (MCQ) hoặc tên tiêu chí rubric (ESSAY). Không có `answer_key`, giải thích, đáp án mẫu, `max_points`. Test chụp request qua `LLMClient` ở chế độ fixture.
+- [x] **AC-2** — Mỗi lượt là một `LLMClient.generate` mới cho một nhóm câu (≤ 15 MCQ hoặc ≤ 5 tự luận), không có tin nhắn nào của Generator. Prompt `validator/v1`, `effort: high`, structured output `ValidationBatch` (`correct_options` tự giải, từng mục checklist, `note`).
+  - Nhóm bị `LLM_REFUSED` thì gửi lại từng câu; câu vẫn bị từ chối thì loại với `VALIDATOR_REFUSAL`, không đọc nội dung.
+  - Nhóm bị `LLM_INVALID_OUTPUT` thì chia đôi gửi lại; câu gửi riêng vẫn sai thì còn chờ, job chạy tiếp. Ngân sách được kiểm trước mỗi lượt gửi lại.
+- [x] **AC-3** — `verdict.py` loại câu kèm mọi mã nó trượt: `ANSWER_MISMATCH` (không có phương án đúng, hoặc khác `answer_key`), `MULTIPLE_CORRECT`, `OFF_SKILL`, `ANSWER_LEAKED`, `WEAK_DISTRACTORS` (MCQ), `UNCLEAR`, `RUBRIC_MISMATCH` (ESSAY), `DIFFICULTY_MISMATCH` (lệch ≥ 2 bậc; lệch 1 bậc vẫn nhận, ước lượng lưu trong `validation`), `DUPLICATE` (cùng ý một câu đạt đứng trước trong request).
+
+  **And** chỉ câu qua hết mới `VALIDATED` **And** câu thiếu kết quả còn chờ, được kiểm lại ở vòng sau.
+- [x] **AC-4** — `get_blueprint_coverage()` chỉ đếm `VALIDATED`; Generator sinh bù đúng các ô thiếu; prompt `test_generator/v2` kèm lý do loại. Dừng khi mọi ô có ≥ 3× câu `VALIDATED`, hoặc chạm `MAX_ROUNDS` / `MAX_TOKENS_PER_JOB` (một vòng = sinh + kiểm) thì `PARTIAL` kèm ô thiếu.
+
+  **And** draft chưa kiểm của run trước được kiểm trước vòng đầu, mỗi ô chỉ gửi số câu đủ đưa ô lên 4× **And** `CELL_FULL` không đếm câu bị loại **And** câu gửi `MAX_CHECKS_PER_DRAFT` (2) lần vẫn chưa có kết quả thì ô sinh câu khác thay.
+- [x] **AC-5** — Kết quả kiểm định lưu ở `ai.question_validations` và `questions.validation`, kèm `model`, `prompt_version`. `DRAFT` → `VALIDATED`/`REJECTED` qua `transitionTo`, audit cùng giao dịch, actor hệ thống. Message trùng không đổi thêm gì.
+- [x] **AC-6** — `CENTER` gọi `POST /api/question-banks/{id}/lock` `{ rowVersion }` khi mọi ô có ≥ 3× `VALIDATED`: `OPEN → LOCKED` qua `transitionTo`, `locked_at` trong cùng UPDATE, `version` giữ nguyên, có audit.
+
+  **And** `409`: `QUESTION_BANK_INCOMPLETE` (kèm ô thiếu), `QUESTION_GENERATION_RUNNING`, `QUESTION_BANK_JD_OUTDATED`, `QUESTION_BANK_LOCKED` **And** `HR`/`STUDENT` nhận `403` **And** hai yêu cầu cùng `row_version` thì một yêu cầu nhận `409`.
+- [x] **AC-7** — Ngân hàng đã khóa: trigger DB từ chối INSERT/DELETE câu và UPDATE cột ngoài `status`/`row_version`/`updated_at` (Nguyên tắc 11). Status chỉ được `VALIDATED → RETIRED`; ma trận, `locked_at`, trạng thái ngân hàng không đổi được, `version` chỉ tăng. `retireQuestion()` tăng `version` lên 1 và ghi audit trong cùng giao dịch.
+- [x] **AC-8** — `QuestionBankService.getDrawableQuestions(bankId)` trả `{ bankId, version, blueprint, questions }`: câu `VALIDATED` của các ô trong ma trận, ngân hàng đã khóa; `answer_key` chỉ dùng phía server. Chưa khóa thì `409 BANK_NOT_LOCKED`.
+- [x] **AC-9** — Seed `apps/api/src/db/seed/locked-question-bank.ts` (`pnpm --filter @srm/api db:seed:question-bank`, hàm `seedLockedQuestionBank(db)` cho test): một đợt, một JD đã duyệt, một ngân hàng đã khóa với câu `VALIDATED` đủ 3× mỗi ô của ma trận mặc định. Tất định, không gọi LLM, chạy hai lần không trùng.
+- [ ] **AC-10** — Tab "Ngân hàng câu hỏi" hiện số câu Đạt / Bị loại / Chờ kiểm từng ô; mã lý do loại kèm nhãn tiếng Việt; nút "Khóa ngân hàng" có xác nhận, bị tắt kèm lý do khi chưa khóa được; `version`, `locked_at` sau khi khóa. **And** dùng được ở 360 / 768 / 1024 px (kiểm tay; Playwright để US-6.6).
+- [x] **AC-11** — JD có phiên bản yêu cầu mới (BR-18, `question_banks.jd_version` cũ hơn JD) và ngân hàng chưa khóa: khóa và "Sinh câu còn thiếu" nhận `409 QUESTION_BANK_JD_OUTDATED`; màn hình báo cần lưu lại ma trận; `PUT` ma trận gỡ chặn; câu của kỹ năng đã bỏ không được tính. **And** ngân hàng đã khóa giữ nguyên; Trung tâm đã nhận thông báo `JD_REQUIREMENTS_VERSIONED`.
 
 ## Tasks
 
-- [ ] **TASK-4.2.1** — Đọc skill `claude-api` trước khi viết code gọi LLM (AC: 2)
-  - [ ] Subtask 4.2.1.1 — Ghi vào Implementation notes cách dùng `output_config.format` (structured outputs) và `effort` cho Validator.
-- [ ] **TASK-4.2.2** — Agent Validator (AC: 1, 2)
-  - [ ] Subtask 4.2.2.1 — `ai-service/app/schemas/validation.py`: `ValidationResult`.
-  - [ ] Subtask 4.2.2.2 — `ai-service/app/agents/validator/request.py`: dựng request từ câu nháp, bỏ `answer_key`, giải thích, đáp án mẫu.
-  - [ ] Subtask 4.2.2.3 — `ai-service/app/prompts/validator/v1.md`: checklist cố định ở đầu, câu hỏi ở cuối trong thẻ dữ liệu riêng.
-- [ ] **TASK-4.2.3** — Tổng hợp bằng code và vòng sinh lại (AC: 3, 4)
-  - [ ] Subtask 4.2.3.1 — `ai-service/app/agents/validator/verdict.py`: so đáp án tự giải với `answer_key`, map checklist → mã lý do.
-  - [ ] Subtask 4.2.3.2 — `ai-service/app/agents/test_generator/pipeline.py` (đề xuất): sinh → kiểm định → sinh bù theo ô thiếu, giới hạn số vòng.
-- [ ] **TASK-4.2.4** — Trạng thái câu và ngân hàng (AC: 5)
-  - [ ] Subtask 4.2.4.1 — `packages/shared/states/question.ts`, `packages/shared/states/question-bank.ts` (đề xuất): enum và bảng chuyển trạng thái, unit test.
-  - [ ] Subtask 4.2.4.2 — `apps/api/src/modules/assessment/application/question-results.handler.ts`: ghi kết quả kiểm định qua `transitionTo` (US-1.2).
-- [ ] **TASK-4.2.5** — Khóa, phiên bản và chặn sửa ở DB (AC: 6, 7, 8)
-  - [ ] Subtask 4.2.5.1 — `apps/api/src/modules/assessment/api/question-bank.controller.ts`: `POST /api/question-banks/{id}/lock`, `@Roles('CENTER')`.
-  - [ ] Subtask 4.2.5.2 — Migration `apps/api/drizzle/`: trigger chặn sửa nội dung câu của ngân hàng đã khóa; cột `row_version` cho `question_banks` (đề xuất).
-  - [ ] Subtask 4.2.5.3 — `apps/api/src/modules/assessment/application/question-bank.service.ts`: `lock()`, `retireQuestion()` (tăng `version`), `getDrawableQuestions()`.
-- [ ] **TASK-4.2.6** — Seed ngân hàng đã khóa (AC: 9)
-  - [ ] Subtask 4.2.6.1 — `apps/api/src/db/seeds/locked-question-bank.ts`: dữ liệu câu hỏi tổng hợp cố định, idempotent.
-- [ ] **TASK-4.2.7** — Màn hình kiểm định và khóa ở cổng Trung tâm (AC: 10)
-  - [ ] Subtask 4.2.7.1 — Đọc `DESIGN.md` trước khi code, ghi `Design applied: …` vào story.
-  - [ ] Subtask 4.2.7.2 — Mở rộng `apps/web/src/features/center/question-bank/` của US-4.1.
-- [ ] **TASK-4.2.8** — Fixture và test (AC: 1, 2, 3, 4, 5, 6, 7)
-  - [ ] Subtask 4.2.8.1 — `ai-service/tests/fixtures/validator/`: câu đúng, câu sai đáp án, câu hai đáp án đúng, câu lộ đáp án, `refusal`.
-  - [ ] Subtask 4.2.8.2 — `ai-service/tests/agents/test_validator.py`, `apps/api/test/assessment/question-bank-lock.spec.ts`.
+- [x] **TASK-4.2.1** — Trạng thái, hợp đồng, DB (AC: 5–7), phiên 2a: `states/question.ts`, `question-bank.ts`; `QuestionValidation`, view mở rộng, `LockQuestionBankRequestSchema`, `contracts:gen`; migration `0030`, `0031` (trigger); `transitionTo({ set })`.
+- [x] **TASK-4.2.2** — Backend (AC: 5–8, 11), phiên 2a: handler ghi kết quả; `domain/lock-readiness.ts`; `lock()`, `retireQuestion()`, `getDrawableQuestions()`; controller `question-banks`; integration test.
+- [x] **TASK-4.2.3** — Agent Validator (AC: 1–3), phiên 2b: `app/agents/validator/`, prompt `validator/v1`.
+- [x] **TASK-4.2.4** — Test Generator gọi Validator (AC: 4), phiên 2b: độ phủ theo kiểm định, prompt `test_generator/v2`, fixture, test.
+- [x] **TASK-4.2.5** — Seed (AC: 9), phiên 2c: `db/seed/locked-question-bank.ts`, script, `locked-question-bank-seed.int-spec.ts`.
+- [ ] **TASK-4.2.6** — Giao diện (AC: 10, 11), phiên 2c
+  - [x] 4.2.6.1 — Đọc `DESIGN.md`, ghi `Design applied`.
+  - [x] 4.2.6.2 — `features/center/question-bank/`: ô ma trận theo status và lý do, thẻ khóa + `AlertDialog`, banner JD có phiên bản mới, `useLockQuestionBank`.
+  - [ ] 4.2.6.3 — Kiểm tay ở 360 / 768 / 1024 px (người dùng, checklist ở *Implementation notes*).
 
 ## Dev notes
 
 ### Architecture constraints
 
-- [AD-2](../../ARCHITECTURE.md#architecture-decisions): LLM trả verdict từng mục và đáp án tự giải; code so đáp án và đặt trạng thái câu.
-- [AD-4](../../ARCHITECTURE.md#architecture-decisions): AI Service không ghi `core.questions`. Trạng thái kiểm định đi về qua `ai.results`, Core Backend ghi.
-- [AD-8](../../ARCHITECTURE.md#architecture-decisions): trạng thái câu và ngân hàng có bảng chuyển trạng thái riêng; mọi thay đổi đi qua `transitionTo` + audit + `row_version`.
-- [AD-10](../../ARCHITECTURE.md#architecture-decisions), [AD-12](../../ARCHITECTURE.md#architecture-decisions): một model, `effort: high`, prompt có phiên bản, kết quả lưu `model` + `prompt_version`.
-- Phương án cho Validator xem đáp án rồi "chấm" đáp án bị loại: ARCH yêu cầu ngữ cảnh độc lập, không kèm đáp án, để Validator không bị đáp án của Generator dẫn dắt.
-- **Điểm chưa rõ trong spec — hỏi trước khi chốt:**
-  - Với câu tự luận, PRD/ARCH không nói Validator nhận gì. Rubric có thể lộ ý đáp án. Story tạm cho Validator nhận đề và tên các tiêu chí rubric (không có mô tả mức điểm, không có đáp án mẫu), kiểm câu có rõ ràng, làm được trong thời gian và chấm được theo tiêu chí hay không.
-  - Ai khóa ngân hàng và khi nào. Story tạm để Cán bộ Trung tâm khóa bằng tay. Đợt chuyển sang pha *Làm test* mà ngân hàng chưa khóa thì chưa rõ có tự khóa không.
-  - Thứ tự với [US-4.9](US-4.9-question-bank-sample-review.md): PRD › GĐ5 đặt bước duyệt mẫu (tùy chọn) trước bước khóa, nhưng US-4.9 phụ thuộc US-4.2. Story này cho phép loại câu sau khi khóa (tăng phiên bản), nên hai thứ tự đều chạy được.
-  - BR-18: sửa yêu cầu JD sau khi mở test thì tạo phiên bản JD mới. `question_banks` không có cột phiên bản JD; chưa rõ phiên bản JD mới có bắt sinh lại ngân hàng không.
-  - Số vòng sinh lại tối đa và mức "đủ câu để khóa" (tạm 3 lần số câu cần) để thành tham số.
+AD-2 (code quyết định verdict), AD-4 (AI Service chỉ ghi `ai.*`; `core.questions` do backend ghi khi nhận `ai.results`), AD-8 (`transitionTo` + audit + `row_version` cho câu và ngân hàng), AD-10, AD-12, Nguyên tắc 8 (`answer_key` không xuống client). Thiết kế chi tiết: CONTEXT D50.
+
+### Giới hạn đã biết
+
+- BR-18 với ngân hàng đã khóa: chưa có đường mở khóa hay sinh ngân hàng mới.
+- `retireQuestion()` trên ngân hàng đã khóa không kiểm lại BR-05: loại nhiều câu có thể làm một ô còn ít hơn số câu mỗi đề. US-4.3 phải kiểm mỗi ô đủ câu khi rút đề; US-4.6, US-4.9 quyết có chặn loại hay không.
+- Handler kết quả chạy `transitionTo` từng câu một, trong khóa dòng ngân hàng. Kết quả đầu tiên sau migration mang verdict của mọi draft cũ (≤ 1000), nên giữ khóa vài giây. Chấp nhận vì chỉ xảy ra một lần mỗi ngân hàng.
+- Duyệt mẫu US-4.9 đặt trước hay sau khi khóa đều chạy được, vì `retireQuestion()` dùng được cả hai lúc.
 
 ### Cross-story dependencies
 
-- Builds on [US-4.1](US-4.1-exam-blueprint-test-generator.md): bảng `questions` (`DRAFT`), `ai.question_drafts`, công cụ `get_blueprint_coverage()`, consumer `ai.questions.generate`, màn hình `apps/web/src/features/center/question-bank/`.
-- Builds on [US-1.2](US-1.2-core-db-schema-transition-audit-log.md): `transitionTo`, `audit_logs`, `row_version`.
-- Required by [US-4.3](US-4.3-exam-room.md): `getDrawableQuestions()` và seed ngân hàng đã khóa.
-- Required by [US-4.6](US-4.6-appeals-and-question-error-reports.md) và [US-4.9](US-4.9-question-bank-sample-review.md): `retireQuestion()` tăng phiên bản ngân hàng.
-- Required by [US-6.3](US-6.3-labeled-dataset-and-ai-evals.md) (đo tỷ lệ câu hợp lệ) và [US-6.6](US-6.6-demo-data-e2e-load-test.md) (seed demo).
-- Sibling [US-3.3](US-3.3-shortlist-and-preferences.md) (cùng tuần T8): cả hai thêm bảng chuyển trạng thái vào `packages/shared/states`; merge theo thứ tự ở D20.
+- **Builds on**: US-4.1 (bảng câu hỏi, `QuestionBankTools`, consumer, tab); US-1.2 (`transitionTo`, audit).
+- **Required by**: US-4.3 (`getDrawableQuestions()`, seed, chặn thi khi chưa khóa); US-4.6, US-4.9 (`retireQuestion()`, thêm endpoint); US-6.3 (tỷ lệ câu hợp lệ từ `ai.question_validations`); US-6.6 (seed demo, Playwright).
+
+### Performance budget
+
+ARCH ước tính ~2,9 USD mỗi ngân hàng, gồm Validator. `MAX_TOKENS_PER_JOB` = 600K là số đề xuất: đo lại bằng `ai.llm_calls` sau một lần chạy thật, kèm tỷ lệ câu bị loại.
 
 ### References
 
-- [Source: PRD › GĐ5 – Sinh và tổ chức bài test](../../PRD.md)
-- [Source: PRD › Functional Requirements (FR-18)](../../PRD.md#functional-requirements)
-- [Source: PRD › Risks](../../PRD.md#risks)
-- [Source: ARCHITECTURE › Pipeline từng agent (Test Generator, Validator)](../../ARCHITECTURE.md)
-- [Source: ARCHITECTURE › Quản lý trạng thái](../../ARCHITECTURE.md)
-- [Source: ARCHITECTURE › Data architecture](../../ARCHITECTURE.md#data-architecture)
-- [Source: CONTEXT D2, D8, D10, D12](../../CONTEXT.md)
-- [Source: Epic EPIC-4](../epics/EPIC-4.md)
+PRD › GĐ5, FR-18, *Risks*, BR-18 · ARCHITECTURE › *Pipeline › Test Generator, Validator*, *Quản lý trạng thái*, *Các bảng chính* · CONTEXT D2, D8, D12, D49, D50 · [EPIC-4](../epics/EPIC-4.md).
 
 ## Verification commands
 
-> Chưa có `package.json`/`pyproject.toml`. Lệnh chạy cụ thể sẽ điền khi US-1.1 tạo script (AGENTS › Lệnh). Bảng dưới ghi file test và tên case.
-
 | AC | Command |
 |---|---|
-| AC-1 | `ai-service/tests/agents/test_validator.py` › `test_gd5_request_has_no_answer_key_explanation_or_sample_answer` |
-| AC-2 | `ai-service/tests/agents/test_validator.py` › `test_fresh_context_effort_high`, `test_refusal_rejects_question_without_reading_content` |
-| AC-3 | `ai-service/tests/agents/test_validator.py` › `test_gd5_answer_mismatch_rejected`, `test_gd5_checklist_failures_map_to_reason_codes` |
-| AC-4 | `ai-service/tests/agents/test_validator.py` › `test_gd5_regenerates_only_missing_cells_until_3x_or_round_limit` |
-| AC-5 | `packages/shared/states/question.spec.ts` › `GĐ5 question transitions`; `apps/api/test/assessment/question-results.spec.ts` › `GĐ5 validation stored with model, prompt_version and audit in same transaction` |
-| AC-6 | `apps/api/test/assessment/question-bank-lock.spec.ts` › `GĐ5 CENTER locks when every cell ≥ 3x; 409 with missing cells; HR/STUDENT 403; 409 on stale row_version` |
-| AC-7 | `apps/api/test/assessment/question-bank-lock.spec.ts` › `GĐ5 DB trigger blocks content update in locked bank; retire bumps version with audit` |
-| AC-8 | `apps/api/test/assessment/question-bank-lock.spec.ts` › `GĐ5 getDrawableQuestions returns only VALIDATED of locked bank; BANK_NOT_LOCKED otherwise` |
-| AC-9 | `apps/api/test/seeds/locked-question-bank.spec.ts` › `seed creates locked bank covering default blueprint 3x; idempotent` |
-| AC-10 | `apps/web/e2e/center-question-bank.spec.ts` (Playwright, đề xuất) › `GĐ5 validation counts, reasons, lock disabled until sufficient, version shown after lock` |
+| AC-1–AC-4 | `ai-service/.venv/Scripts/pytest ai-service/tests/agents/test_validator.py ai-service/tests/agents/test_test_generator.py` (`test_gd5_*`) |
+| AC-5 | `pnpm --filter @srm/shared test` (`states/__tests__/question*.spec.ts`) + `pnpm --filter @srm/api exec jest --testPathPatterns 'test/integration/question-validation' --selectProjects integration` |
+| AC-6–AC-8, AC-11 | Như trên với `'test/integration/(question-bank-lock\|question-bank\|transition-to\|ai-service-role)'`; `pnpm --filter @srm/api test:unit` (`lock-readiness.spec.ts`, `blueprint.spec.ts`) |
+| AC-9 | Như trên với `'test/integration/locked-question-bank-seed'`; chạy tay `db:seed:question-bank` hai lần |
+| AC-10 | Kiểm tay theo checklist trong *Implementation notes* |
 
 ## Changelog entry
 
 ### Added
-- Validator kiểm định từng câu nháp trong ngữ cảnh độc lập, không kèm đáp án: tự giải rồi so với đáp án bằng code; câu sai bị loại kèm mã lý do và được sinh bù theo ô thiếu.
-- Khóa ngân hàng câu hỏi (`locked_at`, `version`): chỉ khóa khi mọi ô đủ câu; sau khóa không sửa được nội dung câu, loại câu thì tăng phiên bản và ghi nhật ký.
+- Validator kiểm từng câu nháp trong ngữ cảnh độc lập, không kèm đáp án: tự giải rồi code so đáp án. Câu sai bị loại kèm mã lý do và được sinh bù theo ô thiếu.
+- Khóa ngân hàng câu hỏi (`OPEN → LOCKED`, `locked_at`, `version`), chỉ khi mọi ô đủ câu đã kiểm định. Sau khi khóa, trigger DB chặn sửa câu; loại câu thì tăng phiên bản và ghi nhật ký.
 - Seed ngân hàng câu hỏi đã khóa cho test và demo, không gọi LLM.
 
-**Commit**:
+**Commit**: a860c67
 
 ## Implementation notes
 
-_Chưa bắt đầu._
+- Khác plan, phiên 2a: khóa chỉ ghi audit `TRANSITION` (cột `set` nằm trong `after`), không có action `QUESTION_BANK_LOCKED`. Thứ tự mã lý do theo `QUESTION_REJECT_REASONS`, chép sang `question_bank.json` › `reject_reasons` cho `verdict.py`.
+- Khác plan, phiên 2b: `ValidationBatch` ở `app/agents/validator/schemas.py` (repo không có `app/schemas/`). Không sửa adapter nên không dùng skill `claude-api`. 3 fixture `test_generator/` ghi lại cho v2.
+- Khác plan, phiên 2c: seed dùng JD Backend Java riêng (Java 3, SQL 2, Spring Boot 1, đủ ba độ khó), 66 câu. JD và câu chèn thẳng ở trạng thái đích như `seedDev`; chỉ bước khóa đi qua `transitionTo` (audit `SYSTEM`). Hộp thoại khóa gặp `409` thì đóng, `toast.error` và tải lại view; lỗi khác hiện trong hộp thoại.
+- Phiên 3 (2026-11-07): `/code-review` nêu 10 điểm, sửa 6, ba điểm ghi ở *Giới hạn đã biết*, một điểm là cỡ story:
+  - Validator chia đôi nhóm sai schema, kiểm ngân sách trước mỗi lượt gửi lại; mỗi ô chỉ gửi số câu chờ nó cần; câu gửi 2 lần chưa có kết quả thì ô sinh câu khác thay (LESSONS §37);
+  - `lock()` đọc lại phiên bản JD trong giao dịch, `FOR SHARE` (`JdService.getForQuestionBank(jdId, { tx })`, LESSONS §38);
+  - `getDrawableQuestions` bỏ câu của ô không còn trong ma trận (`blueprintCellFilter`).
+  - koni-qc: AC-1–9, 11 đều có test. Thêm test lưu yêu cầu JD lúc đang khóa (đỏ khi bỏ `FOR SHARE`), rút đề sau khi bỏ kỹ năng, body sai `400`. Đã rà: không route nào trả `answer_key` (`GET`/`POST` chỉ trả view độ phủ); `HR`/`STUDENT` nhận `403`.
+- **Design applied**: §1, §3 (`tabular-nums`), §4, §6 (`card`, `alert`, `alert-dialog`, `badge`, `table`, `progress`; đã ghi quy ước khóa ngân hàng vào §6), §7, §9, §10 (`formatDateTime`), §11 (lý do loại và lý do tắt nút bằng chữ).
+- **Kiểm tay AC-10** (người dùng; Trung tâm thiết kế cho ≥ 1024 px, dùng được ở 768 px, 360 px chỉ cần không vỡ). `db:seed:question-bank` cho trạng thái đã khóa; các trạng thái chưa khóa cần một lượt sinh với key thật:
+  1. Đã khóa: badge "Đã khóa", giờ khóa, phiên bản 1; không còn nút sinh, sửa ma trận.
+  2. Có ô thiếu: ô hiện Đạt x/y, Bị loại, Chờ kiểm, lý do loại tiếng Việt, badge "Thiếu n"; nút khóa tắt, có lý do.
+  3. Đang sinh: nút khóa tắt, lý do "AI đang sinh và kiểm câu".
+  4. JD có phiên bản mới: banner có nút "Sửa ma trận"; nút sinh và nút khóa tắt; lưu lại ma trận thì hết chặn.
+  5. Đủ câu: hộp thoại xác nhận, khóa xong có toast. Mở hộp thoại ở hai tab, khóa ở tab 1 rồi xác nhận ở tab 2: toast lỗi, view tải lại.
+  6. Ở 360 / 768 / 1024 px: không cuộn ngang ngoài vùng bảng; nút cao 44 px khi giả lập cảm ứng; hộp thoại vừa màn.
+- Còn chờ người dùng: `db:migrate` `0030`–`0031`; `evals/smoke_llm.py --bank` với key thật (token, chi phí, tỷ lệ loại); kiểm tay AC-10 (xong thì `[x]` AC-10, 4.2.6.3, TASK-4.2.6, story `done`).
 
 ## Files modified
 
-_Chưa bắt đầu._
+- Tài liệu: story, CONTEXT D50, ARCHITECTURE, DESIGN §6, LESSONS §37–§38, AGENTS › *Mẫu có sẵn*, CHANGELOG, EPIC-4, W45.
+- `packages/shared` (states, contracts, schemas) + output `contracts:gen`.
+- `apps/api`: `drizzle/0030`–`0031`, `common/state`, `common/errors`, `db` (schema, lifecycles, seed), module `assessment`, `company` (`getForQuestionBank` với `tx`), test.
+- `apps/web`: `shared/api`, `features/center/question-bank/`.
+- `ai-service`: `app/agents/validator/` (mới), `agents/test_generator/`, `consumers/errors.py`, `llm/structured.py`, `prompts/`, `worker.py`, `handlers/`, `evals/smoke_llm.py`, test, fixture.
 
 ## Cross-references
 
 - [PRD FR-18](../../PRD.md#functional-requirements)
 - [Epic EPIC-4](../epics/EPIC-4.md)
 - [CHANGELOG](../../CHANGELOG.md)
-- [CONTEXT D2, D8, D12](../../CONTEXT.md)
+- [CONTEXT D50](../../CONTEXT.md)
 - [US-4.1 Ma trận đề và Test Generator](US-4.1-exam-blueprint-test-generator.md)
 - [US-4.3 Phòng thi](US-4.3-exam-room.md)

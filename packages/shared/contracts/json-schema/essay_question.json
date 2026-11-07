@@ -40,6 +40,17 @@
       "minLength": 1,
       "description": "Versioned prompt the question was written with, e.g. test_generator/v1"
     },
+    "validation": {
+      "anyOf": [
+        {
+          "$ref": "./question_validation.json"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Verdict of the Validator; null while the draft waits for it"
+    },
     "type": {
       "type": "string",
       "const": "ESSAY"
@@ -68,6 +79,7 @@
     "explanation",
     "model",
     "prompt_version",
+    "validation",
     "type",
     "rubric",
     "sample_answer"

@@ -10,5 +10,17 @@
   "part_types": {
     "A": "MCQ",
     "B": "ESSAY"
-  }
+  },
+  "reject_reasons": [
+    "ANSWER_MISMATCH",
+    "MULTIPLE_CORRECT",
+    "OFF_SKILL",
+    "ANSWER_LEAKED",
+    "WEAK_DISTRACTORS",
+    "UNCLEAR",
+    "RUBRIC_MISMATCH",
+    "DIFFICULTY_MISMATCH",
+    "DUPLICATE",
+    "VALIDATOR_REFUSAL"
+  ]
 }

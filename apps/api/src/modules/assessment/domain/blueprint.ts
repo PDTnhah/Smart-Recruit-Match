@@ -10,6 +10,8 @@ import {
   QUESTION_BANK_FACTORS,
   QUESTION_DIFFICULTIES,
   type QuestionDifficulty,
+  type QuestionRejectReason,
+  type QuestionStatus,
   type QuestionType,
   skillKey,
 } from '@srm/shared';
@@ -222,11 +224,21 @@ export function cellsOf(blueprint: ExamBlueprint): BlueprintCellRef[] {
   );
 }
 
-/** Drafts the bank holds for one type, skill and difficulty, the skill as the AI wrote it. */
-export interface DraftCount {
+/** Questions the bank holds for one type, skill, difficulty and status, the skill as the AI wrote it. */
+export interface QuestionCount {
   type: QuestionType;
   skill: string;
   difficulty: QuestionDifficulty;
+  status: QuestionStatus;
+  count: number;
+}
+
+/** REJECTED questions of one type, skill and difficulty that failed one check. */
+export interface RejectReasonCount {
+  type: QuestionType;
+  skill: string;
+  difficulty: QuestionDifficulty;
+  reason: QuestionRejectReason;
   count: number;
 }
 
@@ -234,24 +246,64 @@ const cellKeyOf = (type: QuestionType, skill: string, difficulty: QuestionDiffic
   `${type}\u0000${skillKey(skill)}\u0000${difficulty}`;
 
 /**
- * Drafts per blueprint cell against the BR-05 bounds (AC-3, AC-11): at least `min` and at most
- * `max` times the questions it draws. Drafts are matched to cells by `skillKey`; drafts of a cell
- * the blueprint no longer has are not counted anywhere.
+ * Whether a question falls in a cell of the blueprint, matched by `skillKey` as `coverageOf`
+ * matches it: an exam draws no question of a cell the blueprint no longer has (US-4.2 AC-8, AC-11).
  */
-export function coverageOf(blueprint: ExamBlueprint, drafts: readonly DraftCount[]): CellCoverage[] {
-  const drafted = new Map<string, number>();
-  for (const row of drafts) {
-    const key = cellKeyOf(row.type, row.skill, row.difficulty);
-    drafted.set(key, (drafted.get(key) ?? 0) + row.count);
+export function blueprintCellFilter(
+  blueprint: ExamBlueprint,
+): (question: { type: QuestionType; skill: string; difficulty: QuestionDifficulty }) => boolean {
+  const keys = new Set(cellsOf(blueprint).map((cell) => cellKeyOf(cell.type, cell.skill, cell.difficulty)));
+  return (question) => keys.has(cellKeyOf(question.type, question.skill, question.difficulty));
+}
+
+interface CellTally {
+  byStatus: Map<QuestionStatus, number>;
+  reasons: Partial<Record<QuestionRejectReason, number>>;
+}
+
+/**
+ * Questions per blueprint cell against the BR-05 bounds (US-4.1 AC-3, US-4.2 AC-4): a cell is
+ * complete with `min` times the questions it draws VALIDATED, and holds at most `max` drafts.
+ * Questions are matched to cells by `skillKey`; those of a cell the blueprint no longer has, such
+ * as one of a skill the JD dropped (US-4.2 AC-11), are not counted anywhere.
+ */
+export function coverageOf(
+  blueprint: ExamBlueprint,
+  counts: readonly QuestionCount[],
+  reasons: readonly RejectReasonCount[] = [],
+): CellCoverage[] {
+  const tallies = new Map<string, CellTally>();
+  const tallyOf = (key: string): CellTally => {
+    const known = tallies.get(key);
+    if (known) return known;
+    const tally: CellTally = { byStatus: new Map(), reasons: {} };
+    tallies.set(key, tally);
+    return tally;
+  };
+  for (const row of counts) {
+    const { byStatus } = tallyOf(cellKeyOf(row.type, row.skill, row.difficulty));
+    byStatus.set(row.status, (byStatus.get(row.status) ?? 0) + row.count);
   }
-  return cellsOf(blueprint).map((cell) => ({
-    part: cell.part,
-    type: cell.type,
-    skill: cell.skill,
-    difficulty: cell.difficulty,
-    needed: cell.count,
-    drafted: drafted.get(cellKeyOf(cell.type, cell.skill, cell.difficulty)) ?? 0,
-    min: cell.count * QUESTION_BANK_FACTORS.min,
-    max: cell.count * QUESTION_BANK_FACTORS.max,
-  }));
+  for (const row of reasons) {
+    const tally = tallyOf(cellKeyOf(row.type, row.skill, row.difficulty));
+    tally.reasons[row.reason] = (tally.reasons[row.reason] ?? 0) + row.count;
+  }
+  return cellsOf(blueprint).map((cell) => {
+    const tally = tallies.get(cellKeyOf(cell.type, cell.skill, cell.difficulty));
+    const of = (status: QuestionStatus): number => tally?.byStatus.get(status) ?? 0;
+    return {
+      part: cell.part,
+      type: cell.type,
+      skill: cell.skill,
+      difficulty: cell.difficulty,
+      needed: cell.count,
+      drafted: [...(tally?.byStatus.values() ?? [])].reduce((acc, value) => acc + value, 0),
+      validated: of('VALIDATED'),
+      rejected: of('REJECTED'),
+      pending: of('DRAFT'),
+      rejectReasons: { ...tally?.reasons },
+      min: cell.count * QUESTION_BANK_FACTORS.min,
+      max: cell.count * QUESTION_BANK_FACTORS.max,
+    };
+  });
 }

@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./question_validation.json",
+  "type": "object",
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": [
+        "VALIDATED",
+        "REJECTED"
+      ],
+      "description": "VALIDATED when no check failed"
+    },
+    "reasons": {
+      "maxItems": 10,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "ANSWER_MISMATCH",
+          "MULTIPLE_CORRECT",
+          "OFF_SKILL",
+          "ANSWER_LEAKED",
+          "WEAK_DISTRACTORS",
+          "UNCLEAR",
+          "RUBRIC_MISMATCH",
+          "DIFFICULTY_MISMATCH",
+          "DUPLICATE",
+          "VALIDATOR_REFUSAL"
+        ]
+      },
+      "description": "Every check the draft failed, in the order of QUESTION_REJECT_REASONS; empty when VALIDATED"
+    },
+    "correct_options": {
+      "anyOf": [
+        {
+          "maxItems": 4,
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3
+          }
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Options the Validator found right, solving without the key; null for an essay or a refusal"
+    },
+    "estimated_difficulty": {
+      "anyOf": [
+        {
+          "$ref": "./question_difficulty.json"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "The Validator's estimate; kept when one level away from the label"
+    },
+    "note": {
+      "anyOf": [
+        {
+          "type": "string",
+          "maxLength": 2000
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "The Validator's remark, for staff"
+    },
+    "model": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Model id that checked the question"
+    },
+    "prompt_version": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Versioned prompt the question was checked with, e.g. validator/v1"
+    }
+  },
+  "required": [
+    "status",
+    "reasons",
+    "correct_options",
+    "estimated_difficulty",
+    "note",
+    "model",
+    "prompt_version"
+  ],
+  "additionalProperties": false,
+  "title": "QuestionValidation",
+  "description": "The Validator's verdict on a draft, as code decided it"
+}

@@ -1,4 +1,4 @@
-"""Limits of the Test Generator (US-4.1 AC-5, CONTEXT D49).
+"""Limits of the Test Generator (US-4.1 AC-5, US-4.2 AC-4, CONTEXT D49, D50).
 
 The bank factors, the MCQ and rubric sizes and the question type of each part come from
 app/contracts/question_bank.json, which `pnpm contracts:gen` writes from
@@ -15,11 +15,11 @@ _MANIFEST = json.loads(
 )
 
 MIN_FACTOR: int = _MANIFEST["factors"]["min"]
-"""A cell is covered once it holds this many drafts per question it draws (3×)."""
+"""A cell is covered once it holds this many VALIDATED drafts per question it draws (3×)."""
 TARGET_FACTOR: int = _MANIFEST["factors"]["target"]
-"""What a round asks the LLM to reach for a cell (4×)."""
+"""What a round asks the LLM to reach for a cell (4×), the drafts waiting for a verdict counted."""
 MAX_FACTOR: int = _MANIFEST["factors"]["max"]
-"""A cell takes no draft past this (5×): CELL_FULL."""
+"""A cell takes no draft past this (5×), the rejected ones not counted: CELL_FULL."""
 MCQ_OPTION_COUNT: int = _MANIFEST["mcq_option_count"]
 RUBRIC_MAX_CRITERIA: int = _MANIFEST["rubric_max_criteria"]
 MAX_DRAFTS: int = _MANIFEST["max_drafts"]
@@ -28,10 +28,15 @@ PART_TYPES: dict[str, str] = _MANIFEST["part_types"]
 """Part of the blueprint → the question type it draws (EXAM_PART_TYPES): A → MCQ, B → ESSAY."""
 
 MAX_ROUNDS = 12
-"""LLM rounds of one attempt of a job; the job ends PARTIAL when cells are still short."""
-MAX_TOKENS_PER_JOB = 400_000
-"""No round starts once the job has spent this many tokens: every LLM attempt counts, and so do
-the earlier attempts of a retried job (ai.llm_calls)."""
+"""Rounds of one attempt of a job, each writing questions and checking them; the job ends PARTIAL
+when cells are still short."""
+MAX_TOKENS_PER_JOB = 600_000
+"""No LLM call starts once the job has spent this many tokens: every attempt of the Generator and
+of the Validator counts, and so do the earlier attempts of a retried job (ai.llm_calls). A first
+figure, to measure again with `evals/smoke_llm.py --bank` (D50)."""
+MAX_CHECKS_PER_DRAFT = 2
+"""Times one job sends a draft to the Validator. A draft that still has no verdict then takes no
+room in its cell, which asks for another in its place; the next job tries it again."""
 MAX_QUESTIONS_PER_CALL = 15
 """Questions one round asks for."""
 MAX_ESSAYS_PER_CALL = 5

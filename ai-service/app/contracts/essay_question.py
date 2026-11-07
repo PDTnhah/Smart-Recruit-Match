@@ -6,7 +6,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from . import question_difficulty, rubric_criterion
+from . import question_difficulty, question_validation, rubric_criterion
 
 
 class EssayQuestion(BaseModel):
@@ -41,6 +41,10 @@ class EssayQuestion(BaseModel):
     prompt_version: Annotated[str, Field(min_length=1)]
     """
     Versioned prompt the question was written with, e.g. test_generator/v1
+    """
+    validation: question_validation.QuestionValidation | None
+    """
+    Verdict of the Validator; null while the draft waits for it
     """
     type: Literal['ESSAY']
     rubric: Annotated[list[rubric_criterion.RubricCriterion], Field(max_length=10, min_length=1)]

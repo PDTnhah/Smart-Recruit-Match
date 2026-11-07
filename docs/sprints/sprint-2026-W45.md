@@ -17,6 +17,7 @@ goal: 'Ship US-2.7: danh mục kỹ năng có vùng, họ và quan hệ kéo the
 | US-3.4 | Mức cạnh tranh và gợi ý ít cạnh tranh              | EPIC-3 | P1  | 3      | 👀 review  | from W48 | [stories/US-3.4-competition-level-and-suggestions.md](stories/US-3.4-competition-level-and-suggestions.md)   |
 | US-3.1 | Lọc điều kiện cứng và công thức S_cv               | EPIC-3 | P0  | 5      | 👀 review  | from W44 | [stories/US-3.1-hard-filters-and-scv-formula.md](stories/US-3.1-hard-filters-and-scv-formula.md)             |
 | US-4.1 | Ma trận đề và Test Generator                       | EPIC-4 | P0  | 8      | 👀 review  | from W47 | [stories/US-4.1-exam-blueprint-test-generator.md](stories/US-4.1-exam-blueprint-test-generator.md)           |
+| US-4.2 | Validator và khóa ngân hàng câu hỏi                | EPIC-4 | P0  | 8      | 👀 review  | from W48 | [stories/US-4.2-validator-and-question-bank-lock.md](stories/US-4.2-validator-and-question-bank-lock.md)     |
 | US-5.1 | Allocation Engine và property-based test           | EPIC-5 | P0  | 5      | 📋 backlog | from W42 | [stories/US-5.1-allocation-engine-property-tests.md](stories/US-5.1-allocation-engine-property-tests.md)     |
 | US-6.4 | Mô phỏng phân bổ so với baseline                   | EPIC-6 | P1  | 5      | 📋 backlog | from W44 | [stories/US-6.4-allocation-simulation-vs-baselines.md](stories/US-6.4-allocation-simulation-vs-baselines.md) |
 
@@ -40,7 +41,9 @@ Ngày 2026-11-04, sau khi US-3.3 merge vào `dev`, kéo US-3.4 sớm từ W48 (3
 
 Ngày 2026-11-05, sau khi US-3.4 merge vào `dev` (PR #24), kéo US-4.1 sớm từ W47 (8 điểm), mở EPIC-4. Phiên Plan chốt ở [CONTEXT D49](../CONTEXT.md): vòng lặp sinh đề do code điều khiển (không dùng tool-use), mỗi JD một ngân hàng (Q2 chốt một phần, Q7 chốt), ma trận chỉ nằm ở `question_banks`, tham số mặc định là hằng số.
 
-**Deliverable cut**: US-2.7 ship 0.14.0, US-3.5 ship 0.15.0, US-3.6 ship 0.16.0 (sớm hơn lộ trình W46), US-3.2 ship 0.17.0 (sớm hơn lộ trình W47), US-3.3 ship 0.18.0, US-3.4 ship 0.19.0 (sớm hơn lộ trình W48), US-4.1 ship 0.20.0 (sớm hơn lộ trình W47).
+Ngày 2026-11-06, sau khi US-4.1 merge vào `dev` (PR #25), kéo US-4.2 sớm từ W48 (8 điểm). Phiên Plan chốt bốn điểm mở theo Đề xuất ở [CONTEXT D50](../CONTEXT.md): Validator chạy trong job sinh câu, chỉ CENTER khóa ngân hàng bằng tay, JD có yêu cầu mới thì lưu lại ma trận, độ khó chỉ bị loại khi lệch 2 bậc.
+
+**Deliverable cut**: US-2.7 ship 0.14.0, US-3.5 ship 0.15.0, US-3.6 ship 0.16.0 (sớm hơn lộ trình W46), US-3.2 ship 0.17.0 (sớm hơn lộ trình W47), US-3.3 ship 0.18.0, US-3.4 ship 0.19.0 (sớm hơn lộ trình W48), US-4.1 ship 0.20.0 (sớm hơn lộ trình W47), US-4.2 ship 0.21.0 (sớm hơn lộ trình W48).
 
 ## Phased plan
 

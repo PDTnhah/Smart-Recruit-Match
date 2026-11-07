@@ -3,17 +3,20 @@ import {
   type ActorKind,
   type ExamBlueprint,
   type MissingCell,
+  QUESTION_BANK_STATES,
   QUESTION_DIFFICULTIES,
   QUESTION_GENERATION_RUN_STATUSES,
   QUESTION_STATES,
   QUESTION_TYPES,
   type QuestionAnswerKey,
+  type QuestionBankStatus,
   type QuestionContent,
   type QuestionDifficulty,
   type QuestionGenerationRunStatus,
   type QuestionRubric,
   type QuestionStatus,
   type QuestionType,
+  type QuestionValidation,
 } from '@srm/shared';
 import { sql } from 'drizzle-orm';
 import { bigint, check, index, integer, jsonb, text, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
@@ -26,7 +29,9 @@ import { users } from './users.js';
 /**
  * The question bank of a JD and its exam blueprint (BR-05, FR-18, US-4.1, CONTEXT D49). One bank
  * per JD (Q2, decided in part), made when the JD is approved; CENTER edits `blueprint` until the
- * bank is locked (US-4.2). `jd_version` is the JD version the bank was made for.
+ * bank is locked (US-4.2, D50). `jd_version` is the JD version the bank was made for. Once LOCKED,
+ * a trigger keeps the bank and its questions as they are (migration 0031): only `version` rises,
+ * by one per question retired.
  */
 export const questionBanks = core.table(
   'question_banks',
@@ -41,8 +46,10 @@ export const questionBanks = core.table(
       .references(() => jobDescriptions.id),
     jdVersion: integer('jd_version').notNull(),
     blueprint: jsonb('blueprint').$type<ExamBlueprint>().notNull(),
-    /** Bank version; a new one after locking is US-4.2's. */
+    status: text('status').$type<QuestionBankStatus>().notNull().default('OPEN'),
+    /** Bank version: 1 when locked, one more per question retired after that (US-4.2 AC-7). */
     version: integer('version').notNull().default(1),
+    /** Set with LOCKED, in the same UPDATE (`transitionTo` `set`). */
     lockedAt: timestamptz('locked_at'),
     rowVersion: rowVersion(),
     ...timestamps(),
@@ -50,6 +57,8 @@ export const questionBanks = core.table(
   (t) => [
     index('question_banks_campaign_id_idx').on(t.campaignId),
     check('question_banks_versions_check', sql`${t.jdVersion} > 0 and ${t.version} > 0`),
+    oneOf('question_banks_status_check', t.status, QUESTION_BANK_STATES),
+    check('question_banks_locked_check', sql`(${t.status} = 'LOCKED') = (${t.lockedAt} is not null)`),
   ],
 );
 
@@ -99,8 +108,9 @@ export const questionGenerationRuns = core.table(
 /**
  * Questions of a bank (FR-18, US-4.1 AC-9). Written by the Core Backend from the drafts of the
  * Test Generator, each once by `draft_id` (`ai.question_drafts.id`), status DRAFT until the
- * Validator of US-4.2. `content` is what a student may see; `answer_key` and `rubric` never leave
- * the server for a student (AGENTS › Invariant 8).
+ * Validator's verdict moves it, with `validation`, to VALIDATED or REJECTED (US-4.2 AC-5).
+ * `content` is what a student may see; `answer_key` and `rubric` never leave the server for a
+ * student (AGENTS › Invariant 8).
  */
 export const questions = core.table(
   'questions',
@@ -118,6 +128,8 @@ export const questions = core.table(
     answerKey: jsonb('answer_key').$type<QuestionAnswerKey>().notNull(),
     rubric: jsonb('rubric').$type<QuestionRubric>(),
     status: text('status').$type<QuestionStatus>().notNull().default('DRAFT'),
+    /** The Validator's verdict with its model and prompt (Invariant 12); null while DRAFT. */
+    validation: jsonb('validation').$type<QuestionValidation>(),
     version: integer('version').notNull().default(1),
     model: text('model').notNull(),
     promptVersion: text('prompt_version').notNull(),
@@ -130,6 +142,7 @@ export const questions = core.table(
     oneOf('questions_type_check', t.type, QUESTION_TYPES),
     oneOf('questions_difficulty_check', t.difficulty, QUESTION_DIFFICULTIES),
     oneOf('questions_status_check', t.status, QUESTION_STATES),
+    check('questions_validation_check', sql`(${t.status} = 'DRAFT') = (${t.validation} is null)`),
     // An essay is graded by its rubric; a multiple-choice question has none.
     check('questions_rubric_check', sql`(${t.type} = 'ESSAY') = (${t.rubric} is not null)`),
     check('questions_version_check', sql`${t.version} > 0`),

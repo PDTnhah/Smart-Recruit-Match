@@ -211,6 +211,20 @@
       "when": 1793894471378,
       "tag": "0029_ai_question_banks_view",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1794062015659,
+      "tag": "0030_question_validation_bank_status",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1794062029823,
+      "tag": "0031_question_bank_lock_triggers",
+      "breakpoints": true
     }
   ]
 }

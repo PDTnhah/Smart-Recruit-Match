@@ -1,15 +1,26 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type { ExamBlueprint } from '@srm/shared';
-import { and, count, eq } from 'drizzle-orm';
+import type { ExamBlueprint, QuestionRejectReason, QuestionStatus } from '@srm/shared';
+import { and, asc, count, eq, inArray, sql } from 'drizzle-orm';
 import { RowVersionConflictError } from '../../../common/errors/index.js';
 import { questionBanks, questions } from '../../../db/schema/index.js';
 import { DRIZZLE } from '../../../db/tokens.js';
 import type { Database, DbTx } from '../../../db/types.js';
-import type { DraftCount } from '../domain/blueprint.js';
 import { QUESTION_BANK_ENTITY } from '../domain/audit-actions.js';
+import type { QuestionCount, RejectReasonCount } from '../domain/blueprint.js';
 import type { StoredQuestion } from '../domain/stored-question.js';
 
 export type QuestionBankRecord = typeof questionBanks.$inferSelect;
+
+export type QuestionRecord = typeof questions.$inferSelect;
+
+/** A question's place in its lifecycle. */
+export interface QuestionState {
+  id: number;
+  bankId: number;
+  draftId: number;
+  status: QuestionStatus;
+  rowVersion: number;
+}
 
 export interface NewQuestionBank {
   campaignId: number;
@@ -18,8 +29,16 @@ export interface NewQuestionBank {
   blueprint: ExamBlueprint;
 }
 
-/** Rows written per statement. */
+/** Rows written or looked up per statement. */
 const WRITE_CHUNK = 500;
+
+const STATE_COLUMNS = {
+  id: questions.id,
+  bankId: questions.bankId,
+  draftId: questions.draftId,
+  status: questions.status,
+  rowVersion: questions.rowVersion,
+};
 
 /** Drizzle access to `core.question_banks` and `core.questions`, owned by the assessment module. */
 @Injectable()
@@ -57,13 +76,86 @@ export class QuestionBanksRepository {
     if (updated.length === 0) throw new RowVersionConflictError(QUESTION_BANK_ENTITY, id, expectedRowVersion);
   }
 
-  /** Drafts of the bank per type, skill and difficulty, the skill as the AI wrote it. */
-  async countDrafts(bankId: number): Promise<DraftCount[]> {
-    return this.db
-      .select({ type: questions.type, skill: questions.skill, difficulty: questions.difficulty, count: count() })
+  /** Questions of the bank per type, skill, difficulty and status, the skill as the AI wrote it. */
+  async countQuestions(bankId: number, tx?: DbTx): Promise<QuestionCount[]> {
+    return (tx ?? this.db)
+      .select({
+        type: questions.type,
+        skill: questions.skill,
+        difficulty: questions.difficulty,
+        status: questions.status,
+        count: count(),
+      })
       .from(questions)
-      .where(and(eq(questions.bankId, bankId), eq(questions.status, 'DRAFT')))
-      .groupBy(questions.type, questions.skill, questions.difficulty);
+      .where(eq(questions.bankId, bankId))
+      .groupBy(questions.type, questions.skill, questions.difficulty, questions.status);
+  }
+
+  /** REJECTED questions of the bank per type, skill, difficulty and reason of `validation`. */
+  async countRejectReasons(bankId: number, tx?: DbTx): Promise<RejectReasonCount[]> {
+    const db = tx ?? this.db;
+    // One row per reason of each question: jsonb_array_elements_text is set-returning.
+    const reasons = db
+      .select({
+        type: questions.type,
+        skill: questions.skill,
+        difficulty: questions.difficulty,
+        reason: sql<QuestionRejectReason>`jsonb_array_elements_text(${questions.validation} -> 'reasons')`.as('reason'),
+      })
+      .from(questions)
+      .where(and(eq(questions.bankId, bankId), eq(questions.status, 'REJECTED')))
+      .as('reasons');
+    return db
+      .select({
+        type: reasons.type,
+        skill: reasons.skill,
+        difficulty: reasons.difficulty,
+        reason: reasons.reason,
+        count: count(),
+      })
+      .from(reasons)
+      .groupBy(reasons.type, reasons.skill, reasons.difficulty, reasons.reason);
+  }
+
+  /** The bank's questions written from these drafts. */
+  async statesByDraft(tx: DbTx, bankId: number, draftIds: readonly number[]): Promise<QuestionState[]> {
+    if (draftIds.length === 0) return [];
+    const rows: QuestionState[] = [];
+    for (let start = 0; start < draftIds.length; start += WRITE_CHUNK) {
+      const chunk = draftIds.slice(start, start + WRITE_CHUNK);
+      rows.push(
+        ...(await tx
+          .select(STATE_COLUMNS)
+          .from(questions)
+          .where(and(eq(questions.bankId, bankId), inArray(questions.draftId, chunk)))),
+      );
+    }
+    return rows;
+  }
+
+  async findQuestion(id: number, tx?: DbTx): Promise<QuestionState | undefined> {
+    const [row] = await (tx ?? this.db).select(STATE_COLUMNS).from(questions).where(eq(questions.id, id));
+    return row;
+  }
+
+  /** VALIDATED questions of the bank, by id: what an exam is drawn from (US-4.2 AC-8). */
+  async validatedQuestions(bankId: number, tx?: DbTx): Promise<QuestionRecord[]> {
+    return (tx ?? this.db)
+      .select()
+      .from(questions)
+      .where(and(eq(questions.bankId, bankId), eq(questions.status, 'VALIDATED')))
+      .orderBy(asc(questions.id));
+  }
+
+  /** One more version of a locked bank (US-4.2 AC-7), under the bank's row lock. */
+  async bumpVersion(tx: DbTx, bank: QuestionBankRecord): Promise<{ version: number; rowVersion: number }> {
+    const [row] = await tx
+      .update(questionBanks)
+      .set({ version: bank.version + 1, rowVersion: bank.rowVersion + 1 })
+      .where(and(eq(questionBanks.id, bank.id), eq(questionBanks.rowVersion, bank.rowVersion)))
+      .returning({ version: questionBanks.version, rowVersion: questionBanks.rowVersion });
+    if (!row) throw new RowVersionConflictError(QUESTION_BANK_ENTITY, bank.id, bank.rowVersion);
+    return row;
   }
 
   /** AC-9: stores each draft once by `draft_id`; returns how many rows are new. */

@@ -19,13 +19,19 @@
       "type": "integer",
       "minimum": 0,
       "maximum": 9007199254740991,
-      "description": "Drafts the bank holds for the cell"
+      "description": "Drafts the bank holds for the cell, rejected ones too"
+    },
+    "validated": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991,
+      "description": "Drafts of the cell the Validator passed"
     },
     "required": {
       "type": "integer",
       "exclusiveMinimum": 0,
       "maximum": 9007199254740991,
-      "description": "Drafts the cell needs: 3 × its count"
+      "description": "VALIDATED drafts the cell needs: 3 × its count"
     }
   },
   "required": [
@@ -33,9 +39,10 @@
     "skill",
     "difficulty",
     "drafted",
+    "validated",
     "required"
   ],
   "additionalProperties": false,
   "title": "MissingCell",
-  "description": "A blueprint cell with fewer drafts than it needs"
+  "description": "A blueprint cell with fewer validated drafts than it needs"
 }

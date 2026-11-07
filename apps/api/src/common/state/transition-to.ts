@@ -1,5 +1,5 @@
 import { canTransition, isState } from '@srm/shared';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, getTableColumns } from 'drizzle-orm';
 import type { Lifecycle } from '../../db/lifecycles.js';
 import type { Database, DbTx } from '../../db/types.js';
 import { type Actor, AUDIT_ACTION_TRANSITION, type AuditService } from '../../modules/audit/index.js';
@@ -36,9 +36,18 @@ export interface TransitionRequest<S extends string> {
   /** row_version the caller last read. Required for USER actors; SYSTEM jobs rely on the row lock. */
   expectedRowVersion?: number;
   guard?: TransitionGuard<S>;
+  /**
+   * Other columns of the row, written by the same UPDATE as `status` and shown in the audit's
+   * `after` (US-4.2, CONTEXT D50): a column a CHECK ties to the status, such as `locked_at` with
+   * LOCKED, cannot follow in a second statement. Keys are the table's Drizzle column names;
+   * `id`, `status` and `rowVersion` belong to `transitionTo` and are refused.
+   */
+  set?: Readonly<Record<string, unknown>>;
   /** Join the caller's transaction instead of opening one (e.g. to write related rows atomically). */
   tx?: DbTx;
 }
+
+const OWN_COLUMNS: ReadonlySet<string> = new Set(['id', 'status', 'rowVersion']);
 
 export interface TransitionResult<S extends string> {
   id: number;
@@ -50,8 +59,8 @@ export interface TransitionResult<S extends string> {
 /**
  * The only way to change `status` on a lifecycle table (AD-8, AGENTS › Invariant 10). In one
  * transaction: lock the row, check row_version, check the state table, run the guard, update with
- * `WHERE row_version = n` (updated_at follows via $onUpdate), and append the audit entry. Any
- * failure rolls all of it back.
+ * `WHERE row_version = n` (updated_at follows via $onUpdate, `set` columns with it), and append the
+ * audit entry. Any failure rolls all of it back.
  */
 export async function transitionTo<S extends string>(
   db: Database,
@@ -64,6 +73,13 @@ export async function transitionTo<S extends string>(
   }
   if (request.actor.kind === 'USER' && request.expectedRowVersion === undefined) {
     throw new Error(`transitionTo(${name}): expectedRowVersion is required for USER actors`);
+  }
+  // Drizzle leaves out a key that is not a column of the table: a typo would be lost silently.
+  const columns = getTableColumns(request.lifecycle.table);
+  for (const key of Object.keys(request.set ?? {})) {
+    if (OWN_COLUMNS.has(key) || !(key in columns)) {
+      throw new Error(`transitionTo(${name}): set.${key} is not a column it may write`);
+    }
   }
   if (request.tx) return apply(request.tx, audit, request);
   return db.transaction((tx) => apply(tx, audit, request));
@@ -103,10 +119,11 @@ async function apply<S extends string>(
   }
 
   const rowVersion = locked.rowVersion + 1;
+  const extra = request.set ?? {};
   // Keep `.set({ status:` on one line: the AD-8 boundary check greps for it (US-1.2 › Verification).
   const updated = await tx
     .update(table)
-    .set({ status: to, rowVersion })
+    .set({ status: to, rowVersion, ...extra })
     .where(and(eq(table.id, id), eq(table.rowVersion, locked.rowVersion)))
     .returning({ id: table.id });
   if (updated.length === 0) throw new RowVersionConflictError(entity, id, locked.rowVersion);
@@ -117,7 +134,7 @@ async function apply<S extends string>(
     entity,
     entityId: id,
     before: { status: from, rowVersion: locked.rowVersion },
-    after: { status: to, rowVersion },
+    after: { ...extra, status: to, rowVersion },
     reason: request.reason,
   });
 

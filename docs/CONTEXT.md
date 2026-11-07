@@ -56,6 +56,7 @@
 - D47 · Chốt Q1, Q6; vòng đời hồ sơ ứng tuyển, bảng `preferences`, shortlist của SV, màn chọn nguyện vọng (US-3.3)
 - D48 · Mức cạnh tranh: ngưỡng trong cấu hình đợt, đếm lại dưới khóa theo JD, kênh SSE theo đợt, báo Trung tâm JD thiếu NV sau Q6 (US-3.4)
 - D49 · Test Generator: vòng lặp do code điều khiển, mỗi JD một ngân hàng (Q2 một phần, Q7), ma trận ở `question_banks`, tham số mặc định, làm tròn hai chiều (US-4.1)
+- D50 · Validator trong job sinh câu (đầu vào không kèm đáp án, code quyết định, độ khó lệch 2 bậc), khóa ngân hàng `OPEN → LOCKED` bằng tay, trigger chặn sửa, JD có phiên bản mới thì lưu lại ma trận (US-4.2)
 
 ---
 
@@ -2005,3 +2006,111 @@ AC-4 đòi một ngôn ngữ không nằm ở cả `required_languages` lẫn `p
 
 **Date**: 2026-11-05
 **Version**: 0.20.0
+
+### D50. Validator trong job sinh câu, khóa ngân hàng có trạng thái, trigger chặn sửa sau khi khóa (US-4.2) (chốt điểm mở của US-4.2; bổ sung D49)
+
+**Context**: Story US-4.2 viết ngày 2026-10-07, trước D34 và D49. Story để mở các điểm sau:
+
+- Câu tự luận: Validator nhận gì, khi rubric có thể để lộ ý đáp án.
+- Ai khóa ngân hàng, và có tự khóa khi đợt sang pha *Làm test* không.
+- JD có phiên bản yêu cầu mới (BR-18) sau khi đã có ngân hàng. D49 để việc này cho US-4.2.
+- Mức "lệch độ khó" bị loại.
+
+Story còn đề xuất một `pipeline.py` riêng, nhưng không nói Validator chạy trong job nào. Ngân hàng chỉ có `locked_at`, không có cột trạng thái cho `transitionTo` (AD-8).
+
+**Decision** (người dùng chốt bốn điểm mở theo cột Đề xuất ngày 2026-11-06):
+
+- **Validator chạy trong job `QUESTIONS_GENERATE`**, không thêm loại job. Mỗi vòng của vòng lặp D49 gồm ba bước:
+  1. Sinh câu cho các ô thiếu.
+  2. `submit_questions()`.
+  3. Một lượt Validator cho các câu vòng đó nhận: ≤ 15 MCQ hoặc ≤ 5 tự luận, `effort: high`, prompt `validator/vN`.
+
+  Trước vòng đầu, các draft chưa có kết quả kiểm định được kiểm: draft của run US-4.1, hoặc của một lần chạy bị ngắt. Mỗi lượt là một lần `LLMClient.generate` riêng, nên không chứa tin nhắn nào của Generator.
+- **Đầu vào, không kèm đáp án.** Mỗi câu có `ref`, loại, kỹ năng, nhãn độ khó, đề.
+  - MCQ: các phương án đánh số, không có cờ đúng.
+  - Tự luận: đề và **tên các tiêu chí rubric**. Không có `max_points`, đáp án mẫu hay giải thích. Validator kiểm đề rõ ràng, làm kịp trong thời gian, và chấm được theo các tiêu chí.
+- **LLM trả verdict, code quyết định (D2).** Đầu ra `ValidationBatch` là model lỏng, giống `QuestionProposalBatch`. Mỗi câu có:
+  - `correct_options`: mọi phương án Validator cho là đúng sau khi tự giải;
+  - các mục checklist: `on_skill`, `estimated_difficulty`, `answer_leaked`, `distractors_plausible`, `clear`, `gradeable_by_criteria`;
+  - `duplicate_of`: `ref` của câu đứng trước trong request cùng ý;
+  - `note`.
+
+  `verdict.py` gom mọi mã lý do theo thứ tự cố định:
+  - `ANSWER_MISMATCH`: không có phương án đúng, hoặc phương án tự giải khác `answer_key`;
+  - `MULTIPLE_CORRECT`: từ 2 phương án đúng trở lên;
+  - `OFF_SKILL`, `ANSWER_LEAKED`, `WEAK_DISTRACTORS`, `UNCLEAR`, `RUBRIC_MISMATCH`;
+  - `DIFFICULTY_MISMATCH`: chỉ khi lệch từ `DIFFICULTY_REJECT_GAP = 2` bậc (Dễ ↔ Khó). Lệch 1 bậc vẫn nhận, và ước lượng được lưu;
+  - `DUPLICATE`: cùng ý với một câu đạt đứng trước.
+
+  Câu không trượt mục nào thì `VALIDATED`. Câu thiếu kết quả, hoặc có `ref` lạ hay trùng, thì còn chờ và được kiểm lại ở vòng sau.
+- **Refusal:** nhóm bị từ chối (`LLM_REFUSED`) thì gửi lại từng câu. Câu vẫn bị từ chối thì `REJECTED [VALIDATOR_REFUSAL]`, không đọc nội dung. Đầu ra vẫn sai schema (`LLM_INVALID_OUTPUT`, chẳng hạn bị cắt ở `max_output_tokens`) thì nhóm được chia đôi gửi lại; câu gửi riêng vẫn sai thì còn chờ, job chạy tiếp. Ngân sách token được kiểm trước mỗi lượt gửi lại. Một job gửi một câu tối đa `MAX_CHECKS_PER_DRAFT = 2` lần; câu vẫn chưa có kết quả thì không còn giữ chỗ trong ô ở job đó, và ô sinh câu khác thay (bổ sung sau review).
+- **Dữ liệu:**
+  - `ai.question_validations` lưu mỗi draft một kết quả: `draft_id` unique, FK `ai.question_drafts`; `job_id`, `status`, `reasons`, `verdict`, `model`, `prompt_version`. Bảng chỉ INSERT.
+  - `GeneratedQuestion.validation` mang kết quả về backend.
+  - `core.questions.validation` (JSONB) lưu kết quả cùng `model` và `prompt_version`.
+  - Câu đổi `DRAFT → VALIDATED | REJECTED` qua `transitionTo`, actor hệ thống, trong giao dịch nhận kết quả. Nếu sau này cần loại câu thì `VALIDATED → RETIRED`.
+- **Độ phủ:**
+  - Một ô đủ khi có ≥ 3× câu `VALIDATED`. Vòng sinh nhắm tới 4× câu chưa bị loại.
+  - Chỉ ô còn thiếu gửi câu chờ đi kiểm, và chỉ số câu đủ đưa ô lên 4×, câu cũ trước (bổ sung sau review).
+  - `CELL_FULL` (5×) không đếm câu bị loại; `BANK_FULL` đếm mọi draft.
+  - Đề của câu bị loại vẫn nằm trong tập kiểm trùng.
+  - Prompt `test_generator/v2` tách lý do do code kiểm và lý do Validator loại.
+  - `MAX_ROUNDS = 12` giữ nguyên, một vòng gồm sinh và kiểm. `MAX_TOKENS_PER_JOB` tăng 400K → 600K, vì token của Validator cũng được tính. Số này đo lại bằng `smoke_llm --bank`.
+- **Khóa ngân hàng:**
+  - `question_banks.status` (`OPEN → LOCKED`, không mở khóa), CHECK `(status = 'LOCKED') = (locked_at is not null)`.
+  - `transitionTo` có thêm tùy chọn `set`: các cột khác của cùng dòng được ghi trong cùng lệnh UPDATE, nên `locked_at` đổi cùng `status`.
+  - Chỉ CENTER khóa, bằng tay: `POST /api/question-banks/:id/lock` `{ rowVersion }`. Lúc đợt đổi pha không làm gì; US-4.3 chặn bắt đầu bài thi khi ngân hàng chưa khóa.
+  - Thứ tự kiểm dưới khóa `QUESTION_BANK` của JD:
+    1. `row_version`;
+    2. `QUESTION_BANK_LOCKED`;
+    3. `QUESTION_GENERATION_RUNNING`;
+    4. `QUESTION_BANK_JD_OUTDATED`;
+    5. `QUESTION_BANK_INCOMPLETE`, kèm ô thiếu.
+
+    Mọi lỗi đều `409`. Phiên bản JD được đọc lại trong giao dịch, `FOR SHARE`: lần lưu yêu cầu JD hoặc commit trước và được thấy, hoặc chờ khóa xong (bổ sung sau review).
+- **Sau khi khóa, trigger DB chặn sửa** (Nguyên tắc 11):
+  - `core.questions` của ngân hàng đã khóa không nhận INSERT hay DELETE. UPDATE chỉ được đổi `status`, `row_version`, `updated_at`, và status chỉ được `VALIDATED → RETIRED`.
+  - `core.question_banks` đã khóa không đổi được ma trận, JD, `locked_at`, `status`; `version` chỉ tăng; không DELETE.
+  - `retireQuestion()` của ngân hàng đã khóa tăng `version` thêm 1 và ghi audit `QUESTION_BANK_VERSIONED` trong cùng giao dịch.
+  - `getDrawableQuestions(bankId)` trả câu `VALIDATED` của ngân hàng đã khóa, chỉ những câu thuộc ô có trong ma trận, kèm `answer_key` để server dùng. Ngân hàng chưa khóa thì `409 BANK_NOT_LOCKED`.
+- **JD có phiên bản yêu cầu mới (BR-18):**
+  - Ngân hàng chưa khóa và `jd_version` cũ hơn JD: khóa và "Sinh câu còn thiếu" nhận `409 QUESTION_BANK_JD_OUTDATED`, tới khi CENTER lưu lại ma trận (`PUT` kiểm theo yêu cầu hiện tại). Câu của kỹ năng đã bỏ không được tính.
+  - Ngân hàng đã khóa: giữ nguyên, không tự sinh lại. Trung tâm đã nhận thông báo `JD_REQUIREMENTS_VERSIONED` (D35).
+- **Seed** `seedLockedQuestionBank` (`db/seed/locked-question-bank.ts`):
+  - câu tất định, không gọi LLM;
+  - `draft_id` âm, để không đụng id của `ai.question_drafts`;
+  - `validation.model = "seed"`;
+  - chèn câu trước, rồi mới khóa.
+
+**Rationale**:
+
+- Validator trong cùng job thì vòng sinh bù biết ngay câu nào bị loại. Không cần thêm loại job, hàng đợi hay run. Bộ đếm token, `MAX_ROUNDS` và kết quả `PARTIAL` của D49 vẫn dùng được nguyên.
+- Code so đáp án và đọc từng mục checklist (AD-2). Đổi ngưỡng độ khó không phải gọi lại LLM, vì kết quả LLM đã được lưu.
+- Ngân hàng có trạng thái thì khóa đi qua `transitionTo`, được kiểm `row_version` và ghi audit như mọi bảng có vòng đời (AD-8). Trigger giữ ngân hàng đã khóa đúng như vậy, kể cả với SQL viết tay.
+- Ngưỡng 2 bậc tránh phải sinh lại nhiều câu chỉ vì ước lượng độ khó của LLM dao động.
+
+**Alternatives considered**:
+
+- **Job `QUESTIONS_VALIDATE` riêng, backend phát sau khi nhận kết quả sinh:** loại. Phải có run, hàng đợi và vòng sinh bù qua backend. Mỗi lần bù tốn hai job.
+- **Gửi cả rubric hoặc chỉ gửi đề cho câu tự luận:** người dùng không chọn. Gửi rubric thì lộ cách chấm. Chỉ gửi đề thì không kiểm được câu có chấm được theo tiêu chí hay không.
+- **Tự khóa khi đợt sang pha *Làm test*, hoặc chặn đổi pha:** người dùng không chọn. Phải thêm listener, tác vụ quét chạy lại (LESSONS §34), hoặc cho `campaign` phụ thuộc `assessment`.
+- **Tự dựng lại ma trận khi JD có phiên bản mới:** người dùng không chọn, vì mất ma trận CENTER đã sửa.
+- **Loại mọi câu lệch độ khó:** người dùng không chọn, vì tỷ lệ phải sinh lại cao.
+- **Chỉ dùng `locked_at`, không thêm cột trạng thái:** loại, vì trái AD-8 (khóa không qua `transitionTo`). Đặt `locked_at` bằng một lệnh UPDATE thứ hai sau `transitionTo` thì vi phạm CHECK, nên mới thêm tùy chọn `set`.
+
+**Impact**:
+
+- ARCHITECTURE: bảng *Agent* (Validator), *Pipeline › Test Generator* bước 6, *Các bảng chính* (`question_banks.status`, `questions.validation`, `ai.question_validations`).
+- Code:
+  - `packages/shared`: `states/question.ts`, `states/question-bank.ts`, `contracts/questions.ts`, `schemas/exam-blueprint.ts`.
+  - `common/state/transition-to.ts` (`set`); `db/lifecycles.ts`.
+  - Migration `0030`, `0031` (trigger).
+  - Module `assessment`: lock, retire, `getDrawableQuestions`, controller `question-banks`.
+  - `ai-service/app/agents/validator/`, `test_generator/` (độ phủ theo kiểm định); prompt `validator/v1`, `test_generator/v2`.
+- Story sau:
+  - US-4.3: chặn thi khi ngân hàng chưa khóa; không gửi `answer_key`.
+  - US-4.6, US-4.9: endpoint loại câu, gọi `retireQuestion()`.
+  - US-6.3: đo tỷ lệ câu hợp lệ từ `ai.question_validations`.
+
+**Date**: 2026-11-06 (bổ sung sau review 2026-11-07)
+**Version**: 0.21.0

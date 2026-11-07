@@ -148,6 +148,7 @@ class StructuredLLMClient:
                     f"{request.agent}: the model refused ({category})",
                     code="LLM_REFUSED",
                     category=response.stop_category,
+                    model=response.model,
                 )
             if response.stop_reason is StopReason.MAX_TOKENS:
                 await self._record_failure(attempt, Outcome.TRUNCATED, response)

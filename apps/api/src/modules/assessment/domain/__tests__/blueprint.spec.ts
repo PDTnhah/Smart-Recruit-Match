@@ -1,7 +1,7 @@
 import type { ExamBlueprint, JdSkillRequirement, QuestionDifficulty } from '@srm/shared';
 import { examBlueprintRequestSchema, skillKey } from '@srm/shared';
 import fc from 'fast-check';
-import { buildDefaultBlueprint, controlledRound, coverageOf, largestRemainder } from '../blueprint.js';
+import { blueprintCellFilter, buildDefaultBlueprint, controlledRound, coverageOf, largestRemainder } from '../blueprint.js';
 
 const skill = (name: string, weight: number): JdSkillRequirement => ({ skill: name, level: 'BASIC', weight });
 
@@ -168,20 +168,59 @@ describe('BR-05: coverage of a question bank (US-4.1 AC-3)', () => {
     },
   };
 
+  const empty = { validated: 0, rejected: 0, pending: 0, rejectReasons: {} };
+
   it('BR-05 counts drafts per cell by skillKey against 3× and 5× of the cell', () => {
     const coverage = coverageOf(blueprint, [
-      { type: 'MCQ', skill: 'Java', difficulty: 'EASY', count: 4 },
-      { type: 'MCQ', skill: 'java', difficulty: 'EASY', count: 2 },
+      { type: 'MCQ', skill: 'Java', difficulty: 'EASY', status: 'DRAFT', count: 4 },
+      { type: 'MCQ', skill: 'java', difficulty: 'EASY', status: 'DRAFT', count: 2 },
       // An essay of the same skill and difficulty belongs to part B only.
-      { type: 'ESSAY', skill: 'Java', difficulty: 'EASY', count: 9 },
-      { type: 'ESSAY', skill: 'Java', difficulty: 'MEDIUM', count: 5 },
+      { type: 'ESSAY', skill: 'Java', difficulty: 'EASY', status: 'DRAFT', count: 9 },
+      { type: 'ESSAY', skill: 'Java', difficulty: 'MEDIUM', status: 'DRAFT', count: 5 },
       // A cell the blueprint no longer has.
-      { type: 'MCQ', skill: 'Docker', difficulty: 'EASY', count: 3 },
+      { type: 'MCQ', skill: 'Docker', difficulty: 'EASY', status: 'DRAFT', count: 3 },
     ]);
     expect(coverage).toEqual([
-      { part: 'A', type: 'MCQ', skill: 'Java', difficulty: 'EASY', needed: 2, drafted: 6, min: 6, max: 10 },
-      { part: 'A', type: 'MCQ', skill: 'SQL', difficulty: 'HARD', needed: 1, drafted: 0, min: 3, max: 5 },
-      { part: 'B', type: 'ESSAY', skill: 'Java', difficulty: 'MEDIUM', needed: 2, drafted: 5, min: 6, max: 10 },
+      { part: 'A', type: 'MCQ', skill: 'Java', difficulty: 'EASY', needed: 2, ...empty, drafted: 6, pending: 6, min: 6, max: 10 },
+      { part: 'A', type: 'MCQ', skill: 'SQL', difficulty: 'HARD', needed: 1, ...empty, drafted: 0, min: 3, max: 5 },
+      { part: 'B', type: 'ESSAY', skill: 'Java', difficulty: 'MEDIUM', needed: 2, ...empty, drafted: 5, pending: 5, min: 6, max: 10 },
     ]);
+  });
+
+  it('GĐ5 splits each cell by status and counts rejected questions per reason (US-4.2 AC-4, AC-10)', () => {
+    const [java] = coverageOf(
+      blueprint,
+      [
+        { type: 'MCQ', skill: 'Java', difficulty: 'EASY', status: 'VALIDATED', count: 5 },
+        { type: 'MCQ', skill: 'java', difficulty: 'EASY', status: 'VALIDATED', count: 1 },
+        { type: 'MCQ', skill: 'Java', difficulty: 'EASY', status: 'REJECTED', count: 3 },
+        { type: 'MCQ', skill: 'Java', difficulty: 'EASY', status: 'DRAFT', count: 2 },
+        { type: 'MCQ', skill: 'Java', difficulty: 'EASY', status: 'RETIRED', count: 1 },
+      ],
+      [
+        { type: 'MCQ', skill: 'Java', difficulty: 'EASY', reason: 'ANSWER_MISMATCH', count: 2 },
+        { type: 'MCQ', skill: 'Java', difficulty: 'EASY', reason: 'DIFFICULTY_MISMATCH', count: 1 },
+        { type: 'MCQ', skill: 'java', difficulty: 'EASY', reason: 'ANSWER_MISMATCH', count: 1 },
+        // A reason of a cell the blueprint does not have.
+        { type: 'MCQ', skill: 'Docker', difficulty: 'EASY', reason: 'UNCLEAR', count: 4 },
+      ],
+    );
+    expect(java).toMatchObject({
+      drafted: 12,
+      validated: 6,
+      rejected: 3,
+      pending: 2,
+      rejectReasons: { ANSWER_MISMATCH: 3, DIFFICULTY_MISMATCH: 1 },
+    });
+  });
+
+  it('GĐ5 an exam draws only questions of the blueprint cells, by skillKey (US-4.2 AC-8, AC-11)', () => {
+    const inBlueprint = blueprintCellFilter(blueprint);
+    expect(inBlueprint({ type: 'MCQ', skill: 'java', difficulty: 'EASY' })).toBe(true);
+    expect(inBlueprint({ type: 'ESSAY', skill: 'Java', difficulty: 'MEDIUM' })).toBe(true);
+    // Same skill and difficulty, other part; a skill the JD dropped; a difficulty without a cell.
+    expect(inBlueprint({ type: 'ESSAY', skill: 'Java', difficulty: 'EASY' })).toBe(false);
+    expect(inBlueprint({ type: 'MCQ', skill: 'Docker', difficulty: 'EASY' })).toBe(false);
+    expect(inBlueprint({ type: 'MCQ', skill: 'SQL', difficulty: 'EASY' })).toBe(false);
   });
 });

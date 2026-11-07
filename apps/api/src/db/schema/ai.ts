@@ -4,13 +4,17 @@ import {
   type AiJobRunStatus,
   type AiJobType,
   QUESTION_DIFFICULTIES,
+  QUESTION_REJECT_REASONS,
   QUESTION_TYPES,
+  QUESTION_VALIDATION_STATUSES,
   type QuestionDifficulty,
+  type QuestionRejectReason,
   type QuestionType,
+  type QuestionValidationStatus,
 } from '@srm/shared';
 import { sql } from 'drizzle-orm';
 import { check, index, integer, jsonb, numeric, pgSchema, text, unique, uuid, vector } from 'drizzle-orm/pg-core';
-import { id, oneOf, ref, timestamptz } from './columns.js';
+import { id, inList, oneOf, ref, timestamptz } from './columns.js';
 
 /**
  * Owned by the AI Service: job state, LLM call log, embeddings (ARCHITECTURE › Phân vùng schema).
@@ -200,6 +204,42 @@ export const aiQuestionDrafts = ai.table(
     oneOf('question_drafts_type_check', t.type, QUESTION_TYPES),
     oneOf('question_drafts_difficulty_check', t.difficulty, QUESTION_DIFFICULTIES),
     check('question_drafts_prompt_version_check', sql`${t.promptVersion} ~ '^[a-z][a-z0-9_]*/v[1-9][0-9]*$'`),
+  ],
+);
+
+/**
+ * The Validator's verdict on a draft (US-4.2 AC-5, CONTEXT D50): one row per draft, written once
+ * (insert, on conflict do nothing) in the job that checked it. `status` and `reasons` are what code
+ * decided from `verdict`, the model's answer as it came back, kept so a new threshold can be
+ * measured without calling the model again (US-6.3 reads the rejection rate here).
+ */
+export const aiQuestionValidations = ai.table(
+  'question_validations',
+  {
+    id: id(),
+    draftId: ref('draft_id')
+      .notNull()
+      .unique('question_validations_draft_id_key')
+      .references(() => aiQuestionDrafts.id),
+    jobId: uuid('job_id')
+      .notNull()
+      .references(() => aiJobs.jobId),
+    status: text('status').$type<QuestionValidationStatus>().notNull(),
+    reasons: text('reasons').array().$type<QuestionRejectReason[]>().notNull(),
+    verdict: jsonb('verdict').$type<Record<string, unknown>>().notNull(),
+    model: text('model').notNull(),
+    promptVersion: text('prompt_version').notNull(),
+    createdAt: timestamptz('created_at').notNull().defaultNow(),
+  },
+  (t) => [
+    index('question_validations_job_id_idx').on(t.jobId),
+    oneOf('question_validations_status_check', t.status, QUESTION_VALIDATION_STATUSES),
+    check('question_validations_reasons_check', sql`${t.reasons} <@ array[${inList(QUESTION_REJECT_REASONS)}]::text[]`),
+    check(
+      'question_validations_rejected_check',
+      sql`(${t.status} = 'REJECTED') = (cardinality(${t.reasons}) > 0)`,
+    ),
+    check('question_validations_prompt_version_check', sql`${t.promptVersion} ~ '^[a-z][a-z0-9_]*/v[1-9][0-9]*$'`),
   ],
 );
 

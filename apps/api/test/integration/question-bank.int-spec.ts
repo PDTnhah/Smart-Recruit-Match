@@ -2,26 +2,11 @@
 // JD, its exam blueprint as CENTER edits it, and the generation runs of the Test Generator. The AI
 // Service is not running here: jobs stay in their queue and results are handed to the listener.
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import {
-  ApiErrorSchema,
-  type ExamBlueprint,
-  ExamBlueprintViewSchema,
-  type GeneratedQuestion,
-  type JdRequirements,
-  QuestionGenerationRunSchema,
-  QuestionsGenerateResultSchema,
-  type QuestionsGenerateJob,
-  type QuestionsGenerateOutput,
-} from '@srm/shared';
+import { ApiErrorSchema, type ExamBlueprint, ExamBlueprintViewSchema, QuestionGenerationRunSchema, type QuestionsGenerateJob } from '@srm/shared';
 import { and, eq } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import { auditLogs, jobDescriptions, questionBanks, questionGenerationRuns, questions } from '../../src/db/schema/index.js';
-import {
-  AI_JOB_DISPATCHED,
-  AI_RESULT_EVENTS,
-  type AiJobDispatchedEvent,
-  type AiResultEvent,
-} from '../../src/modules/aigateway/index.js';
+import { AI_JOB_DISPATCHED, type AiJobDispatchedEvent, type AiResultEvent } from '../../src/modules/aigateway/index.js';
 import { QuestionBankService } from '../../src/modules/assessment/application/question-bank.service.js';
 import { buildDefaultBlueprint } from '../../src/modules/assessment/domain/blueprint.js';
 import type { JdEvent } from '../../src/modules/company/index.js';
@@ -29,58 +14,18 @@ import { api, type AuthTestApp, createAuthTestApp, type LoggedIn } from '../help
 import { createCompany } from '../helpers/factories.js';
 import { captureEvents, createJdInState } from '../helpers/jd.js';
 import { waitFor } from '../helpers/notifications.js';
-
-const REQUIREMENTS: JdRequirements = {
-  must_have: [
-    { skill: 'Java', level: 'INTERMEDIATE', weight: 6 },
-    { skill: 'SQL', level: 'BASIC', weight: 4 },
-  ],
-  nice_to_have: [{ skill: 'Docker', level: 'BASIC', weight: 1 }],
-  hard_conditions: { majors: [], min_study_year: null, min_gpa: null, required_languages: [] },
-  preferred_languages: [],
-};
+import {
+  BANK_REQUIREMENTS as REQUIREMENTS,
+  deliverResult,
+  essay,
+  GENERATOR_PROMPT as PROMPT,
+  mcq,
+  MODEL,
+  resultMessage as message,
+} from '../helpers/question-bank.js';
 
 /** The default blueprint of REQUIREMENTS with the campaign default T_test of 45 minutes. */
 const DEFAULT_BLUEPRINT = buildDefaultBlueprint(REQUIREMENTS, { durationMinutes: 45 });
-
-const PROMPT = 'test_generator/v1';
-const MODEL = 'gemini-3.8-flash';
-
-let nextDraftId = 1;
-
-function mcq(skill: string, difficulty: GeneratedQuestion['difficulty'] = 'EASY'): GeneratedQuestion {
-  const id = nextDraftId++;
-  return {
-    draft_id: id,
-    type: 'MCQ',
-    skill,
-    difficulty,
-    stem: `Câu hỏi trắc nghiệm ${id} về ${skill}?`,
-    explanation: 'Phương án B đúng vì …',
-    options: ['A', 'B', 'C', 'D'].map((text) => ({ text: `Phương án ${text}`, correct: text === 'B' })),
-    model: MODEL,
-    prompt_version: PROMPT,
-  };
-}
-
-function essay(skill: string): GeneratedQuestion {
-  const id = nextDraftId++;
-  return {
-    draft_id: id,
-    type: 'ESSAY',
-    skill,
-    difficulty: 'MEDIUM',
-    stem: `Câu hỏi tự luận ${id} về ${skill}.`,
-    explanation: 'Đánh giá khả năng thiết kế.',
-    rubric: [
-      { criterion: 'Nêu đúng khái niệm', max_points: 4 },
-      { criterion: 'Có ví dụ', max_points: 6 },
-    ],
-    sample_answer: 'Đáp án mẫu …',
-    model: MODEL,
-    prompt_version: PROMPT,
-  };
-}
 
 describe('GĐ5 question bank and exam blueprint (US-4.1)', () => {
   let t: AuthTestApp;
@@ -116,31 +61,20 @@ describe('GĐ5 question bank and exam blueprint (US-4.1)', () => {
     t.db.select().from(questions).where(eq(questions.bankId, bankId)).orderBy(questions.draftId);
   const jobsOf = (bankId: number) => dispatched.filter((event) => event.type === 'QUESTIONS_GENERATE' && event.job.bank_id === bankId);
 
-  const deliver = (result: AiResultEvent<'QUESTIONS_GENERATE'>) =>
-    t.app.get(EventEmitter2).emitAsync(AI_RESULT_EVENTS.QUESTIONS_GENERATE, result);
-
-  /** A result message as the consumer hands it over, checked by the shared contract. */
-  function message(
-    job: QuestionsGenerateJob,
-    output: Partial<QuestionsGenerateOutput> | null,
-    status: 'SUCCEEDED' | 'PARTIAL' | 'FAILED' = 'SUCCEEDED',
-  ): AiResultEvent<'QUESTIONS_GENERATE'> {
-    return QuestionsGenerateResultSchema.parse({
-      job_id: job.job_id,
-      type: 'QUESTIONS_GENERATE',
-      status,
-      job,
-      result: output === null ? null : { bank_id: job.bank_id, questions: [], missing_cells: [], rounds: 1, ...output },
-      error: output === null ? { code: 'LLM_REFUSAL', message: 'refused', needs_human: true } : null,
-    });
-  }
+  const deliver = (result: AiResultEvent<'QUESTIONS_GENERATE'>) => deliverResult(t.app, result);
 
   it('GĐ5 AC-4 approving a JD makes its bank with the default blueprint and sends one job', async () => {
     const jd = await createJdInState(t.db, { companyId, status: 'PENDING_APPROVAL', requirements: REQUIREMENTS });
     await center.agent.post(api(`jds/${jd.id}/approve`)).send({ rowVersion: jd.rowVersion }).expect(200);
 
     const bank = await waitFor(() => bankOf(jd.id));
-    expect(bank).toMatchObject({ jdVersion: jd.version, version: 1, lockedAt: null, blueprint: DEFAULT_BLUEPRINT });
+    expect(bank).toMatchObject({
+      jdVersion: jd.version,
+      status: 'OPEN',
+      version: 1,
+      lockedAt: null,
+      blueprint: DEFAULT_BLUEPRINT,
+    });
     const [run] = await waitFor(async () => {
       const rows = await runsOf(bank.id);
       return rows[0]?.dispatchedAt ? rows : undefined;
@@ -218,6 +152,10 @@ describe('GĐ5 question bank and exam blueprint (US-4.1)', () => {
       difficulty: 'EASY',
       needed: DEFAULT_BLUEPRINT.parts.A.cells[0]!.count,
       drafted: 0,
+      validated: 0,
+      rejected: 0,
+      pending: 0,
+      rejectReasons: {},
       min: DEFAULT_BLUEPRINT.parts.A.cells[0]!.count * 3,
       max: DEFAULT_BLUEPRINT.parts.A.cells[0]!.count * 5,
     });
@@ -285,7 +223,7 @@ describe('GĐ5 question bank and exam blueprint (US-4.1)', () => {
     const busy = await putBlueprint(jd.id, running.rowVersion, DEFAULT_BLUEPRINT).expect(409);
     expect(ApiErrorSchema.parse(busy.body).code).toBe('QUESTION_GENERATION_RUNNING');
 
-    await t.db.update(questionBanks).set({ lockedAt: new Date() }).where(eq(questionBanks.id, running.bankId));
+    await t.db.update(questionBanks).set({ status: 'LOCKED', lockedAt: new Date() }).where(eq(questionBanks.id, running.bankId));
     for (const res of [await putBlueprint(jd.id, running.rowVersion, DEFAULT_BLUEPRINT), await generate(jd.id)]) {
       expect(res.status).toBe(409);
       expect(ApiErrorSchema.parse(res.body).code).toBe('QUESTION_BANK_LOCKED');
@@ -302,7 +240,7 @@ describe('GĐ5 question bank and exam blueprint (US-4.1)', () => {
     const bank = (await bankOf(jd.id))!;
     const [{ job }] = jobsOf(bank.id) as [AiJobDispatchedEvent<'QUESTIONS_GENERATE'>];
     const drafts = [mcq('Java'), mcq('java'), essay('Java')];
-    const missing = [{ type: 'MCQ' as const, skill: 'SQL', difficulty: 'HARD' as const, drafted: 0, required: 3 }];
+    const missing = [{ type: 'MCQ' as const, skill: 'SQL', difficulty: 'HARD' as const, drafted: 0, validated: 0, required: 3 }];
     const result = message(job, { questions: drafts, missing_cells: missing }, 'PARTIAL');
     await deliver(result);
     await deliver(result);
@@ -373,7 +311,7 @@ describe('GĐ5 question bank and exam blueprint (US-4.1)', () => {
 
     // The bank takes a new run, then is locked before its result comes.
     await generate(jd.id).expect(202);
-    await t.db.update(questionBanks).set({ lockedAt: new Date() }).where(eq(questionBanks.id, bank.id));
+    await t.db.update(questionBanks).set({ status: 'LOCKED', lockedAt: new Date() }).where(eq(questionBanks.id, bank.id));
     await deliver(message(jobsOf(bank.id)[1]!.job, { questions: [mcq('Java')] }));
     expect(await questionsOf(bank.id)).toHaveLength(0);
     expect((await runsOf(bank.id))[1]).toMatchObject({ status: 'SUCCEEDED', questionsReceived: 0 });

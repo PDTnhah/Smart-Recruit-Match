@@ -3,5 +3,6 @@
   "jd_analyzer": "jd_analyzer/v2",
   "matching": "matching/v1",
   "skill_normalizer": "skill_normalizer/v1",
-  "test_generator": "test_generator/v1"
+  "test_generator": "test_generator/v2",
+  "validator": "validator/v1"
 }
