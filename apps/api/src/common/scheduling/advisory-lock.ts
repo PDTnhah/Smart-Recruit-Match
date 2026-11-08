@@ -41,6 +41,8 @@ export const ADVISORY_LOCK_KEYS = {
    * generation run happen one after the other, even before the bank has a row to lock.
    */
   QUESTION_BANK: 4_101,
+  /** Sweep of the exam room: expired sessions and tests not taken by `testing_end` (US-4.3, CONTEXT D51). */
+  EXAM_SWEEP: 4_301,
 } as const;
 
 /**

@@ -60,7 +60,13 @@ const MESSAGES: Record<ApiErrorCode, string> = {
   QUESTION_GENERATION_RUNNING: 'AI đang sinh câu hỏi cho JD này. Chờ lượt sinh xong rồi sửa ma trận đề.',
   QUESTION_BANK_JD_OUTDATED: 'Yêu cầu của JD đã có phiên bản mới. Lưu lại ma trận đề theo yêu cầu mới trước khi sinh câu hay khóa ngân hàng.',
   QUESTION_BANK_INCOMPLETE: 'Còn ô của ma trận đề chưa đủ câu đạt kiểm định nên chưa khóa được ngân hàng.',
-  BANK_NOT_LOCKED: 'Ngân hàng câu hỏi chưa khóa nên chưa rút đề được.',
+  BANK_NOT_LOCKED: 'Bài test của JD này chưa sẵn sàng. Thử lại sau, hoặc liên hệ Trung tâm.',
+  EXAM_ALREADY_TAKEN: 'Bạn đã làm bài test này. Mỗi bài chỉ làm một lần.',
+  EXAM_CLOSED: 'Bài test đã đóng nên không lưu thêm được câu trả lời.',
+  EXAM_ANSWER_INVALID: 'Có câu trả lời không hợp lệ. Tải lại trang rồi chọn lại.',
+  EXAM_BANK_INCOMPLETE: 'Ngân hàng câu hỏi của JD này đang thiếu câu nên chưa rút đề được. Liên hệ Trung tâm.',
+  PREFERENCE_NOT_PENDING_TEST: 'Nguyện vọng này không còn chờ làm bài test.',
+  RATE_LIMITED: 'Bạn thao tác quá nhanh. Chờ một lát rồi thử lại.',
   INTERNAL_ERROR: 'Hệ thống đang gặp sự cố. Thử lại sau ít phút.',
 };
 

@@ -25,6 +25,7 @@ export class RedisModule implements OnApplicationShutdown {
       this.redis.disconnect();
       return;
     }
-    await this.redis.quit();
+    // A connection already lost (reset, reconnecting) refuses QUIT: drop it instead.
+    await this.redis.quit().catch(() => this.redis.disconnect());
   }
 }

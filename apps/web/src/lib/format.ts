@@ -30,6 +30,25 @@ export function formatRelative(value: DateInput): string {
   return formatDistanceToNow(toDate(value), { addSuffix: true, locale: vi });
 }
 
+/** 45 phút, 2 giờ, 1 giờ 30 phút */
+export function formatMinutes(minutes: number): string {
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  if (hours === 0) return `${rest} phút`;
+  return rest === 0 ? `${hours} giờ` : `${hours} giờ ${rest} phút`;
+}
+
+const twoDigits = (value: number) => String(value).padStart(2, '0');
+
+/** 44:59, 1:05:09: what is left of a countdown, rounded up to the second. */
+export function formatCountdown(ms: number): string {
+  const total = Math.max(0, Math.ceil(ms / 1000));
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const seconds = total % 60;
+  return hours > 0 ? `${hours}:${twoDigits(minutes)}:${twoDigits(seconds)}` : `${twoDigits(minutes)}:${twoDigits(seconds)}`;
+}
+
 const numberFormats = new Map<number, Intl.NumberFormat>();
 
 /** 3,45 and 1.200 (Vietnamese separators). */

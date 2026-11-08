@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type { PreferenceItem } from '@srm/shared';
-import { and, asc, count, eq, inArray } from 'drizzle-orm';
+import type { ApplicationStatus, PreferenceItem } from '@srm/shared';
+import { and, asc, count, desc, eq, inArray } from 'drizzle-orm';
 import { ADVISORY_LOCK_KEYS, lockEntityInTx } from '../../../common/scheduling/advisory-lock.js';
 import { preferences } from '../../../db/schema/index.js';
 import { DRIZZLE } from '../../../db/tokens.js';
@@ -8,6 +8,27 @@ import type { Database, DbTx } from '../../../db/types.js';
 import type { PreferenceEntry } from '../domain/preference-list.js';
 
 const ITEM_COLUMNS = { jdId: preferences.jdId, rank: preferences.rank, status: preferences.status };
+
+const ROW_COLUMNS = {
+  id: preferences.id,
+  campaignId: preferences.campaignId,
+  studentId: preferences.studentId,
+  jdId: preferences.jdId,
+  rank: preferences.rank,
+  status: preferences.status,
+  rowVersion: preferences.rowVersion,
+};
+
+/** A whole preference row, as the exam room reads it (US-4.3). */
+export interface PreferenceRow {
+  id: number;
+  campaignId: number;
+  studentId: number;
+  jdId: number;
+  rank: number;
+  status: ApplicationStatus;
+  rowVersion: number;
+}
 
 /** Drizzle access to `core.preferences`, owned by the matching module (AGENTS › Invariant 13). */
 @Injectable()
@@ -66,5 +87,30 @@ export class PreferencesRepository {
       .from(preferences)
       .where(eq(preferences.campaignId, campaignId));
     return new Set(rows.map((row) => row.studentId));
+  }
+
+  /** One preference by id; `FOR UPDATE` when `lock` is set, inside `tx`. */
+  async findRow(id: number, options: { tx?: DbTx; lock?: 'update' } = {}): Promise<PreferenceRow | undefined> {
+    const query = (options.tx ?? this.db).select(ROW_COLUMNS).from(preferences).where(eq(preferences.id, id));
+    const [row] = options.lock ? await query.for(options.lock) : await query;
+    return row;
+  }
+
+  /** Every preference of the student, newest campaign first, NV1 first within one. */
+  async rowsOfStudent(studentId: number): Promise<PreferenceRow[]> {
+    return this.db
+      .select(ROW_COLUMNS)
+      .from(preferences)
+      .where(eq(preferences.studentId, studentId))
+      .orderBy(desc(preferences.campaignId), asc(preferences.rank));
+  }
+
+  /** Preferences of the campaign in `status`, by id. */
+  async rowsInStatus(campaignId: number, status: ApplicationStatus): Promise<PreferenceRow[]> {
+    return this.db
+      .select(ROW_COLUMNS)
+      .from(preferences)
+      .where(and(eq(preferences.campaignId, campaignId), eq(preferences.status, status)))
+      .orderBy(asc(preferences.id));
   }
 }

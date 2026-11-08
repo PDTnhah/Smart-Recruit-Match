@@ -129,6 +129,14 @@ export class EmailRenderer {
           })),
           link: `${this.webOrigin}${CENTER_CAMPAIGN_PATH}/${content.payload.campaignId}`,
         };
+      case 'EXAM_NOT_TAKEN':
+        return {
+          campaignName: content.payload.campaignName,
+          rank: String(content.payload.rank),
+          jdTitle: content.payload.jdTitle,
+          companyName: content.payload.companyName,
+          link: `${this.webOrigin}${DEADLINE_TASKS.testing_end.path}`,
+        };
       case 'JD_REQUIREMENTS_READY':
       case 'JD_ANALYSIS_FAILED':
       case 'JD_REQUIREMENTS_VERSIONED':

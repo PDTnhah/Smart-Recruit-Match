@@ -9,12 +9,13 @@
 - Claude Code, skill, hook, koni-docs: §1 skill phải nằm ở `.claude/skills` · §2 `docs:sync` định dạng lại PRD, đổi ngày · §3 snippet hook của koni-harness không chặn commit
 - Docker, compose, image: §4 `minio/minio` không còn trên Docker Hub · §14 compose truyền biến chưa đặt thành `""` · §15 hết RAM khi chạy test (compose, số worker Jest, commit memory của Windows) · §18 testcontainers build image không cache, Jest treo · §27 nginx trả `.mjs` là `octet-stream`, worker pdf.js không nạp
 - Jest, ESM: §9 gói chỉ có ESM (`@nestjs/schedule`, `file-type`, `promise-breaker`…) · §11 `testTimeout` trong `projects` bị bỏ qua · §21 `--selectProjects` nuốt đường dẫn test
-- Integration test: §22 các file dùng chung DB, thông báo gửi mọi tài khoản CENTER và tác vụ quét mọi đợt lọt vào test khác · §30 bảng mới trong `core` làm đỏ `core-schema` và `ai-service-role`
+- Integration test: §22 các file dùng chung DB, thông báo gửi mọi tài khoản CENTER và tác vụ quét mọi đợt lọt vào test khác · §30 bảng mới trong `core` làm đỏ `core-schema` và `ai-service-role` · §40 `PEXPIREAT` theo giờ của `FakeClock` làm key Redis hết hạn ngay
 - Drizzle, migration: §6 migration có mốc thời gian cũ bị bỏ qua · §7 hàm dùng chung nhiều bảng: khai kiểu cụ thể · §12 `FOR UPDATE OF` sinh tên có schema
 - Giao dịch, khóa: §38 đọc bản ghi của module khác ngoài giao dịch rồi chuyển trạng thái không đảo ngược
+- Bảo mật: §39 đầu ra của PRNG có seed tới client làm lộ cả chuỗi (vị trí gốc của phương án)
 - pgvector: §24 index HNSW lọc sau khi quét, hàng cũ chiếm chỗ ứng viên
 - Ranh giới module: §5 `exclude: node_modules` làm dependency-cruiser bỏ sót
-- Thư viện API, web: §8 CLI shadcn 4.21 · §10 Zod 4 bỏ qua `refine` khi trường khác lỗi · §13 multer đọc tên file theo latin1 · §25 form gửi `row_version` của query mới nhất, bỏ qua khóa lạc quan · §26 lỗi tổng của form không mất khi sửa ô khác của tổng · §28 react-pdf 11 mặc định Suspense, PDF lỗi làm sập route · §29 Esc trong combobox tự viết đóng cả dialog Radix · §35 Handlebars bỏ dòng chỉ chứa `{{#each}}`, email văn bản dính dòng
+- Thư viện API, web: §8 CLI shadcn 4.21 · §10 Zod 4 bỏ qua `refine` khi trường khác lỗi · §13 multer đọc tên file theo latin1 · §25 form gửi `row_version` của query mới nhất, bỏ qua khóa lạc quan · §26 lỗi tổng của form không mất khi sửa ô khác của tổng · §28 react-pdf 11 mặc định Suspense, PDF lỗi làm sập route · §29 Esc trong combobox tự viết đóng cả dialog Radix · §35 Handlebars bỏ dòng chỉ chứa `{{#each}}`, email văn bản dính dòng · §41 hàng chờ tự lưu bỏ qua debounce, lượt gộp vượt body 100 KB của Express
 - RabbitMQ, job AI: §16 `RabbitMQModule` giữ connection static · §17 mặc định sai của thư viện message · §32 kiểm chéo trên schema hợp đồng message làm cả kết quả AI vào DLQ · §33 kết quả AI về trước khi API ghi `job_id`, message của một job xử lý song song
 - Sự kiện, tác vụ định kỳ: §34 việc phải chạy một lần ở mốc pha mà chỉ nằm trong listener `campaign.phase_changed` thì mất khi lỗi hoặc API dừng · §36 `emitAsync` không chờ listener `async: true`, test sự kiện trùng xanh mà không kiểm gì
 - ai-service (Python): §19 chặn mạng trong pytest trên Windows · §20 PyMuPDF cắt chữ ngoài trang, màu nền theo thứ tự vẽ · §23 `HF_HUB_OFFLINE` đọc lúc import, bge-m3 tải 4,5 GB · §31 fixture LLM mất khóa khi nâng prompt hoặc sửa dữ liệu test nằm trong prompt · §37 nhóm gửi LLM lỗi tất định được gửi lại y nguyên, câu chờ giữ chỗ của ô
@@ -567,3 +568,44 @@ See [US-4.2](sprints/stories/US-4.2-validator-and-question-bank-lock.md), [CONTE
 - Test: giao dịch thứ hai UPDATE dòng đó mà chưa commit; gọi API; chờ tới khi `pg_locks` có khóa `not granted`, rồi commit. API phải thấy bản mới. Test này đỏ với bản đọc ngoài giao dịch (`question-bank-lock.int-spec.ts`).
 
 See [US-4.2](sprints/stories/US-4.2-validator-and-question-bank-lock.md).
+
+## 39. Đầu ra của PRNG có seed đi tới client: lộ cả chuỗi, kể cả phần chỉ server được biết
+
+**What happened (0.22.0)**: `drawExam` dùng một chuỗi mulberry32 có seed để chọn câu, xáo câu, xáo phương án, và cả để sinh mã mờ của phương án. Mã nằm trên đề gửi cho SV. mulberry32 có trạng thái 32 bit, mỗi lần gọi cộng một hằng số. Từ một mã có thể dò hết 2^32 trạng thái trong vài phút, rồi suy ngược cả chuỗi: thứ tự xáo và vị trí gốc của mọi phương án. Test Generator lưu phương án theo thứ tự LLM viết, nên vị trí gốc gợi ý được đáp án. Test AC-3 vẫn xanh, vì nó chỉ quét các khóa JSON bị cấm.
+
+**Why**: PRNG nhanh (mulberry32, xorshift, `Math.random`) không có tính mật mã. Một đầu ra là đủ để tái lập cả chuỗi. Seed 31 bit cũng dò hết được khi mã nguồn công khai.
+
+**How to avoid**:
+- Giá trị nào ra khỏi server (mã, token, ID mờ) thì lấy từ `crypto.randomInt` / `randomBytes`, không lấy từ chuỗi có seed. Chuỗi có seed chỉ dùng cho những gì cần tái lập và không bao giờ lộ ra ([CONTEXT D52](CONTEXT.md)).
+- Hàm thuần nhận nguồn ngẫu nhiên đó qua tham số (`drawExam({ codes })`), để test truyền nguồn tất định.
+- Review phần "không lộ X": ngoài việc tìm khóa bị cấm, hỏi thêm X có suy ra được từ dữ liệu đã gửi không.
+
+See [US-4.3](sprints/stories/US-4.3-exam-room.md).
+
+## 40. `PEXPIREAT` theo giờ của `FakeClock`: key Redis hết hạn ngay khi ghi
+
+**What happened (0.22.0)**: `ExamAnswerStore` đặt hạn cho hash phiên bằng `PEXPIREAT deadline_at + 1 ngày`, giờ tính theo `Clock`. Test tích hợp đặt `FakeClock` vào năm 2001, nên mốc đó đã qua với Redis thật. Key bị xóa ngay lúc ghi, và mọi lần lưu sau đó báo `MISSING`.
+
+**Why**: Redis đếm giờ thật của máy chủ Redis. Mốc tuyệt đối tính bằng giờ giả luôn sai lệch đúng bằng độ lệch của `FakeClock`.
+
+**How to avoid**:
+- Đặt hạn tương đối: `PEXPIRE (mốc − clock.now())`, tính bằng `Clock`. Độ dài khoảng hạn thì giờ giả và giờ thật như nhau.
+- Lệnh nhận mốc tuyệt đối (`PEXPIREAT`, `EXPIREAT`, `SET … PXAT`) chỉ dùng với giờ thật, và không dùng ở code có test tua giờ.
+
+See [US-4.3](sprints/stories/US-4.3-exam-room.md); FakeClock dùng mốc năm riêng theo §22.
+
+## 41. Hàng chờ tự lưu: gửi tiếp ngay khi còn thay đổi thì bỏ qua debounce; gộp nhiều câu thì vượt giới hạn body 100 KB
+
+**What happened (0.22.0)**: Bản đầu của `useExamAutosave` có hai lỗi, cả hai chỉ lộ ra khi review:
+
+- Vòng gửi chạy tiếp ngay khi còn thay đổi chờ. SV gõ không nghỉ thì mỗi phản hồi lại có phím mới, nên client gửi một request mỗi vòng mạng, khoảng 300 lần một phút. API trả `429` sau 120 lần, và lần nộp trong phút đó thất bại.
+- Mỗi lượt gửi tối đa 50 câu, nhưng Express mặc định chỉ nhận body JSON tới 100 KB. SV mất mạng rồi viết nhiều câu tự luận 5000 ký tự thì lượt gửi gộp khi có mạng lại bị `413` mãi, và bài không nộp được.
+
+**Why**: Debounce chỉ chặn ở chỗ gọi, không chặn được vòng lặp bên trong. Giới hạn số phần tử của schema không phải giới hạn số byte của body. `NestFactory.create` dùng body-parser với `limit: '100kb'` khi không cấu hình.
+
+**How to avoid**:
+- Lượt tự động gửi xong thì hẹn debounce mới cho phần còn chờ. Chỉ lần flush trước khi nộp mới gửi tới khi hết hàng chờ.
+- Cắt lô theo cả số phần tử lẫn số byte ước tính (UTF-16 → tối đa 3 byte UTF-8), dưới giới hạn body của server.
+- Trong comment, ghi tần suất gửi tối đa và đối chiếu với rate limit của route.
+
+See [US-4.3](sprints/stories/US-4.3-exam-room.md).

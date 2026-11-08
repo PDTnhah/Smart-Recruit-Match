@@ -98,6 +98,14 @@ export function describeNotification(notification: Notification): NotificationVi
         href: DEADLINES.preference_end.href,
       };
     }
+    case 'EXAM_NOT_TAKEN': {
+      const { campaignName, rank, jdTitle } = notification.payload;
+      return {
+        title: `Nguyện vọng ${rank} đã bị hủy`,
+        body: `Bạn chưa làm bài test cho "${jdTitle}" trước hạn của đợt "${campaignName}", nên nguyện vọng này không được xét phân bổ.`,
+        href: DEADLINES.testing_end.href,
+      };
+    }
     case 'JD_LOW_PREFERENCES': {
       const { campaignId, campaignName, jds } = notification.payload;
       return {

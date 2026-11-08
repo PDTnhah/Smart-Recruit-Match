@@ -23,6 +23,9 @@ export function emailStillRelevant(content: NotificationContent, now: Date): boo
     case 'JD_LOW_PREFERENCES':
       // Preferences are final once the alert is sent; the counts stay true (D48).
       return true;
+    case 'EXAM_NOT_TAKEN':
+      // A closed preference stays closed (BR-06, D51).
+      return true;
     case 'JD_REQUIREMENTS_READY':
     case 'JD_ANALYSIS_FAILED':
     case 'JD_REQUIREMENTS_VERSIONED':

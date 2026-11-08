@@ -1,5 +1,5 @@
-import type { Campaign, Cv } from '@srm/shared';
-import { CircleAlert, FileText, House, ListOrdered, type LucideIcon } from 'lucide-react';
+import type { Campaign, Cv, MyExamsResponse } from '@srm/shared';
+import { CircleAlert, ClipboardCheck, FileText, House, ListOrdered, type LucideIcon } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { useCurrentUser } from '@/app/session';
@@ -9,6 +9,9 @@ import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from '@/comp
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCampaigns } from '@/features/center/campaigns/api';
+import { useMyExams } from '@/features/exam/api';
+import { EXAMS_PATH } from '@/features/exam/paths';
+import { PREFERENCES_PATH } from '@/features/student/preferences/paths';
 import { useConsents, useMyCvs } from '@/features/student/profile/api';
 import { hasCurrentConsent, PROFILE_PATH, takesCvs } from '@/features/student/profile/intake';
 import { formatDateTime } from '@/lib/format';
@@ -22,9 +25,6 @@ interface Todo {
   action: string;
   icon: LucideIcon;
 }
-
-/** Where the student chooses preferences (US-3.3). */
-const PREFERENCES_PATH = '/sv/preferences';
 
 /** GĐ4 is open for the campaign: its phase, before `preference_end` (the API decides on save anyway). */
 function choosesPreferences(campaign: Campaign, now: number): boolean {
@@ -48,6 +48,25 @@ function preferenceCampaignOf(
   return null;
 }
 
+/** US-4.3: tests the student can start or go on with while the campaign is in TESTING. */
+function examTodos(view: MyExamsResponse): Todo[] {
+  const campaign = view.campaign;
+  if (!campaign?.testingOpen) return [];
+  const open = view.items.filter((item) => item.canStart || item.examStatus === 'IN_PROGRESS').length;
+  if (open === 0) return [];
+  const until = campaign.testingEnd ? ` đến ${formatDateTime(campaign.testingEnd)}` : '';
+  return [
+    {
+      key: `exams-${campaign.id}`,
+      title: 'Làm bài test',
+      description: `Đợt ${campaign.name} đang cho làm bài test${until}. Còn ${open} bài test chưa nộp; mỗi bài chỉ làm một lần, nguyện vọng không làm bài test trước hạn sẽ bị hủy.`,
+      href: EXAMS_PATH,
+      action: 'Mở bài test',
+      icon: ClipboardCheck,
+    },
+  ];
+}
+
 /**
  * Home of the student portal: what to do now (US-1.6 AC-1). A campaign taking CVs leads the
  * student to consent and submit on "Hồ sơ" as soon as they open the portal. Four states of
@@ -58,13 +77,14 @@ export function StudentHomePage() {
   const campaigns = useCampaigns();
   const consents = useConsents();
   const cvs = useMyCvs();
+  const exams = useMyExams();
   const [now] = useState(() => Date.now());
 
   const title = (
     <h1 className="font-heading text-xl font-semibold md:text-2xl">Xin chào, {user.fullName ?? user.email}</h1>
   );
 
-  if (campaigns.isPending || consents.isPending || cvs.isPending) {
+  if (campaigns.isPending || consents.isPending || cvs.isPending || exams.isPending) {
     return (
       <>
         {title}
@@ -73,6 +93,7 @@ export function StudentHomePage() {
     );
   }
 
+  // The tests are one source of todos among others: when they fail to load, the rest still shows.
   const failed = [campaigns, consents, cvs].find((query) => query.isError);
   if (failed || !campaigns.data || !consents.data || !cvs.data) {
     return (
@@ -86,7 +107,7 @@ export function StudentHomePage() {
             <Button
               variant="outline"
               onClick={() => {
-                for (const query of [campaigns, consents, cvs]) if (query.isError) void query.refetch();
+                for (const query of [campaigns, consents, cvs, exams]) if (query.isError) void query.refetch();
               }}
             >
               Thử lại
@@ -141,12 +162,25 @@ export function StudentHomePage() {
         icon: ListOrdered,
       };
     });
-  const todos = [...intakeTodos, ...preferenceTodos];
+  const todos = [...intakeTodos, ...preferenceTodos, ...(exams.data ? examTodos(exams.data) : [])];
+  const examsFailed = exams.isError && (
+    <Alert variant="destructive">
+      <CircleAlert />
+      <AlertTitle>Không tải được bài test</AlertTitle>
+      <AlertDescription>{apiErrorMessage(exams.error)}</AlertDescription>
+      <AlertAction>
+        <Button variant="outline" onClick={() => void exams.refetch()}>
+          Thử lại
+        </Button>
+      </AlertAction>
+    </Alert>
+  );
 
   if (todos.length === 0) {
     return (
       <>
         {title}
+        {examsFailed}
         <Empty className="border">
           <EmptyHeader>
             <EmptyMedia variant="icon">
@@ -163,6 +197,7 @@ export function StudentHomePage() {
   return (
     <>
       {title}
+      {examsFailed}
       {todos.map((todo) => (
         <Card key={todo.key}>
           <CardHeader>

@@ -449,12 +449,95 @@ export class QuestionBankIncompleteError extends DomainError {
   }
 }
 
-/** Questions are drawn only from a locked bank (US-4.2 AC-8). */
+/**
+ * Questions are drawn only from a locked bank (US-4.2 AC-8). `bankId` is null when the JD has no
+ * bank yet (US-4.3: an exam started before CENTER made one); `jdId` then says whose.
+ */
 export class BankNotLockedError extends DomainError {
   readonly code = 'BANK_NOT_LOCKED';
   readonly httpStatus = 409;
 
-  constructor(bankId: number) {
-    super(`question bank ${bankId} is not locked`, { bankId });
+  constructor(bankId: number | null, options: { jdId?: number } = {}) {
+    super(bankId === null ? `JD ${options.jdId ?? '?'} has no question bank yet` : `question bank ${bankId} is not locked`, {
+      bankId,
+      ...(options.jdId === undefined ? {} : { jdId: options.jdId }),
+    });
+  }
+}
+
+// Exam room (US-4.3, CONTEXT D51).
+
+/** The preference's test was already taken: its session is SUBMITTED or EXPIRED (BR-06, AC-4). */
+export class ExamAlreadyTakenError extends DomainError {
+  readonly code = 'EXAM_ALREADY_TAKEN';
+  readonly httpStatus = 409;
+
+  constructor(sessionId: number, status: string) {
+    super(`exam session ${sessionId} is ${status}; a test is taken once`, { sessionId, status });
+  }
+}
+
+/**
+ * The session takes no more answers (AC-6): it is closed, or the server's clock passed
+ * `deadline_at` plus the grace.
+ */
+export class ExamClosedError extends DomainError {
+  readonly code = 'EXAM_CLOSED';
+  readonly httpStatus = 409;
+
+  constructor(sessionId: number, reason: 'CLOSED' | 'DEADLINE_PASSED') {
+    super(
+      reason === 'CLOSED' ? `exam session ${sessionId} is closed` : `exam session ${sessionId}: the deadline has passed`,
+      { sessionId, reason },
+    );
+  }
+}
+
+/** An answer names a question not on the paper, or an option code the question does not have (AC-6). */
+export class ExamAnswerInvalidError extends DomainError {
+  readonly code = 'EXAM_ANSWER_INVALID';
+  readonly httpStatus = 422;
+
+  constructor(sessionId: number, questionIds: readonly number[]) {
+    super(`exam session ${sessionId}: invalid answers for questions ${questionIds.join(', ')}`, {
+      sessionId,
+      questionIds: [...questionIds],
+    });
+  }
+}
+
+/**
+ * A cell of the locked bank holds fewer drawable questions than the blueprint draws, e.g. after a
+ * question was retired (US-4.3 AC-1); `shortCells` says which and by how much.
+ */
+export class ExamBankIncompleteError extends DomainError {
+  readonly code = 'EXAM_BANK_INCOMPLETE';
+  readonly httpStatus = 409;
+
+  constructor(bankId: number, shortCells: readonly object[]) {
+    super(`question bank ${bankId} has ${shortCells.length} cells too short to draw an exam`, {
+      bankId,
+      shortCells: [...shortCells],
+    });
+  }
+}
+
+/** Only a preference waiting for its test may start one (AC-5). */
+export class PreferenceNotPendingTestError extends DomainError {
+  readonly code = 'PREFERENCE_NOT_PENDING_TEST';
+  readonly httpStatus = 409;
+
+  constructor(preferenceId: number, status: string) {
+    super(`preference ${preferenceId} is ${status}, not PENDING_TEST`, { preferenceId, status });
+  }
+}
+
+/** Too many calls of one route by one user within the window (AC-12); `Retry-After` says when to retry. */
+export class RateLimitedError extends DomainError {
+  readonly code = 'RATE_LIMITED';
+  readonly httpStatus = 429;
+
+  constructor(route: string, retryAfterSeconds: number) {
+    super(`too many requests to ${route}; retry in ${retryAfterSeconds} s`, { route, retryAfterSeconds });
   }
 }

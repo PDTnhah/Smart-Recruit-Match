@@ -16,6 +16,8 @@ import { CvAttentionPage } from '@/features/center/cvs/cv-attention-page';
 import { JdApprovalDetailPage } from '@/features/center/jd-approval/jd-approval-detail-page';
 import { JdApprovalListPage } from '@/features/center/jd-approval/jd-approval-list-page';
 import { SkillReviewPage } from '@/features/center/skills/skill-review-page';
+import { ExamRoomPage } from '@/features/exam/exam-room-page';
+import { ExamsPage } from '@/features/exam/exams-page';
 import { HrJdListPage } from '@/features/hr/jds/hr-jd-list-page';
 import { HrJdCreatePage, HrJdDetailPage } from '@/features/hr/jds/hr-jd-pages';
 import { StudentHomePage } from '@/features/student/home/student-home-page';
@@ -57,6 +59,16 @@ export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
   // US-1.5: invited HR sets a password; public, outside the portals (DESIGN.md §12).
   { path: ACCEPT_INVITATION_PATH, element: <AcceptInvitationPage /> },
+  // US-4.3: the exam room, under /sv (a login midway returns to it) but outside StudentLayout.
+  // A static segment, so it outranks the portal's `:section` and `*` routes.
+  {
+    path: '/sv/exam/:sessionId',
+    element: (
+      <RequirePortal portal="/sv">
+        <ExamRoomPage />
+      </RequirePortal>
+    ),
+  },
   portalRoute(
     '/sv',
     <StudentLayout />,
@@ -65,6 +77,8 @@ export const router = createBrowserRouter([
       { path: 'cv', element: <CvPage /> },
       // US-3.3: "Nguyện vọng": the shortlist with its explanations and the preference list.
       { path: 'preferences', element: <PreferencesPage /> },
+      // US-4.3: "Bài test": the test of every preference, started from here.
+      { path: 'exams', element: <ExamsPage /> },
     ],
     // US-1.6 AC-1: the home lists what to do now, starting with consent and CV for open campaigns.
     <StudentHomePage />,

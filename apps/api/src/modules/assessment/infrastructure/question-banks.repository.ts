@@ -50,6 +50,24 @@ export class QuestionBanksRepository {
     return row;
   }
 
+  /** The banks of these JDs (US-4.3: the exam list of a student). */
+  async findByJds(jdIds: readonly number[]): Promise<QuestionBankRecord[]> {
+    if (jdIds.length === 0) return [];
+    return this.db
+      .select()
+      .from(questionBanks)
+      .where(inArray(questionBanks.jdId, [...jdIds]));
+  }
+
+  /**
+   * The JD's bank share-locked for the rest of the transaction (US-4.3: starting an exam): its
+   * version cannot rise, nor its status change, before the session drawn from it is written.
+   */
+  async findByJdForShare(tx: DbTx, jdId: number): Promise<QuestionBankRecord | undefined> {
+    const [row] = await tx.select().from(questionBanks).where(eq(questionBanks.jdId, jdId)).for('share');
+    return row;
+  }
+
   async findById(id: number, tx?: DbTx): Promise<QuestionBankRecord | undefined> {
     const [row] = await (tx ?? this.db).select().from(questionBanks).where(eq(questionBanks.id, id));
     return row;

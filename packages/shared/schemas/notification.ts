@@ -27,6 +27,8 @@ export const NOTIFICATION_TYPES = [
   'PREFERENCES_AUTO_ASSIGNED',
   // JDs with fewer preferences than places once preference selection ended (US-3.4, CONTEXT D48).
   'JD_LOW_PREFERENCES',
+  // A preference closed because its test was not taken by `testing_end` (US-4.3, BR-06, CONTEXT D51).
+  'EXAM_NOT_TAKEN',
 ] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
@@ -154,6 +156,19 @@ export const JdLowPreferencesPayloadSchema = z.object({
     .min(1),
 });
 
+/**
+ * The student did not take the test of a preference by `testing_end`, so the preference is closed
+ * (BR-06, US-4.3 AC-10). One notice per preference, in the app and by email.
+ */
+export const ExamNotTakenPayloadSchema = z.object({
+  campaignId: id,
+  campaignName: z.string().min(1),
+  preferenceId: id,
+  rank: id,
+  jdTitle: z.string().min(1),
+  companyName: z.string().min(1),
+});
+
 /** `type` and the `payload` that goes with it. */
 export const NotificationContentSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('CAMPAIGN_OPENED'), payload: CampaignOpenedPayloadSchema }),
@@ -167,6 +182,7 @@ export const NotificationContentSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('CV_NEEDS_ATTENTION'), payload: CvNeedsAttentionPayloadSchema }),
   z.object({ type: z.literal('PREFERENCES_AUTO_ASSIGNED'), payload: PreferencesAutoAssignedPayloadSchema }),
   z.object({ type: z.literal('JD_LOW_PREFERENCES'), payload: JdLowPreferencesPayloadSchema }),
+  z.object({ type: z.literal('EXAM_NOT_TAKEN'), payload: ExamNotTakenPayloadSchema }),
 ]);
 
 export type NotificationContent = z.output<typeof NotificationContentSchema>;

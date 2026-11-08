@@ -7,6 +7,8 @@ import {
   campaignMachine,
   type CvStatus,
   cvMachine,
+  type ExamSessionStatus,
+  examSessionMachine,
   type JobDescriptionStatus,
   jobDescriptionMachine,
   type QuestionBankStatus,
@@ -19,7 +21,16 @@ import {
 } from '@srm/shared';
 import type { ColumnBaseConfig } from 'drizzle-orm';
 import type { PgColumn, PgTable } from 'drizzle-orm/pg-core';
-import { campaigns, cvs, jobDescriptions, preferences, questionBanks, questions, skills } from './schema/index.js';
+import {
+  campaigns,
+  cvs,
+  examSessions,
+  jobDescriptions,
+  preferences,
+  questionBanks,
+  questions,
+  skills,
+} from './schema/index.js';
 
 type NumberColumn = PgColumn<ColumnBaseConfig<'number', string>>;
 type StringColumn = PgColumn<ColumnBaseConfig<'string', string>>;
@@ -55,3 +66,6 @@ export const questionLifecycle: Lifecycle<QuestionStatus> = { table: questions, 
 
 /** A JD's question bank: CENTER locks it, with `locked_at` set by `transitionTo` `set` (US-4.2). */
 export const questionBankLifecycle: Lifecycle<QuestionBankStatus> = { table: questionBanks, machine: questionBankMachine };
+
+/** A student's attempt at a test: submitted or expired, with `submitted_at` set by `transitionTo` `set` (US-4.3). */
+export const examSessionLifecycle: Lifecycle<ExamSessionStatus> = { table: examSessions, machine: examSessionMachine };

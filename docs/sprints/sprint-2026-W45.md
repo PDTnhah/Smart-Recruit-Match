@@ -18,6 +18,7 @@ goal: 'Ship US-2.7: danh mục kỹ năng có vùng, họ và quan hệ kéo the
 | US-3.1 | Lọc điều kiện cứng và công thức S_cv               | EPIC-3 | P0  | 5      | 👀 review  | from W44 | [stories/US-3.1-hard-filters-and-scv-formula.md](stories/US-3.1-hard-filters-and-scv-formula.md)             |
 | US-4.1 | Ma trận đề và Test Generator                       | EPIC-4 | P0  | 8      | 👀 review  | from W47 | [stories/US-4.1-exam-blueprint-test-generator.md](stories/US-4.1-exam-blueprint-test-generator.md)           |
 | US-4.2 | Validator và khóa ngân hàng câu hỏi                | EPIC-4 | P0  | 8      | 👀 review  | from W48 | [stories/US-4.2-validator-and-question-bank-lock.md](stories/US-4.2-validator-and-question-bank-lock.md)     |
+| US-4.3 | Phòng thi                                          | EPIC-4 | P0  | 8      | 👀 review  | from W49 | [stories/US-4.3-exam-room.md](stories/US-4.3-exam-room.md)                                                   |
 | US-5.1 | Allocation Engine và property-based test           | EPIC-5 | P0  | 5      | 📋 backlog | from W42 | [stories/US-5.1-allocation-engine-property-tests.md](stories/US-5.1-allocation-engine-property-tests.md)     |
 | US-6.4 | Mô phỏng phân bổ so với baseline                   | EPIC-6 | P1  | 5      | 📋 backlog | from W44 | [stories/US-6.4-allocation-simulation-vs-baselines.md](stories/US-6.4-allocation-simulation-vs-baselines.md) |
 

@@ -708,6 +708,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/me/exams": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ExamSessionController_overview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/preferences/{id}/exam/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["ExamSessionController_start"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/exam-sessions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ExamSessionController_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/exam-sessions/{id}/answers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["ExamSessionController_saveAnswers"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/exam-sessions/{id}/submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["ExamSessionController_submit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1852,6 +1932,22 @@ export interface components {
                         quota: number;
                     }[];
                 };
+            } | {
+                id: number;
+                /** Format: date-time */
+                readAt: string | null;
+                /** Format: date-time */
+                createdAt: string;
+                /** @enum {string} */
+                type: "EXAM_NOT_TAKEN";
+                payload: {
+                    campaignId: number;
+                    campaignName: string;
+                    preferenceId: number;
+                    rank: number;
+                    jdTitle: string;
+                    companyName: string;
+                };
             })[];
             unreadCount: number;
             nextBefore: number | null;
@@ -2407,6 +2503,94 @@ export interface components {
         };
         LockQuestionBankRequestDto: {
             rowVersion: number;
+        };
+        MyExamsResponseDto_Output: {
+            campaign: {
+                id: number;
+                name: string;
+                /** Format: date-time */
+                testingEnd: string | null;
+                testingOpen: boolean;
+            } | null;
+            items: {
+                preferenceId: number;
+                rank: number;
+                jdId: number;
+                jdTitle: string;
+                companyName: string;
+                /** @enum {string} */
+                examStatus: "NOT_STARTED" | "IN_PROGRESS" | "SUBMITTED" | "EXPIRED" | "CLOSED";
+                sessionId: number | null;
+                durationMinutes: number | null;
+                questionCount: number | null;
+                /** Format: date-time */
+                deadlineAt: string | null;
+                /** Format: date-time */
+                submittedAt: string | null;
+                canStart: boolean;
+                secondsIfStartedNow: number | null;
+            }[];
+            /** Format: date-time */
+            serverNow: string;
+        };
+        ExamPaperDto_Output: {
+            sessionId: number;
+            /** @enum {string} */
+            status: "IN_PROGRESS" | "SUBMITTED" | "EXPIRED";
+            /** Format: date-time */
+            startedAt: string;
+            /** Format: date-time */
+            deadlineAt: string;
+            /** Format: date-time */
+            submittedAt: string | null;
+            /** Format: date-time */
+            serverNow: string;
+            questions: {
+                questionId: number;
+                no: number;
+                /** @enum {string} */
+                part: "A" | "B";
+                /** @enum {string} */
+                type: "MCQ" | "ESSAY";
+                stem: string;
+                options: {
+                    code: string;
+                    text: string;
+                }[] | null;
+            }[];
+            answers: {
+                questionId: number;
+                answer: {
+                    optionCode: string;
+                } | {
+                    text: string;
+                };
+            }[];
+        };
+        SaveExamAnswersRequestDto: {
+            answers: {
+                questionId: number;
+                answer: ({
+                    optionCode: string;
+                } | {
+                    text: string;
+                }) | null;
+            }[];
+        };
+        SaveExamAnswersResultDto_Output: {
+            /** Format: date-time */
+            deadlineAt: string;
+            /** Format: date-time */
+            serverNow: string;
+        };
+        ExamSubmissionDto_Output: {
+            sessionId: number;
+            /** @enum {string} */
+            status: "SUBMITTED" | "EXPIRED";
+            /** Format: date-time */
+            submittedAt: string;
+            answeredCount: number;
+            questionCount: number;
         };
     };
     responses: never;
@@ -3769,6 +3953,113 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ExamBlueprintViewDto_Output"];
+                };
+            };
+        };
+    };
+    ExamSessionController_overview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyExamsResponseDto_Output"];
+                };
+            };
+        };
+    };
+    ExamSessionController_start: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExamPaperDto_Output"];
+                };
+            };
+        };
+    };
+    ExamSessionController_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExamPaperDto_Output"];
+                };
+            };
+        };
+    };
+    ExamSessionController_saveAnswers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveExamAnswersRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SaveExamAnswersResultDto_Output"];
+                };
+            };
+        };
+    };
+    ExamSessionController_submit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExamSubmissionDto_Output"];
                 };
             };
         };

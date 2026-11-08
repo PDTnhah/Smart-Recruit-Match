@@ -119,4 +119,17 @@ ${button('Xem đợt thực tập')}`,
 Xem đợt thực tập tại: {{link}}
 ${TEXT_FOOTER}`,
   },
+  EXAM_NOT_TAKEN: {
+    subject: 'Nguyện vọng {{rank}} của bạn trong đợt "{{campaignName}}" đã bị hủy',
+    html: `<p>Chào {{recipientName}},</p>
+<p>Đợt thực tập <strong>{{campaignName}}</strong> đã hết hạn làm bài test, nhưng bạn chưa làm bài test cho nguyện vọng {{rank}}: <strong>{{jdTitle}}</strong> – {{companyName}}. Theo quy định, nguyện vọng này đã bị hủy và không được xét phân bổ.</p>
+<p>Các nguyện vọng bạn đã làm bài test vẫn được xét bình thường.</p>
+${button('Xem bài test')}`,
+    text: `Chào {{recipientName}},
+
+Đợt thực tập "{{campaignName}}" đã hết hạn làm bài test, nhưng bạn chưa làm bài test cho nguyện vọng {{rank}}: {{jdTitle}} – {{companyName}}. Theo quy định, nguyện vọng này đã bị hủy và không được xét phân bổ.
+
+Các nguyện vọng bạn đã làm bài test vẫn được xét bình thường. Xem bài test tại: {{link}}
+${TEXT_FOOTER}`,
+  },
 };
