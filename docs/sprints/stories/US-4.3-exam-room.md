@@ -10,7 +10,7 @@ version_shipped: 0.22.0
 prd_ref: [FR-20, NFR-9, NFR-10]
 depends_on: [US-4.1, US-3.3]
 assignee:
-commit:
+commit: a34f89d
 created: 2026-10-07
 updated: 2026-11-08
 ---
