@@ -242,7 +242,8 @@ export interface RejectReasonCount {
   count: number;
 }
 
-const cellKeyOf = (type: QuestionType, skill: string, difficulty: QuestionDifficulty): string =>
+/** Key of the cell a question falls in: its type, `skillKey` and difficulty. */
+export const cellKeyOf = (type: QuestionType, skill: string, difficulty: QuestionDifficulty): string =>
   `${type}\u0000${skillKey(skill)}\u0000${difficulty}`;
 
 /**

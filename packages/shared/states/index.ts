@@ -7,3 +7,4 @@ export * from './skill.js';
 export * from './application.js';
 export * from './question.js';
 export * from './question-bank.js';
+export * from './exam-session.js';

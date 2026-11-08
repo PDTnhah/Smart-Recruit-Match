@@ -200,6 +200,26 @@ export class JdRepository {
       .orderBy(jobDescriptions.id);
   }
 
+  /** The cards of these JDs whatever their state, with their company, by JD id (US-4.3). */
+  async listCardsByIds(jdIds: readonly number[]): Promise<ShortlistJdCard[]> {
+    if (jdIds.length === 0) return [];
+    return this.db
+      .select({
+        jdId: jobDescriptions.id,
+        jdVersion: jobDescriptions.version,
+        title: jobDescriptions.title,
+        companyName: companies.name,
+        positionGroup: jobDescriptions.positionGroup,
+        location: jobDescriptions.location,
+        workMode: jobDescriptions.workMode,
+        quota: jobDescriptions.quota,
+      })
+      .from(jobDescriptions)
+      .innerJoin(companies, eq(companies.id, jobDescriptions.companyId))
+      .where(inArray(jobDescriptions.id, [...jdIds]))
+      .orderBy(jobDescriptions.id);
+  }
+
   async insert(tx: DbTx, values: JdInsert): Promise<number> {
     const [row] = await tx.insert(jobDescriptions).values(values).returning({ id: jobDescriptions.id });
     if (!row) throw new Error('insert into job_descriptions returned no row');

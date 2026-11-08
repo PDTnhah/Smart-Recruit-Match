@@ -376,7 +376,7 @@ Ví dụ ma trận đề phần A — JD "Thực tập sinh Backend Java":
 
 - Sinh viên làm 1 bài cho mỗi NV (tối đa N_NV bài). Các JD cùng nhóm vị trí có thể dùng chung ma trận và ngân hàng để sinh viên chỉ làm 1 bài (Trung tâm cấu hình).
 - Khi sinh viên bắt đầu: hệ thống rút ngẫu nhiên câu hỏi theo ma trận, xáo thứ tự câu và phương án.
-- Mỗi bài chỉ làm 1 lần, giới hạn T_test, tự nộp khi hết giờ; mất kết nối thì được tiếp tục trong thời gian còn lại; bài làm tự lưu định kỳ.
+- Mỗi bài chỉ làm 1 lần, giới hạn T_test, tự nộp khi hết giờ; mất kết nối thì được tiếp tục trong thời gian còn lại; bài làm tự lưu định kỳ. Giờ hết hạn của bài không vượt hạn pha *Làm test*: sinh viên bắt đầu muộn chỉ còn thời gian tới hạn pha ([CONTEXT D51](CONTEXT.md)).
 - Chống gian lận: chặn copy/paste, ghi nhận số lần chuyển tab/thoát toàn màn hình, so sánh độ tương đồng bài tự luận giữa các sinh viên. Các tín hiệu này **chỉ để cảnh báo** cho Trung tâm/HR, không tự động đánh trượt.
 - Sinh viên không làm bài trước hạn → NV tương ứng bị hủy.
 
@@ -893,7 +893,7 @@ Mọi thông báo đều hiện trong ứng dụng (chuông ở ba cổng, cập
 | FR-17 | Hiển thị mức cạnh tranh theo thời gian thực, gợi ý "phù hợp – ít cạnh tranh"; báo Trung tâm các JD có tỷ lệ NV/chỉ tiêu < 1 | P1 | 📋 backlog | EPIC-3 |
 | FR-18 | AI sinh ngân hàng câu hỏi theo ma trận đề (trắc nghiệm, tự luận kèm rubric); Validator kiểm định; khóa và ghi phiên bản ngân hàng (UC-32, BR-05, GĐ5) | P0 | 🚧 in-progress | EPIC-4 |
 | FR-19 | HR hoặc giảng viên duyệt một mẫu ngẫu nhiên của ngân hàng câu hỏi (UC-22) | P2 | 📋 backlog | EPIC-4 |
-| FR-20 | Sinh viên làm bài test: rút đề ngẫu nhiên theo ma trận, giới hạn T_test, tự lưu, làm tiếp khi mất kết nối, chỉ làm 1 lần (UC-14, BR-06) | P0 | 📋 backlog | EPIC-4 |
+| FR-20 | Sinh viên làm bài test: rút đề ngẫu nhiên theo ma trận, giới hạn T_test, tự lưu, làm tiếp khi mất kết nối, chỉ làm 1 lần (UC-14, BR-06) | P0 | 🚧 in-progress | EPIC-4 |
 | FR-21 | Ghi nhận tín hiệu gian lận (chuyển tab, thoát toàn màn hình, copy/paste, bài tự luận tương đồng), chỉ dùng để cảnh báo | P1 | 📋 backlog | EPIC-4 |
 | FR-22 | Chấm trắc nghiệm tự động; AI chấm tự luận theo rubric 2 lần độc lập và chuyển người chấm khi cần; tính S_test, bản đồ năng lực và S_final (UC-33, GĐ6) | P0 | 📋 backlog | EPIC-4 |
 | FR-23 | Cán bộ Trung tâm hoặc giảng viên chấm tay các câu tự luận được chuyển (UC-06) | P0 | 📋 backlog | EPIC-4 |

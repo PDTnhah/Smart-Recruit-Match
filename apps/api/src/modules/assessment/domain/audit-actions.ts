@@ -11,7 +11,15 @@ export const ASSESSMENT_AUDIT_ACTIONS = {
    * `{ version, questionId }`. Locking itself is the bank's TRANSITION entry.
    */
   QUESTION_BANK_VERSIONED: 'QUESTION_BANK_VERSIONED',
+  /**
+   * A student started the test of a preference (US-4.3 AC-1); after is `{ preferenceId, bankId,
+   * bankVersion, seed, deadlineAt }`. Closing the session is its TRANSITION entry.
+   */
+  EXAM_SESSION_STARTED: 'EXAM_SESSION_STARTED',
 } as const;
 
 /** Audit entity of a question bank, its `entity_id` the bank id; also `questionBankMachine.name`. */
 export const QUESTION_BANK_ENTITY = 'question_bank';
+
+/** Audit entity of an exam session, its `entity_id` the session id; also `examSessionMachine.name`. */
+export const EXAM_SESSION_ENTITY = 'exam_session';

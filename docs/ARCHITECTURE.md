@@ -91,7 +91,7 @@ Giao diện dựng bằng shadcn/ui (nền Radix, preset `radix-nova`, CONTEXT D
 
 #### Phòng thi
 
-- **Đồng hồ do server quyết định:** server trả `deadline_at`; client chỉ hiển thị đếm ngược. Hết giờ server tự đóng bài kể cả khi client mất kết nối.
+- **Đồng hồ do server quyết định:** server trả `deadline_at` và `server_now`; client chỉ hiển thị đếm ngược theo độ lệch với `server_now`. Hết giờ server tự đóng bài kể cả khi client mất kết nối. `deadline_at = min(started_at + T_test, testing_end)`; lần lưu và nộp đến muộn được nhận thêm 10 giây, `submitted_at` không vượt `deadline_at` ([CONTEXT D51](CONTEXT.md)).
 - **Tự lưu:** mỗi lần thay đổi đáp án (debounce) và định kỳ 30 giây; mất kết nối thì làm tiếp được trong thời gian còn lại.
 - **Không gửi đáp án đúng xuống client**; câu hỏi và phương án đã được xáo phía server.
 - **Ghi nhận hành vi:** sự kiện `visibilitychange`, thoát Fullscreen API, copy/paste được gửi về `POST /api/exam-sessions/{id}/events` để làm tín hiệu cảnh báo (không tự đánh trượt).
@@ -225,6 +225,13 @@ Từ US-3.4 ([CONTEXT D48](CONTEXT.md)):
 
 - Sau Q6 (lúc chuyển pha và mỗi lượt quét `preference-auto-assign`), khi Q6 không còn SV chờ gán, gửi CENTER thông báo `JD_LOW_PREFERENCES` (IN_APP + EMAIL) các JD có NV < chỉ tiêu, đếm từ DB; `dedupe_key` `jd_low_preferences:{campaignId}` chặn gửi trùng. Còn SV chờ thì ghi log và đợi lượt quét sau.
 - Đếm lại mức cạnh tranh khóa `pg_advisory_xact_lock(3401, hashtext(jdId))` bằng `lockEntitiesInTx`: mọi JD trong một câu lệnh, theo thứ tự của khóa.
+
+Từ US-4.3 ([CONTEXT D51](CONTEXT.md)):
+
+- Tác vụ quét phòng thi chạy mỗi phút (khóa `EXAM_SWEEP` = 4301):
+  1. đóng các phiên `IN_PROGRESS` đã qua `deadline_at + 10 s`, với `EXPIRED` và `submitted_at = deadline_at`;
+  2. với đợt `TESTING` / `ALLOCATION_REVIEW` đã qua `testing_end`, chuyển NV `PENDING_TEST` chưa có phiên sang `CLOSED` (`TEST_NOT_TAKEN`) và gửi thông báo `EXAM_NOT_TAKEN`. Mỗi NV một giao dịch; lệch `row_version` thì để lần sau.
+- Sự kiện `exam.session.closed` chỉ để chấm sớm. US-4.4 có tác vụ quét riêng cho phiên đã đóng mà chưa chấm.
 
 #### Thư viện chính
 
@@ -509,8 +516,8 @@ Nên đặt giới hạn chi tiêu trên trang quản lý của nhà cung cấp 
 | `question_banks` | – | id, campaign_id, jd_id, jd_version (phiên bản JD lúc tạo), blueprint JSONB (`ExamBlueprint`: phần A trắc nghiệm, phần B tự luận, `weight_percent`, `question_count`, các ô kỹ năng × độ khó, `duration_minutes`), status (`OPEN` → `LOCKED`, `packages/shared/states/question-bank.ts`), version (tăng khi loại câu sau khi khóa), locked_at, row_version | unique(jd_id): mỗi JD một ngân hàng (Q2 chốt một phần). Tạo khi JD được duyệt; CENTER sửa `blueprint` tới khi khóa ([CONTEXT D49](CONTEXT.md)). CHECK `(status = 'LOCKED') = (locked_at is not null)`; trigger: đã khóa thì `blueprint`, `jd_id`, `jd_version`, `locked_at`, `status` bất biến, `version` chỉ tăng, không DELETE ([CONTEXT D50](CONTEXT.md)) |
 | `question_generation_runs` | – | id, bank_id, job_id, dispatched_at, status (`RUNNING` rồi `SUCCEEDED`/`PARTIAL`/`FAILED`; mất kết quả thì `FAILED` với `error_code = STALE`), actor_kind, actor_id, missing_cells JSONB, questions_received, error_code, finished_at. Bản ghi kỹ thuật như `match_runs` | unique(job_id), ghi trước khi gửi job; partial unique(bank_id) WHERE status = 'RUNNING'. Migration `0028` |
 | `questions` | CAU_HOI | id, bank_id, draft_id, type (`MCQ`/`ESSAY`), skill, difficulty (`EASY`/`MEDIUM`/`HARD`), content JSONB (đề, phương án), answer_key JSONB (đáp án, giải thích, đáp án mẫu; không bao giờ gửi cho SV), rubric JSONB, status (`DRAFT` → `VALIDATED`/`REJECTED`, `VALIDATED` → `RETIRED`; `packages/shared/states/question.ts`), validation JSONB (kết quả Validator: status, reasons, đáp án tự giải, độ khó ước lượng, model, prompt_version), version, model, prompt_version, row_version | unique(draft_id): kết quả AI nhận trùng không sinh dòng mới; index(bank_id, skill, difficulty, status); `rubric` có khi và chỉ khi `ESSAY`. Trigger: ngân hàng đã khóa thì không INSERT/DELETE câu, UPDATE chỉ đổi `status` (`VALIDATED → RETIRED`) ([CONTEXT D50](CONTEXT.md)) |
-| `exam_sessions` | BAI_TEST | id, student_id, bank_id, seed, question_ids, started_at, deadline_at, submitted_at, s_test, skill_scores JSONB, flags JSONB | – |
-| `exam_answers` | CAU_TRA_LOI | session_id, question_id, answer JSONB, auto_score, ai_grading JSONB, needs_human, final_score, appeal_status | PK(session_id, question_id) |
+| `exam_sessions` | BAI_TEST | id, student_id, bank_id, bank_version, seed, question_ids (thứ tự hiển thị), option_layout JSONB (mã mờ ↔ vị trí gốc của phương án; mã lấy từ `crypto.randomInt`, không từ seed ([D52](CONTEXT.md)); chỉ server đọc), started_at, deadline_at, submitted_at, status (`IN_PROGRESS` → `SUBMITTED`/`EXPIRED`, `packages/shared/states/exam-session.ts`), row_version; US-4.4 thêm s_test, skill_scores JSONB, flags JSONB. Liên kết với NV suy ra từ (student_id, `question_banks.jd_id`), không có cột nối ([CONTEXT D51](CONTEXT.md)) | unique(student_id, bank_id) (BR-06); CHECK `deadline_at > started_at`, `(status = 'IN_PROGRESS') = (submitted_at is null)`, `submitted_at <= deadline_at`; partial index(deadline_at) WHERE status = 'IN_PROGRESS'. Migration `0032` |
+| `exam_answers` | CAU_TRA_LOI | session_id, question_id, answer JSONB (MCQ: mã đã chọn và vị trí gốc; tự luận: văn bản); US-4.4, US-4.6 thêm auto_score, ai_grading JSONB, needs_human, final_score, appeal_status | PK(session_id, question_id). Ghi một lần khi phiên đóng, từ Redis |
 | `exam_events` | – | session_id, type, occurred_at | index(session_id) |
 | `allocation_rounds` | VONG_PHAN_BO | id, campaign_id, round_no, status, input_snapshot JSONB, config_snapshot JSONB, ran_at, published_at | unique(campaign_id, round_no) |
 | `nominations` | DE_CU | id, round_id, campaign_id, student_id, jd_id, s_final, rank, status, override_reason | **partial unique(campaign_id, student_id) WHERE status IN ('NOMINATED','INTERVIEW','PASSED','RESERVE')** — đảm bảo BR-08 ngay ở DB |
@@ -534,11 +541,11 @@ Prompt và phản hồi đầy đủ của từng lần gọi LLM lưu thành fi
 
 | Key | Nội dung | TTL |
 |---|---|---|
-| `exam:{sessionId}:answers` | Hash đáp án tạm | đến khi nộp + 1 ngày |
-| `exam:{sessionId}:deadline` | Thời điểm hết giờ | như trên |
+| `exam:{sessionId}:answers` | Hash câu trả lời tạm (id câu → `C:{mã phương án}` hoặc `T:{bài tự luận}`). Ghi bằng script Lua `saveAnswers`; khi nộp, `closeAndRead` đóng phiên rồi đọc cả hash ([CONTEXT D51](CONTEXT.md)) | đến `deadline_at` + 1 ngày; còn 1 giờ sau khi đóng |
+| `exam:{sessionId}:session` | Hash `student`, `deadline` (ms), `closed` và một trường `q:{id câu}` cho mỗi câu (`*` với câu tự luận, danh sách mã phương án với câu trắc nghiệm), để tự lưu không phải truy vấn PostgreSQL; mất key thì dựng lại từ `exam_sessions`. TTL đặt tương đối (`PEXPIRE`) theo `Clock` | như trên |
 | `competition:{jdId}` | Số NV hiện có, chỉ để đọc nhanh: mỗi lần ghi là số đếm lại từ `preferences` (`SET`, không `INCRBY`); ghi hoặc đếm lại lỗi thì xóa key, lần đọc sau dựng lại từ DB ([CONTEXT D48](CONTEXT.md)) | `EXAT` = `preference_end` (chưa có hạn: 24 giờ, làm mới mỗi lần ghi) |
 | `lock:allocation:{campaignId}` | Khóa khi đang chạy phân bổ | vài phút |
-| `ratelimit:{userId}:{route}` | Giới hạn tần suất gọi API | 1 phút |
+| `ratelimit:{userId}:{route}` | Giới hạn tần suất gọi API: `INCR` + `EXPIRE 60 NX`, qua `@RateLimit` / `RateLimitGuard` (`common/rate-limit/`); API phòng thi từ US-4.3 ([CONTEXT D51](CONTEXT.md)) | 1 phút |
 | `auth:refresh:{sha256}` | ID người dùng của một refresh token; khóa là SHA-256 của token, xóa bằng `GETDEL` khi xoay vòng ([CONTEXT D25](CONTEXT.md)) | `REFRESH_TOKEN_TTL_DAYS` (7 ngày) |
 | `notify:user:{userId}` (kênh pub/sub, không phải khóa) | Sự kiện SSE của một người dùng, JSON `{ event, data }`; instance nào đang giữ stream của người đó thì đăng ký ([CONTEXT D31](CONTEXT.md)) | – |
 | `notify:campaign:{campaignId}:students` (kênh pub/sub) | Sự kiện SSE cho mọi SV có CV `active` trong đợt, hiện là `competition.updated` ([CONTEXT D48](CONTEXT.md)) | – |

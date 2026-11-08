@@ -15,6 +15,34 @@ Lịch sử phát hành của Smart Recruit Match. Mỗi commit ship code tăng 
 
 ---
 
+## [0.22.0] — 2026-11-08 — Phòng thi — v0.22.0
+
+US-4.3. Sinh viên làm bài test cho từng nguyện vọng trên điện thoại hoặc máy tính, mỗi bài một lần. Server rút đề, quyết định giờ hết hạn, tự lưu bài làm và tự đóng bài khi hết giờ; đáp án không rời server (FR-20, BR-05, BR-06, NFR-9, NFR-10, [CONTEXT D51, D52](CONTEXT.md)).
+
+### Added
+- **Rút đề** (`drawExam`, hàm thuần): đúng số câu mỗi ô của ma trận từ câu `VALIDATED` của ngân hàng đã khóa, xáo câu (phần A trước, phần B sau) và xáo phương án theo `seed` lưu trong phiên. Mã mờ của phương án lấy từ `crypto.randomInt`, khác nhau giữa các phiên. Property test: mọi đề cùng số câu mỗi ô và cùng thời lượng (BR-05); cùng seed cho cùng đề.
+- **Bảng** `exam_sessions` (unique `(student_id, bank_id)` cho BR-06, CHECK hạn và `submitted_at`), `exam_answers`, `exam_events`; trạng thái `IN_PROGRESS → SUBMITTED | EXPIRED` (`packages/shared/states/exam-session.ts`). Migration `0032`, `0033`.
+- **API** (chỉ `STUDENT`; NV, phiên của SV khác là `404`):
+  - `GET /api/me/exams`: NV của đợt gần nhất kèm trạng thái bài test, thời lượng, số câu, thời gian còn lại nếu bắt đầu ngay;
+  - `POST /api/preferences/{id}/exam/start`: bắt đầu lần hai thì trả lại phiên đang mở, đã nộp thì `409 EXAM_ALREADY_TAKEN`;
+  - `GET /api/exam-sessions/{id}`: làm tiếp với đúng đề, thứ tự, câu đã lưu và hạn cũ;
+  - `PUT /api/exam-sessions/{id}/answers`: một script Lua trong Redis kiểm chủ phiên, hạn theo đồng hồ server và mã phương án rồi ghi, không truy vấn PostgreSQL;
+  - `POST /api/exam-sessions/{id}/submit`: Redis đóng phiên trước, rồi một giao dịch ghi `exam_answers` và chuyển trạng thái; phát `exam.session.closed` cho US-4.4.
+- **Giờ hết hạn**: `deadline_at = min(started_at + T_test, testing_end)`; ân hạn 10 giây cho lần lưu và nộp đến muộn, `submitted_at` không vượt `deadline_at`.
+- **Giới hạn tần suất** `@RateLimit` (`common/rate-limit`): bắt đầu 10, xem phiên 30, tự lưu 120, nộp 10, danh sách 30 lần mỗi phút; quá thì `429 RATE_LIMITED` kèm `Retry-After`.
+- **Tác vụ quét** `ExamScheduler` mỗi phút (advisory lock `4301`): đóng phiên đã qua hạn và ân hạn thành `EXPIRED`; sau `testing_end`, hủy NV `PENDING_TEST` chưa làm test (`TEST_NOT_TAKEN`) và gửi thông báo `EXAM_NOT_TAKEN` trong app và email.
+- **Giao diện**:
+  - trang "Bài test" `/sv/exams`: mỗi NV một thẻ, cảnh báo "chỉ làm một lần" và khi hạn làm test còn ít hơn thời lượng bài, hộp thoại xác nhận trước khi bắt đầu;
+  - phòng thi `/sv/exam/:sessionId` ngoài khung cổng SV: đồng hồ theo giờ server, chỉ báo "Đã lưu / Đang lưu / Mất kết nối – sẽ lưu lại", lưới số câu, hộp thoại nộp bài, hỏi trước khi rời phòng;
+  - câu chưa lưu được giữ trong `localStorage` và gửi lại khi có mạng; hết giờ thì khóa ô nhập, gửi nốt phần còn chờ rồi nộp;
+  - việc "Làm bài test" ở trang chủ SV.
+
+### Changed
+- `RedisModule` đóng kết nối đã đứt bằng `disconnect()` thay vì để `quit()` ném lỗi lúc tắt app.
+- ARCHITECTURE: *Các bảng chính*, *Redis*, *Phòng thi*, *Tác vụ định kỳ*. PRD GĐ5: hạn phiên không vượt `testing_end`. DESIGN.md §6, §10 (`formatMinutes`, `formatCountdown`), §12 (phòng thi). AGENTS › *Mẫu có sẵn*: rate limit, Lua Redis, bài test đã nộp, loại thông báo mới.
+
+---
+
 ## [0.21.0] — 2026-11-07 — Validator và khóa ngân hàng câu hỏi — v0.21.0
 
 US-4.2. Chỉ câu đã qua Validator mới được dùng để rút đề. Khi mọi ô của ma trận đủ câu đạt, Trung tâm khóa ngân hàng; sau đó DB giữ nguyên ngân hàng, loại câu thì tăng phiên bản (FR-18, BR-05, BR-18, [CONTEXT D50](CONTEXT.md)).

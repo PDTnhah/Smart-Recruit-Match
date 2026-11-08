@@ -2,175 +2,123 @@
 id: US-4.3
 title: "Phòng thi"
 epic: EPIC-4
-status: backlog
+status: review
 priority: P0
 points: 8
-sprint:
-version_shipped:
+sprint: sprint-2026-W45
+version_shipped: 0.22.0
 prd_ref: [FR-20, NFR-9, NFR-10]
 depends_on: [US-4.1, US-3.3]
 assignee:
 commit:
 created: 2026-10-07
-updated: 2026-10-07
+updated: 2026-11-08
 ---
+
+## Story refresh — 2026-11-08 (bắt đầu story)
+
+Người dùng chốt bốn điểm theo cột Đề xuất ([D51](../../CONTEXT.md)): `deadline_at` không vượt `testing_end`; ân hạn 10 s; AC-14 cũ (dùng chung bài theo nhóm vị trí) bỏ theo D49, AC-14 mới là `GET /api/me/exams`; AC-13 kiểm tay, Playwright để US-6.6. Liên kết NV ↔ phiên suy ra từ `(student_id, bank.jd_id)`. Nhánh `us-4.3` từ `dev` `513708c`.
 
 ## Goal
 
-Sinh viên làm bài test cho từng nguyện vọng trên điện thoại hoặc máy tính. Mỗi bài chỉ làm một lần. Server quyết định giờ hết hạn. Bài làm tự lưu và làm tiếp được khi mất mạng. Đáp án không bao giờ rời server. Mọi sinh viên cùng JD làm đề tương đương. Phòng thi được thiết kế để chịu khoảng 200 sinh viên làm cùng lúc. Mọi logic thời gian của phòng thi dùng đồng hồ inject được (`Clock`, `FakeClock`) mà [US-1.4](US-1.4-campaign-setup-and-config.md) đã tạo, để [US-4.4](US-4.4-grading-stest-sfinal.md), [US-4.6](US-4.6-appeals-and-question-error-reports.md) và các story EPIC-5 tua được thời gian trong test.
+Sinh viên làm bài test cho từng nguyện vọng trên điện thoại hoặc máy tính, mỗi bài một lần. Server quyết định giờ hết hạn. Bài làm tự lưu và làm tiếp được khi mất mạng. Đáp án không rời server. Mọi SV cùng JD làm đề tương đương. Phòng thi được thiết kế cho khoảng 200 SV làm cùng lúc. Mọi logic thời gian dùng `Clock` / `FakeClock` của [US-1.4](US-1.4-campaign-setup-and-config.md).
 
 ## Background
 
-FR-20: sinh viên làm bài test, rút đề ngẫu nhiên theo ma trận, giới hạn T_test, tự lưu, làm tiếp khi mất kết nối, chỉ làm một lần (UC-14, BR-06). PRD › GĐ5 › *Tổ chức thi*: khi sinh viên bắt đầu, hệ thống rút ngẫu nhiên câu theo ma trận, xáo thứ tự câu và phương án; hết giờ tự nộp; không làm trước hạn thì NV bị hủy. BR-05 yêu cầu đề tương đương: cùng ma trận, chỉ khác câu cụ thể; phần tính điểm không cá nhân hóa theo CV. NFR-9: khoảng 200 sinh viên làm đồng thời. NFR-10: bài làm tự lưu mỗi 30 giây.
+FR-20 (UC-14), BR-05 (đề tương đương), BR-06 (một lần; không làm trước hạn thì NV bị hủy), NFR-9 (200 SV), NFR-10 (tự lưu 30 giây). NV `PENDING_TEST → CLOSED` ở story này; `→ TEST_GRADED` thuộc [US-4.4](US-4.4-grading-stest-sfinal.md).
 
-ARCH › *Frontend › Phòng thi*: server trả `deadline_at`, client chỉ đếm ngược; hết giờ server tự đóng bài kể cả khi client mất kết nối. Tự lưu mỗi lần đổi đáp án (debounce) và định kỳ 30 giây. Câu hỏi và phương án đã xáo phía server, không gửi đáp án đúng xuống client. ARCH › *Luồng làm và chấm bài test* mô tả trình tự: `POST /api/preferences/{id}/exam/start` → rút câu, lưu seed → tạo phiên thi và deadline trong Redis → tự lưu vào Redis → nộp bài hoặc server tự đóng. ARCH › *Redis* có `exam:{sessionId}:answers` và `exam:{sessionId}:deadline`. ARCH › *Security architecture › Thi*: đáp án không rời server, đồng hồ phía server, giới hạn tần suất gọi API. ARCH › *Tác vụ định kỳ* có tác vụ hủy NV quá hạn làm test, chạy bằng `@nestjs/schedule` + `pg_try_advisory_lock`.
-
-Vòng đời hồ sơ ứng tuyển (PRD › *Vòng đời trạng thái*): *Chờ làm test* (`PENDING_TEST`) → *Đóng* (`CLOSED`) khi quá hạn không làm. Bảng chuyển trạng thái và các mã trạng thái (đề xuất) do [US-3.3](US-3.3-shortlist-and-preferences.md) đưa vào `packages/shared/states/application.ts`. Chuyển `PENDING_TEST` → `TEST_GRADED` thuộc [US-4.4](US-4.4-grading-stest-sfinal.md). Kiểm thử tải 200 sinh viên chạy ở [US-6.6](US-6.6-demo-data-e2e-load-test.md) bằng k6. Story này chỉ phải thiết kế để đạt mức đó (EPIC-4 › *Out of scope*).
-
-**Lessons applied**: none — LESSONS.md mới có §1 (Claude Code chỉ nạp skill từ `.claude/skills`), không liên quan nội dung story này; đọc lại khi bắt đầu story.
+**Lessons applied**: §12, §15, §21, §22 (chỉ `exam-scheduler.int-spec.ts` gọi `runOnce()`), §30, §34, §35, §36, §38 (NV, pha, ngân hàng đọc lại trong giao dịch có khóa).
 
 ## Acceptance criteria
 
-- [ ] **AC-1** — **Given** sinh viên có một NV ở trạng thái `PENDING_TEST` (*Chờ làm test*), đợt đang ở pha *Làm test*, ngân hàng của JD đã khóa, **When** gọi `POST /api/preferences/{id}/exam/start`, **Then** server rút đúng số câu mỗi ô (kỹ năng × độ khó) của `question_banks.blueprint` từ các câu `VALIDATED`, không câu nào lặp lại, xáo thứ tự câu và phương án phía server **And** lưu `exam_sessions` với `seed`, `question_ids`, `started_at`, `deadline_at = started_at + T_test` (theo đồng hồ server), ghi `exam:{sessionId}:deadline` vào Redis **And** trả về câu hỏi, `deadline_at` và `server_now`.
-- [ ] **AC-2** — Đề tương đương (BR-05): property test (fast-check) với nhiều seed và nhiều ngân hàng hợp lệ cho thấy mọi đề rút ra có cùng số câu ở mỗi ô, cùng số câu phần B, cùng thời gian. Cùng `seed` và cùng phiên bản ngân hàng luôn cho cùng đề và cùng thứ tự. Hàm rút đề không nhận dữ liệu CV.
-- [ ] **AC-3** — Không response nào của API phòng thi (bắt đầu, làm tiếp, tự lưu, nộp bài) chứa `answer_key`, `rubric`, giải thích, đáp án mẫu, cờ đúng/sai hay vị trí gốc của phương án. Mã phương án gửi xuống là mã mờ theo từng phiên. Test duyệt đệ quy mọi khóa JSON của từng response và so với danh sách cấm.
-- [ ] **AC-4** — Mỗi bài chỉ làm một lần (BR-06): gọi bắt đầu lần nữa khi phiên đang mở thì trả lại đúng phiên đó, không rút đề mới **And** gọi sau khi đã nộp hoặc đã đóng thì trả `409` mã `EXAM_ALREADY_TAKEN` **And** DB có ràng buộc unique `exam_sessions(student_id, bank_id)` (đề xuất), nên hai yêu cầu bắt đầu đồng thời chỉ tạo một phiên.
-- [ ] **AC-5** — Phân quyền và điều kiện: sinh viên khác gọi bắt đầu, làm tiếp, tự lưu hay nộp bài trên phiên/NV không phải của mình thì nhận `404` (không lộ sự tồn tại) **And** vai trò `HR`, `CENTER` không gọi được các endpoint này (`403`) **And** NV không ở `PENDING_TEST`, đợt không ở pha *Làm test*, hoặc ngân hàng chưa khóa thì nhận `409` kèm mã lỗi.
-- [ ] **AC-6** — **Given** phiên đang mở, **When** client gọi `PUT /api/exam-sessions/{id}/answers` với một hoặc nhiều câu trả lời, **Then** server ghi vào hash Redis `exam:{sessionId}:answers`, không ghi PostgreSQL ở mỗi lần tự lưu **And** gửi cùng payload hai lần cho cùng kết quả **And** khi đồng hồ server đã qua `deadline_at` thì trả `409` mã `EXAM_CLOSED` và không lưu.
-- [ ] **AC-7** — **Given** sinh viên mất kết nối hoặc tải lại trang, **When** gọi `GET /api/exam-sessions/{id}` (đề xuất), **Then** nhận lại đúng đề đã rút theo đúng thứ tự, các câu trả lời đã lưu và `deadline_at` cũ. Thời gian mất kết nối không được cộng thêm.
-- [ ] **AC-8** — **When** sinh viên gọi `POST /api/exam-sessions/{id}/submit`, **Then** trong một giao dịch: câu trả lời từ Redis được ghi vào `exam_answers`, `submitted_at` lấy theo đồng hồ server, phiên chuyển sang đã nộp qua `transitionTo` có audit **And** phát sự kiện đóng phiên (đề xuất `exam.session.closed`) cho [US-4.4](US-4.4-grading-stest-sfinal.md) chấm **And** nộp lần hai trả cùng kết quả, không ghi lại.
-- [ ] **AC-9** — **Given** một phiên đã qua `deadline_at` mà chưa nộp, client không kết nối lại, **When** tác vụ định kỳ chạy (mỗi phút, giữ `pg_try_advisory_lock`), **Then** server tự đóng phiên như AC-8 với `submitted_at = deadline_at` **And** hai instance chạy cùng lúc không đóng trùng.
-- [ ] **AC-10** — **Given** hạn pha *Làm test* đã qua, **When** tác vụ định kỳ chạy, **Then** mọi NV còn ở `PENDING_TEST` mà chưa có phiên thi chuyển sang `CLOSED` qua `transitionTo` với lý do `TEST_NOT_TAKEN`, audit trong cùng giao dịch (BR-06) **And** lệch `row_version` thì bỏ qua dòng đó, lần chạy sau xử lý lại **And** sinh viên nhận thông báo qua module `notification`.
-- [ ] **AC-11** — Mọi logic thời gian của module `assessment` (hạn phiên, tự đóng, tác vụ định kỳ) dùng `Clock` được inject từ `apps/api/src/common/clock/` (tạo ở [US-1.4](US-1.4-campaign-setup-and-config.md)), không gọi `Date.now()`/`new Date()` trực tiếp. Test tua thời gian bằng `FakeClock` ở `apps/api/test/helpers/fake-clock.ts`; story này không tạo bản thứ hai.
-- [ ] **AC-12** — Gọi API phòng thi vượt giới hạn tần suất (`ratelimit:{userId}:{route}`) thì nhận `429`; tự lưu với debounce và chu kỳ 30 giây của client không bao giờ chạm giới hạn.
-- [ ] **AC-13** — Giao diện `apps/web/src/features/exam/` là route riêng, layout tối giản. Ở màn hình rộng 360 px không có thanh cuộn ngang. Đồng hồ đếm ngược tính từ `deadline_at` và độ lệch `server_now`, không dùng giờ máy khách. Có chỉ báo "Đã lưu / Đang lưu / Mất kết nối – sẽ lưu lại". Câu trả lời chưa gửi được giữ lại và gửi lại khi có mạng. Về 0 thì khóa ô nhập và hiện "Hết giờ". Có hộp thoại xác nhận trước khi nộp. Mọi chuỗi bằng tiếng Việt.
-- [ ] **AC-14** — Với `campaigns.config.share_exam_by_position_group = false` (mặc định), mỗi NV có phiên thi riêng. Với `true`, các NV của cùng sinh viên vào những JD dùng chung một ngân hàng dùng chung một phiên: bắt đầu từ NV thứ hai trả lại phiên đã có, không rút đề mới.
+- [x] **AC-1** — **Given** NV `PENDING_TEST`, đợt `TESTING` trước `testing_end`, ngân hàng của JD đã khóa, **When** `POST /api/preferences/{id}/exam/start`, **Then** server rút từ câu `VALIDATED` đúng số câu mỗi ô (kỹ năng × độ khó) của `blueprint`, không lặp, xáo câu và phương án phía server **And** lưu `exam_sessions` (`seed`, `bank_version`, `question_ids`, `option_layout`, `started_at`, `deadline_at = min(started_at + duration_minutes, testing_end)` theo `Clock`) và `exam:{id}:session` ở Redis **And** trả đề, `deadline_at`, `server_now`.
+- [x] **AC-2** — Đề tương đương (BR-05): property test (fast-check) với nhiều seed và ngân hàng: cùng số câu mỗi ô, cùng số câu phần B, cùng thời lượng. Cùng `seed` và phiên bản ngân hàng cho cùng đề và thứ tự, bất kể thứ tự đầu vào. Hàm rút đề không nhận dữ liệu CV.
+- [x] **AC-3** — Không response nào của phòng thi chứa `answer_key`, `rubric`, giải thích, đáp án mẫu, cờ đúng/sai hay vị trí gốc của phương án; mã phương án mờ theo từng phiên. Test duyệt đệ quy mọi khóa JSON của từng response.
+- [x] **AC-4** — Một lần mỗi bài (BR-06): bắt đầu lại khi phiên đang mở thì trả đúng phiên đó **And** đã đóng thì `409 EXAM_ALREADY_TAKEN` **And** unique `exam_sessions(student_id, bank_id)`: hai lần bắt đầu đồng thời chỉ tạo một phiên.
+- [x] **AC-5** — NV/phiên của SV khác: `404` **And** `HR`, `CENTER`: `403` **And** NV không `PENDING_TEST` (`409 PREFERENCE_NOT_PENDING_TEST`), ngoài pha hoặc qua `testing_end` (`409 CAMPAIGN_PHASE_MISMATCH`), ngân hàng chưa khóa (`409 BANK_NOT_LOCKED`).
+- [x] **AC-6** — `PUT /api/exam-sessions/{id}/answers` ghi `exam:{id}:answers` bằng một script Lua, không truy vấn PostgreSQL **And** gửi lại cùng payload cho cùng kết quả **And** câu lạ hoặc mã lạ: `422 EXAM_ANSWER_INVALID` **And** đã nộp hoặc đã qua `deadline_at + 10 s` (`EXAM_SAVE_GRACE_MS`): `409 EXAM_CLOSED`, không lưu.
+- [x] **AC-7** — Mất mạng hoặc tải lại: `GET /api/exam-sessions/{id}` trả đúng đề và thứ tự (cả câu bị loại sau khi rút), câu đã lưu và `deadline_at` cũ; thời gian mất mạng không được cộng.
+- [x] **AC-8** — `POST .../submit`: Redis đóng phiên trước, rồi một giao dịch ghi `exam_answers` và `IN_PROGRESS → SUBMITTED` qua `transitionTo` có audit, `submitted_at = min(now, deadline_at)` **And** phát `exam.session.closed` **And** nộp lần hai trả cùng kết quả **And** nộp sau `deadline_at + 10 s` thì `EXPIRED`, `submitted_at = deadline_at`.
+- [x] **AC-9** — Phiên qua `deadline_at + 10 s` chưa nộp: tác vụ định kỳ (mỗi phút, `withAdvisoryLock(EXAM_SWEEP)`) đóng như AC-8 với `EXPIRED` **And** hai lần chạy cùng lúc không đóng trùng.
+- [x] **AC-10** — Đợt `TESTING`/`ALLOCATION_REVIEW` đã qua `testing_end`: NV `PENDING_TEST` chưa có phiên chuyển `CLOSED` qua `transitionTo`, lý do `TEST_NOT_TAKEN`, audit cùng giao dịch (BR-06) **And** lệch `row_version` thì bỏ qua, lần sau xử lý **And** SV nhận `EXAM_NOT_TAKEN` (app và email).
+- [x] **AC-11** — Logic thời gian của `assessment` dùng `Clock` inject, không `Date.now()`/`new Date()`; test dùng `FakeClock` ở `test/helpers/fake-clock.ts`.
+- [x] **AC-12** — Quá giới hạn (`ratelimit:{userId}:{route}`, 60 s): `429 RATE_LIMITED` kèm `Retry-After`. Bắt đầu 10, xem phiên 30, tự lưu 120, nộp 10, danh sách 30. Client (debounce 1,5 s, chu kỳ 30 s) không chạm giới hạn.
+- [ ] **AC-13** — Giao diện `features/exam/`, chuỗi tiếng Việt, kiểm tay ở 360 / 768 / 1024 px:
+  - `/sv/exams`: NV kèm T_test, số câu, "chỉ làm một lần", cảnh báo khi còn ít hơn T_test tới `testing_end`; xác nhận trước khi bắt đầu.
+  - Phòng thi `/sv/exam/:sessionId` ngoài `StudentLayout`, layout tối giản, 360 px không cuộn ngang; đồng hồ theo `deadline_at` và độ lệch `server_now`; chỉ báo "Đã lưu / Đang lưu / Mất kết nối – sẽ lưu lại".
+  - Câu chưa gửi được giữ lại (cả khi tải lại) và gửi khi có mạng. Về 0 thì khóa ô nhập, hiện "Hết giờ", gửi phần còn chờ rồi nộp. Xác nhận trước khi nộp.
+- [x] **AC-14** — `GET /api/me/exams`: NV của đợt hiện tại với `preferenceId`, thứ hạng, JD, trạng thái bài test (`NOT_STARTED` / `IN_PROGRESS` / `SUBMITTED` / `EXPIRED` / `CLOSED`), `sessionId`, thời lượng, số câu, `deadlineAt`, thời gian còn lại nếu bắt đầu ngay, `serverNow`.
 
 ## Tasks
 
-- [ ] **TASK-4.3.1** — Dùng đồng hồ inject được của US-1.4 (AC: 11)
-  - [ ] Subtask 4.3.1.1 — Inject `Clock` từ `apps/api/src/common/clock/` vào service, scheduler của module `assessment`; không tạo `Clock` mới.
-  - [ ] Subtask 4.3.1.2 — Dùng `FakeClock` ở `apps/api/test/helpers/fake-clock.ts` trong test hết giờ; thêm phương thức nếu thiếu, không tạo file mới.
-- [ ] **TASK-4.3.2** — Bảng, ràng buộc và trạng thái phiên thi (AC: 4, 8, 9)
-  - [ ] Subtask 4.3.2.1 — Migration `apps/api/drizzle/`: `exam_sessions`, `exam_answers` (`PK(session_id, question_id)`), `exam_events` (`index(session_id)`) theo ARCH › *Các bảng chính*; thêm `status`, `row_version`, unique `(student_id, bank_id)` (đề xuất).
-  - [ ] Subtask 4.3.2.2 — `packages/shared/states/exam-session.ts` (đề xuất): `IN_PROGRESS` → `SUBMITTED` | `EXPIRED`, bảng chuyển, unit test.
-  - [ ] Subtask 4.3.2.3 — Liên kết NV ↔ phiên: đề xuất cột `preferences.exam_session_id`, ghi qua service đã export của module `matching` (không ghi thẳng bảng `preferences`).
-- [ ] **TASK-4.3.3** — Hàm thuần rút đề (AC: 1, 2, 3)
-  - [ ] Subtask 4.3.3.1 — `apps/api/src/modules/assessment/domain/draw-exam.ts`: `drawExam(questions, blueprint, seed)` dùng PRNG có seed, xáo câu và phương án, sinh mã phương án mờ theo phiên.
-  - [ ] Subtask 4.3.3.2 — `apps/api/src/modules/assessment/domain/draw-exam.spec.ts`: property test BR-05.
-- [ ] **TASK-4.3.4** — API phòng thi (AC: 1, 3, 4, 5, 6, 7, 8, 12, 14)
-  - [ ] Subtask 4.3.4.1 — `apps/api/src/modules/assessment/api/exam-session.controller.ts`: start, `GET` session, answers, submit; `@Roles('STUDENT')`, kiểm chủ sở hữu trong service.
-  - [ ] Subtask 4.3.4.2 — `packages/shared/schemas/exam-session.ts`: DTO response dạng whitelist (chỉ liệt kê trường được gửi), không có trường đáp án.
-  - [ ] Subtask 4.3.4.3 — Kiểm pha đợt qua service đã export của `campaign` (US-1.4); đọc tham số chia sẻ ngân hàng (Q2).
-- [ ] **TASK-4.3.5** — Lưu tạm trong Redis và đổ về PostgreSQL (AC: 6, 8, 9)
-  - [ ] Subtask 4.3.5.1 — `apps/api/src/modules/assessment/infrastructure/exam-answer-store.ts`: `HSET` vào `exam:{sessionId}:answers`, TTL đến khi nộp + 1 ngày; `flushToDb()` trong giao dịch nộp/đóng.
-- [ ] **TASK-4.3.6** — Tác vụ định kỳ (AC: 9, 10)
-  - [ ] Subtask 4.3.6.1 — `apps/api/src/modules/assessment/application/exam-scheduler.ts`: đóng phiên hết giờ; hủy NV quá hạn làm test qua service của `matching` + `transitionTo`; giữ `pg_try_advisory_lock`.
-- [ ] **TASK-4.3.7** — Giao diện phòng thi (AC: 13)
-  - [ ] Subtask 4.3.7.1 — Đọc `DESIGN.md` trước khi code, ghi `Design applied: …` vào story; theo quy tắc của skill shadcn.
-  - [ ] Subtask 4.3.7.2 — `apps/web/src/features/exam/`: trang bắt đầu (thông tin T_test, số câu, cảnh báo làm một lần), trang làm bài (điều hướng câu, đồng hồ, chỉ báo lưu), hook tự lưu (debounce + 30 giây + gửi lại khi có mạng).
-- [ ] **TASK-4.3.8** — Test (AC: 1–14)
-  - [ ] Subtask 4.3.8.1 — `apps/api/test/assessment/exam-room.spec.ts`: luồng đầy đủ với PostgreSQL + Redis thật (testcontainers), quét khóa cấm trong response, IDOR, hai yêu cầu bắt đầu đồng thời, `FakeClock` cho hết giờ.
-  - [ ] Subtask 4.3.8.2 — `apps/web/e2e/exam-room.spec.ts` (Playwright, đề xuất): viewport 360 px, mất mạng rồi có lại, hết giờ.
+- [x] **TASK-4.3.1** — `packages/shared/states/exam-session.ts` + `examSessionLifecycle`; migration `0032` (`exam_sessions`, `exam_answers`, `exam_events`), `CORE_TABLES` (AC: 4, 8, 9)
+- [x] **TASK-4.3.2** — `assessment/domain/draw-exam.ts`, `exam-deadline.ts` + test property BR-05 (AC: 1, 2, 3, 11)
+- [x] **TASK-4.3.3** — `PreferenceExamService` của `matching`: đọc/khóa NV, NV `PENDING_TEST`, `closeTestNotTaken` (AC: 1, 5, 10)
+- [x] **TASK-4.3.4** — API: schema `packages/shared/schemas/exam-session.ts` + mã lỗi; `common/rate-limit/`; `ExamSessionService` + cache ngân hàng; controller; `pnpm api:sync` (AC: 1, 3–8, 12, 14)
+- [x] **TASK-4.3.5** — `exam-answer-store.ts`: Lua lưu, đóng-rồi-đọc, mở lại, dựng lại khi mất key (AC: 6, 8)
+- [x] **TASK-4.3.6** — `exam-scheduler.ts`: đóng phiên hết giờ, hủy NV không làm test, `EXAM_NOT_TAKEN` + migration `0033` + template email (AC: 9, 10)
+- [ ] **TASK-4.3.7** — Giao diện (AC: 13)
+  - [x] 4.3.7.1 — Đọc `DESIGN.md`, ghi `Design applied:`; theo skill shadcn.
+  - [x] 4.3.7.2 — `/sv/exams`, `/sv/exam/:sessionId`, đồng hồ server, tự lưu; việc "Làm bài test" ở trang chủ SV.
+  - [ ] 4.3.7.3 — Kiểm tay theo checklist ở *Implementation notes*.
+- [x] **TASK-4.3.8** — Integration test `exam-room.int-spec.ts`, `exam-scheduler.int-spec.ts`, helper `test/helpers/exam.ts` (AC: 1, 3–12, 14)
 
 ## Dev notes
 
-### Architecture constraints
+- Nguyên tắc 8: response dạng whitelist, câu hiển thị không chọn `answer_key`, mã phương án từ `crypto.randomInt` ([D52](../../CONTEXT.md)). Nguyên tắc 10, 11: `transitionTo`, unique cho BR-06. Nguyên tắc 13: `assessment` gọi `PreferenceExamService`, `CampaignService`, `JdService`.
+- Hiệu năng (NFR-9, k6 ở US-6.6): tự lưu là một lượt Redis (Lua); câu của ngân hàng cache theo `(bank_id, version)`, nạp đồng thời dùng chung; giao dịch bắt đầu không chứa phép rút đề.
+- Cho story sau: US-4.4 nghe `exam.session.closed` và cần tác vụ quét phiên chưa chấm (LESSONS §34); US-4.7 ghi `exam_events` và `POST .../events`; US-4.8 thêm phần D. Không làm: chấm (US-4.4), k6 (US-6.6), WebSocket (AD-13), Fullscreen (US-4.7), dùng chung bài giữa JD (Q2, D49).
 
-- AGENTS › Nguyên tắc 8: đáp án không bao giờ xuống client; deadline do server quyết định. DTO response viết dạng whitelist để thêm cột mới vào `questions` không vô tình lộ ra.
-- [AD-8](../../ARCHITECTURE.md#architecture-decisions): đổi trạng thái phiên và NV đi qua `transitionTo` + audit + `row_version`. Không dùng thư viện state machine.
-- AGENTS › Nguyên tắc 11: BR-06 có ràng buộc ở DB (unique `(student_id, bank_id)`), không chỉ kiểm trong code. Ràng buộc này tự đúng cho cả hai chế độ của Q2, vì khi dùng chung thì các JD chung một ngân hàng.
-- AGENTS › Nguyên tắc 13: `assessment` không đọc hay ghi bảng `preferences` (của `matching`) và `campaigns` (của `campaign`). Nó gọi service đã export.
-- Tự lưu chỉ ghi Redis (ARCH › *Data architecture*). Ghi PostgreSQL ở mỗi lần tự lưu bị loại vì 200 sinh viên × (debounce + 30 giây) tạo tải ghi không cần thiết.
-- **Chạm Q2:** tạm dùng Đề xuất "Theo JD; các JD cùng nhóm vị trí được phép dùng chung". Tham số `campaigns.config.share_exam_by_position_group` (mặc định `false`). Hỏi trước khi chốt.
-- **Điểm chưa rõ trong spec — hỏi trước khi chốt:**
-  - Sinh viên bắt đầu sát hạn pha *Làm test*: story tạm đặt `deadline_at = started_at + T_test` và không cho bắt đầu sau hạn pha. Phương án khác là cắt `deadline_at` theo hạn pha.
-  - ARCH không có cột nối NV với phiên thi, cũng không có `status`, `row_version` trên `exam_sessions`. Các cột trên là đề xuất.
-  - Có cho vài giây ân hạn với lần tự lưu đến sau `deadline_at` do trễ mạng không. Story tạm không cho.
-- Phần D (xác minh CV) chèn vào phòng thi ở [US-4.8](US-4.8-cv-verification-questions-trust-score.md). Ghi nhận hành vi (chuyển tab, toàn màn hình, copy/paste) và endpoint `POST /api/exam-sessions/{id}/events` thuộc [US-4.7](US-4.7-cheating-signals.md). Story này chỉ tạo bảng `exam_events` trong cùng migration.
+### Giới hạn đã biết
 
-### Cross-story dependencies
-
-- Builds on [US-4.1](US-4.1-exam-blueprint-test-generator.md): `question_banks.blueprint`, bảng `questions`.
-- Builds on [US-4.2](US-4.2-validator-and-question-bank-lock.md): `getDrawableQuestions()` và seed ngân hàng đã khóa `apps/api/src/db/seeds/locked-question-bank.ts`. Bảng epic không ghi US-4.2 vào `depends_on`, nhưng lịch D20 đặt US-4.2 ở T8, trước story này.
-- Builds on [US-3.3](US-3.3-shortlist-and-preferences.md): `preferences` (NV ở `PENDING_TEST`) và bảng chuyển trạng thái hồ sơ ứng tuyển trong `packages/shared/states/application.ts`.
-- Builds on [US-1.2](US-1.2-core-db-schema-transition-audit-log.md) (`transitionTo`, audit), [US-1.3](US-1.3-auth-rbac-design-system-app-shell.md) (`@Roles()`, helper test IDOR, `DESIGN.md`), [US-1.4](US-1.4-campaign-setup-and-config.md) (pha đợt, `T_test`, `phase_deadlines`, `Clock`/`FakeClock`), [US-1.7](US-1.7-notifications-sse-email-reminders.md) (thông báo hủy NV).
-- Required by [US-4.4](US-4.4-grading-stest-sfinal.md): sự kiện đóng phiên, `exam_answers`, `submitted_at`.
-- Required by [US-4.7](US-4.7-cheating-signals.md) (bảng `exam_events`, giao diện phòng thi) và [US-4.8](US-4.8-cv-verification-questions-trust-score.md) (thêm phần D vào phòng thi).
-- Required by [US-6.6](US-6.6-demo-data-e2e-load-test.md): kịch bản k6 gọi đúng các endpoint ở đây.
-- Sibling [US-4.8](US-4.8-cv-verification-questions-trust-score.md) và [US-4.9](US-4.9-question-bank-sample-review.md) (cùng tuần T9): US-4.8 sửa `apps/web/src/features/exam/`; story này merge trước.
-
-### Performance budget
-
-- Khoảng 200 sinh viên làm đồng thời (NFR-9). Kiểm thử tải bằng k6 ở [US-6.6](US-6.6-demo-data-e2e-load-test.md): không lỗi, không mất bài.
-- Tự lưu mỗi lần đổi đáp án (debounce) và mỗi 30 giây (NFR-10). Mỗi lần tự lưu là một lệnh `HSET` vào Redis, không có truy vấn PostgreSQL.
-- Rút đề là một giao dịch ngắn; danh sách câu `VALIDATED` của ngân hàng đã khóa đọc một lần rồi cache theo `(bank_id, version)`.
-- PR của story phải ghi rõ các quy tắc thiết kế trên đã được giữ.
-
-### What we explicitly did NOT do
-
-- Không chấm bài, không tính S_test: thuộc [US-4.4](US-4.4-grading-stest-sfinal.md).
-- Không chạy kiểm thử tải trong story này: thuộc [US-6.6](US-6.6-demo-data-e2e-load-test.md).
-- Không dùng WebSocket để giữ phiên: REST + tự lưu là đủ (AD-13 chỉ dùng SSE cho luồng một chiều).
-- Không chặn thi trên thiết bị không có Fullscreen API: tín hiệu chỉ để cảnh báo ([US-4.7](US-4.7-cheating-signals.md)).
-
-### References
-
-- [Source: PRD › GĐ5 – Sinh và tổ chức bài test (Tổ chức thi)](../../PRD.md)
-- [Source: PRD › Vòng đời trạng thái › Hồ sơ ứng tuyển](../../PRD.md)
-- [Source: PRD › Quy tắc nghiệp vụ (BR-05, BR-06)](../../PRD.md)
-- [Source: PRD › Functional Requirements (FR-20), Non-Functional Requirements (NFR-9, NFR-10)](../../PRD.md#functional-requirements)
-- [Source: ARCHITECTURE › Frontend › Phòng thi](../../ARCHITECTURE.md)
-- [Source: ARCHITECTURE › Luồng làm và chấm bài test](../../ARCHITECTURE.md#messaging-and-data-flow)
-- [Source: ARCHITECTURE › Data architecture (Các bảng chính, Redis)](../../ARCHITECTURE.md#data-architecture)
-- [Source: ARCHITECTURE › Security architecture](../../ARCHITECTURE.md#security-architecture)
-- [Source: ARCHITECTURE › Tác vụ định kỳ, Quản lý trạng thái](../../ARCHITECTURE.md)
-- [Source: CONTEXT D8, D20](../../CONTEXT.md)
-- [Source: Epic EPIC-4](../epics/EPIC-4.md)
+- Nộp trong ân hạn mà tác vụ quét lấy khóa dòng trước thì phiên thành `EXPIRED` thay vì `SUBMITTED`; `submitted_at` và câu trả lời như nhau.
+- Mở lại Redis sau giao dịch đóng lỗi có thể trùng một lần nộp khác vừa commit (hai tab, lỗi DB đúng lúc): lần lưu kế tiếp được nhận nhưng không vào bài ([D52](../../CONTEXT.md)).
+- Hàng chờ ghi `localStorage` mỗi lần gõ (chỉ câu chưa lưu; chưa đo trên máy yếu), dạng rõ tới khi nộp. Rate limit cho qua khi Redis lỗi (D51).
 
 ## Verification commands
 
-> Chưa có `package.json`. Lệnh chạy cụ thể sẽ điền khi US-1.1 tạo script (AGENTS › Lệnh). Bảng dưới ghi file test và tên case.
+Integration: `pnpm --filter @srm/api exec jest --testPathPatterns 'test/integration/(exam-room|exam-scheduler)' --selectProjects integration`. Unit: `--testPathPatterns 'assessment' --selectProjects unit`. R = `apps/api/test/integration/exam-room.int-spec.ts`, S = `exam-scheduler.int-spec.ts`, D = `apps/api/src/modules/assessment/domain/__tests__/draw-exam.spec.ts`, C = `application/drawable-bank-cache.spec.ts`.
 
-| AC | Command |
+| AC | Test |
 |---|---|
-| AC-1 | `apps/api/test/assessment/exam-room.spec.ts` › `GĐ5 start draws per blueprint cell, shuffles server-side, stores seed and deadline_at` |
-| AC-2 | `apps/api/src/modules/assessment/domain/draw-exam.spec.ts` › `BR-05 property: every draw has same cell counts and duration`; `BR-05 same seed and bank version reproduce draw` |
-| AC-3 | `apps/api/test/assessment/exam-room.spec.ts` › `GĐ5 no response of exam API contains answer_key, rubric, explanation, sample answer or correctness` |
-| AC-4 | `apps/api/test/assessment/exam-room.spec.ts` › `BR-06 restart returns same session; 409 after submit; concurrent starts create one session` |
-| AC-5 | `apps/api/test/assessment/exam-room.spec.ts` › `GĐ5 IDOR other student 404; HR/CENTER 403; wrong phase, state or unlocked bank 409` |
-| AC-6 | `apps/api/test/assessment/exam-room.spec.ts` › `NFR-10 autosave writes Redis only, idempotent; 409 EXAM_CLOSED after deadline` |
-| AC-7 | `apps/api/test/assessment/exam-room.spec.ts` › `GĐ5 resume returns same questions, order, saved answers and unchanged deadline` |
-| AC-8 | `apps/api/test/assessment/exam-room.spec.ts` › `GĐ5 submit flushes answers in one transaction, audits, emits closed event; second submit idempotent` |
-| AC-9 | `apps/api/test/assessment/exam-scheduler.spec.ts` › `GĐ5 expired session auto-closed with submitted_at = deadline_at; advisory lock prevents double close` |
-| AC-10 | `apps/api/test/assessment/exam-scheduler.spec.ts` › `BR-06 untaken preference closed with TEST_NOT_TAKEN and audit; stale row_version skipped` |
-| AC-11 | `rg -n "Date\.now\(\)\|new Date\(\)" apps/api/src/modules/assessment` trả về 0 dòng; `apps/api/test/assessment/exam-room.spec.ts` › `GĐ5 auto-closes expired session using FakeClock` |
-| AC-12 | `apps/api/test/assessment/exam-room.spec.ts` › `GĐ5 rate limit returns 429; debounced 30s autosave stays under limit` |
-| AC-13 | `apps/web/e2e/exam-room.spec.ts` (Playwright, đề xuất) › `NFR-13 360px no horizontal scroll; countdown from server time; offline answers resent; locked at zero` |
-| AC-14 | `apps/api/test/assessment/exam-room.spec.ts` › `Q2 shared bank reuses one session across preferences when enabled; separate sessions by default` |
+| AC-1 | R › `GĐ5 start draws per cell, shuffles, stores seed, caps deadline` |
+| AC-2 | D › `BR-05 property: same cell counts and duration`; `BR-05 same seed reproduces draw` |
+| AC-3 | R › `GĐ5 no exam response carries answer key fields`; D › `GĐ5 AC-3 the option codes come from their own source, not from the seed` |
+| AC-4 | R › `BR-06 restart resumes; 409 after submit; concurrent starts make one session` |
+| AC-5 | R › `GĐ5 IDOR 404; HR/CENTER 403; state, phase, bank 409` |
+| AC-6 | R › `NFR-10 autosave Redis only, idempotent; 422; 409 after grace` |
+| AC-7 | R › `GĐ5 resume keeps paper, order, answers, deadline` |
+| AC-8 | R › `GĐ5 submit flushes in one transaction, emits event, idempotent`; `GĐ5 a close that fails lets saves in again; Redis rebuilt open meanwhile is closed by the submit` |
+| AC-9 | S › `GĐ5 expired session closed at deadline_at; concurrent sweeps close once` |
+| AC-10 | S › `BR-06 untaken preference closed TEST_NOT_TAKEN; stale row skipped` (NV đã có phiên không bị khóa) |
+| AC-11 | `rg -n "Date\.now\(\)\|new Date\(\)" apps/api/src/modules/assessment` = 0 dòng |
+| AC-12 | R › `GĐ5 rate limit 429; autosave cadence under limit` |
+| AC-13 | Kiểm tay (checklist ở *Implementation notes*) |
+| AC-14 | R › `GĐ5 my exams lists status and remaining time` |
+| NFR-9 | C › `concurrent starts share one read`; `a failed read is not kept` |
 
 ## Changelog entry
 
-### Added
-- Phòng thi cho sinh viên: rút đề theo ma trận đề có lưu seed, xáo câu và phương án phía server, giờ hết hạn do server quyết định, tự lưu mỗi lần đổi đáp án và mỗi 30 giây, làm tiếp khi mất mạng, giao diện dùng tốt trên điện thoại.
-- Mỗi bài chỉ làm một lần (BR-06), có ràng buộc unique ở DB; server tự đóng bài hết giờ và tự hủy NV không làm test trước hạn.
-- Bảng `exam_sessions`, `exam_answers`, `exam_events`.
-
-**Commit**:
+Đã chép vào [CHANGELOG 0.22.0](../../CHANGELOG.md).
 
 ## Implementation notes
 
-_Chưa bắt đầu._
+- **Phiên 1–2c:** thiết kế ở D51. Seed `randomInt(0, 2 ** 31)` (cột `integer`). Migration `0033` cho loại thông báo mới. Route `/sv/exam/:id` thay `/exam/:id` để đăng nhập lại quay về phòng thi (DESIGN §12). **Design applied:** §1, §4, §5 (360 px, 44 px, `Sheet` dưới), §6 (`radio-group`, `badge`, `alert`, `alert-dialog`), §7, §9, §10 (`formatMinutes`, `formatCountdown`), §11 (`role="timer"`, `role="status"` khi lỗi), §12.
+- **Phiên 3:** `/code-review` nêu 15 điểm, sửa 12 (hai điểm ở *Giới hạn đã biết*, một là cỡ story). Web: tự lưu không bỏ qua debounce, lô ≤ 50 câu và 80 KB (LESSONS §41), hết giờ đóng hộp thoại nộp, 422 hiện lại câu server giữ, tự luận chỉ khoảng trắng không tính, lỗi `/api/me/exams` không che trang chủ. API: đóng lỗi thì mở lại Redis, đóng cả bản Redis vừa dựng lại (D52), cache gộp lần nạp, tác vụ quét bỏ NV đã có phiên và phân trang, `RedisModule.quit()` lỗi thì `disconnect()`. koni-qc bảo mật (một lượt, tự phản biện): mã phương án từ mulberry32 lộ vị trí gốc → `crypto.randomInt` (D52, LESSONS §39); đã loại IDOR, đổi hạn từ client, Lua injection, XSS. Self-verify: typecheck, lint, depcruise, `pnpm test` 870/870, shared 348/348, `pnpm build`.
+- **Checklist AC-13** (TASK-4.3.7.3, người dùng làm). Dữ liệu: `db:migrate`, `db:seed`, `db:seed:question-bank`; đợt mẫu sang `TESTING` (`UPDATE core.campaigns SET status = 'TESTING', phase_deadlines = phase_deadlines || jsonb_build_object('testing_end', '<ISO>')`); NV1 cho `sv001@srm.local` (`INSERT INTO core.preferences (campaign_id, student_id, jd_id, rank)`, `jd_id` của `core.question_banks`).
+  1. `/sv/exams` (360 / 768 / 1024 px): thẻ có NV, T_test, số câu, "Chỉ làm một lần", không cuộn ngang; `testing_end` gần hơn T_test thì có cảnh báo ở thẻ và hộp thoại.
+  2. "Bắt đầu làm bài": `Sheet` dưới ở 360 px, `AlertDialog` từ 768 px. Trang chủ có việc "Làm bài test".
+  3. Phòng thi 360 px: không cuộn ngang; chọn phương án → "Đang lưu…" rồi "Đã lưu"; "Câu trước/sau", lưới câu; `?q=` giữ câu khi tải lại.
+  4. DevTools Offline: sửa câu → "Mất kết nối – sẽ lưu lại", bật mạng → "Đã lưu". Offline, sửa, đóng tab, bật mạng, mở "Làm tiếp": câu vừa sửa còn và được lưu.
+  5. Tải lại: đề, thứ tự, câu đã lưu, hạn nộp giữ nguyên.
+  6. Hết giờ (bắt đầu khi `testing_end` còn 2–3 phút), thử cả khi hộp thoại "Nộp bài?" đang mở: toast còn 1 phút; về 0 thì hộp thoại đóng, ô nhập khóa, "Hết giờ", tự nộp.
+  7. "Nộp bài": hộp thoại có số câu chưa trả lời; kết quả có số câu đã trả lời; `/sv/exams` hiện "Đã nộp".
 
 ## Files modified
 
-_Chưa bắt đầu._
+`packages/shared/` (states, schemas), `apps/api/drizzle/` (`0032`, `0033`), `apps/api/src/` (`db/`, `common/`, `redis/`, `modules/` assessment, matching, company, notification), `apps/api/test/`, `apps/web/src/` (`features/exam/`, router, trang chủ SV, `lib/format.ts`, API client); `DESIGN.md`, `AGENTS.md`; `docs/` (CONTEXT D51–D52, LESSONS §39–§41, ARCHITECTURE, PRD, EPIC-4, W45, CHANGELOG).
 
 ## Cross-references
 
-- [PRD FR-20, NFR-9, NFR-10](../../PRD.md#functional-requirements)
-- [Epic EPIC-4](../epics/EPIC-4.md)
-- [CHANGELOG](../../CHANGELOG.md)
-- [CONTEXT D8, D20](../../CONTEXT.md)
-- [US-4.4 Chấm bài, S_test và S_final](US-4.4-grading-stest-sfinal.md)
-- [US-6.6 Dữ liệu demo, E2E, kiểm thử tải](US-6.6-demo-data-e2e-load-test.md)
+- [PRD FR-20, NFR-9, NFR-10](../../PRD.md#functional-requirements) · [Epic EPIC-4](../epics/EPIC-4.md) · [CHANGELOG](../../CHANGELOG.md)
+- [CONTEXT D51, D52](../../CONTEXT.md) · [US-4.4](US-4.4-grading-stest-sfinal.md) · [US-6.6](US-6.6-demo-data-e2e-load-test.md)

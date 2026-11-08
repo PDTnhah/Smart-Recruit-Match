@@ -100,6 +100,14 @@ export class JdService implements OnModuleInit {
   }
 
   /**
+   * The cards of the JDs a student applied to, whatever their state now (US-4.3: the exam list);
+   * by JD id. The caller passes only the student's own preferences' JDs.
+   */
+  async listCardsByIds(jdIds: readonly number[]): Promise<ShortlistJdCard[]> {
+    return this.repository.listCardsByIds(jdIds);
+  }
+
+  /**
    * A JD as its question bank sees it (US-4.1): state, current version and requirements; undefined
    * when there is no such JD. The assessment module decides from the state whether it may have a
    * bank (BR-02). No record scope: only CENTER reaches the question bank. With `tx`, the row is

@@ -57,6 +57,8 @@
 - D48 · Mức cạnh tranh: ngưỡng trong cấu hình đợt, đếm lại dưới khóa theo JD, kênh SSE theo đợt, báo Trung tâm JD thiếu NV sau Q6 (US-3.4)
 - D49 · Test Generator: vòng lặp do code điều khiển, mỗi JD một ngân hàng (Q2 một phần, Q7), ma trận ở `question_banks`, tham số mặc định, làm tròn hai chiều (US-4.1)
 - D50 · Validator trong job sinh câu (đầu vào không kèm đáp án, code quyết định, độ khó lệch 2 bậc), khóa ngân hàng `OPEN → LOCKED` bằng tay, trigger chặn sửa, JD có phiên bản mới thì lưu lại ma trận (US-4.2)
+- D51 · Phòng thi: hạn phiên cắt theo `testing_end`, ân hạn 10 giây, liên kết NV ↔ phiên suy ra, bố cục đề ở PostgreSQL, hash Redis + Lua, giới hạn tần suất; chưa dùng chung bài theo nhóm vị trí (US-4.3) → sửa một phần bởi D52 (mã phương án, đóng phiên lỗi)
+- D52 · Phòng thi: mã phương án từ nguồn ngẫu nhiên mật mã, không từ seed; đóng phiên lỗi thì Redis nhận lưu lại (US-4.3)
 
 ---
 
@@ -2114,3 +2116,122 @@ Story còn đề xuất một `pipeline.py` riêng, nhưng không nói Validator
 
 **Date**: 2026-11-06 (bổ sung sau review 2026-11-07)
 **Version**: 0.21.0
+
+### D51. Phòng thi: hạn phiên cắt theo pha, ân hạn 10 giây, liên kết NV ↔ phiên suy ra, bố cục đề ở PostgreSQL, hash Redis + Lua, giới hạn tần suất (US-4.3) (chốt điểm mở của US-4.3; giữ Q2 như D49)
+
+**Context**: Story US-4.3 viết ngày 2026-10-07, trước D49 và D50. Story để mở các điểm sau:
+
+- SV bắt đầu sát hạn pha *Làm test*: `deadline_at` có được vượt `testing_end` không.
+- Có ân hạn cho lần lưu tới server sau `deadline_at` vì trễ mạng không.
+- Tham số `share_exam_by_position_group` (Q2), trong khi D49 đã chốt mỗi JD một ngân hàng.
+- AC giao diện kiểm bằng Playwright, nhưng repo chưa cài Playwright.
+
+Story còn đề xuất cột `preferences.exam_session_id`, và các cột `status`, `row_version` của `exam_sessions` mà ARCH chưa có.
+
+**Decision** (người dùng chốt bốn điểm mở theo cột Đề xuất ngày 2026-11-08):
+
+- **Hạn phiên:** `deadline_at = min(started_at + blueprint.duration_minutes, testing_end)`.
+  - Thời lượng lấy từ ma trận của ngân hàng đã khóa, không lấy `campaigns.config.t_test_minutes` lúc bắt đầu, nên mọi SV của một JD có cùng T_test (BR-05).
+  - Chỉ SV tự bắt đầu muộn mới bị cắt; trang bắt đầu cảnh báo khi còn ít hơn T_test.
+  - Sau `testing_end` không bắt đầu được (`assertPhase`).
+- **Ân hạn** `EXAM_SAVE_GRACE_MS = 10_000`: tự lưu và nộp được nhận tới `deadline_at + 10 s`. `submitted_at` không bao giờ vượt `deadline_at`. Tác vụ quét chỉ đóng phiên đã qua `deadline_at + 10 s`.
+- **Q2 giữ như D49:** bỏ AC-14 cũ và tham số `share_exam_by_position_group`. Unique `exam_sessions(student_id, bank_id)` vẫn đúng khi sau này các JD dùng chung ngân hàng; story làm phần đó sẽ thêm tham số.
+- **AC giao diện kiểm tay** ở 360 / 768 / 1024 px. Playwright cài ở US-6.6.
+- **Liên kết NV ↔ phiên được suy ra, không thêm cột.** `preferences(student_id, jd_id)` và `question_banks(jd_id)` đều unique, nên mỗi `exam_sessions(student_id, bank_id)` ứng với đúng một NV. `assessment` không ghi bảng `preferences`.
+- **Dữ liệu** (migration `0032`):
+  - `exam_sessions`: id, student_id, bank_id, bank_version, seed, question_ids (thứ tự hiển thị), option_layout JSONB (`{questionId: [{code, index}]}` theo thứ tự hiển thị, chỉ server đọc), started_at, deadline_at, submitted_at, status (`IN_PROGRESS → SUBMITTED | EXPIRED`, `packages/shared/states/exam-session.ts`), row_version.
+  - Ràng buộc: unique(student_id, bank_id) (BR-06); CHECK `deadline_at > started_at`, `(status = 'IN_PROGRESS') = (submitted_at is null)`, `submitted_at <= deadline_at`; index một phần `(deadline_at) WHERE status = 'IN_PROGRESS'`.
+  - `exam_answers`: PK(session_id, question_id), `answer` JSONB. MCQ lưu `{code, option}`, trong đó `option` là vị trí gốc để US-4.4 chấm; tự luận lưu `{text}`.
+  - `exam_events` (session_id, type, occurred_at): US-4.7 ghi.
+  - Cột chấm của ARCH (`s_test`, `skill_scores`, `flags`, `auto_score`, `ai_grading`…) do US-4.4, US-4.6 thêm.
+  - Câu bị loại sau khi rút đề (`retireQuestion`) vẫn hiển thị khi làm tiếp, vì đề đọc theo `question_ids` chứ không qua `getDrawableQuestions`.
+- **Rút đề:** hàm thuần `drawExam({ questions, blueprint, seed })` trong `assessment/domain/`, PRNG có seed (mulberry32).
+  - Câu nhóm theo ô bằng `skillKey`; trong ô sắp theo `id`, rồi Fisher–Yates lấy đủ số câu.
+  - Xáo trong phần A, rồi trong phần B; phần A hiển thị trước.
+  - Phương án MCQ được xáo và mang mã mờ sinh từ PRNG, nên mã khác nhau giữa các phiên.
+  - Seed lấy bằng `crypto.randomInt` ở tầng application. Câu của ngân hàng cache trong tiến trình theo `(bank_id, version)`.
+- **Bắt đầu**, trong một giao dịch, theo thứ tự (LESSONS §38):
+  1. `PreferenceExamService.lockForExam`: khóa NV `FOR UPDATE`; phải là NV của chính SV và ở `PENDING_TEST`;
+  2. `CampaignService.assertPhase(campaignId, ['TESTING'], { tx })`;
+  3. ngân hàng theo `jd_id`, `FOR SHARE`: phải `LOCKED`, phiên bản bằng bản đã rút (lệch thì rút lại một lần);
+  4. phiên đã có: đang mở thì trả lại; đã đóng thì `409 EXAM_ALREADY_TAKEN`;
+  5. `INSERT … ON CONFLICT (student_id, bank_id) DO NOTHING`, rồi audit.
+
+  Redis được ghi sau commit.
+- **Redis:** hash `exam:{id}:session` (`student`, `deadline`, `closed`, `items` = mã hợp lệ của từng câu) thay chuỗi `exam:{id}:deadline`; giữ `exam:{id}:answers`. Hai script Lua:
+  - `saveAnswers`: kiểm chủ phiên, `closed`, `now ≤ deadline + grace` (`now` lấy từ `Clock`), mã hợp lệ, rồi `HSET` / `HDEL`. Tự lưu không truy vấn PostgreSQL.
+  - `closeAndRead`: đặt `closed = 1` rồi `HGETALL`, nên không lần lưu nào lọt vào sau ảnh chụp lúc nộp.
+  - Mất key thì dựng lại từ PostgreSQL rồi thử lại một lần. TTL đến `deadline_at + 1 ngày`. Mất dữ liệu Redis giữa giờ thi thì mất câu trả lời chưa nộp; compose bật AOF.
+- **Đóng phiên** (nộp bài và hết giờ đi cùng một đường): `closeAndRead`, rồi trong một giao dịch ghi `exam_answers` (lọc theo bố cục) và `transitionTo(..., set: { submittedAt })`.
+  - SV nộp: `SUBMITTED`, `submitted_at = min(now, deadline_at)`.
+  - Nộp sau ân hạn, hoặc tác vụ quét: `EXPIRED`, `submitted_at = deadline_at`.
+  - Phiên đã đóng thì trả kết quả cũ. Sau commit phát `exam.session.closed`.
+- **Tác vụ quét** `ExamScheduler`, mỗi phút, `withAdvisoryLock(EXAM_SWEEP = 4301)`:
+  1. đóng các phiên hết giờ;
+  2. với đợt `TESTING` / `ALLOCATION_REVIEW` đã qua `testing_end`, mỗi NV `PENDING_TEST` chưa có phiên là một giao dịch: khóa NV, kiểm lại chưa có phiên, `PENDING_TEST → CLOSED` với lý do `TEST_NOT_TAKEN`, thông báo `EXAM_NOT_TAKEN` (trong app và email, `dedupe_key` theo NV). Lệch `row_version` thì bỏ qua dòng đó.
+- **US-4.4 phải có tác vụ quét** phiên đã đóng mà chưa chấm: `exam.session.closed` chỉ sống trong tiến trình ([LESSONS §34](LESSONS.md)).
+- **API** (`@Roles('STUDENT')`): `GET /api/me/exams`, `POST /api/preferences/:id/exam/start`, `GET /api/exam-sessions/:id`, `PUT /api/exam-sessions/:id/answers`, `POST /api/exam-sessions/:id/submit`.
+  - Response viết dạng whitelist ở `packages/shared/schemas/exam-session.ts`.
+  - Mã lỗi mới: `EXAM_ALREADY_TAKEN`, `EXAM_CLOSED`, `EXAM_ANSWER_INVALID`, `EXAM_BANK_INCOMPLETE`, `PREFERENCE_NOT_PENDING_TEST`, `RATE_LIMITED`.
+- **Giới hạn tần suất** `ratelimit:{userId}:{route}` (`INCR` + `EXPIRE 60 NX`), bằng `@RateLimit` + `RateLimitGuard` ở `common/rate-limit/`. Mỗi phút: bắt đầu 10, xem phiên 30, tự lưu 120, nộp 10, danh sách 30. Redis lỗi thì cho qua và ghi log.
+
+**Rationale**:
+
+- Cắt theo `testing_end` giữ đúng PRD ("không làm trước hạn thì NV bị hủy"), và phân bổ chạy được ngay sau hạn pha mà không phải chờ phiên nào.
+- 10 giây ân hạn che trễ mạng của lần lưu cuối trên điện thoại. Người sửa client chỉ được thêm tối đa 10 giây trên 45 phút.
+- Liên kết suy ra thì không có cột phải giữ đồng bộ, và `assessment` không ghi bảng của module khác (Nguyên tắc 13).
+- Lưu bố cục thì việc làm tiếp và việc chấm không phụ thuộc phiên bản ngân hàng về sau. Mã mờ theo phiên không cho đối chiếu mã giữa các SV.
+- Lua gộp bước kiểm và bước ghi thành một thao tác nguyên tử, nên không có lần lưu nào được báo "Đã lưu" mà không vào bài nộp.
+
+**Alternatives considered**:
+
+- **Đủ T_test, vượt `testing_end`:** người dùng không chọn, vì phân bổ phải chờ phiên cuối.
+- **Không cho bắt đầu khi còn ít hơn T_test:** người dùng không chọn, vì SV vào muộn mất NV.
+- **Không ân hạn:** người dùng không chọn.
+- **Thêm `share_exam_by_position_group` dù chưa có tác dụng:** người dùng không chọn.
+- **Cài Playwright ngay:** người dùng không chọn, vì tốn thêm 1–2 điểm công.
+- **`preferences.exam_session_id` ghi qua service của `matching`:** loại. Thêm một lần ghi chéo module trong giao dịch bắt đầu mà không thêm thông tin.
+- **Dựng lại đề từ `seed` mỗi lần làm tiếp:** loại. Ngân hàng tăng `version` khi loại câu, nên đề dựng lại sẽ khác.
+- **Kiểm rồi ghi bằng hai lệnh Redis:** loại. Một lần lưu chen vào giữa lúc nộp sẽ mất, trong khi client vẫn báo đã lưu.
+- **`@nestjs/throttler`:** loại. Thư viện ngoài danh sách của ARCH; một guard nhỏ trên Redis là đủ.
+
+**Impact**:
+
+- ARCHITECTURE: *Frontend › Phòng thi*, *Tác vụ định kỳ*, *Các bảng chính* (`exam_sessions`, `exam_answers`, `exam_events`), *Redis*.
+- PRD: GĐ5 › *Tổ chức thi* (hạn phiên không vượt hạn pha).
+- Code:
+  - `packages/shared`: `states/exam-session.ts`, `schemas/exam-session.ts`, mã lỗi, loại thông báo `EXAM_NOT_TAKEN`.
+  - Migration `0032`; `common/rate-limit/`.
+  - Module `assessment`: rút đề, phòng thi, tác vụ quét. `PreferenceExamService` của `matching`.
+  - `apps/web/src/features/exam/`.
+- Story sau:
+  - US-4.4: chấm từ `exam_answers`, quét phiên chưa chấm, thêm cột chấm.
+  - US-4.7: ghi `exam_events`. US-4.8: thêm phần D.
+  - US-6.6: k6 gọi các endpoint trên.
+
+**Date**: 2026-11-08
+**Version**: 0.22.0
+
+### D52. Phòng thi: mã phương án lấy từ nguồn ngẫu nhiên mật mã, không từ seed; đóng phiên lỗi thì Redis nhận lưu lại (US-4.3) (revision of D51)
+
+**Context**: Phiên review của US-4.3 (2026-11-08) tìm thấy hai chỗ D51 chưa đủ:
+
+- D51 sinh mã mờ của phương án từ cùng chuỗi mulberry32 có seed dùng để xáo phương án. Trạng thái của mulberry32 chỉ 32 bit và tăng đều mỗi lần gọi. Từ một mã thấy được trên đề, có thể dò ra trạng thái, rồi suy ngược toàn bộ chuỗi, tức là vị trí gốc của mọi phương án. Test Generator lưu phương án theo đúng thứ tự LLM viết, mà LLM hay đặt đáp án đúng ở một số vị trí nhất định. Vì vậy lộ vị trí gốc là lộ một phần đáp án (Nguyên tắc 8, AC-3).
+- `closeAndRead` đặt `closed = 1` trước giao dịch đóng phiên. Giao dịch lỗi thì phiên vẫn `IN_PROGRESS` trong PostgreSQL, nhưng Redis từ chối mọi lần lưu sau đó.
+
+**Decision**:
+
+- `drawExam` nhận thêm `codes`, một nguồn số nguyên đều trong `[0, 36^6)` cho mã phương án. `ExamSessionService` truyền `crypto.randomInt`. Seed vẫn quyết định câu nào, thứ tự câu và thứ tự phương án (AC-2 giữ nguyên). Mã đã lưu trong `option_layout`, nên làm tiếp và chấm không cần dựng lại mã từ seed.
+- Giao dịch đóng phiên lỗi thì đọc lại phiên. Nếu phiên vẫn `IN_PROGRESS`, script `examReopen` đặt lại `closed = 0` (chỉ khi key còn). Khi Redis mất phiên và một request khác đã dựng lại phiên ở trạng thái mở trong lúc đóng (`create` trả `false`), lần đóng gọi `closeAndRead` thêm một lần.
+
+**Rationale**: Mã chỉ cần không đoán được và khác nhau giữa các phiên; không cần tái lập từ seed. Tách mã khỏi chuỗi của seed thì phía client không còn đầu ra nào của PRNG. Thứ tự câu và thứ tự phương án vẫn là hoán vị của những thứ SV không biết bản gốc. Mở lại Redis có thể chạy cùng lúc với một lần đóng khác đã commit, nhưng tác vụ quét chỉ đóng phiên đã qua ân hạn, khi script lưu đã từ chối theo `deadline`. Chỉ còn trường hợp hai lần nộp cùng lúc mà một lần lỗi DB.
+
+**Alternatives considered**:
+
+- **Đổi mulberry32 sang PRNG mật mã có seed (HMAC theo seed):** loại. Seed là `integer` 31 bit, nên vẫn dò hết được khi biết thuật toán.
+- **Xáo phương án khi Test Generator lưu câu:** cần ngân hàng đã khóa được sinh lại, và vẫn lộ vị trí khi bộ sinh có lỗi. Có thể làm thêm sau, không thay cho việc tách mã.
+
+**Impact**: `assessment/domain/draw-exam.ts` (`codes`, `OPTION_CODE_SPACE`), `exam-session.service.ts` (`closeInRedis`, `reopenIfOpen`), `exam-answer-store.ts` (`reopen`). Test: `draw-exam.spec.ts` › `AC-3 the option codes come from their own source`; `exam-room.int-spec.ts` › `a close that fails lets saves in again`.
+
+**Date**: 2026-11-08
+**Version**: 0.22.0

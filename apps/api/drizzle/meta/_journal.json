@@ -225,6 +225,20 @@
       "when": 1794062029823,
       "tag": "0031_question_bank_lock_triggers",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1794106140321,
+      "tag": "0032_exam_sessions",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1794109208274,
+      "tag": "0033_exam_not_taken_notice",
+      "breakpoints": true
     }
   ]
 }

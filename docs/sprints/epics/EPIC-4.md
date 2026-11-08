@@ -66,7 +66,7 @@ Ranh giới mà epic này giữ: chấm trắc nghiệm, tính S_test, S_final v
 |----|-------|--------|
 | FR-18 | US-4.1, US-4.2 | 🚧 in-progress |
 | FR-19 | US-4.9 | 📋 backlog |
-| FR-20 | US-4.3 | 📋 backlog |
+| FR-20 | US-4.3 | 🚧 in-progress |
 | FR-21 | US-4.7 | 📋 backlog |
 | FR-22 | US-4.4 | 📋 backlog |
 | FR-23 | US-4.5 | 📋 backlog |
@@ -88,7 +88,7 @@ Ranh giới mà epic này giữ: chấm trắc nghiệm, tính S_test, S_final v
 |---|---|---|---|---|
 | US-4.1 | Ma trận đề và Test Generator | Mỗi JD được duyệt có ngân hàng câu hỏi nháp phủ đủ ma trận đề | 👀 review | 0.20.0 |
 | US-4.2 | Validator và khóa ngân hàng câu hỏi | Chỉ câu đã kiểm định vào ngân hàng; ngân hàng khóa và có phiên bản | 👀 review | 0.21.0 |
-| US-4.3 | Phòng thi | SV làm bài 1 lần, giờ do server tính, tự lưu, làm tiếp khi mất mạng | 📋 backlog | — |
+| US-4.3 | Phòng thi | SV làm bài 1 lần, giờ do server tính, tự lưu, làm tiếp khi mất mạng | 👀 review | 0.22.0 |
 | US-4.4 | Chấm bài, S_test và S_final | Mỗi bài có S_test, bản đồ năng lực và S_final | 📋 backlog | — |
 | US-4.5 | Chấm tay câu tự luận được chuyển | Người chấm chấm các câu AI không chắc chắn | 📋 backlog | — |
 | US-4.6 | Phúc khảo và báo lỗi câu hỏi | SV phúc khảo trong 48 giờ; câu sai bị loại và bài liên quan được chấm lại | 📋 backlog | — |

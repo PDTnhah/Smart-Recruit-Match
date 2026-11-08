@@ -1,7 +1,11 @@
 import {
   ACTOR_KINDS,
   type ActorKind,
+  EXAM_SESSION_STATES,
   type ExamBlueprint,
+  type ExamOptionLayout,
+  type ExamSessionStatus,
+  type ExamStoredAnswer,
   type MissingCell,
   QUESTION_BANK_STATES,
   QUESTION_DIFFICULTIES,
@@ -19,11 +23,12 @@ import {
   type QuestionValidation,
 } from '@srm/shared';
 import { sql } from 'drizzle-orm';
-import { bigint, check, index, integer, jsonb, text, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
+import { bigint, check, index, integer, jsonb, primaryKey, text, unique, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 import { campaigns } from './campaigns.js';
 import { id, oneOf, ref, rowVersion, timestamptz, timestamps } from './columns.js';
 import { core } from './core.js';
 import { jobDescriptions } from './job-descriptions.js';
+import { students } from './students.js';
 import { users } from './users.js';
 
 /**
@@ -148,5 +153,94 @@ export const questions = core.table(
     check('questions_version_check', sql`${t.version} > 0`),
     // Same pattern as ai.llm_calls.prompt_version: `<agent>/v<N>`.
     check('questions_prompt_version_check', sql`${t.promptVersion} ~ '^[a-z][a-z0-9_]*/v[1-9][0-9]*$'`),
+  ],
+);
+
+/**
+ * A student's single attempt at the test of one preference (FR-20, BR-06, US-4.3, CONTEXT D51).
+ * The preference is not referenced: `preferences(student_id, jd_id)` and `question_banks(jd_id)` are
+ * both unique, so `(student_id, bank_id)` names exactly one. The draw is kept whole, so the same
+ * paper shows again after a reload, even with a question retired since: `question_ids` in display
+ * order, `option_layout` with the opaque code and original index of each MCQ option (server only,
+ * AGENTS › Invariant 8). `deadline_at` is `min(started_at + duration, testing_end)`; `submitted_at`
+ * is set with the closing status, never after `deadline_at`. US-4.4 adds the grading columns.
+ */
+export const examSessions = core.table(
+  'exam_sessions',
+  {
+    id: id(),
+    studentId: ref('student_id')
+      .notNull()
+      .references(() => students.id),
+    bankId: ref('bank_id')
+      .notNull()
+      .references(() => questionBanks.id),
+    /** `question_banks.version` the paper was drawn from (US-4.2 AC-7). */
+    bankVersion: integer('bank_version').notNull(),
+    /** Seed of the draw: the same bank version and seed give the same paper (BR-05, AC-2). */
+    seed: integer('seed').notNull(),
+    questionIds: bigint('question_ids', { mode: 'number' }).array().notNull(),
+    optionLayout: jsonb('option_layout').$type<ExamOptionLayout>().notNull(),
+    startedAt: timestamptz('started_at').notNull(),
+    deadlineAt: timestamptz('deadline_at').notNull(),
+    /** Set with SUBMITTED or EXPIRED, in the same UPDATE (`transitionTo` `set`). */
+    submittedAt: timestamptz('submitted_at'),
+    status: text('status').$type<ExamSessionStatus>().notNull().default('IN_PROGRESS'),
+    rowVersion: rowVersion(),
+    ...timestamps(),
+  },
+  (t) => [
+    // BR-06 (AGENTS › Invariant 11): one attempt per student and bank, so per preference.
+    unique('exam_sessions_student_bank_key').on(t.studentId, t.bankId),
+    oneOf('exam_sessions_status_check', t.status, EXAM_SESSION_STATES),
+    check('exam_sessions_deadline_check', sql`${t.deadlineAt} > ${t.startedAt}`),
+    check('exam_sessions_submitted_check', sql`(${t.status} = 'IN_PROGRESS') = (${t.submittedAt} is null)`),
+    check('exam_sessions_submitted_at_check', sql`${t.submittedAt} between ${t.startedAt} and ${t.deadlineAt}`),
+    check('exam_sessions_draw_check', sql`${t.bankVersion} > 0 and ${t.seed} >= 0 and cardinality(${t.questionIds}) > 0`),
+    // The sweep closes open sessions past their deadline (AC-9).
+    index('exam_sessions_open_deadline_idx')
+      .on(t.deadlineAt)
+      .where(sql`${t.status} = 'IN_PROGRESS'`),
+  ],
+);
+
+/**
+ * Answers of a closed session, written once from Redis in the transaction that closes it (AC-8).
+ * `answer` holds the original index of an MCQ option for grading (US-4.4); it never leaves the
+ * server. US-4.4 and US-4.6 add the score columns.
+ */
+export const examAnswers = core.table(
+  'exam_answers',
+  {
+    sessionId: ref('session_id')
+      .notNull()
+      .references(() => examSessions.id),
+    questionId: ref('question_id')
+      .notNull()
+      .references(() => questions.id),
+    answer: jsonb('answer').$type<ExamStoredAnswer>().notNull(),
+    createdAt: timestamptz('created_at').notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.sessionId, t.questionId] })],
+);
+
+/**
+ * What happened in a session, for the cheating signals of US-4.7, which adds the list of types and
+ * the endpoint that writes them. Signals only warn; they never fail a student (Invariant 8).
+ */
+export const examEvents = core.table(
+  'exam_events',
+  {
+    id: id(),
+    sessionId: ref('session_id')
+      .notNull()
+      .references(() => examSessions.id),
+    type: text('type').notNull(),
+    occurredAt: timestamptz('occurred_at').notNull(),
+    createdAt: timestamptz('created_at').notNull().defaultNow(),
+  },
+  (t) => [
+    index('exam_events_session_id_idx').on(t.sessionId),
+    check('exam_events_type_check', sql`${t.type} ~ '^[A-Z][A-Z_]*$'`),
   ],
 );

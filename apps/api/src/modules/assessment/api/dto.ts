@@ -1,7 +1,12 @@
 import {
   ExamBlueprintViewSchema,
+  ExamPaperSchema,
+  ExamSubmissionSchema,
   LockQuestionBankRequestSchema,
+  MyExamsResponseSchema,
   QuestionGenerationRunSchema,
+  SaveExamAnswersRequestSchema,
+  SaveExamAnswersResultSchema,
   UpdateExamBlueprintRequestSchema,
 } from '@srm/shared';
 import { createZodDto } from 'nestjs-zod';
@@ -15,3 +20,15 @@ export class UpdateExamBlueprintRequestDto extends createZodDto(UpdateExamBluepr
 export class QuestionGenerationRunDto extends createZodDto(QuestionGenerationRunSchema) {}
 
 export class LockQuestionBankRequestDto extends createZodDto(LockQuestionBankRequestSchema) {}
+
+// Exam room (US-4.3): responses are whitelists (AGENTS › Invariant 8).
+
+export class ExamPaperDto extends createZodDto(ExamPaperSchema) {}
+
+export class SaveExamAnswersRequestDto extends createZodDto(SaveExamAnswersRequestSchema) {}
+
+export class SaveExamAnswersResultDto extends createZodDto(SaveExamAnswersResultSchema) {}
+
+export class ExamSubmissionDto extends createZodDto(ExamSubmissionSchema) {}
+
+export class MyExamsResponseDto extends createZodDto(MyExamsResponseSchema) {}

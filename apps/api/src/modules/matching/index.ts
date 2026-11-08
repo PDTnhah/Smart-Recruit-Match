@@ -2,6 +2,7 @@
 export { MatchingModule } from './matching.module.js';
 export { MATCHING_PHASES, RunMatchingService } from './application/run-matching.service.js';
 export { RecomputeScvService, type ScvRecompute } from './application/recompute-scv.js';
+export { type ExamPreference, PreferenceExamService } from './application/preference-exam.service.js';
 export {
   PREFERENCES_AUTO_ASSIGNED,
   PREFERENCES_REPLACED,
