@@ -13,6 +13,8 @@ from app.consumers.base import DEFERRED, Deferred
 from app.consumers.outbox import RabbitOutbox
 from app.contracts.cv_parse_job import CvParseJob
 from app.contracts.cv_parse_output import CvParseOutput
+from app.contracts.essay_grade_job import EssayGradeJob
+from app.contracts.essay_grade_output import EssayGradeOutput
 from app.contracts.jd_analyze_job import JdAnalyzeJob
 from app.contracts.jd_analyze_output import JdAnalyzeOutput
 from app.contracts.match_failed_pair import MatchFailedPair
@@ -96,12 +98,18 @@ async def stub_questions_generate(job: QuestionsGenerateJob) -> QuestionsGenerat
     )
 
 
+async def stub_essay_grade(job: EssayGradeJob) -> EssayGradeOutput:
+    """Stands in for the Grader (tests/agents/grader): no answer to grade."""
+    return EssayGradeOutput(prompt_version="grader/v1", final=True, items=[], failed=[])
+
+
 STUBS = {
     "cv_parser": stub_cv_parse,
     "jd_analyzer": stub_jd_analyze,
     "skill_normalizer": stub_skill_normalize,
     "matching": stub_match,
     "test_generator": stub_questions_generate,
+    "grader": stub_essay_grade,
 }
 HANDLERS = build_handlers(**STUBS, fake_file_keys=True)
 

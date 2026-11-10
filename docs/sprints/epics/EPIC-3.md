@@ -53,7 +53,7 @@ Epic này **không** tính S_test hay S_final và không phân bổ. Các phần
 
 ### Out of scope
 
-- **S_test, S_final, quy tắc phá hòa** — thuộc [EPIC-4](EPIC-4.md) (US-4.4).
+- **S_test, S_final** — thuộc [EPIC-4](EPIC-4.md) (US-4.4). **Quy tắc phá hòa** — hàm so sánh thuộc [EPIC-5](EPIC-5.md) (US-5.1); US-4.4 chỉ cung cấp dữ liệu ([CONTEXT D53](../../CONTEXT.md)).
 - **Thêm NV ở vòng bổ sung** — thuộc [EPIC-5](EPIC-5.md) (US-5.5); dùng lại màn chọn NV của US-3.3.
 - **Báo cáo tỷ lệ NV/chỉ tiêu trên dashboard** — thuộc [EPIC-6](EPIC-6.md) (US-6.1). US-3.4 chỉ gửi cảnh báo cho Trung tâm.
 

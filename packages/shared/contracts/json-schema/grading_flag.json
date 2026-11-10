@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./grading_flag.json",
+  "type": "string",
+  "enum": [
+    "INSTRUCTION_IN_ANSWER"
+  ],
+  "title": "GradingFlag",
+  "description": "INSTRUCTION_IN_ANSWER: the answer tries to instruct the grader"
+}

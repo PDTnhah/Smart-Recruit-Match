@@ -16,6 +16,8 @@ const ROW_COLUMNS = {
   jdId: preferences.jdId,
   rank: preferences.rank,
   status: preferences.status,
+  sFinal: preferences.sFinal,
+  sCv: preferences.sCv,
   rowVersion: preferences.rowVersion,
 };
 
@@ -27,6 +29,10 @@ export interface PreferenceRow {
   jdId: number;
   rank: number;
   status: ApplicationStatus;
+  /** 0–100, set with TEST_GRADED (US-4.4 AC-10); null before. */
+  sFinal: number | null;
+  /** The S_cv (0–100) S_final was computed from, set with it; null before. */
+  sCv: number | null;
   rowVersion: number;
 }
 
@@ -92,6 +98,23 @@ export class PreferencesRepository {
   /** One preference by id; `FOR UPDATE` when `lock` is set, inside `tx`. */
   async findRow(id: number, options: { tx?: DbTx; lock?: 'update' } = {}): Promise<PreferenceRow | undefined> {
     const query = (options.tx ?? this.db).select(ROW_COLUMNS).from(preferences).where(eq(preferences.id, id));
+    const [row] = options.lock ? await query.for(options.lock) : await query;
+    return row;
+  }
+
+  /**
+   * The student's preference for the JD (unique `(student_id, jd_id)`); `FOR UPDATE` when `lock`
+   * is set, inside `tx`.
+   */
+  async findByStudentAndJd(
+    studentId: number,
+    jdId: number,
+    options: { tx?: DbTx; lock?: 'update' } = {},
+  ): Promise<PreferenceRow | undefined> {
+    const query = (options.tx ?? this.db)
+      .select(ROW_COLUMNS)
+      .from(preferences)
+      .where(and(eq(preferences.studentId, studentId), eq(preferences.jdId, jdId)));
     const [row] = options.lock ? await query.for(options.lock) : await query;
     return row;
   }

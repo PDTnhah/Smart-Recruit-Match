@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { EXAM_PARTS, QUESTION_TYPES } from '../contracts/exam-blueprint.js';
 import { EXAM_SESSION_STATES } from '../states/exam-session.js';
+import { EXAM_RESULT_STATES } from './exam-result.js';
 
 // The exam room of GĐ5 (FR-20, BR-05, BR-06, US-4.3, CONTEXT D51).
 
@@ -160,6 +161,11 @@ export const MyExamItemSchema = z.object({
    * first (CONTEXT D51). Null unless `canStart`.
    */
   secondsIfStartedNow: z.number().int().min(0).nullable(),
+  /**
+   * Where the results of the closed session stand (US-4.4 AC-12): GRADING until they are
+   * published, then PUBLISHED. Null without a closed session.
+   */
+  resultState: z.enum(EXAM_RESULT_STATES).nullable(),
 });
 
 export type MyExamItem = z.output<typeof MyExamItemSchema>;

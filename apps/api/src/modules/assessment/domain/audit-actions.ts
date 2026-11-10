@@ -16,6 +16,16 @@ export const ASSESSMENT_AUDIT_ACTIONS = {
    * bankVersion, seed, deadlineAt }`. Closing the session is its TRANSITION entry.
    */
   EXAM_SESSION_STARTED: 'EXAM_SESSION_STARTED',
+  /**
+   * Closed sessions of a campaign were sent to the Grader (US-4.4 AC-2); entity the run, after is
+   * `{ campaignId, jobId, sessionCount }`.
+   */
+  ESSAY_GRADING_DISPATCHED: 'ESSAY_GRADING_DISPATCHED',
+  /**
+   * The results of a session were computed and published (US-4.4 AC-11); after is `{ scoreA,
+   * scoreB, sTest, preferenceId, sFinal }`. The preference's move is its own TRANSITION entry.
+   */
+  EXAM_RESULTS_PUBLISHED: 'EXAM_RESULTS_PUBLISHED',
 } as const;
 
 /** Audit entity of a question bank, its `entity_id` the bank id; also `questionBankMachine.name`. */
@@ -23,3 +33,6 @@ export const QUESTION_BANK_ENTITY = 'question_bank';
 
 /** Audit entity of an exam session, its `entity_id` the session id; also `examSessionMachine.name`. */
 export const EXAM_SESSION_ENTITY = 'exam_session';
+
+/** Audit entity of an essay grading run (US-4.4), its `entity_id` the run id. */
+export const ESSAY_GRADING_RUN_ENTITY = 'essay_grading_run';

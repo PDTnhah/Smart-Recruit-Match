@@ -48,6 +48,7 @@ describe('GĐ0: campaign config schema', () => {
       no_preference_policy: 'AUTO_ASSIGN_TOP_SCV',
       require_full_preferences: false,
       competition_thresholds: { low_below: 1, high_from: 3 },
+      appeal_window_hours: 48,
     });
     expect(CampaignConfigSchema.parse({})).toEqual(DEFAULT_CAMPAIGN_CONFIG);
   });
@@ -76,6 +77,13 @@ describe('GĐ0: campaign config schema', () => {
     const topM = (value: number) => CampaignConfigSchema.safeParse({ match_top_m: value }).success;
     expect([topM(1), topM(50)]).toEqual([true, true]);
     expect([topM(0), topM(51), topM(2.5)]).toEqual([false, false, false]);
+  });
+
+  it('GĐ6 appeal_window_hours defaults to 48 and accepts whole hours from 1 to 168 (US-4.4 AC-14)', () => {
+    const hours = (value: number) => CampaignConfigSchema.safeParse({ appeal_window_hours: value }).success;
+    expect(CampaignConfigSchema.parse({ n_nv: 4 }).appeal_window_hours).toBe(48);
+    expect([hours(1), hours(168)]).toEqual([true, true]);
+    expect([hours(0), hours(169), hours(1.5)]).toEqual([false, false, false]);
   });
 
   it('GĐ0: create request fills config and deadlines when they are left out', () => {

@@ -66,6 +66,7 @@ def test_ad6_queues_json_ships_with_the_package() -> None:
         "SKILL_NORMALIZE",
         "MATCH",
         "QUESTIONS_GENERATE",
+        "ESSAY_GRADE",
     }
 
 

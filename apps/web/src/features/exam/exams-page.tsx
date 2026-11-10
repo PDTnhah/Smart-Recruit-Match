@@ -1,5 +1,5 @@
 import type { MyExamItem, MyExamsResponse } from '@srm/shared';
-import { CalendarClock, CircleAlert, ClipboardCheck, Info, ListOrdered, Play, TriangleAlert } from 'lucide-react';
+import { CalendarClock, ChartColumn, CircleAlert, ClipboardCheck, Info, ListOrdered, Play, TriangleAlert } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -14,7 +14,7 @@ import { formatDateTime, formatMinutes } from '@/lib/format';
 import { ApiRequestError, apiErrorMessage } from '@/shared/api/errors';
 import { useMyExams, useStartExam } from './api';
 import { minutesLeftText, MY_EXAM_STATUS_BADGE, MY_EXAM_STATUS_LABELS } from './labels';
-import { examRoomPath } from './paths';
+import { examResultPath, examRoomPath } from './paths';
 
 function PageTitle() {
   return <h1 className="font-heading text-xl font-semibold md:text-2xl">Bài test</h1>;
@@ -107,6 +107,19 @@ function ExamCard({ item, testingOpen, onStart }: { item: MyExamItem; testingOpe
             <Link to={examRoomPath(item.sessionId)}>
               <ClipboardCheck data-icon="inline-start" />
               Làm tiếp
+            </Link>
+          </Button>
+        </CardFooter>
+      )}
+      {item.resultState !== null && item.sessionId !== null && (
+        <CardFooter className="flex flex-wrap items-center justify-between gap-2">
+          <span className="text-sm text-muted-foreground">
+            {item.resultState === 'PUBLISHED' ? 'Đã có kết quả.' : 'Bài đang được chấm.'}
+          </span>
+          <Button asChild variant={item.resultState === 'PUBLISHED' ? 'default' : 'outline'} className="w-full sm:w-auto">
+            <Link to={examResultPath(item.sessionId)}>
+              <ChartColumn data-icon="inline-start" />
+              Xem kết quả
             </Link>
           </Button>
         </CardFooter>

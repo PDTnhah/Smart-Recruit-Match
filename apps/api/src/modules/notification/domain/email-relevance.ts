@@ -26,6 +26,9 @@ export function emailStillRelevant(content: NotificationContent, now: Date): boo
     case 'EXAM_NOT_TAKEN':
       // A closed preference stays closed (BR-06, D51).
       return true;
+    case 'EXAM_RESULT_PUBLISHED':
+      // Published results stay published; an appeal changes a score, not that results exist (D53).
+      return true;
     case 'JD_REQUIREMENTS_READY':
     case 'JD_ANALYSIS_FAILED':
     case 'JD_REQUIREMENTS_VERSIONED':

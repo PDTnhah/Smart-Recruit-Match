@@ -104,6 +104,13 @@ export const PARAMETER_FIELDS: readonly ParameterField[] = [
     description: 'AI chỉ chấm dự án cho M JD có điểm kỹ năng cao nhất của mỗi CV. Từ 1 đến 50. Mặc định 10.',
     step: 1,
   },
+  {
+    key: 'appeal_window_hours',
+    label: 'Thời hạn phúc khảo (giờ)',
+    description:
+      'Tính từ lúc sinh viên nhận kết quả test. Hết hạn này, nguyện vọng có điểm test dưới θ_test mới bị loại. Từ 1 đến 168. Mặc định 48.',
+    step: 1,
+  },
 ];
 
 /** The five S_cv criteria (PRD › S_cv table); the student's explanation of a score uses the same names. */
@@ -178,3 +185,6 @@ export const OPEN_FAILURE_MESSAGES: Record<string, string> = {
   DEADLINES_MISSING: 'Đợt chưa đủ ba mốc thời gian. Thêm các mốc còn thiếu rồi mở lại.',
   DEADLINE_IN_PAST: 'Có mốc thời gian đã qua. Lùi các mốc đó về sau rồi mở lại.',
 };
+
+/** Phases in which CENTER can send the closed sessions' essays early (US-4.4 AC-2, CONTEXT D53). */
+export const ESSAY_GRADING_PHASES: readonly CampaignStatus[] = ['TESTING', 'ALLOCATION_REVIEW'];

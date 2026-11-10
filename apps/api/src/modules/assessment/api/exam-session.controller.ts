@@ -1,13 +1,15 @@
 import { Body, Controller, Get, HttpCode, Param, Post, Put } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import type { ExamPaper, ExamSubmission, MyExamsResponse, SaveExamAnswersResult } from '@srm/shared';
+import type { ExamPaper, ExamResult, ExamSubmission, MyExamsResponse, SaveExamAnswersResult } from '@srm/shared';
 import { ZodResponse } from 'nestjs-zod';
 import { type AuthUser, CurrentUser, Roles } from '../../../common/auth/index.js';
 import { RateLimit } from '../../../common/rate-limit/index.js';
 import { IdParamDto } from '../../../common/validation/id-param.dto.js';
+import { ExamResultService } from '../application/exam-result.service.js';
 import { ExamSessionService } from '../application/exam-session.service.js';
 import {
   ExamPaperDto,
+  ExamResultDto,
   ExamSubmissionDto,
   MyExamsResponseDto,
   SaveExamAnswersRequestDto,
@@ -22,7 +24,10 @@ import {
 @ApiTags('exams')
 @Controller()
 export class ExamSessionController {
-  constructor(private readonly exams: ExamSessionService) {}
+  constructor(
+    private readonly exams: ExamSessionService,
+    private readonly results: ExamResultService,
+  ) {}
 
   /** AC-14: the tests of the caller's preferences in their latest campaign. */
   @Roles('STUDENT')
@@ -63,6 +68,18 @@ export class ExamSessionController {
     @Body() body: SaveExamAnswersRequestDto,
   ): Promise<SaveExamAnswersResult> {
     return this.exams.saveAnswers(user, id, body);
+  }
+
+  /**
+   * US-4.4 AC-12: the results of the caller's closed session, GRADING until published; 409
+   * EXAM_NOT_CLOSED while it is open.
+   */
+  @Roles('STUDENT')
+  @RateLimit('exam.result', 30)
+  @Get('exam-sessions/:id/result')
+  @ZodResponse({ status: 200, type: ExamResultDto })
+  result(@CurrentUser() user: AuthUser, @Param() { id }: IdParamDto): Promise<ExamResult> {
+    return this.results.resultOf(user, id);
   }
 
   /** AC-8: submits; the same answer when sent again. */

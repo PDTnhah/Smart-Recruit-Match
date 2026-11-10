@@ -7,6 +7,7 @@ export const AI_JOB_QUEUES = {
   SKILL_NORMALIZE: 'ai.skills.normalize',
   MATCH: 'ai.match.run',
   QUESTIONS_GENERATE: 'ai.questions.generate',
+  ESSAY_GRADE: 'ai.essay.grade',
 } as const satisfies Record<AiJobType, string>;
 
 export const AI_RESULTS_QUEUE = 'ai.results';

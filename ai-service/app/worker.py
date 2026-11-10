@@ -20,6 +20,7 @@ from faststream.rabbit import Channel, RabbitBroker
 from psycopg_pool import AsyncConnectionPool
 
 from app.agents.cv_parser import CvParser
+from app.agents.grader import EssayGrader, GraderCompletion, PostgresEssayAnswerRepo
 from app.agents.jd_analyzer import JdAnalyzer, PostgresJdSourceRepo
 from app.agents.matching import MatchCompletion, MatchingAgent, PostgresMatchSourceRepo
 from app.agents.skill_normalizer import SkillNormalizerAgent
@@ -106,10 +107,14 @@ def create_app() -> FastStream:
     prompts = build_prompt_registry(llm_settings)
     outbox = RabbitOutbox(broker)
     match_sources = PostgresMatchSourceRepo(pool)
+    essay_answers = PostgresEssayAnswerRepo(pool)
     batches = BatchCoordinator(
         PostgresBatchStore(pool),
         build_batch_client(llm_settings, objects=log_store, calls=calls),
-        {"MATCH": MatchCompletion(sources=match_sources, llm=llm, outbox=outbox)},
+        {
+            "MATCH": MatchCompletion(sources=match_sources, llm=llm, outbox=outbox),
+            "ESSAY_GRADE": GraderCompletion(sources=essay_answers, llm=llm, outbox=outbox),
+        },
         owner=f"{socket.gethostname()}:{os.getpid()}",
         poll_seconds=settings.batch_poll_seconds,
     )
@@ -147,6 +152,7 @@ def create_app() -> FastStream:
             prompts=prompts,
             spend=calls,
         ),
+        grader=EssayGrader(sources=essay_answers, prompts=prompts, batches=batches),
         fake_file_keys=settings.fake_file_keys,
     )
     subscribe_all(broker, build_runners(PostgresJobStore(pool), outbox, handlers))

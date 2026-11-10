@@ -1,5 +1,6 @@
 {
   "cv_parser": "cv_parser/v2",
+  "grader": "grader/v1",
   "jd_analyzer": "jd_analyzer/v2",
   "matching": "matching/v1",
   "skill_normalizer": "skill_normalizer/v1",

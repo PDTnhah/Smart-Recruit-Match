@@ -400,6 +400,8 @@ describe('GĐ4 preference lists (US-3.3)', () => {
         to: 'TEST_GRADED' as const,
         actor: { kind: 'USER' as const, userId: 1 },
         reason: 'test graded',
+        // US-4.4: TEST_GRADED carries S_final and its S_cv (CHECKs preferences_s_final_status_check, preferences_s_cv_s_final_check).
+        set: { sCv: 70, sFinal: 61.5 },
       };
       await expect(ctx.service.transitionTo({ ...request, expectedRowVersion: 1 })).rejects.toMatchObject({
         code: 'ROW_VERSION_CONFLICT',

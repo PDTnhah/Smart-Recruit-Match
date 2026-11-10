@@ -1,5 +1,6 @@
 import type { CampaignDeadlineKey, Notification } from '@srm/shared';
 import { campaignPath } from '@/features/center/campaigns/paths';
+import { examResultPath } from '@/features/exam/paths';
 import { centerCvsPath } from '@/features/center/cvs/paths';
 import { jdApprovalPath } from '@/features/center/jd-approval/paths';
 import { hrJdPath } from '@/features/hr/jds/paths';
@@ -104,6 +105,14 @@ export function describeNotification(notification: Notification): NotificationVi
         title: `Nguyện vọng ${rank} đã bị hủy`,
         body: `Bạn chưa làm bài test cho "${jdTitle}" trước hạn của đợt "${campaignName}", nên nguyện vọng này không được xét phân bổ.`,
         href: DEADLINES.testing_end.href,
+      };
+    }
+    case 'EXAM_RESULT_PUBLISHED': {
+      const { rank, jdTitle, sessionId } = notification.payload;
+      return {
+        title: `Đã có kết quả test nguyện vọng ${rank}`,
+        body: `Bài test cho "${jdTitle}" đã được chấm. Xem điểm và nhận xét từng câu tự luận.`,
+        href: examResultPath(sessionId),
       };
     }
     case 'JD_LOW_PREFERENCES': {

@@ -42,6 +42,21 @@ describe('FR-8: notify input schema', () => {
     );
   });
 
+  it('GĐ6 the result notice names the session, not a score (US-4.4 AC-11)', () => {
+    const payload = {
+      campaignId: 1,
+      campaignName: 'Đợt HK1',
+      sessionId: 31,
+      preferenceId: 8,
+      rank: 2,
+      jdTitle: 'Backend Intern',
+      companyName: 'Công ty A',
+    };
+    const notice = { type: 'EXAM_RESULT_PUBLISHED', payload, userIds: [9], channels: ['IN_APP', 'EMAIL'] };
+    expect(NotifyInputSchema.safeParse(notice).success).toBe(true);
+    expect(NotifyInputSchema.safeParse({ ...notice, payload: { ...payload, sessionId: undefined } }).success).toBe(false);
+  });
+
   it('FR-8: needs at least one distinct recipient and one distinct channel', () => {
     expect(NotifyInputSchema.safeParse({ ...opened, userIds: [] }).success).toBe(false);
     expect(NotifyInputSchema.safeParse({ ...opened, userIds: [3, 3] }).success).toBe(false);

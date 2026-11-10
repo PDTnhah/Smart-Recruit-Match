@@ -10,7 +10,8 @@
 // real time (or none), so a scheduler run never moves another file's campaigns. Within 2001, the
 // phase scheduler test stays in January, the deadline reminder test uses late February–May
 // (US-1.7), the exam sweep test June–July (US-4.3). The email outbox test runs in 1999: its worker
-// only takes emails due by its clock.
+// only takes emails due by its clock. The grading sweep test (US-4.4) runs in March 2000, the
+// threshold sweep test in June 2000.
 import { Clock } from '../../src/common/clock/index.js';
 
 export interface Duration {

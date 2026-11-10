@@ -15,7 +15,7 @@ export default defineConfig({
       { find: /^@\//, replacement: `${srcDir}/` },
       // Consume @srm/shared from source so edits hot-reload without rebuilding the package.
       { find: /^@srm\/shared$/, replacement: `${sharedDir}/index.ts` },
-      { find: /^@srm\/shared\/(schemas|states|contracts)$/, replacement: `${sharedDir}/$1/index.ts` },
+      { find: /^@srm\/shared\/(schemas|states|contracts|scoring)$/, replacement: `${sharedDir}/$1/index.ts` },
     ],
   },
   server: {

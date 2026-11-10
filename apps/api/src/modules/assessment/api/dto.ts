@@ -1,6 +1,8 @@
 import {
+  EssayGradingDispatchSchema,
   ExamBlueprintViewSchema,
   ExamPaperSchema,
+  ExamResultSchema,
   ExamSubmissionSchema,
   LockQuestionBankRequestSchema,
   MyExamsResponseSchema,
@@ -32,3 +34,9 @@ export class SaveExamAnswersResultDto extends createZodDto(SaveExamAnswersResult
 export class ExamSubmissionDto extends createZodDto(ExamSubmissionSchema) {}
 
 export class MyExamsResponseDto extends createZodDto(MyExamsResponseSchema) {}
+
+// Grading (US-4.4).
+
+export class ExamResultDto extends createZodDto(ExamResultSchema) {}
+
+export class EssayGradingDispatchDto extends createZodDto(EssayGradingDispatchSchema) {}

@@ -16,6 +16,7 @@ import { CvAttentionPage } from '@/features/center/cvs/cv-attention-page';
 import { JdApprovalDetailPage } from '@/features/center/jd-approval/jd-approval-detail-page';
 import { JdApprovalListPage } from '@/features/center/jd-approval/jd-approval-list-page';
 import { SkillReviewPage } from '@/features/center/skills/skill-review-page';
+import { ExamResultPage } from '@/features/exam/exam-result-page';
 import { ExamRoomPage } from '@/features/exam/exam-room-page';
 import { ExamsPage } from '@/features/exam/exams-page';
 import { HrJdListPage } from '@/features/hr/jds/hr-jd-list-page';
@@ -79,6 +80,8 @@ export const router = createBrowserRouter([
       { path: 'preferences', element: <PreferencesPage /> },
       // US-4.3: "Bài test": the test of every preference, started from here.
       { path: 'exams', element: <ExamsPage /> },
+      // US-4.4: the results of a closed session.
+      { path: 'exams/:sessionId/result', element: <ExamResultPage /> },
     ],
     // US-1.6 AC-1: the home lists what to do now, starting with consent and CV for open campaigns.
     <StudentHomePage />,

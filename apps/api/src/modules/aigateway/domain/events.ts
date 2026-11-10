@@ -31,6 +31,7 @@ export const AI_RESULT_EVENTS = {
   SKILL_NORMALIZE: 'ai.result.SKILL_NORMALIZE',
   MATCH: 'ai.result.MATCH',
   QUESTIONS_GENERATE: 'ai.result.QUESTIONS_GENERATE',
+  ESSAY_GRADE: 'ai.result.ESSAY_GRADE',
 } as const satisfies { [T in AiJobType]: `ai.result.${T}` };
 
 export type AiResultEvent<T extends AiJobType> = AiResultOf<T>;

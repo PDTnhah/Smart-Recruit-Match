@@ -16,6 +16,9 @@ const DEADLINE_TASKS: Record<CampaignDeadlineKey, { task: string; path: string }
 /** The campaign page of the center portal; `/{campaignId}` follows (apps/web router). */
 const CENTER_CAMPAIGN_PATH = '/admin/campaigns';
 
+/** The result page of an exam session in the student portal (apps/web router, US-4.4). */
+const examResultPath = (sessionId: number) => `/sv/exams/${sessionId}/result`;
+
 /** Emails show Vietnam time, the time zone of the school, whatever the server runs in. */
 const DATE_TIME = new Intl.DateTimeFormat('vi-VN', {
   timeZone: 'Asia/Ho_Chi_Minh',
@@ -136,6 +139,14 @@ export class EmailRenderer {
           jdTitle: content.payload.jdTitle,
           companyName: content.payload.companyName,
           link: `${this.webOrigin}${DEADLINE_TASKS.testing_end.path}`,
+        };
+      case 'EXAM_RESULT_PUBLISHED':
+        return {
+          campaignName: content.payload.campaignName,
+          rank: String(content.payload.rank),
+          jdTitle: content.payload.jdTitle,
+          companyName: content.payload.companyName,
+          link: `${this.webOrigin}${examResultPath(content.payload.sessionId)}`,
         };
       case 'JD_REQUIREMENTS_READY':
       case 'JD_ANALYSIS_FAILED':

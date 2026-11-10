@@ -12,7 +12,7 @@ import {
   skillKey,
   toHundredths,
 } from '@srm/shared';
-import { add, over, type Ratio, roundHalfUp, times, ZERO } from './ratio.js';
+import { add, over, type Ratio, roundHalfUp, times, ZERO } from '@srm/shared/scoring';
 
 // S_cv = Σ wᵢ·sᵢ, computed by code from the per-criterion verdicts: skills judged by code (US-3.5),
 // the project rubric by the Matching Agent (PRD › S_cv, AD-2, US-3.1, CONTEXT D41, D42). Exact

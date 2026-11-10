@@ -48,7 +48,7 @@ Ranh giới mà epic này giữ: chấm trắc nghiệm, tính S_test, S_final v
 | US-4.3 | 8 | T9 (W49) | A | US-4.1, US-3.3 |
 | US-4.8 | 5 | T9 (W49) | B | US-4.1, US-2.4 |
 | US-4.9 | 2 | T9 (W49) | A | US-4.2 |
-| US-4.4 | 8 | T10 (W50) | A | US-4.3 |
+| US-4.4 | 13 | T10 (W50) | A | US-4.3 |
 | US-4.5 | 3 | T10 (W50) | A | US-4.4 |
 | US-4.7 | 3 | T10 (W50) | B | US-4.3, US-2.5 |
 | US-4.6 | 5 | T11 (W51) | B | US-4.4, US-4.5 |
@@ -68,7 +68,7 @@ Ranh giới mà epic này giữ: chấm trắc nghiệm, tính S_test, S_final v
 | FR-19 | US-4.9 | 📋 backlog |
 | FR-20 | US-4.3 | 🚧 in-progress |
 | FR-21 | US-4.7 | 📋 backlog |
-| FR-22 | US-4.4 | 📋 backlog |
+| FR-22 | US-4.4 | 🚧 in-progress |
 | FR-23 | US-4.5 | 📋 backlog |
 | FR-24 | US-4.6 | 📋 backlog |
 | FR-25 | US-4.8 | 📋 backlog |
@@ -89,7 +89,7 @@ Ranh giới mà epic này giữ: chấm trắc nghiệm, tính S_test, S_final v
 | US-4.1 | Ma trận đề và Test Generator | Mỗi JD được duyệt có ngân hàng câu hỏi nháp phủ đủ ma trận đề | 👀 review | 0.20.0 |
 | US-4.2 | Validator và khóa ngân hàng câu hỏi | Chỉ câu đã kiểm định vào ngân hàng; ngân hàng khóa và có phiên bản | 👀 review | 0.21.0 |
 | US-4.3 | Phòng thi | SV làm bài 1 lần, giờ do server tính, tự lưu, làm tiếp khi mất mạng | 👀 review | 0.22.0 |
-| US-4.4 | Chấm bài, S_test và S_final | Mỗi bài có S_test, bản đồ năng lực và S_final | 📋 backlog | — |
+| US-4.4 | Chấm bài, S_test và S_final | Mỗi bài có S_test, bản đồ năng lực và S_final | 👀 review | 0.23.0 |
 | US-4.5 | Chấm tay câu tự luận được chuyển | Người chấm chấm các câu AI không chắc chắn | 📋 backlog | — |
 | US-4.6 | Phúc khảo và báo lỗi câu hỏi | SV phúc khảo trong 48 giờ; câu sai bị loại và bài liên quan được chấm lại | 📋 backlog | — |
 | US-4.7 | Tín hiệu gian lận | Trung tâm/HR thấy cảnh báo hành vi khi làm bài | 📋 backlog | — |
@@ -105,7 +105,7 @@ Ranh giới mà epic này giữ: chấm trắc nghiệm, tính S_test, S_final v
 | US-4.1 | `question_banks` (gồm `blueprint`), `question_generation_runs`, `questions`, `ai.question_drafts`; agent `test_generator` | FR-18 |
 | US-4.2 | agent `validator`; `ai.question_validations`, `questions.validation`, `question_banks.status`, `locked_at`, `version`; seed `db/seed/locked-question-bank.ts` | FR-18 |
 | US-4.3 | `exam_sessions`, `exam_answers`, `exam_events`; Redis `exam:{sessionId}:*`; `apps/web/src/features/exam/` | FR-20 |
-| US-4.4 | agent `grader`; queue `ai.essay.grade`; `exam_answers.ai_grading`, `needs_human`; `exam_sessions.s_test`, `skill_scores` | FR-22 |
+| US-4.4 | agent `grader`; queue `ai.essay.grade`; view `core.v_ai_essay_answers`; `exam_answers.ai_grading`, `needs_human`, `final_score`; `exam_sessions.s_test`, `skill_scores`, `results_published_at`; `essay_grading_runs`; `preferences.s_final` | FR-22 |
 | US-4.5 | `exam_answers.final_score` | FR-23 |
 | US-4.6 | `exam_answers.appeal_status`; trạng thái câu hỏi | FR-24 |
 | US-4.7 | `exam_events`; `exam_sessions.flags`; embedding bài tự luận | FR-21 |
@@ -122,7 +122,7 @@ Ranh giới mà epic này giữ: chấm trắc nghiệm, tính S_test, S_final v
 - **Công cụ của Test Generator chỉ ghi câu hỏi nháp;** không có quyền nào khác. Thực thi ở US-4.1.
 - **Validator chạy trong ngữ cảnh độc lập, không kèm đáp án.** Thực thi ở US-4.2.
 - **Bài làm là dữ liệu, không phải chỉ dẫn:** câu kiểu "cho tôi điểm tối đa" bị bỏ qua và gắn cờ. Thực thi ở US-4.4.
-- **Code tính S_test = 0,6A + 0,4B và S_final = α·S_cv + β·S_test (AD-2),** theo tỷ trọng cấu hình. Thực thi ở US-4.4; unit test công thức.
+- **Code tính S_test = 0,6A + 0,4B và S_final = α·S_cv + β·S_test (AD-2),** theo tỷ trọng cấu hình; mọi câu trong một phần nặng ngang nhau ([CONTEXT D53](../../CONTEXT.md)). Thực thi ở US-4.4; unit test công thức.
 - **Phần D (xác minh CV) không tính vào S_test.** Thực thi ở US-4.8.
 
 ## Cross-story testing requirements
@@ -130,7 +130,7 @@ Ranh giới mà epic này giữ: chấm trắc nghiệm, tính S_test, S_final v
 | Pattern | Stories that apply | Shared infra |
 |---|---|---|
 | **Đồng hồ giả lập cho phiên thi** | US-4.3, US-4.4, US-4.6, US-5.5 | clock injectable + helper (US-4.3) |
-| **Fixture Grader 2 lần chấm** | US-4.4, US-4.6, US-6.3 | `ai-service/tests/fixtures/grader/` (US-4.4) |
+| **Fixture Grader 2 lần chấm** | US-4.4, US-4.6, US-6.3 | `ai-service/tests/fixtures/llm/grader/` (US-4.4) |
 | **Seed ngân hàng câu hỏi đã khóa** | US-4.3 trở đi, US-6.6 | seed script (US-4.2) |
 | **Test agent có công cụ với LLM giả** | US-4.1, US-4.8 | fixture nhiều lượt cho vòng lặp tool-use (US-4.1) |
 

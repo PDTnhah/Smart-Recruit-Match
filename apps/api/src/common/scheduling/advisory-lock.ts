@@ -43,6 +43,18 @@ export const ADVISORY_LOCK_KEYS = {
   QUESTION_BANK: 4_101,
   /** Sweep of the exam room: expired sessions and tests not taken by `testing_end` (US-4.3, CONTEXT D51). */
   EXAM_SWEEP: 4_301,
+  /**
+   * Sweep of grading (US-4.4, CONTEXT D53): multiple-choice backfill, essay jobs of the campaigns
+   * past `testing_end`, stale runs and the results ready to publish.
+   */
+  GRADING_SWEEP: 4_401,
+  /** Preferences below θ_test once the appeal window has passed (US-4.4 AC-14). */
+  GRADING_THRESHOLD: 4_402,
+  /**
+   * First key of `pg_advisory_xact_lock(4_403, hashtext(campaignId))`, taken by every essay
+   * dispatch of a campaign (US-4.4 AC-2): the sweep and CENTER's button never pick the same sessions.
+   */
+  ESSAY_GRADING: 4_403,
 } as const;
 
 /**

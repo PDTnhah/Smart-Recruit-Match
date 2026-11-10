@@ -1,6 +1,7 @@
 import {
   type ExamPaper,
   ExamPaperSchema,
+  ExamResultSchema,
   type ExamSubmission,
   ExamSubmissionSchema,
   MyExamsResponseSchema,
@@ -19,6 +20,7 @@ import { clockOffsetOf } from './server-clock';
 export const examKeys = {
   mine: ['me', 'exams'] as const,
   session: (sessionId: number) => ['exam-sessions', sessionId] as const,
+  result: (sessionId: number) => ['exam-sessions', sessionId, 'result'] as const,
 };
 
 /** A response carrying `serverNow`, with how many ms the server's clock is ahead of the browser's. */
@@ -84,6 +86,19 @@ export function useStartExam() {
       queryClient.setQueryData<TimedPaper>(examKeys.session(paper.data.sessionId), paper);
       void queryClient.invalidateQueries({ queryKey: examKeys.mine });
     },
+  });
+}
+
+/** How often the result page reads again while the session is still being graded. */
+const GRADING_REFETCH_MS = 60_000;
+
+/** `GET /api/exam-sessions/{id}/result` (US-4.4 AC-12): GRADING until the results are published. */
+export function useExamResult(sessionId: number) {
+  return useQuery({
+    queryKey: examKeys.result(sessionId),
+    queryFn: async () =>
+      ExamResultSchema.parse(unwrap(await api.GET('/api/exam-sessions/{id}/result', { params: { path: { id: sessionId } } }))),
+    refetchInterval: (query) => (query.state.data?.state === 'GRADING' ? GRADING_REFETCH_MS : false),
   });
 }
 

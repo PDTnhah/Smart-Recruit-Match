@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./grading_result.json",
+  "type": "object",
+  "properties": {
+    "criteria": {
+      "minItems": 1,
+      "maxItems": 10,
+      "type": "array",
+      "items": {
+        "$ref": "./grading_criterion.json"
+      },
+      "description": "One grade per rubric criterion, in rubric order"
+    },
+    "confidence": {
+      "$ref": "./grading_confidence.json"
+    },
+    "flags": {
+      "maxItems": 1,
+      "type": "array",
+      "items": {
+        "$ref": "./grading_flag.json"
+      },
+      "description": "Each flag once; empty when none"
+    }
+  },
+  "required": [
+    "criteria",
+    "confidence",
+    "flags"
+  ],
+  "additionalProperties": false,
+  "title": "GradingResult",
+  "description": "The Grader's grade of one essay answer, criterion by criterion"
+}

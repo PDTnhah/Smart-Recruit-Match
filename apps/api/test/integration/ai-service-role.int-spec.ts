@@ -6,6 +6,7 @@
 // US-4.1 AC-6 (CONTEXT D49): the question banks not yet locked, and ai.question_drafts; ai_service
 // cannot write core.questions (the core tables loop below).
 // US-4.2 AC-5 (CONTEXT D50): ai.question_validations, insert only.
+// US-4.4 AC-3 (CONTEXT D53): the essay answers awaiting the Grader, without the student.
 import {
   CV_STATES,
   JOB_DESCRIPTION_STATES,
@@ -19,11 +20,13 @@ import {
   type MatchCodeCriteria,
   type SkillStatus,
 } from '@srm/shared';
+import { eq } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import { Client } from 'pg';
 import { aiDatabaseUrl, createTestDb, ownerDatabaseUrl, type TestDb } from '../helpers/db.js';
-import { matchResults, questionBanks } from '../../src/db/schema/index.js';
-import { createCv, createJobDescription, SAMPLE_CV_PROFILE } from '../helpers/factories.js';
+import { examAnswers, examSessions, matchResults, questionBanks, questions } from '../../src/db/schema/index.js';
+import { createBank } from '../helpers/exam.js';
+import { createCv, createJobDescription, createStudent, SAMPLE_CV_PROFILE } from '../helpers/factories.js';
 import { SAMPLE_REQUIREMENTS } from '../helpers/jd.js';
 
 const CV_VIEW = 'core.v_ai_cv_profile_masked';
@@ -33,6 +36,7 @@ const SKILLS_VIEW = 'core.v_ai_skills';
 const SKILL_CANDIDATES_VIEW = 'core.v_ai_skill_candidates';
 const MATCH_PAIRS_VIEW = 'core.v_ai_match_pairs';
 const QUESTION_BANKS_VIEW = 'core.v_ai_question_banks';
+const ESSAY_ANSWERS_VIEW = 'core.v_ai_essay_answers';
 
 /** PostgreSQL's insufficient_privilege, raised before the statement touches any row. */
 async function expectDenied(promise: Promise<unknown>): Promise<void> {
@@ -165,6 +169,7 @@ describe('AD-4: database roles of the AI Service and the API', () => {
       'ai.question_validations INSERT',
       'ai.question_validations SELECT',
       `${CV_VIEW} SELECT`,
+      `${ESSAY_ANSWERS_VIEW} SELECT`,
       `${JD_VIEW} SELECT`,
       `${JD_SOURCE_VIEW} SELECT`,
       `${MATCH_PAIRS_VIEW} SELECT`,
@@ -258,6 +263,64 @@ describe('AD-4: views the AI Service reads', () => {
     ]);
     // The blueprint and which JD version it was made for; no question, no answer (US-4.1).
     expect(await columnsOf(QUESTION_BANKS_VIEW)).toEqual(['bank_id', 'jd_id', 'jd_version', 'campaign_id', 'blueprint']);
+    // The question and the answer by session only; nothing of the student (US-4.4 AC-3, BR-03).
+    expect(await columnsOf(ESSAY_ANSWERS_VIEW)).toEqual([
+      'session_id',
+      'question_id',
+      'stem',
+      'rubric',
+      'sample_answer',
+      'answer_text',
+    ]);
+  });
+
+  it('US-4.4 v_ai_essay_answers shows only essays of closed sessions without a final score', async () => {
+    const jd = await createJobDescription(seed.db, { status: 'APPROVED' });
+    const bank = await createBank(seed.db, jd);
+    const paper = await seed.db
+      .select({ id: questions.id, type: questions.type, content: questions.content, rubric: questions.rubric, answerKey: questions.answerKey })
+      .from(questions)
+      .where(eq(questions.bankId, bank!.id))
+      .orderBy(questions.id);
+    const mcq = paper.find((question) => question.type === 'MCQ')!;
+    const [graded, toGrade] = paper.filter((question) => question.type === 'ESSAY');
+    const sessionIds: number[] = [];
+    for (const status of ['SUBMITTED', 'IN_PROGRESS'] as const) {
+      const student = await createStudent(seed.db);
+      const startedAt = new Date(Date.now() - 30 * 60_000);
+      const [session] = await seed.db
+        .insert(examSessions)
+        .values({
+          studentId: student.id,
+          bankId: bank!.id,
+          bankVersion: bank!.version,
+          seed: 1,
+          questionIds: paper.map((question) => question.id),
+          optionLayout: {},
+          startedAt,
+          deadlineAt: new Date(startedAt.getTime() + 45 * 60_000),
+          status,
+          submittedAt: status === 'SUBMITTED' ? new Date(startedAt.getTime() + 20 * 60_000) : null,
+        })
+        .returning({ id: examSessions.id });
+      sessionIds.push(session!.id);
+      await seed.db.insert(examAnswers).values([
+        { sessionId: session!.id, questionId: mcq.id, answer: { code: 'a1', option: 0 } },
+        { sessionId: session!.id, questionId: graded!.id, answer: { text: 'Đã chấm' }, finalScore: 3 },
+        { sessionId: session!.id, questionId: toGrade!.id, answer: { text: 'Chỉ mục giúp tìm nhanh hơn.' } },
+      ]);
+    }
+    const { rows } = await ai.query(`SELECT * FROM ${ESSAY_ANSWERS_VIEW} WHERE session_id = ANY($1)`, [sessionIds]);
+    expect(rows).toEqual([
+      {
+        session_id: String(sessionIds[0]),
+        question_id: String(toGrade!.id),
+        stem: toGrade!.content.stem,
+        rubric: toGrade!.rubric,
+        sample_answer: toGrade!.answerKey.sample_answer,
+        answer_text: 'Chỉ mục giúp tìm nhanh hơn.',
+      },
+    ]);
   });
 
   it('US-4.1 v_ai_question_banks shows only banks not yet locked', async () => {

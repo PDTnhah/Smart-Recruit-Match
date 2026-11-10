@@ -10,13 +10,14 @@
 - Docker, compose, image: §4 `minio/minio` không còn trên Docker Hub · §14 compose truyền biến chưa đặt thành `""` · §15 hết RAM khi chạy test (compose, số worker Jest, commit memory của Windows) · §18 testcontainers build image không cache, Jest treo · §27 nginx trả `.mjs` là `octet-stream`, worker pdf.js không nạp
 - Jest, ESM: §9 gói chỉ có ESM (`@nestjs/schedule`, `file-type`, `promise-breaker`…) · §11 `testTimeout` trong `projects` bị bỏ qua · §21 `--selectProjects` nuốt đường dẫn test
 - Integration test: §22 các file dùng chung DB, thông báo gửi mọi tài khoản CENTER và tác vụ quét mọi đợt lọt vào test khác · §30 bảng mới trong `core` làm đỏ `core-schema` và `ai-service-role` · §40 `PEXPIREAT` theo giờ của `FakeClock` làm key Redis hết hạn ngay
-- Drizzle, migration: §6 migration có mốc thời gian cũ bị bỏ qua · §7 hàm dùng chung nhiều bảng: khai kiểu cụ thể · §12 `FOR UPDATE OF` sinh tên có schema
+- Drizzle, migration: §6 migration có mốc thời gian cũ bị bỏ qua · §7 hàm dùng chung nhiều bảng: khai kiểu cụ thể · §12 `FOR UPDATE OF` sinh tên có schema (gặp lại ở 0.23.0)
 - Giao dịch, khóa: §38 đọc bản ghi của module khác ngoài giao dịch rồi chuyển trạng thái không đảo ngược
+- Dữ liệu giữa các module: §42 tra theo phiên bản hiện hành của module khác hỏng khi phiên bản đổi ở pha mà module đó không chạy lại
 - Bảo mật: §39 đầu ra của PRNG có seed tới client làm lộ cả chuỗi (vị trí gốc của phương án)
 - pgvector: §24 index HNSW lọc sau khi quét, hàng cũ chiếm chỗ ứng viên
 - Ranh giới module: §5 `exclude: node_modules` làm dependency-cruiser bỏ sót
 - Thư viện API, web: §8 CLI shadcn 4.21 · §10 Zod 4 bỏ qua `refine` khi trường khác lỗi · §13 multer đọc tên file theo latin1 · §25 form gửi `row_version` của query mới nhất, bỏ qua khóa lạc quan · §26 lỗi tổng của form không mất khi sửa ô khác của tổng · §28 react-pdf 11 mặc định Suspense, PDF lỗi làm sập route · §29 Esc trong combobox tự viết đóng cả dialog Radix · §35 Handlebars bỏ dòng chỉ chứa `{{#each}}`, email văn bản dính dòng · §41 hàng chờ tự lưu bỏ qua debounce, lượt gộp vượt body 100 KB của Express
-- RabbitMQ, job AI: §16 `RabbitMQModule` giữ connection static · §17 mặc định sai của thư viện message · §32 kiểm chéo trên schema hợp đồng message làm cả kết quả AI vào DLQ · §33 kết quả AI về trước khi API ghi `job_id`, message của một job xử lý song song
+- RabbitMQ, job AI: §16 `RabbitMQModule` giữ connection static · §17 mặc định sai của thư viện message · §32 kiểm chéo trên schema hợp đồng message làm cả kết quả AI vào DLQ · §33 kết quả AI về trước khi API ghi `job_id`, message của một job xử lý song song, message cuối đóng run khi còn dòng thiếu
 - Sự kiện, tác vụ định kỳ: §34 việc phải chạy một lần ở mốc pha mà chỉ nằm trong listener `campaign.phase_changed` thì mất khi lỗi hoặc API dừng · §36 `emitAsync` không chờ listener `async: true`, test sự kiện trùng xanh mà không kiểm gì
 - ai-service (Python): §19 chặn mạng trong pytest trên Windows · §20 PyMuPDF cắt chữ ngoài trang, màu nền theo thứ tự vẽ · §23 `HF_HUB_OFFLINE` đọc lúc import, bge-m3 tải 4,5 GB · §31 fixture LLM mất khóa khi nâng prompt hoặc sửa dữ liệu test nằm trong prompt · §37 nhóm gửi LLM lỗi tất định được gửi lại y nguyên, câu chờ giữ chỗ của ô
 
@@ -190,6 +191,7 @@ See [US-1.5](sprints/stories/US-1.5-company-hr-accounts-jd-posting-approval.md) 
 - Cần khóa một bảng trong câu có join thì khóa bằng một câu riêng không join (`select id … for update`), rồi mới đọc bằng câu join trong cùng giao dịch. Xem `JdRepository.findById`.
 - Không dùng `.for(..., { of })` với bảng của schema `core`. Câu không join thì `.for('update')` vẫn đúng.
 - Lỗi SQL thành `500 INTERNAL_ERROR` và test không in log (`LOG_LEVEL=silent`). Tái hiện bằng một script nhỏ, hoặc xem `toSQL()` của câu truy vấn.
+- (0.23.0) Gặp lại trong listener kết quả AI: `ExamGradingRepository.lockEssayAnswers` khóa `exam_answers` trong câu join `questions`. Lỗi không thành `500` mà làm listener ném, message vào DLQ, run kẹt `RUNNING`. Sửa theo cách trên: khóa bằng câu chỉ có `exam_answers`, rồi đọc bằng câu join.
 
 See [US-1.5](sprints/stories/US-1.5-company-hr-accounts-jd-posting-approval.md) › Implementation notes.
 
@@ -492,6 +494,7 @@ See [US-3.6](sprints/stories/US-3.6-language-cefr-major-match.md), [CONTEXT D45]
 - Kết quả cần tìm lại dòng của backend: tạo `job_id` trước, ghi vào dòng trong giao dịch nghiệp vụ, commit, rồi gọi `dispatch(type, input, jobId)`. Đánh dấu "đã gửi" bằng cột riêng (`dispatched_at`), không bằng `job_id` có hay không.
 - Job trả nhiều message: mỗi message ghi idempotent theo dòng. Không suy ra "đã đủ kết quả" từ message cuối; chỗ cần biết thì so số đếm (`pairs_scored + pairs_failed` với `pairs_sent`).
 - Test E2E chờ theo số đếm, không chờ theo trạng thái. Test cho lỗi thứ hai: một listener của `AI_JOB_DISPATCHED` gửi kết quả ngay khi job được publish.
+- (0.23.0) Message cuối cũng không được đóng run khi còn dòng thiếu kết quả: một chunk trước nó vào DLQ thì run `SUCCEEDED` mà các dòng đó không bao giờ có kết quả, và tác vụ quét `STALE` (chỉ xét run `RUNNING`) không cứu được. Đếm dòng còn thiếu; còn thì để run `RUNNING` cho tác vụ quét (`EssayResultsHandler`).
 
 See [US-3.2](sprints/stories/US-3.2-batch-matching-agent.md), [CONTEXT D46](CONTEXT.md).
 
@@ -609,3 +612,19 @@ See [US-4.3](sprints/stories/US-4.3-exam-room.md); FakeClock dùng mốc năm ri
 - Trong comment, ghi tần suất gửi tối đa và đối chiếu với rate limit của route.
 
 See [US-4.3](sprints/stories/US-4.3-exam-room.md).
+
+## 42. Tra cứu theo phiên bản hiện hành của module khác: hỏng khi phiên bản đổi ở pha mà module đó không chạy lại
+
+**What happened (0.23.0)**: Bản đầu của US-4.4 tính S_final từ S_cv của đúng phiên bản JD hiện hành, theo cùng định nghĩa với shortlist (D47). `/code-review` chỉ ra hai lỗi:
+
+- HR sửa yêu cầu JD trong pha `TESTING` thì JD lên phiên bản mới (BR-18, D35). Matching chỉ chạy tới `PREFERENCE_SELECTION`, nên phiên bản mới không bao giờ có S_cv. Mọi bài test của JD đó trả `NO_SCV` mỗi 5 phút, NV kẹt `PENDING_TEST` và không được phân bổ.
+- Trang kết quả đọc lại S_cv lúc xem, còn S_final đã lưu từ lúc công bố. Chấm lại S_cv sau đó thì hai số trên trang không còn khớp `α·S_cv + β·S_test`.
+
+**Why**: "Phiên bản hiện hành" là định nghĩa của module sở hữu dữ liệu, đúng trong các pha mà module đó còn chạy. Một module khác dùng nó ở pha sau thì kế thừa giả định "mọi phiên bản đều đã được chấm", mà giả định này không còn đúng. Con số tính từ số khác mà không lưu số nguồn thì không giải thích lại được.
+
+**How to avoid**:
+- Đọc dữ liệu của module khác ở pha sau thì kiểm: phiên bản có thể đổi ở pha này không, và ai tạo kết quả cho phiên bản mới. Không ai tạo thì lấy bản mới nhất đã có (`MatchResultsRepository.latestScv`: phiên bản JD ≤ hiện hành, mới nhất trước).
+- Điểm tổng hợp lưu kèm các điểm nguồn đã dùng (`preferences.s_cv` cùng `s_final`, CHECK hai cột cùng có). Trang hiển thị đọc số đã lưu, không tính lại.
+- Test: tăng phiên bản của bản ghi nguồn giữa lúc chấm và lúc công bố (`grading.int-spec.ts`).
+
+See [US-4.4](sprints/stories/US-4.4-grading-stest-sfinal.md), [CONTEXT D53](CONTEXT.md).

@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./grading_confidence.json",
+  "type": "string",
+  "enum": [
+    "LOW",
+    "MEDIUM",
+    "HIGH"
+  ],
+  "title": "GradingConfidence",
+  "description": "LOW, MEDIUM or HIGH; LOW sends the answer to a human grader"
+}
