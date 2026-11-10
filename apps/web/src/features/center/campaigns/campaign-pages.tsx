@@ -9,6 +9,8 @@ import { apiErrorMessage } from '@/shared/api/errors';
 import { useCampaign } from './api';
 import { CampaignStatusBadge } from './campaign-status-badge';
 import { DraftCampaignForm } from './draft-campaign-form';
+import { EssayGradingDialog } from './essay-grading-dialog';
+import { ESSAY_GRADING_PHASES } from './labels';
 import { OpenCampaignDialog } from './open-campaign-dialog';
 import { CAMPAIGNS_PATH } from './paths';
 import { RunningCampaignForm } from './running-campaign-form';
@@ -82,13 +84,14 @@ function CampaignEditor({ id }: { id: number }) {
 
   const data = campaign.data;
   const isDraft = data.status === 'DRAFT';
+  const actions = isDraft ? (
+    <OpenCampaignDialog campaign={data} />
+  ) : ESSAY_GRADING_PHASES.includes(data.status) ? (
+    <EssayGradingDialog campaign={data} />
+  ) : undefined;
   return (
     <div className="flex w-full max-w-3xl flex-col gap-6">
-      <PageHeader
-        title={data.name}
-        status={data.status}
-        actions={isDraft ? <OpenCampaignDialog campaign={data} /> : undefined}
-      />
+      <PageHeader title={data.name} status={data.status} actions={actions} />
       {/* Remount on every saved version, so the form starts from what the API returned. */}
       {isDraft ? (
         <DraftCampaignForm key={data.rowVersion} campaign={data} />

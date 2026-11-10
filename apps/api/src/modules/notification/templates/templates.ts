@@ -132,4 +132,17 @@ ${button('Xem bài test')}`,
 Các nguyện vọng bạn đã làm bài test vẫn được xét bình thường. Xem bài test tại: {{link}}
 ${TEXT_FOOTER}`,
   },
+  EXAM_RESULT_PUBLISHED: {
+    subject: 'Đã có kết quả bài test nguyện vọng {{rank}} trong đợt "{{campaignName}}"',
+    html: `<p>Chào {{recipientName}},</p>
+<p>Bài test của bạn cho nguyện vọng {{rank}}: <strong>{{jdTitle}}</strong> – {{companyName}} (đợt <strong>{{campaignName}}</strong>) đã được chấm xong.</p>
+<p>Bạn có thể xem điểm test, điểm theo từng kỹ năng, điểm tổng hợp và nhận xét cho từng câu tự luận trên hệ thống.</p>
+${button('Xem kết quả')}`,
+    text: `Chào {{recipientName}},
+
+Bài test của bạn cho nguyện vọng {{rank}}: {{jdTitle}} – {{companyName}} (đợt "{{campaignName}}") đã được chấm xong.
+
+Bạn có thể xem điểm test, điểm theo từng kỹ năng, điểm tổng hợp và nhận xét cho từng câu tự luận tại: {{link}}
+${TEXT_FOOTER}`,
+  },
 };

@@ -4,7 +4,8 @@
     "JD_ANALYZE": "ai.jd.analyze",
     "SKILL_NORMALIZE": "ai.skills.normalize",
     "MATCH": "ai.match.run",
-    "QUESTIONS_GENERATE": "ai.questions.generate"
+    "QUESTIONS_GENERATE": "ai.questions.generate",
+    "ESSAY_GRADE": "ai.essay.grade"
   },
   "results": "ai.results",
   "dlq_suffix": ".dlq",

@@ -6,6 +6,8 @@ from app.consumers.base import JobKind
 from app.contracts.ai_result_status import AiResultStatus
 from app.contracts.cv_parse_job import CvParseJob
 from app.contracts.cv_parse_result import CvParseResult
+from app.contracts.essay_grade_job import EssayGradeJob
+from app.contracts.essay_grade_result import EssayGradeResult
 from app.contracts.jd_analyze_job import JdAnalyzeJob
 from app.contracts.jd_analyze_result import JdAnalyzeResult
 from app.contracts.match_run_job import MatchRunJob
@@ -30,6 +32,13 @@ def questions_status(output: BaseModel) -> AiResultStatus:
     return AiResultStatus.PARTIAL if missing else AiResultStatus.SUCCEEDED
 
 
+def essay_status(output: BaseModel) -> AiResultStatus:
+    """An ESSAY_GRADE result lists the passes left without a grade; any makes it PARTIAL
+    (US-4.4 AC-7)."""
+    failed = getattr(output, "failed", None)
+    return AiResultStatus.PARTIAL if failed else AiResultStatus.SUCCEEDED
+
+
 JOB_KINDS: dict[str, JobKind] = {
     "CV_PARSE": JobKind("CV_PARSE", QUEUES.jobs["CV_PARSE"], CvParseJob, CvParseResult),
     "JD_ANALYZE": JobKind("JD_ANALYZE", QUEUES.jobs["JD_ANALYZE"], JdAnalyzeJob, JdAnalyzeResult),
@@ -48,5 +57,12 @@ JOB_KINDS: dict[str, JobKind] = {
         QuestionsGenerateJob,
         QuestionsGenerateResult,
         status_of=questions_status,
+    ),
+    "ESSAY_GRADE": JobKind(
+        "ESSAY_GRADE",
+        QUEUES.jobs["ESSAY_GRADE"],
+        EssayGradeJob,
+        EssayGradeResult,
+        status_of=essay_status,
     ),
 }

@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./grading_criterion.json",
+  "type": "object",
+  "properties": {
+    "index": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9,
+      "description": "Index of the criterion in the rubric, from 0"
+    },
+    "points": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Points given, from 0 to the criterion's max_points"
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1000,
+      "description": "Why these points, in Vietnamese, citing the answer"
+    }
+  },
+  "required": [
+    "index",
+    "points",
+    "reason"
+  ],
+  "additionalProperties": false,
+  "title": "GradingCriterion",
+  "description": "The grade of one rubric criterion"
+}

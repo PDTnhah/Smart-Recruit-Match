@@ -8,3 +8,8 @@ export const EXAMS_PATH = '/sv/exams';
 export function examRoomPath(sessionId: number): string {
   return `/sv/exam/${sessionId}`;
 }
+
+/** The results of a graded session (US-4.4 AC-12). */
+export function examResultPath(sessionId: number): string {
+  return `/sv/exams/${sessionId}/result`;
+}

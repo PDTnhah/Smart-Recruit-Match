@@ -440,6 +440,35 @@ describe('GĐ5 exam room (US-4.3)', () => {
     expect(rebuilt.deadlineAt).toBe(paper.deadlineAt);
   });
 
+  it('GĐ6 closing grades multiple choice', async () => {
+    // US-4.4 AC-1 (CONTEXT D53): code grades the MCQ in the transaction that closes the session.
+    const right = await started();
+    const wrong = await started();
+    await save(right.exam.student, right.paper.sessionId, [
+      { questionId: right.mcq.questionId, answer: { optionCode: await codeOf(right.paper.sessionId, right.mcq.questionId, 1) } },
+      { questionId: right.essays[0]!.questionId, answer: { text: 'Bài làm' } },
+    ]).expect(200);
+    await save(wrong.exam.student, wrong.paper.sessionId, [
+      { questionId: wrong.mcq.questionId, answer: { optionCode: await codeOf(wrong.paper.sessionId, wrong.mcq.questionId, 2) } },
+    ]).expect(200);
+    await submit(right.exam.student, right.paper.sessionId).expect(200);
+    await submit(wrong.exam.student, wrong.paper.sessionId).expect(200);
+    const scores = async (sessionId: number) =>
+      (
+        await t.db
+          .select({ questionId: examAnswers.questionId, autoScore: examAnswers.autoScore, finalScore: examAnswers.finalScore })
+          .from(examAnswers)
+          .where(eq(examAnswers.sessionId, sessionId))
+      ).sort((a, b) => a.questionId - b.questionId);
+    expect(await scores(right.paper.sessionId)).toEqual(
+      [
+        { questionId: right.mcq.questionId, autoScore: 1, finalScore: 1 },
+        { questionId: right.essays[0]!.questionId, autoScore: null, finalScore: null },
+      ].sort((a, b) => a.questionId - b.questionId),
+    );
+    expect(await scores(wrong.paper.sessionId)).toEqual([{ questionId: wrong.mcq.questionId, autoScore: 0, finalScore: 0 }]);
+  });
+
   it('GĐ5 submit flushes in one transaction, emits event, idempotent', async () => {
     const { exam, paper, mcq, essays } = await started();
     const sessionId = paper.sessionId;
@@ -600,6 +629,7 @@ describe('GĐ5 exam room (US-4.3)', () => {
         questionCount: 3,
         canStart: true,
         secondsIfStartedNow: EXAM_MINUTES * 60,
+        resultState: null,
       },
       { preferenceId: nv2.preferenceId, rank: 2, examStatus: 'NOT_STARTED', durationMinutes: null, canStart: false, secondsIfStartedNow: null },
       { preferenceId: nv3.preferenceId, rank: 3, examStatus: 'CLOSED', canStart: false, secondsIfStartedNow: null },
@@ -613,10 +643,12 @@ describe('GĐ5 exam room (US-4.3)', () => {
       deadlineAt: paper.deadlineAt,
       canStart: false,
       secondsIfStartedNow: null,
+      resultState: null,
     });
     await submit(nv1.student, paper.sessionId).expect(200);
     const after = MyExamsResponseSchema.parse((await myExams(nv1.student).expect(200)).body);
-    expect(after.items[0]).toMatchObject({ examStatus: 'SUBMITTED', submittedAt: clock.now().toISOString() });
+    // US-4.4 AC-12: closed, its results not published yet.
+    expect(after.items[0]).toMatchObject({ examStatus: 'SUBMITTED', submittedAt: clock.now().toISOString(), resultState: 'GRADING' });
 
     // CONTEXT D51: twenty minutes before testing_end, starting now gives twenty minutes.
     const late = await fixture({ testingEnd: minutesAfter(clock.now(), 20) });

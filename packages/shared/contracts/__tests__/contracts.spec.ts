@@ -127,12 +127,14 @@ describe('AD-6: contracts are generated, not written by hand', () => {
       'ai.skills.normalize',
       'ai.match.run',
       'ai.questions.generate',
+      'ai.essay.grade',
       'ai.results',
       'ai.cv.parse.dlq',
       'ai.jd.analyze.dlq',
       'ai.skills.normalize.dlq',
       'ai.match.run.dlq',
       'ai.questions.generate.dlq',
+      'ai.essay.grade.dlq',
       'ai.results.dlq',
     ]);
   });
@@ -186,7 +188,7 @@ describe('AD-6: ai.results message', () => {
     delete withoutId.job_id;
     expect(parse(withoutId).success).toBe(false);
     expect(parse({ ...succeeded, status: 'DONE' }).success).toBe(false);
-    expect(parse({ ...succeeded, type: 'ESSAY_GRADE' }).success).toBe(false);
+    expect(parse({ ...succeeded, type: 'INTERVIEW_SUMMARY' }).success).toBe(false);
   });
 
   it('AD-6 rejects a job payload of the wrong type', () => {

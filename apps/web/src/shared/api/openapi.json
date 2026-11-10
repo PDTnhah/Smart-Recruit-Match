@@ -2530,6 +2530,44 @@
         ]
       }
     },
+    "/api/exam-sessions/{id}/result": {
+      "get": {
+        "operationId": "ExamSessionController_result",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "maximum": 9007199254740991,
+              "exclusiveMinimum": true,
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExamResultDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "exams"
+        ]
+      }
+    },
     "/api/exam-sessions/{id}/submit": {
       "post": {
         "operationId": "ExamSessionController_submit",
@@ -2565,6 +2603,44 @@
         ],
         "tags": [
           "exams"
+        ]
+      }
+    },
+    "/api/campaigns/{id}/essay-grading": {
+      "post": {
+        "operationId": "EssayGradingController_dispatch",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "maximum": 9007199254740991,
+              "exclusiveMinimum": true,
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EssayGradingDispatchDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "grading"
         ]
       }
     }
@@ -4182,6 +4258,13 @@
                   "low_below",
                   "high_from"
                 ]
+              },
+              "appeal_window_hours": {
+                "default": 48,
+                "type": "integer",
+                "exclusiveMinimum": true,
+                "maximum": 168,
+                "minimum": 0
               }
             }
           }
@@ -4422,6 +4505,13 @@
                   "high_from"
                 ],
                 "additionalProperties": false
+              },
+              "appeal_window_hours": {
+                "default": 48,
+                "type": "integer",
+                "exclusiveMinimum": true,
+                "maximum": 168,
+                "minimum": 0
               }
             },
             "required": [
@@ -4444,7 +4534,8 @@
               "match_top_m",
               "no_preference_policy",
               "require_full_preferences",
-              "competition_thresholds"
+              "competition_thresholds",
+              "appeal_window_hours"
             ],
             "additionalProperties": false
           },
@@ -4713,6 +4804,13 @@
                         "high_from"
                       ],
                       "additionalProperties": false
+                    },
+                    "appeal_window_hours": {
+                      "default": 48,
+                      "type": "integer",
+                      "exclusiveMinimum": true,
+                      "maximum": 168,
+                      "minimum": 0
                     }
                   },
                   "required": [
@@ -4735,7 +4833,8 @@
                     "match_top_m",
                     "no_preference_policy",
                     "require_full_preferences",
-                    "competition_thresholds"
+                    "competition_thresholds",
+                    "appeal_window_hours"
                   ],
                   "additionalProperties": false
                 },
@@ -4973,6 +5072,12 @@
                   "low_below",
                   "high_from"
                 ]
+              },
+              "appeal_window_hours": {
+                "type": "integer",
+                "exclusiveMinimum": true,
+                "maximum": 168,
+                "minimum": 0
               }
             }
           },
@@ -7894,6 +7999,92 @@
                     "payload"
                   ],
                   "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "readAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                      "nullable": true
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "EXAM_RESULT_PUBLISHED"
+                      ]
+                    },
+                    "payload": {
+                      "type": "object",
+                      "properties": {
+                        "campaignId": {
+                          "type": "integer",
+                          "exclusiveMinimum": true,
+                          "maximum": 9007199254740991,
+                          "minimum": 0
+                        },
+                        "campaignName": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "sessionId": {
+                          "type": "integer",
+                          "exclusiveMinimum": true,
+                          "maximum": 9007199254740991,
+                          "minimum": 0
+                        },
+                        "preferenceId": {
+                          "type": "integer",
+                          "exclusiveMinimum": true,
+                          "maximum": 9007199254740991,
+                          "minimum": 0
+                        },
+                        "rank": {
+                          "type": "integer",
+                          "exclusiveMinimum": true,
+                          "maximum": 9007199254740991,
+                          "minimum": 0
+                        },
+                        "jdTitle": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "companyName": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      },
+                      "required": [
+                        "campaignId",
+                        "campaignName",
+                        "sessionId",
+                        "preferenceId",
+                        "rank",
+                        "jdTitle",
+                        "companyName"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "readAt",
+                    "createdAt",
+                    "type",
+                    "payload"
+                  ],
+                  "additionalProperties": false
                 }
               ]
             }
@@ -10174,6 +10365,15 @@
                   "minimum": 0,
                   "maximum": 9007199254740991,
                   "nullable": true
+                },
+                "resultState": {
+                  "type": "string",
+                  "enum": [
+                    "GRADING",
+                    "PUBLISHED",
+                    null
+                  ],
+                  "nullable": true
                 }
               },
               "required": [
@@ -10189,7 +10389,8 @@
                 "deadlineAt",
                 "submittedAt",
                 "canStart",
-                "secondsIfStartedNow"
+                "secondsIfStartedNow",
+                "resultState"
               ],
               "additionalProperties": false
             }
@@ -10456,6 +10657,234 @@
         ],
         "additionalProperties": false
       },
+      "ExamResultDto_Output": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "GRADING",
+              "PUBLISHED"
+            ]
+          },
+          "sessionId": {
+            "type": "integer",
+            "exclusiveMinimum": true,
+            "maximum": 9007199254740991,
+            "minimum": 0
+          },
+          "jdTitle": {
+            "type": "string"
+          },
+          "companyName": {
+            "type": "string"
+          },
+          "submittedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+          },
+          "scores": {
+            "type": "object",
+            "properties": {
+              "publishedAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              },
+              "sTest": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "partA": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "partB": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "skills": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "skill": {
+                      "type": "string"
+                    },
+                    "score": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 100,
+                      "nullable": true
+                    }
+                  },
+                  "required": [
+                    "skill",
+                    "score"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "preference": {
+                "type": "object",
+                "properties": {
+                  "preferenceId": {
+                    "type": "integer",
+                    "exclusiveMinimum": true,
+                    "maximum": 9007199254740991,
+                    "minimum": 0
+                  },
+                  "rank": {
+                    "type": "integer",
+                    "exclusiveMinimum": true,
+                    "maximum": 9007199254740991,
+                    "minimum": 0
+                  },
+                  "sCv": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100,
+                    "nullable": true
+                  },
+                  "sFinal": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100,
+                    "nullable": true
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "PENDING_TEST",
+                      "TEST_GRADED",
+                      "BELOW_THRESHOLD",
+                      "WAITING_NEXT_ROUND",
+                      "NOMINATED",
+                      "INTERVIEW",
+                      "HR_REJECTED",
+                      "PASSED",
+                      "RESERVE",
+                      "INTERVIEW_FAILED",
+                      "ACCEPTED",
+                      "DECLINED",
+                      "CLOSED"
+                    ]
+                  }
+                },
+                "required": [
+                  "preferenceId",
+                  "rank",
+                  "sCv",
+                  "sFinal",
+                  "status"
+                ],
+                "additionalProperties": false,
+                "nullable": true
+              },
+              "essays": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "questionId": {
+                      "type": "integer",
+                      "exclusiveMinimum": true,
+                      "maximum": 9007199254740991,
+                      "minimum": 0
+                    },
+                    "no": {
+                      "type": "integer",
+                      "exclusiveMinimum": true,
+                      "maximum": 9007199254740991,
+                      "minimum": 0
+                    },
+                    "stem": {
+                      "type": "string"
+                    },
+                    "points": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "maxPoints": {
+                      "type": "integer",
+                      "exclusiveMinimum": true,
+                      "maximum": 9007199254740991,
+                      "minimum": 0
+                    },
+                    "criteria": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "no": {
+                            "type": "integer",
+                            "exclusiveMinimum": true,
+                            "maximum": 9007199254740991,
+                            "minimum": 0
+                          },
+                          "points": {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          "maxPoints": {
+                            "type": "integer",
+                            "exclusiveMinimum": true,
+                            "maximum": 9007199254740991,
+                            "minimum": 0
+                          },
+                          "reason": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "no",
+                          "points",
+                          "maxPoints",
+                          "reason"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "questionId",
+                    "no",
+                    "stem",
+                    "points",
+                    "maxPoints",
+                    "criteria"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "publishedAt",
+              "sTest",
+              "partA",
+              "partB",
+              "skills",
+              "preference",
+              "essays"
+            ],
+            "additionalProperties": false,
+            "nullable": true
+          }
+        },
+        "required": [
+          "state",
+          "sessionId",
+          "jdTitle",
+          "companyName",
+          "submittedAt",
+          "scores"
+        ],
+        "additionalProperties": false
+      },
       "ExamSubmissionDto_Output": {
         "type": "object",
         "properties": {
@@ -10495,6 +10924,44 @@
           "submittedAt",
           "answeredCount",
           "questionCount"
+        ],
+        "additionalProperties": false
+      },
+      "EssayGradingDispatchDto_Output": {
+        "type": "object",
+        "properties": {
+          "runs": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "runId": {
+                  "type": "integer",
+                  "exclusiveMinimum": true,
+                  "maximum": 9007199254740991,
+                  "minimum": 0
+                },
+                "sessionCount": {
+                  "type": "integer",
+                  "exclusiveMinimum": true,
+                  "maximum": 9007199254740991,
+                  "minimum": 0
+                },
+                "sent": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "runId",
+                "sessionCount",
+                "sent"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "runs"
         ],
         "additionalProperties": false
       }

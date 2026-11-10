@@ -10,6 +10,7 @@ const CORE_TABLES = [
   'companies',
   'consents',
   'cvs',
+  'essay_grading_runs',
   'exam_answers',
   'exam_events',
   'exam_sessions',

@@ -532,6 +532,18 @@ export class PreferenceNotPendingTestError extends DomainError {
   }
 }
 
+// Grading (US-4.4, CONTEXT D53).
+
+/** A session still open has no result to show (AC-12). */
+export class ExamNotClosedError extends DomainError {
+  readonly code = 'EXAM_NOT_CLOSED';
+  readonly httpStatus = 409;
+
+  constructor(sessionId: number) {
+    super(`exam session ${sessionId} is still in progress`, { sessionId });
+  }
+}
+
 /** Too many calls of one route by one user within the window (AC-12); `Retry-After` says when to retry. */
 export class RateLimitedError extends DomainError {
   readonly code = 'RATE_LIMITED';

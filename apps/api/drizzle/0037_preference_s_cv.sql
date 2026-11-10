@@ -1,0 +1,3 @@
+ALTER TABLE "core"."preferences" ADD COLUMN "s_cv" numeric(5, 2);--> statement-breakpoint
+ALTER TABLE "core"."preferences" ADD CONSTRAINT "preferences_s_cv_check" CHECK ("core"."preferences"."s_cv" between 0 and 100);--> statement-breakpoint
+ALTER TABLE "core"."preferences" ADD CONSTRAINT "preferences_s_cv_s_final_check" CHECK (("core"."preferences"."s_cv" is null) = ("core"."preferences"."s_final" is null));

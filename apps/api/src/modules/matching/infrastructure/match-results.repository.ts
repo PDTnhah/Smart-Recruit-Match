@@ -6,7 +6,7 @@ import type {
   ScvBreakdownRow,
   StoredMatchAssessment,
 } from '@srm/shared';
-import { and, desc, eq, inArray, isNotNull, isNull, or, type SQL, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNotNull, isNull, lte, or, type SQL, sql } from 'drizzle-orm';
 import { matchResults } from '../../../db/schema/index.js';
 import { DRIZZLE } from '../../../db/tokens.js';
 import type { Database, DbTx } from '../../../db/types.js';
@@ -112,6 +112,38 @@ export class MatchResultsRepository {
       .orderBy(desc(matchResults.updatedAt), desc(matchResults.id))
       .limit(1);
     return row?.promptVersion ?? null;
+  }
+
+  /**
+   * S_cv of the latest scored result of one pair (US-4.4 AC-10, CONTEXT D47, D53): the CV version
+   * given and the JD's newest version up to `jdVersion` that has a result, the current rules, scored
+   * with the pinned prompt. A JD versioned during TESTING (BR-18, CONTEXT D35) is not scored again,
+   * since matching runs only before it, so the version the preference was chosen with counts. `FOR
+   * SHARE` in `tx`, so a recompute of S_cv waits until the S_final computed from it is committed
+   * (LESSONS §38). Null when the pair has no such result, or it failed the hard filter.
+   */
+  async latestScv(
+    tx: DbTx | Database,
+    key: PairKey & { campaignId: number; rulesVersion: string; promptVersion: string },
+  ): Promise<number | null> {
+    const [row] = await tx
+      .select({ sCv: matchResults.sCv, eligible: matchResults.eligible })
+      .from(matchResults)
+      .where(
+        and(
+          eq(matchResults.campaignId, key.campaignId),
+          eq(matchResults.rulesVersion, key.rulesVersion),
+          eq(matchResults.promptVersion, key.promptVersion),
+          eq(matchResults.cvId, key.cvId),
+          eq(matchResults.cvVersion, key.cvVersion),
+          eq(matchResults.jdId, key.jdId),
+          lte(matchResults.jdVersion, key.jdVersion),
+        ),
+      )
+      .orderBy(desc(matchResults.jdVersion), desc(matchResults.id))
+      .limit(1)
+      .for('share');
+    return row?.eligible ? row.sCv : null;
   }
 
   /**

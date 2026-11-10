@@ -16,6 +16,9 @@
     },
     {
       "$ref": "./questions_generate_result.json"
+    },
+    {
+      "$ref": "./essay_grade_result.json"
     }
   ],
   "title": "AiResultMessage",

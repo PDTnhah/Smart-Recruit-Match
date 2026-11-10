@@ -19,6 +19,7 @@ import {
   AiResultStatusSchema,
   CvParseOutputSchema,
   CvParseResultSchema,
+  EssayGradeResultSchema,
   JdAnalyzeOutputSchema,
   JdAnalyzeResultSchema,
   MatchAssessmentItemSchema,
@@ -30,6 +31,16 @@ import {
   SkillNormalizeOutputSchema,
   SkillNormalizeResultSchema,
 } from './envelope.js';
+import {
+  EssayGradeFailedItemSchema,
+  EssayGradeItemSchema,
+  EssayGradeJobSchema,
+  EssayGradeOutputSchema,
+  GradingConfidenceSchema,
+  GradingCriterionSchema,
+  GradingFlagSchema,
+  GradingResultSchema,
+} from './essay-grade.js';
 import {
   JdAnalysisSchema,
   JdHardConditionsSchema,
@@ -145,11 +156,20 @@ const CONTRACTS: ReadonlyArray<[z.ZodType, string]> = [
   [GeneratedQuestionSchema, 'generated_question'],
   [MissingCellSchema, 'missing_cell'],
   [QuestionsGenerateOutputSchema, 'questions_generate_output'],
+  [EssayGradeJobSchema, 'essay_grade_job'],
+  [GradingConfidenceSchema, 'grading_confidence'],
+  [GradingFlagSchema, 'grading_flag'],
+  [GradingCriterionSchema, 'grading_criterion'],
+  [GradingResultSchema, 'grading_result'],
+  [EssayGradeItemSchema, 'essay_grade_item'],
+  [EssayGradeFailedItemSchema, 'essay_grade_failed_item'],
+  [EssayGradeOutputSchema, 'essay_grade_output'],
   [CvParseResultSchema, 'cv_parse_result'],
   [JdAnalyzeResultSchema, 'jd_analyze_result'],
   [SkillNormalizeResultSchema, 'skill_normalize_result'],
   [MatchRunResultSchema, 'match_run_result'],
   [QuestionsGenerateResultSchema, 'questions_generate_result'],
+  [EssayGradeResultSchema, 'essay_grade_result'],
   [AiResultMessageSchema, 'ai_result_message'],
 ];
 

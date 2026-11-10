@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./essay_grade_job.json",
+  "type": "object",
+  "properties": {
+    "job_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique id of this job; the AI Service processes each job_id once (AD-5)"
+    },
+    "exam_session_ids": {
+      "minItems": 1,
+      "maxItems": 5000,
+      "type": "array",
+      "items": {
+        "type": "integer",
+        "exclusiveMinimum": 0,
+        "maximum": 9007199254740991
+      },
+      "description": "core.exam_sessions.id of the sessions to grade, without duplicates"
+    },
+    "prompt_version": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Prompt the campaign is pinned to, e.g. grader/v1; null until it has a result, then the active one"
+    }
+  },
+  "required": [
+    "job_id",
+    "exam_session_ids",
+    "prompt_version"
+  ],
+  "additionalProperties": false,
+  "title": "EssayGradeJob",
+  "description": "Job on ai.essay.grade: grade the answered essays of closed sessions"
+}

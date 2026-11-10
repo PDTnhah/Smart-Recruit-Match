@@ -19,6 +19,7 @@ import { MatchingPhaseListener } from './application/phase-changed.listener.js';
 import { PreferenceAutoAssignScheduler } from './application/preference-auto-assign.scheduler.js';
 import { PreferenceDeadlineReminderSource } from './application/preference-deadline.source.js';
 import { PreferenceExamService } from './application/preference-exam.service.js';
+import { PreferenceGradingService } from './application/preference-grading.service.js';
 import { PreferencesService } from './application/preferences.service.js';
 import { RecomputeScvService } from './application/recompute-scv.js';
 import { RunMatchingService } from './application/run-matching.service.js';
@@ -32,7 +33,7 @@ import { PreferencesRepository } from './infrastructure/preferences.repository.j
  * Matching of GĐ3–GĐ4 (ARCHITECTURE › Các module, FR-14–FR-17, US-3.1–US-3.6): the pure scoring
  * rules in `domain/`, matching runs and their results, students' shortlists and preference lists,
  * the competition level of each JD and the alert of JDs with few preferences; the preferences the
- * exam room reads and closes (US-4.3).
+ * exam room reads and closes (US-4.3), and those grading moves with their S_final (US-4.4).
  * Reads CVs, students, JDs, the skill taxonomy and accounts through the services those modules
  * export and notifies through NotificationModule; relies on the global DbModule, ClockModule,
  * ScheduleModule and EventEmitterModule set up in AppModule.
@@ -58,6 +59,7 @@ import { PreferencesRepository } from './infrastructure/preferences.repository.j
     ShortlistService,
     PreferencesService,
     PreferenceExamService,
+    PreferenceGradingService,
     AutoAssignPreferencesService,
     PreferenceAutoAssignScheduler,
     PreferenceDeadlineReminderSource,
@@ -68,6 +70,6 @@ import { PreferencesRepository } from './infrastructure/preferences.repository.j
     MatchRunsRepository,
     PreferencesRepository,
   ],
-  exports: [RunMatchingService, RecomputeScvService, PreferenceExamService],
+  exports: [RunMatchingService, RecomputeScvService, PreferenceExamService, PreferenceGradingService],
 })
 export class MatchingModule {}

@@ -172,6 +172,16 @@ export const preferences = core.table(
       .references(() => jobDescriptions.id),
     rank: integer('rank').notNull(),
     status: text('status').$type<ApplicationStatus>().notNull().default('PENDING_TEST'),
+    /**
+     * S_final = α·S_cv + β·S_test (0–100), written with TEST_GRADED by `transitionTo` `set`
+     * (US-4.4 AC-10, CONTEXT D53); EPIC-5 ranks by it.
+     */
+    sFinal: numeric('s_final', { precision: 5, scale: 2, mode: 'number' }),
+    /**
+     * The S_cv (0–100) that S_final was computed from, written with it: the result page shows the
+     * two numbers S_final came from, whatever matching scores later (US-4.4, CONTEXT D53).
+     */
+    sCv: numeric('s_cv', { precision: 5, scale: 2, mode: 'number' }),
     rowVersion: rowVersion(),
     ...timestamps(),
   },
@@ -184,5 +194,13 @@ export const preferences = core.table(
     oneOf('preferences_status_check', t.status, APPLICATION_STATES),
     // US-3.4 counts the preferences of a JD by status.
     index('preferences_jd_id_status_idx').on(t.jdId, t.status),
+    check('preferences_s_final_check', sql`${t.sFinal} between 0 and 100`),
+    // Graded ⇔ S_final, for the two states either side of grading (US-4.4 AC-11).
+    check(
+      'preferences_s_final_status_check',
+      sql`(${t.status} <> 'PENDING_TEST' or ${t.sFinal} is null) and (${t.status} <> 'TEST_GRADED' or ${t.sFinal} is not null)`,
+    ),
+    check('preferences_s_cv_check', sql`${t.sCv} between 0 and 100`),
+    check('preferences_s_cv_s_final_check', sql`(${t.sCv} is null) = (${t.sFinal} is null)`),
   ],
 );

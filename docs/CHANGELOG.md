@@ -15,6 +15,32 @@ Lịch sử phát hành của Smart Recruit Match. Mỗi commit ship code tăng 
 
 ---
 
+## [0.23.0] — 2026-11-10 — Chấm bài, S_test và S_final — v0.23.0
+
+US-4.4. Trắc nghiệm được chấm bằng code lúc đóng phiên; Grader chấm mỗi câu tự luận hai lần độc lập qua batch; code quyết định câu nào chuyển cán bộ chấm, tính S_test, điểm phần, bản đồ năng lực và S_final theo NV, rồi công bố kết quả sau `testing_end` (FR-22, BR-07, BR-13, AGENTS › Nguyên tắc 1, 2, 9, 12, [CONTEXT D53](CONTEXT.md)).
+
+### Added
+- **Cách tính điểm** (`assessment/domain/scoring.ts`, hàm thuần, phân số bigint, làm tròn half-up một lần): mọi câu trong một phần ngang nhau (`w_q = tỷ trọng phần / số câu`), `S_test = Σ w_q · r_q`, điểm kỹ năng cùng trọng số (gộp theo `skillKey`), `S_final = α·S_cv + β·S_test`. `ratio.ts` chuyển sang `@srm/shared/scoring` cho các module dùng chung.
+- **Chuyển cán bộ chấm** (`decideNeedsHuman`): hai lượt lệch > 15% thang điểm (`RUNS_DIVERGE`), độ tự tin `LOW`, cờ `INSTRUCTION_IN_ANSWER` (`FLAGGED`), lượt AI lỗi (`AI_FAILED`), S_test cách θ_test ≤ 5 điểm (`NEAR_THRESHOLD`). Câu chờ cán bộ chấm giữ NV ở `PENDING_TEST` cho US-4.5.
+- **Grader** (`ai-service/app/agents/grader/`, prompt `grader/v1`): đọc `core.v_ai_essay_answers` (đề, rubric, đáp án mẫu, bài làm; không có cột nào của SV), hai request mỗi câu qua Message Batches, kiểm số tiêu chí và khoảng điểm (sai thì vào vòng batch sau, tối đa 3 vòng), refusal gửi lại đồng bộ. Bài làm bọc `untrusted("bai_lam")`. Hợp đồng `ESSAY_GRADE` (`ai.essay.grade`), 14 fixture, `evals/smoke_llm.py --grader`.
+- **Backend**:
+  - `EssayGradingService` gửi job theo đợt (≤ 5000 phiên mỗi run, `job_id` ghi trước khi gửi, ghim prompt theo đợt); `EssayResultsHandler` lưu từng lượt một lần vào `exam_answers.ai_grading`, kiểm lại điểm theo rubric;
+  - `GradingService.finalizeIfReady`: một giao dịch tính điểm, chuyển NV `PENDING_TEST → TEST_GRADED` kèm S_final và S_cv đã dùng, ghi `results_published_at`, gửi thông báo `EXAM_RESULT_PUBLISHED` (trong app và email). Lệch `row_version` hay thiếu S_cv thì rollback, tác vụ quét thử lại;
+  - `GradingScheduler` mỗi 5 phút (khóa `4401`): run quá 7 ngày chuyển `STALE`, gửi lại run chưa tới broker, gửi job khi đợt qua `testing_end` và không còn phiên mở, công bố phiên đủ điểm;
+  - `ThresholdScheduler` mỗi 10 phút (khóa `4402`): NV `TEST_GRADED` có S_test < θ_test chuyển `BELOW_THRESHOLD` sau `appeal_window_hours` (mặc định 48) kể từ lúc công bố; điểm móc `THRESHOLD_HOLDS` cho US-4.6.
+- **Bảng và cột** (migration `0034`–`0037`): điểm và cờ của `exam_sessions`, điểm và lượt chấm của `exam_answers`, bảng `essay_grading_runs`, `preferences.s_final` và `s_cv` (CHECK theo trạng thái), view `v_ai_essay_answers`, loại job và loại thông báo mới.
+- **API**:
+  - `GET /api/exam-sessions/{id}/result` (chỉ `STUDENT` chủ phiên; phiên của người khác là `404`, phiên đang làm là `409 EXAM_NOT_CLOSED`): `GRADING` hoặc điểm, NV, bản đồ năng lực, điểm và nhận xét từng tiêu chí của câu tự luận; không có đáp án, chữ của rubric hay đáp án mẫu;
+  - `POST /api/campaigns/{id}/essay-grading` (chỉ `CENTER`, pha `TESTING`/`ALLOCATION_REVIEW`): gửi sớm các bài đã nộp;
+  - `GET /api/me/exams` thêm `resultState`.
+- **Giao diện**: trang kết quả `/sv/exams/:sessionId/result` (dùng tốt ở 360 px), nút "Xem kết quả" trên `/sv/exams`, nút "Chấm tự luận" kèm hộp thoại xác nhận trên trang đợt.
+
+### Changed
+- Đóng phiên chấm luôn trắc nghiệm trong một savepoint; chấm lỗi không giữ phiên mở.
+- ARCHITECTURE: *Tác vụ định kỳ*, *Pipeline › Grader*, *Các bảng chính*, *Hàng đợi*. PRD: *Điểm test (S_test)*, FR-22. EPIC-3 (phá hòa thuộc US-5.1), EPIC-4. AGENTS › *Mẫu có sẵn*: `finalizeIfReady`, `PreferenceGradingService`, `@srm/shared/scoring`. LESSONS §42 mới, §12 và §33 thêm dòng 0.23.0.
+
+---
+
 ## [0.22.0] — 2026-11-08 — Phòng thi — v0.22.0
 
 US-4.3. Sinh viên làm bài test cho từng nguyện vọng trên điện thoại hoặc máy tính, mỗi bài một lần. Server rút đề, quyết định giờ hết hạn, tự lưu bài làm và tự đóng bài khi hết giờ; đáp án không rời server (FR-20, BR-05, BR-06, NFR-9, NFR-10, [CONTEXT D51, D52](CONTEXT.md)).

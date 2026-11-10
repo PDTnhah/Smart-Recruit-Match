@@ -59,6 +59,7 @@
 - D50 · Validator trong job sinh câu (đầu vào không kèm đáp án, code quyết định, độ khó lệch 2 bậc), khóa ngân hàng `OPEN → LOCKED` bằng tay, trigger chặn sửa, JD có phiên bản mới thì lưu lại ma trận (US-4.2)
 - D51 · Phòng thi: hạn phiên cắt theo `testing_end`, ân hạn 10 giây, liên kết NV ↔ phiên suy ra, bố cục đề ở PostgreSQL, hash Redis + Lua, giới hạn tần suất; chưa dùng chung bài theo nhóm vị trí (US-4.3) → sửa một phần bởi D52 (mã phương án, đóng phiên lỗi)
 - D52 · Phòng thi: mã phương án từ nguồn ngẫu nhiên mật mã, không từ seed; đóng phiên lỗi thì Redis nhận lưu lại (US-4.3)
+- D53 · Chấm bài: trắc nghiệm trong giao dịch đóng phiên, Grader hai lượt qua batch có đáp án mẫu, câu ngang nhau trong phần, chuyển người chấm, S_final theo NV, dưới ngưỡng sau hạn phúc khảo (US-4.4)
 
 ---
 
@@ -2235,3 +2236,114 @@ Story còn đề xuất cột `preferences.exam_session_id`, và các cột `sta
 
 **Date**: 2026-11-08
 **Version**: 0.22.0
+
+### D53. Chấm bài: chấm trắc nghiệm trong giao dịch đóng phiên, Grader chấm hai lần qua batch, mọi câu trong một phần ngang nhau, quy tắc chuyển người chấm, S_final theo NV, chuyển dưới ngưỡng sau hạn phúc khảo (US-4.4) (chốt điểm mở của US-4.4; bổ sung D46, D51)
+
+**Context**: Story US-4.4 viết ngày 2026-10-07, trước D46 (batch), D49 (Q7: chỉ có phần A và B) và D51/D52 (phòng thi). Phiên Plan ngày 2026-11-10 gặp các điểm sau:
+
+- Story đề xuất năm điểm và để người dùng chốt:
+  - "độ tự tin thấp" là gì;
+  - điểm AI của câu khi có hai lần chấm;
+  - lúc nào thì coi là "đóng cửa sổ thi";
+  - lúc nào chuyển `TEST_GRADED → BELOW_THRESHOLD`;
+  - S_final lưu ở đâu trước khi phân bổ.
+- Định dạng `custom_id` của ARCH có ký tự mà API batch không nhận.
+- Ma trận đề không gán điểm cho từng câu trắc nghiệm. Rubric câu tự luận do LLM sinh, nên tổng điểm tối đa mỗi câu một khác. AC-1 và AC-9 viết theo cách cộng điểm thô: câu tự luận nhiều điểm lấn các câu khác, và trong bản đồ năng lực, một câu tự luận 20 điểm nặng bằng 20 câu trắc nghiệm.
+- ARCH chỉ ghi Grader nhận "câu hỏi + rubric + bài làm", chưa nói có gửi đáp án mẫu hay không.
+- Hàm làm tròn số nguyên ×100 (`ratio.ts`) nằm trong `matching/domain`, nhưng dependency-cruiser cấm `assessment` import từ đó.
+- D51 yêu cầu US-4.4 có tác vụ quét các phiên đã đóng mà chưa chấm, vì `exam.session.closed` chỉ sống trong tiến trình (LESSONS §34).
+
+**Decision** (người dùng chốt bốn điểm đầu ngày 2026-11-10, hai điểm *Công bố sau `testing_end`* và *S_cv của S_final* ở phiên Review cùng ngày; các điểm còn lại nằm trong plan đã được duyệt):
+
+- **Lúc chấm tự luận.** `GradingScheduler` gửi job `ESSAY_GRADE` cho một đợt khi đợt ở `TESTING`/`ALLOCATION_REVIEW`, đã qua `testing_end`, và không còn phiên `IN_PROGRESS`. CENTER có thể gửi sớm các phiên đã đóng bằng `POST /api/campaigns/:id/essay-grading` (nút "Chấm tự luận" trên trang đợt). Phiên đã gửi mang `exam_sessions.essay_run_id`, nên không phiên nào bị gửi hai lần.
+- **Công bố sau `testing_end`.** Chấm sớm thì quyết định chuyển người chấm và điểm từng câu vẫn được ghi ngay, nhưng `finalizeIfReady` trả `NOT_DUE` và không công bố gì khi đợt chưa qua `testing_end`. Lý do theo tiêu chí do Grader viết khi đã thấy rubric và đáp án mẫu, nên công bố sớm sẽ cho SV chưa làm bài biết câu tự luận cần gì. Nút "Chấm tự luận" chỉ gửi bài, không công bố; tác vụ quét công bố sau `testing_end`.
+- **Mọi câu trong một phần ngang nhau.**
+  - Mỗi câu có tỷ lệ đạt `r_q = điểm / điểm tối đa`. Trắc nghiệm đúng được 1, sai được 0. Câu bỏ trống hoặc không có dòng `exam_answers` được 0.
+  - Trọng số câu: `w_q = weight_percent của phần / số câu của phần đó trên đề`.
+  - Điểm phần: `A = Σ r_q / n_A × 100`, `B = Σ r_q / n_B × 100`. `S_test = Σ w_q · r_q`, tức là `wA·A + wB·B`.
+  - Điểm kỹ năng: `Σ_{q∈kỹ năng} w_q·r_q / Σ_{q∈kỹ năng} w_q × 100`. Bản đồ năng lực vì vậy khớp với S_test: đề chỉ có một kỹ năng thì điểm kỹ năng bằng S_test.
+  - Tính bằng phân số bigint, làm tròn half-up một lần ở cuối mỗi hàm. `computeSFinal` nhận `sTestX100` đã làm tròn, vì đó là con số SV thấy.
+- **Grader nhận đáp án mẫu** (`answer_key.sample_answer`) làm tham khảo. Prompt nói rõ cách giải khác vẫn được điểm nếu đạt tiêu chí của rubric. Đáp án mẫu chỉ đi từ server sang AI Service qua view, không bao giờ tới SV.
+- **Chốt năm điểm theo cột Đề xuất của story:**
+  - Độ tự tin là enum `LOW | MEDIUM | HIGH`; chỉ `LOW` bị coi là thấp.
+  - Điểm AI của câu là trung bình hai lần chấm.
+  - `TEST_GRADED → BELOW_THRESHOLD` khi đã qua `results_published_at + campaigns.config.appeal_window_hours` (mặc định 48, khoảng 1–168, tính theo `Clock`). Có điểm móc để US-4.6 giữ lại phiên còn phúc khảo.
+  - S_final lưu theo NV ở `core.preferences.s_final numeric(5,2)`, ghi qua `PreferenceGradingService` của `matching`.
+  - `matching/domain/ratio.ts` chuyển sang `packages/shared/scoring/ratio.ts`, cho `matching`, `assessment` và US-5.1 dùng chung.
+- **Chấm trắc nghiệm trong giao dịch đóng phiên** (`ExamSessionService.close`): ghi `auto_score` và `final_score` cùng lúc ghi `exam_answers`, trong một savepoint. Chấm lỗi (câu thiếu đáp án) thì chỉ ghi log, phiên vẫn đóng; `finalizeIfReady` chấm lại phần còn thiếu trước khi tính điểm, nên không cần bước chấm bù riêng trong tác vụ quét. Sự kiện `exam.session.closed` giữ nguyên cho US-4.7.
+- **Hai lượt chấm độc lập** cho mỗi câu tự luận đã trả lời:
+  - Key `s{session}-q{question}-p{1|2}-v{N}` khớp `BATCH_KEY` của D46 (`^[a-zA-Z0-9_-]{1,64}$`) và phân biệt phiên, câu, lượt chấm, phiên bản prompt.
+  - Block `user` kết thúc bằng số lượt chấm, nên hai request khác nhau: fixture có hai khóa riêng và log tách được hai lượt.
+  - Prompt `grader/v1` có ba block. `system` chứa hướng dẫn và cách chấm theo rubric. `shared` chứa đề, rubric và đáp án mẫu (`tojson_sorted`), được cache giữa các bài của cùng một câu. `user` chứa bài làm, bọc bằng `untrusted("bai_lam")`.
+  - Request sắp theo `question_id`. `effort: high`. Prompt ghim theo đợt như D46.
+- **Kiểm đầu ra hai lớp:**
+  - Ở AI Service: số tiêu chí phải bằng độ dài rubric và `0 ≤ points ≤ max_points`. Sai thì request vào vòng batch sau, tối đa 3 vòng như D46.
+  - Ở backend: kiểm lại khi nhận. Sai thì câu được chuyển người chấm (`AI_FAILED`), message không vào DLQ (LESSONS §32).
+  - Refusal: gửi lại đồng bộ qua `LLMClient`. Vẫn từ chối hoặc lỗi thì lượt đó là failure; câu chuyển người chấm và job kết thúc `PARTIAL`.
+- **Kết quả theo lượt chấm.** Mỗi item `ai.results` loại `ESSAY_GRADE` là một `(session_id, question_id, pass_no)`. Trường không tên `pass` vì đó là từ khóa Python: model Pydantic sinh ra sẽ đổi thành `pass_`, mà outbox không serialize theo alias.
+  - Item và lượt hỏng (`failed`) đi trong mọi chunk, mỗi loại tối đa 500 mỗi message. Message cuối có `final: true`; nếu job có lượt hỏng thì message đó mang `PARTIAL`.
+  - Backend ghi idempotent vào `exam_answers.ai_grading.runs[pass]` hoặc `failures[pass]` (đã có thì bỏ qua), kèm `model` và `prompt_version`.
+  - Phiên chỉ được tính điểm khi mọi câu tự luận đã trả lời có đủ hai lượt hoặc có failure, không dựa vào message cuối (LESSONS §33). Message cuối chỉ đóng run khi không còn lượt nào thiếu; thiếu (một chunk vào DLQ) thì run giữ `RUNNING` tới khi tác vụ quét chuyển `STALE`.
+- **Chuyển người chấm** (`decideNeedsHuman`, hàm thuần, mọi so sánh bằng số nguyên):
+  - Từng câu được chuyển khi có một trong các điều kiện: `|p1 − p2| × 100 > 15 × điểm tối đa` (`RUNS_DIVERGE`); một lượt có độ tự tin `LOW` (`LOW_CONFIDENCE`); có cờ `INSTRUCTION_IN_ANSWER` (`FLAGGED`, cũng ghi vào `exam_sessions.flags`); một lượt lỗi (`AI_FAILED`).
+  - Khi mọi câu đã có điểm AI: S_test tạm tính thỏa `|sTestX100 − θ_test × 100| ≤ 500` thì mọi câu tự luận đã trả lời của phiên đều được chuyển (`NEAR_THRESHOLD`).
+  - Câu bỏ trống luôn được 0 điểm và không bao giờ chuyển.
+  - Phiên còn câu `needs_human` thì NV giữ `PENDING_TEST`, chờ US-4.5.
+- **Công bố.** `GradingService.finalizeIfReady(sessionId)` chạy trong một giao dịch và được export cho US-4.5, US-4.6:
+  1. khóa phiên;
+  2. tính S_test, điểm phần A/B, `skill_scores`;
+  3. khóa NV qua `matching`, đọc S_cv `FOR SHARE` (LESSONS §38): CV đang dùng, phiên bản JD mới nhất (≤ phiên bản hiện hành) đã có kết quả, luật và prompt như shortlist (D47). JD lên phiên bản trong `TESTING` (BR-18, D35) không được chấm lại vì Matching chỉ chạy tới `PREFERENCE_SELECTION`, nên phiên bản SV đã chọn NV được dùng;
+  4. `computeSFinal`, rồi `PENDING_TEST → TEST_GRADED` qua `transitionTo` với `set: { sCv, sFinal }`. Trang kết quả đọc hai số đã lưu, nên S_final luôn khớp với S_cv và S_test hiển thị;
+  5. ghi `results_published_at` và gửi thông báo `EXAM_RESULT_PUBLISHED`.
+
+  Lệch `row_version`, hoặc S_cv chưa có, thì rollback; tác vụ quét thử lại.
+- **Tác vụ quét** `GradingScheduler`, mỗi 5 phút, khóa advisory `4_401`:
+  1. run `RUNNING` quá 7 ngày thì chuyển `STALE`, lượt còn thiếu thành failure `NO_RESULT` (câu chuyển người chấm với `AI_FAILED`), rồi `finalizeIfReady` cho các phiên đó. Bảy ngày là ba vòng batch 24–48 giờ, như run của Matching (US-3.2);
+  2. gửi lại run chưa tới broker sau 10 phút; gửi job cho các đợt đã đóng cửa sổ thi;
+  3. `finalizeIfReady` cho các phiên đủ điểm mà chưa công bố, trừ các đợt chưa qua `testing_end`.
+
+  `ThresholdScheduler` (khóa `4_402`) chuyển NV dưới ngưỡng sau hạn phúc khảo.
+- **Dữ liệu** (migration `0034`, view `0035`):
+  - `exam_sessions`: `score_a`, `score_b`, `s_test` numeric(5,2), `skill_scores`, `flags`, `essay_run_id`, `results_published_at`.
+  - `exam_answers`: `auto_score`, `final_score` numeric(6,2), `ai_grading`, `needs_human`, `needs_human_reasons`.
+  - Bảng `core.essay_grading_runs`, cột `core.preferences.s_final`, loại thông báo `EXAM_RESULT_PUBLISHED`.
+  - `core.preferences.s_cv` (migration `0037`): S_cv đã dùng để tính S_final, ghi cùng lúc; CHECK hai cột cùng có hoặc cùng không.
+  - View `core.v_ai_essay_answers` (`session_id`, `question_id`, đề, rubric, đáp án mẫu, bài làm): không có cột nào của SV (BR-03).
+- **Phá hòa.** Hàm so sánh chặt thuộc US-5.1 (EPIC-5). US-4.4 chỉ cung cấp S_test, S_cv và `submitted_at`.
+
+**Rationale**:
+
+- Gửi một batch cho cả đợt sau khi hết pha thì giá rẻ nhất (batch giảm 50%, cache dùng được qua mọi bài của một câu), và mọi bài trong đợt được chấm bằng cùng một prompt. Nút gửi sớm đủ cho demo và cho đợt cần điểm sớm.
+- Câu ngang nhau trong phần giữ đúng tỷ trọng phần mà Trung tâm đặt trong ma trận, không phụ thuộc thang điểm LLM tự đặt cho rubric. Bản đồ năng lực dùng cùng trọng số với S_test nên HR đọc được hai con số cùng một cách.
+- Đáp án mẫu làm hai lượt chấm ổn định hơn, nên ít câu bị chuyển người chấm chỉ vì hai lượt lệch nhau.
+- Chấm trắc nghiệm trong giao dịch đóng phiên không thể bị bỏ sót, nên tránh được lỗi của LESSONS §34 mà không cần thêm đường chạy lại.
+- Chuyển dưới ngưỡng sau hạn phúc khảo thì phúc khảo còn có tác dụng với NV đó, vì `BELOW_THRESHOLD` là trạng thái cuối. Phân bổ vẫn lọc theo BR-07, nên không phụ thuộc thời điểm này.
+
+**Alternatives considered**:
+
+- **Gom định kỳ mỗi giờ:** người dùng không chọn. Nhiều batch nhỏ, cache kém, nhiều job phải theo dõi.
+- **Cộng điểm thô (Σ đạt / Σ tối đa) như AC-1, AC-9 cũ:** người dùng không chọn.
+- **Không gửi đáp án mẫu, đúng chữ ARCH:** người dùng không chọn.
+- **Chép `ratio.ts` vào `assessment/domain`:** người dùng không chọn.
+- **Chấm trắc nghiệm bằng listener `exam.session.closed` cộng tác vụ quét** (task cũ của story): loại. Thêm một đường lỗi mà không thêm gì.
+- **Một `custom_id` cho cả hai lượt, phân biệt bằng thứ tự:** loại. Kết quả batch về không theo thứ tự.
+- **Công bố ngay khi chấm xong, chỉ ẩn lý do theo tiêu chí tới `testing_end`:** người dùng không chọn.
+- **S_cv đúng phiên bản JD hiện hành, đọc lại lúc xem kết quả:** loại. JD lên phiên bản trong `TESTING` thì không có S_cv, NV kẹt `PENDING_TEST`; S_cv đọc lại sau khi chấm lại có thể lệch với S_final đã lưu.
+- **Unique run `RUNNING` theo đợt:** loại. Batch có thể chạy tới 24–48 giờ, nên lần gửi sớm sẽ chặn lần gửi sau khi hết pha. Các phiên đã tách nhau qua `essay_run_id`.
+
+**Impact**:
+
+- US-4.4 viết lại AC-1, AC-2, AC-9, AC-12, AC-13, AC-14 và task; 8 → 13 điểm.
+- ARCH: *Pipeline từng agent › Grader*, *Các bảng chính*, *Hàng đợi*, *Tác vụ định kỳ*. PRD: *Điểm test (S_test)*. EPIC-3 › *Out of scope* (phá hòa), EPIC-4.
+- Code:
+  - `packages/shared`: `scoring/ratio.ts`, `contracts/essay-grade.ts`, `schemas/exam-result.ts`, `appeal_window_hours`, `EXAM_RESULT_PUBLISHED`.
+  - Migration `0034`–`0037`. Module `assessment`: `domain/scoring.ts`, `needs-human.ts`, `GradingService`, `EssayGradingService`, `GradingScheduler`, `ThresholdScheduler`. `PreferenceGradingService` của `matching`.
+  - `ai-service/app/agents/grader/`, prompt `grader/v1`. Web: `/sv/exams/:sessionId/result`, nút "Chấm tự luận".
+- Story sau:
+  - US-4.5 dùng `needs_human`, `needs_human_reasons`, `finalizeIfReady`.
+  - US-4.6 dùng `results_published_at`, điểm móc chặn chuyển dưới ngưỡng, fixture Grader.
+  - US-5.1, US-5.2 đọc `preferences.s_final`, `exam_sessions.s_test`, `submitted_at`.
+  - US-6.3 đo MAE và kappa từ `ai_grading`.
+
+**Date**: 2026-11-10
+**Version**: 0.23.0

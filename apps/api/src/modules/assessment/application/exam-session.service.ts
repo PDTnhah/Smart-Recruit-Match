@@ -45,6 +45,7 @@ import { ExamAnswerStore } from '../infrastructure/exam-answer-store.js';
 import { type ExamSessionRecord, ExamSessionsRepository } from '../infrastructure/exam-sessions.repository.js';
 import { QuestionBanksRepository } from '../infrastructure/question-banks.repository.js';
 import { DrawableBankCache } from './drawable-bank-cache.js';
+import { McqGrader } from './mcq-grader.js';
 
 /** Error entity of a preference, as the matching module names it. */
 const PREFERENCE_ENTITY = 'preference';
@@ -99,6 +100,7 @@ export class ExamSessionService {
     private readonly sessions: ExamSessionsRepository,
     private readonly store: ExamAnswerStore,
     private readonly bankCache: DrawableBankCache,
+    private readonly mcq: McqGrader,
     private readonly transitions: StateTransitionService,
     private readonly audit: AuditService,
     private readonly events: EventEmitter2,
@@ -181,8 +183,8 @@ export class ExamSessionService {
   /**
    * AC-8, AC-9: the one way a session closes. Redis is closed to saves and read first, so no save
    * lands after the snapshot; then, under the session's row lock, the answers that fit the paper go
-   * to `exam_answers` and the session moves to SUBMITTED or EXPIRED with `submitted_at` in the same
-   * UPDATE (`closingOf`). `exam.session.closed` follows the commit; a failed transaction lets Redis
+   * to `exam_answers`, the multiple-choice ones graded by code (US-4.4 AC-1, CONTEXT D53), and the
+   * session moves to SUBMITTED or EXPIRED with `submitted_at` in the same UPDATE (`closingOf`). `exam.session.closed` follows the commit; a failed transaction lets Redis
    * take saves again.
    */
   async close(session: ExamSessionRecord, closer: ExamCloser): Promise<ClosedExam> {
@@ -272,6 +274,7 @@ export class ExamSessionService {
         submittedAt: session?.submittedAt?.toISOString() ?? null,
         canStart,
         secondsIfStartedNow,
+        resultState: resultStateOf(session),
       };
     });
     return {
@@ -294,6 +297,7 @@ export class ExamSessionService {
     if (locked.status !== 'IN_PROGRESS') return null;
     const rows = storedAnswersOf(locked.questionIds, locked.optionLayout, saved);
     await this.sessions.insertAnswers(tx, locked.id, rows);
+    await this.mcq.gradeOnClose(tx, locked.id);
     const closing = closingOf(now, locked.deadlineAt, closer.kind);
     const actor: Actor = closer.kind === 'STUDENT' ? { kind: 'USER', userId: closer.userId } : SYSTEM_ACTOR;
     const moved = await this.transitions.transitionTo<ExamSessionStatus>({
@@ -458,6 +462,12 @@ export class ExamSessionService {
       questionCount: session.questionIds.length,
     };
   }
+}
+
+/** US-4.4 AC-12: null while there is no closed session. */
+function resultStateOf(session: ExamSessionRecord | undefined): MyExamItem['resultState'] {
+  if (!session || session.status === 'IN_PROGRESS') return null;
+  return session.resultsPublishedAt === null ? 'GRADING' : 'PUBLISHED';
 }
 
 function closeReason(closer: ExamCloser, status: 'SUBMITTED' | 'EXPIRED'): string {

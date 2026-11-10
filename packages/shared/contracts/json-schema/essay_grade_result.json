@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./essay_grade_result.json",
+  "type": "object",
+  "properties": {
+    "job_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "type": {
+      "type": "string",
+      "const": "ESSAY_GRADE"
+    },
+    "status": {
+      "$ref": "./ai_result_status.json"
+    },
+    "job": {
+      "$ref": "./essay_grade_job.json"
+    },
+    "result": {
+      "anyOf": [
+        {
+          "$ref": "./essay_grade_output.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "error": {
+      "anyOf": [
+        {
+          "$ref": "./ai_job_error.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "job_id",
+    "type",
+    "status",
+    "job",
+    "result",
+    "error"
+  ],
+  "additionalProperties": false,
+  "title": "EssayGradeResult",
+  "description": "Message on ai.results for an ESSAY_GRADE job"
+}

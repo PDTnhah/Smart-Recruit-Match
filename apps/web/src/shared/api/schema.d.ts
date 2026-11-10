@@ -772,6 +772,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/exam-sessions/{id}/result": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ExamSessionController_result"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/exam-sessions/{id}/submit": {
         parameters: {
             query?: never;
@@ -782,6 +798,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["ExamSessionController_submit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/campaigns/{id}/essay-grading": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["EssayGradingController_dispatch"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1173,6 +1205,8 @@ export interface components {
                     low_below: number;
                     high_from: number;
                 };
+                /** @default 48 */
+                appeal_window_hours: number;
             };
         };
         CampaignDto_Output: {
@@ -1244,6 +1278,8 @@ export interface components {
                     low_below: number;
                     high_from: number;
                 };
+                /** @default 48 */
+                appeal_window_hours: number;
             };
             rowVersion: number;
             /** Format: date-time */
@@ -1321,6 +1357,8 @@ export interface components {
                         low_below: number;
                         high_from: number;
                     };
+                    /** @default 48 */
+                    appeal_window_hours: number;
                 };
                 rowVersion: number;
                 /** Format: date-time */
@@ -1369,6 +1407,7 @@ export interface components {
                     low_below: number;
                     high_from: number;
                 };
+                appeal_window_hours?: number;
             };
             reason?: string;
         };
@@ -1943,6 +1982,23 @@ export interface components {
                 payload: {
                     campaignId: number;
                     campaignName: string;
+                    preferenceId: number;
+                    rank: number;
+                    jdTitle: string;
+                    companyName: string;
+                };
+            } | {
+                id: number;
+                /** Format: date-time */
+                readAt: string | null;
+                /** Format: date-time */
+                createdAt: string;
+                /** @enum {string} */
+                type: "EXAM_RESULT_PUBLISHED";
+                payload: {
+                    campaignId: number;
+                    campaignName: string;
+                    sessionId: number;
                     preferenceId: number;
                     rank: number;
                     jdTitle: string;
@@ -2529,6 +2585,8 @@ export interface components {
                 submittedAt: string | null;
                 canStart: boolean;
                 secondsIfStartedNow: number | null;
+                /** @enum {string|null} */
+                resultState: "GRADING" | "PUBLISHED" | null;
             }[];
             /** Format: date-time */
             serverNow: string;
@@ -2583,6 +2641,47 @@ export interface components {
             /** Format: date-time */
             serverNow: string;
         };
+        ExamResultDto_Output: {
+            /** @enum {string} */
+            state: "GRADING" | "PUBLISHED";
+            sessionId: number;
+            jdTitle: string;
+            companyName: string;
+            /** Format: date-time */
+            submittedAt: string;
+            scores: {
+                /** Format: date-time */
+                publishedAt: string;
+                sTest: number;
+                partA: number;
+                partB: number;
+                skills: {
+                    skill: string;
+                    score: number | null;
+                }[];
+                preference: {
+                    preferenceId: number;
+                    rank: number;
+                    sCv: number | null;
+                    sFinal: number | null;
+                    /** @enum {string} */
+                    status: "PENDING_TEST" | "TEST_GRADED" | "BELOW_THRESHOLD" | "WAITING_NEXT_ROUND" | "NOMINATED" | "INTERVIEW" | "HR_REJECTED" | "PASSED" | "RESERVE" | "INTERVIEW_FAILED" | "ACCEPTED" | "DECLINED" | "CLOSED";
+                } | null;
+                essays: {
+                    questionId: number;
+                    no: number;
+                    stem: string;
+                    points: number;
+                    maxPoints: number;
+                    criteria: {
+                        no: number;
+                        points: number;
+                        maxPoints: number;
+                        reason: string;
+                    }[];
+                }[];
+            } | null;
+        };
         ExamSubmissionDto_Output: {
             sessionId: number;
             /** @enum {string} */
@@ -2591,6 +2690,13 @@ export interface components {
             submittedAt: string;
             answeredCount: number;
             questionCount: number;
+        };
+        EssayGradingDispatchDto_Output: {
+            runs: {
+                runId: number;
+                sessionCount: number;
+                sent: boolean;
+            }[];
         };
     };
     responses: never;
@@ -4043,6 +4149,27 @@ export interface operations {
             };
         };
     };
+    ExamSessionController_result: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExamResultDto_Output"];
+                };
+            };
+        };
+    };
     ExamSessionController_submit: {
         parameters: {
             query?: never;
@@ -4060,6 +4187,27 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ExamSubmissionDto_Output"];
+                };
+            };
+        };
+    };
+    EssayGradingController_dispatch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EssayGradingDispatchDto_Output"];
                 };
             };
         };

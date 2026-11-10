@@ -29,6 +29,8 @@ export const NOTIFICATION_TYPES = [
   'JD_LOW_PREFERENCES',
   // A preference closed because its test was not taken by `testing_end` (US-4.3, BR-06, CONTEXT D51).
   'EXAM_NOT_TAKEN',
+  // The results of a graded test are out (US-4.4 AC-11, CONTEXT D53).
+  'EXAM_RESULT_PUBLISHED',
 ] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
@@ -169,6 +171,20 @@ export const ExamNotTakenPayloadSchema = z.object({
   companyName: z.string().min(1),
 });
 
+/**
+ * The test of a preference is graded and its results are out (US-4.4 AC-11). One notice per
+ * session, in the app and by email; the scores are shown on the result page, not in the notice.
+ */
+export const ExamResultPublishedPayloadSchema = z.object({
+  campaignId: id,
+  campaignName: z.string().min(1),
+  sessionId: id,
+  preferenceId: id,
+  rank: id,
+  jdTitle: z.string().min(1),
+  companyName: z.string().min(1),
+});
+
 /** `type` and the `payload` that goes with it. */
 export const NotificationContentSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('CAMPAIGN_OPENED'), payload: CampaignOpenedPayloadSchema }),
@@ -183,6 +199,7 @@ export const NotificationContentSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('PREFERENCES_AUTO_ASSIGNED'), payload: PreferencesAutoAssignedPayloadSchema }),
   z.object({ type: z.literal('JD_LOW_PREFERENCES'), payload: JdLowPreferencesPayloadSchema }),
   z.object({ type: z.literal('EXAM_NOT_TAKEN'), payload: ExamNotTakenPayloadSchema }),
+  z.object({ type: z.literal('EXAM_RESULT_PUBLISHED'), payload: ExamResultPublishedPayloadSchema }),
 ]);
 
 export type NotificationContent = z.output<typeof NotificationContentSchema>;

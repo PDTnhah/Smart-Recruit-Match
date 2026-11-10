@@ -112,6 +112,11 @@ const CONFIG_FIELDS = {
   require_full_preferences: z.boolean({ error: 'Chọn có bắt buộc chọn đủ N_NV hay không' }),
   // Competition level of GĐ4 step 2 (US-3.4, CONTEXT D48).
   competition_thresholds: CompetitionThresholdsSchema,
+  // How long after the results of a test a student may appeal; a preference below θ_test turns
+  // BELOW_THRESHOLD only once it has passed (US-4.4 AC-14, US-4.6, CONTEXT D53).
+  appeal_window_hours: positiveInt('Thời hạn phúc khảo').max(168, {
+    error: 'Thời hạn phúc khảo tối đa 168 giờ (7 ngày)',
+  }),
 };
 
 /**
@@ -120,7 +125,8 @@ const CONFIG_FIELDS = {
  * the PRD table: added by US-1.7 (CONTEXT D31). The `scv_weight_*` defaults are the PRD › S_cv
  * table (US-3.1, CONTEXT D41). `match_top_m` is not in the PRD table: added by US-3.2 (CONTEXT
  * D46); nor is `require_full_preferences`: added by US-3.3 (CONTEXT D47); nor is
- * `competition_thresholds`: added by US-3.4 (CONTEXT D48).
+ * `competition_thresholds`: added by US-3.4 (CONTEXT D48); nor is `appeal_window_hours`: added by
+ * US-4.4 (CONTEXT D53).
  */
 export const DEFAULT_CAMPAIGN_CONFIG = {
   n_nv: 3,
@@ -143,6 +149,7 @@ export const DEFAULT_CAMPAIGN_CONFIG = {
   no_preference_policy: 'AUTO_ASSIGN_TOP_SCV',
   require_full_preferences: false,
   competition_thresholds: { low_below: 1, high_from: 3 },
+  appeal_window_hours: 48,
 } as const;
 
 /** The S_cv criteria in PRD table order; the sum error is reported on the last one. */
@@ -214,6 +221,7 @@ export const CampaignConfigSchema = z
     competition_thresholds: CONFIG_FIELDS.competition_thresholds.default(() => ({
       ...DEFAULT_CAMPAIGN_CONFIG.competition_thresholds,
     })),
+    appeal_window_hours: CONFIG_FIELDS.appeal_window_hours.default(DEFAULT_CAMPAIGN_CONFIG.appeal_window_hours),
   })
   .superRefine(checkWeights, whenValid(['alpha', 'beta']))
   .superRefine(checkScvWeights, whenValid(SCV_WEIGHT_KEYS));

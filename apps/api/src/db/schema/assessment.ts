@@ -1,9 +1,15 @@
 import {
   ACTOR_KINDS,
   type ActorKind,
+  ESSAY_GRADING_RUN_STATUSES,
+  EXAM_GRADING_REASONS,
   EXAM_SESSION_STATES,
+  type EssayGradingRunStatus,
+  type ExamAnswerAiGrading,
   type ExamBlueprint,
+  type ExamGradingReason,
   type ExamOptionLayout,
+  type ExamSessionFlag,
   type ExamSessionStatus,
   type ExamStoredAnswer,
   type MissingCell,
@@ -21,11 +27,25 @@ import {
   type QuestionStatus,
   type QuestionType,
   type QuestionValidation,
+  type StoredSkillScore,
 } from '@srm/shared';
 import { sql } from 'drizzle-orm';
-import { bigint, check, index, integer, jsonb, primaryKey, text, unique, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
+import {
+  bigint,
+  boolean,
+  check,
+  index,
+  integer,
+  jsonb,
+  numeric,
+  primaryKey,
+  text,
+  unique,
+  uniqueIndex,
+  uuid,
+} from 'drizzle-orm/pg-core';
 import { campaigns } from './campaigns.js';
-import { id, oneOf, ref, rowVersion, timestamptz, timestamps } from './columns.js';
+import { id, inList, oneOf, ref, rowVersion, timestamptz, timestamps } from './columns.js';
 import { core } from './core.js';
 import { jobDescriptions } from './job-descriptions.js';
 import { students } from './students.js';
@@ -163,7 +183,12 @@ export const questions = core.table(
  * paper shows again after a reload, even with a question retired since: `question_ids` in display
  * order, `option_layout` with the opaque code and original index of each MCQ option (server only,
  * AGENTS › Invariant 8). `deadline_at` is `min(started_at + duration, testing_end)`; `submitted_at`
- * is set with the closing status, never after `deadline_at`. US-4.4 adds the grading columns.
+ * is set with the closing status, never after `deadline_at`.
+ *
+ * Grading (US-4.4, CONTEXT D53): `essay_run_id` is the essay grading job the session was sent with,
+ * once, so a second dispatch never grades it again. `score_a`, `score_b`, `s_test` (0–100) and
+ * `skill_scores` are computed by code in the transaction that publishes the results, with
+ * `results_published_at`; an appeal (US-4.6) may change the scores, never unpublish them.
  */
 export const examSessions = core.table(
   'exam_sessions',
@@ -186,6 +211,14 @@ export const examSessions = core.table(
     /** Set with SUBMITTED or EXPIRED, in the same UPDATE (`transitionTo` `set`). */
     submittedAt: timestamptz('submitted_at'),
     status: text('status').$type<ExamSessionStatus>().notNull().default('IN_PROGRESS'),
+    essayRunId: ref('essay_run_id').references(() => essayGradingRuns.id),
+    scoreA: numeric('score_a', { precision: 5, scale: 2, mode: 'number' }),
+    scoreB: numeric('score_b', { precision: 5, scale: 2, mode: 'number' }),
+    sTest: numeric('s_test', { precision: 5, scale: 2, mode: 'number' }),
+    skillScores: jsonb('skill_scores').$type<StoredSkillScore[]>(),
+    /** Warnings for staff (Invariant 8): the Grader's flags here, the cheating signals in US-4.7. */
+    flags: jsonb('flags').$type<ExamSessionFlag[]>().notNull().default([]),
+    resultsPublishedAt: timestamptz('results_published_at'),
     rowVersion: rowVersion(),
     ...timestamps(),
   },
@@ -201,13 +234,33 @@ export const examSessions = core.table(
     index('exam_sessions_open_deadline_idx')
       .on(t.deadlineAt)
       .where(sql`${t.status} = 'IN_PROGRESS'`),
+    check(
+      'exam_sessions_scores_check',
+      sql`${t.scoreA} between 0 and 100 and ${t.scoreB} between 0 and 100 and ${t.sTest} between 0 and 100`,
+    ),
+    // US-4.4 AC-11: the scores are written together, with the publication of the results.
+    check(
+      'exam_sessions_results_check',
+      sql`(${t.resultsPublishedAt} is null) = (${t.sTest} is null) and (${t.sTest} is null) = (${t.scoreA} is null) and (${t.sTest} is null) = (${t.scoreB} is null) and (${t.sTest} is null) = (${t.skillScores} is null)`,
+    ),
+    check('exam_sessions_results_closed_check', sql`${t.resultsPublishedAt} is null or ${t.status} <> 'IN_PROGRESS'`),
+    check('exam_sessions_flags_check', sql`jsonb_typeof(${t.flags}) = 'array'`),
+    // The grading sweep reads the sessions of a bank still waiting for their results.
+    index('exam_sessions_unpublished_bank_idx')
+      .on(t.bankId)
+      .where(sql`${t.resultsPublishedAt} is null`),
   ],
 );
 
 /**
  * Answers of a closed session, written once from Redis in the transaction that closes it (AC-8).
- * `answer` holds the original index of an MCQ option for grading (US-4.4); it never leaves the
- * server. US-4.4 and US-4.6 add the score columns.
+ * `answer` holds the original index of an MCQ option for grading; it never leaves the server.
+ *
+ * Grading (US-4.4, CONTEXT D53), in points of the question: an MCQ is worth 1, an essay the sum of
+ * its rubric's `max_points`. `auto_score` is the code's grade of an MCQ, written when the session
+ * closes. `ai_grading` keeps each pass of the Grader, or why it gave nothing. `final_score` is
+ * the score that counts: the MCQ grade, the mean of the two passes, or a human grader's (US-4.5).
+ * `needs_human_reasons` says why an essay went to a human grader, and stays once graded.
  */
 export const examAnswers = core.table(
   'exam_answers',
@@ -219,9 +272,65 @@ export const examAnswers = core.table(
       .notNull()
       .references(() => questions.id),
     answer: jsonb('answer').$type<ExamStoredAnswer>().notNull(),
+    autoScore: numeric('auto_score', { precision: 6, scale: 2, mode: 'number' }),
+    aiGrading: jsonb('ai_grading').$type<ExamAnswerAiGrading>(),
+    needsHuman: boolean('needs_human').notNull().default(false),
+    needsHumanReasons: text('needs_human_reasons').array().$type<ExamGradingReason[]>().notNull().default([]),
+    finalScore: numeric('final_score', { precision: 6, scale: 2, mode: 'number' }),
     createdAt: timestamptz('created_at').notNull().defaultNow(),
   },
-  (t) => [primaryKey({ columns: [t.sessionId, t.questionId] })],
+  (t) => [
+    primaryKey({ columns: [t.sessionId, t.questionId] }),
+    check('exam_answers_scores_check', sql`${t.autoScore} >= 0 and ${t.finalScore} >= 0`),
+    check(
+      'exam_answers_needs_human_reasons_check',
+      sql`${t.needsHumanReasons} <@ array[${inList(EXAM_GRADING_REASONS)}]::text[]`,
+    ),
+    check('exam_answers_needs_human_check', sql`${t.needsHuman} = (cardinality(${t.needsHumanReasons}) > 0)`),
+    // The queue of US-4.5: answers still waiting for a human grader.
+    index('exam_answers_needs_human_idx')
+      .on(t.sessionId)
+      .where(sql`${t.needsHuman} and ${t.finalScore} is null`),
+  ],
+);
+
+/**
+ * One row per `ai.essay.grade` job (US-4.4 AC-2, CONTEXT D53). A technical log like
+ * `question_generation_runs`: the job id is stored, and the sessions point at the run, in the
+ * transaction before the job is sent (LESSONS §33). Several runs of a campaign may be RUNNING: a
+ * session belongs to one run only (`exam_sessions.essay_run_id`). `prompt_version` is the prompt
+ * of the job's grades, from its first result; the next job of the campaign is pinned to it (D46).
+ */
+export const essayGradingRuns = core.table(
+  'essay_grading_runs',
+  {
+    id: id(),
+    campaignId: ref('campaign_id')
+      .notNull()
+      .references(() => campaigns.id),
+    jobId: uuid('job_id').notNull().unique('essay_grading_runs_job_id_key'),
+    /** When the broker took the job; null until the API has handed it over. */
+    dispatchedAt: timestamptz('dispatched_at'),
+    status: text('status').$type<EssayGradingRunStatus>().notNull().default('RUNNING'),
+    actorKind: text('actor_kind').$type<ActorKind>().notNull(),
+    actorId: ref('actor_id').references(() => users.id),
+    sessionCount: integer('session_count').notNull(),
+    promptVersion: text('prompt_version'),
+    errorCode: text('error_code'),
+    ...timestamps(),
+    finishedAt: timestamptz('finished_at'),
+  },
+  (t) => [
+    oneOf('essay_grading_runs_status_check', t.status, ESSAY_GRADING_RUN_STATUSES),
+    oneOf('essay_grading_runs_actor_kind_check', t.actorKind, ACTOR_KINDS),
+    index('essay_grading_runs_campaign_id_status_idx').on(t.campaignId, t.status),
+    check('essay_grading_runs_finished_check', sql`(${t.status} = 'RUNNING') = (${t.finishedAt} is null)`),
+    check('essay_grading_runs_actor_check', sql`(${t.actorKind} = 'USER') = (${t.actorId} is not null)`),
+    check('essay_grading_runs_error_check', sql`${t.status} not in ('FAILED', 'STALE') or ${t.errorCode} is not null`),
+    check('essay_grading_runs_session_count_check', sql`${t.sessionCount} > 0`),
+    // Same pattern as ai.llm_calls.prompt_version: `<agent>/v<N>`.
+    check('essay_grading_runs_prompt_version_check', sql`${t.promptVersion} ~ '^[a-z][a-z0-9_]*/v[1-9][0-9]*$'`),
+  ],
 );
 
 /**

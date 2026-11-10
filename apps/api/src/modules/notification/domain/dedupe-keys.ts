@@ -22,6 +22,8 @@ export const DEDUPE_KEYS = {
   jdLowPreferences: (campaignId: number) => `jd_low_preferences:${campaignId}`,
   /** A preference is closed once for a test not taken (US-4.3, CONTEXT D51): one notice each. */
   examNotTaken: (preferenceId: number) => `exam_not_taken:${preferenceId}`,
+  /** The results of a session are published once (US-4.4 AC-11): one notice each. */
+  examResultPublished: (sessionId: number) => `exam_result_published:${sessionId}`,
   /**
    * One notice per CV version and outcome (US-2.4, CONTEXT D37): a redelivered result is quiet, a
    * profile after a failed dispatch is still announced, and a retry by command that fails again

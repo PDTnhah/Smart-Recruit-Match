@@ -11,3 +11,9 @@ export const PREFERENCE_LIST_ENTITY = 'preference_list';
 
 /** Audit reason of a preference closed because its test was not taken by `testing_end` (BR-06, US-4.3 AC-10). */
 export const TEST_NOT_TAKEN_REASON = 'TEST_NOT_TAKEN';
+
+/** Audit reason of a preference whose test results are published with its S_final (US-4.4 AC-11). */
+export const TEST_GRADED_REASON = 'TEST_GRADED';
+
+/** Audit reason of a preference below θ_test once the appeal window has passed (BR-07, US-4.4 AC-14). */
+export const BELOW_THETA_TEST_REASON = 'BELOW_THETA_TEST';

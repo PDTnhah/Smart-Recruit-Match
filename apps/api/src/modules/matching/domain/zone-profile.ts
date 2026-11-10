@@ -6,7 +6,7 @@ import {
   skillMatchKey,
   toHundredths,
 } from '@srm/shared';
-import { roundHalfUp, times } from './ratio.js';
+import { roundHalfUp, times } from '@srm/shared/scoring';
 import { halvesBySkill, skillGroupScore } from './scv.js';
 import type { SkillRequirements, SkillVerdicts } from './skill-match.js';
 import type { TaxonomyIndex } from './taxonomy-index.js';
