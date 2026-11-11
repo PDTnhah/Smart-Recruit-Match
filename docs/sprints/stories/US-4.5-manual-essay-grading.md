@@ -11,7 +11,7 @@ prd_ref: [FR-23]
 arch_ref: [AD-2, AD-8]
 depends_on: [US-4.4]
 assignee:
-commit:
+commit: e016533
 created: 2026-10-07
 updated: 2026-11-11
 ---
