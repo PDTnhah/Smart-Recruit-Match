@@ -27,6 +27,7 @@ import {
   type QuestionStatus,
   type QuestionType,
   type QuestionValidation,
+  type StoredManualGrading,
   type StoredSkillScore,
 } from '@srm/shared';
 import { sql } from 'drizzle-orm';
@@ -261,10 +262,15 @@ export const examSessions = core.table(
  * closes. `ai_grading` keeps each pass of the Grader, or why it gave nothing. `final_score` is
  * the score that counts: the MCQ grade, the mean of the two passes, or a human grader's (US-4.5).
  * `needs_human_reasons` says why an essay went to a human grader, and stays once graded.
+ *
+ * Manual grading (US-4.5, CONTEXT D54): `id` names an answer in the API (`/api/exam-answers/{id}`);
+ * the key stays `(session_id, question_id)`. A human grade writes `final_score`, `manual_grading`,
+ * `graded_by` and `graded_at` together and bumps `row_version` (AD-8).
  */
 export const examAnswers = core.table(
   'exam_answers',
   {
+    id: bigint('id', { mode: 'number' }).notNull().generatedAlwaysAsIdentity(),
     sessionId: ref('session_id')
       .notNull()
       .references(() => examSessions.id),
@@ -277,10 +283,15 @@ export const examAnswers = core.table(
     needsHuman: boolean('needs_human').notNull().default(false),
     needsHumanReasons: text('needs_human_reasons').array().$type<ExamGradingReason[]>().notNull().default([]),
     finalScore: numeric('final_score', { precision: 6, scale: 2, mode: 'number' }),
+    manualGrading: jsonb('manual_grading').$type<StoredManualGrading>(),
+    gradedBy: ref('graded_by').references(() => users.id),
+    gradedAt: timestamptz('graded_at'),
+    rowVersion: rowVersion(),
     createdAt: timestamptz('created_at').notNull().defaultNow(),
   },
   (t) => [
     primaryKey({ columns: [t.sessionId, t.questionId] }),
+    unique('exam_answers_id_key').on(t.id),
     check('exam_answers_scores_check', sql`${t.autoScore} >= 0 and ${t.finalScore} >= 0`),
     check(
       'exam_answers_needs_human_reasons_check',
@@ -291,6 +302,16 @@ export const examAnswers = core.table(
     index('exam_answers_needs_human_idx')
       .on(t.sessionId)
       .where(sql`${t.needsHuman} and ${t.finalScore} is null`),
+    // US-4.5 (AGENTS › Invariant 11): a human grade is written whole, and only as the final score
+    // of an answer that went to a human grader.
+    check(
+      'exam_answers_manual_check',
+      sql`(${t.manualGrading} is null) = (${t.gradedBy} is null) and (${t.manualGrading} is null) = (${t.gradedAt} is null)`,
+    ),
+    check(
+      'exam_answers_manual_final_check',
+      sql`${t.manualGrading} is null or (${t.needsHuman} and ${t.finalScore} is not null)`,
+    ),
   ],
 );
 

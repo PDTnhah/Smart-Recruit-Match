@@ -66,6 +66,7 @@ export const NAVIGATION: Record<Portal, readonly NavItem[]> = {
     { segment: 'companies', title: 'Doanh nghiệp', icon: Building2, roles: CENTER },
     { segment: 'job-descriptions', title: 'Duyệt JD', icon: Briefcase, roles: CENTER },
     { segment: 'cvs', title: 'CV cần xử lý', icon: FileWarning, roles: CENTER },
+    { segment: 'grading', title: 'Chấm tay', icon: ClipboardCheck, roles: CENTER },
     { segment: 'allocation', title: 'Phân bổ', icon: Shuffle, roles: CENTER },
     { segment: 'reports', title: 'Báo cáo', icon: ChartColumn, roles: CENTER },
     { segment: 'users', title: 'Tài khoản', icon: UserCog, roles: ADMIN },

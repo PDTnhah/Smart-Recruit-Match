@@ -1,18 +1,17 @@
 # Sprint Status
 
 > **AUTO-GENERATED** by `koni-docs status`. Do not hand-edit (RULE-5).
-> Last generated: 2026-11-10 16:36:09 UTC
+> Last generated: 2026-11-11 04:53:04 UTC
 > Total stories: 40
 
 ## ⏰ Deadlines (0)
 
 _No stories carry an explicit deadline._
 
-## 📋 Backlog (16)
+## 📋 Backlog (15)
 
 | ID | Title | Epic | Pri | Points | Sprint | Assignee |
 |---|---|---|---|---|---|---|
-| US-4.5 | Chấm tay câu tự luận được chuyển | EPIC-4 | P0 | 3 | — | — |
 | US-4.6 | Phúc khảo và báo lỗi câu hỏi | EPIC-4 | P1 | 5 | — | — |
 | US-4.7 | Tín hiệu gian lận | EPIC-4 | P1 | 3 | — | — |
 | US-4.8 | Câu hỏi xác minh CV và chỉ số tin cậy | EPIC-4 | P1 | 5 | — | — |
@@ -37,7 +36,7 @@ _No stories_
 
 _No stories_
 
-## 👀 Review (11)
+## 👀 Review (12)
 
 | ID | Title | Epic | Pri | Points | Sprint | Assignee |
 |---|---|---|---|---|---|---|
@@ -52,6 +51,7 @@ _No stories_
 | US-4.2 | Validator và khóa ngân hàng câu hỏi | EPIC-4 | P0 | 8 | sprint-2026-W45 | — |
 | US-4.3 | Phòng thi | EPIC-4 | P0 | 8 | sprint-2026-W45 | — |
 | US-4.4 | Chấm bài, S_test và S_final | EPIC-4 | P0 | 13 | sprint-2026-W45 | — |
+| US-4.5 | Chấm tay câu tự luận được chuyển | EPIC-4 | P0 | 5 | sprint-2026-W45 | — |
 
 ## ✅ Done (13)
 
@@ -83,10 +83,10 @@ _No stories_
 
 ## Summary
 
-- 📋 **Backlog**: 16
+- 📋 **Backlog**: 15
 - 🟢 **Ready**: 0
 - 🟡 **In Progress**: 0
-- 👀 **Review**: 11
+- 👀 **Review**: 12
 - ✅ **Done**: 13
 - 🚫 **Blocked**: 0
 - 🗑️ **Deprecated**: 0

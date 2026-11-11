@@ -64,6 +64,15 @@ export interface ExamAnswerAiGrading {
 }
 
 /**
+ * `exam_answers.manual_grading` (US-4.5, CONTEXT D54): the points a human grader gave each rubric
+ * criterion, in rubric order, and their note. Staff only: the student sees the answer's total.
+ */
+export interface StoredManualGrading {
+  criteria: { index: number; points: number }[];
+  note: string | null;
+}
+
+/**
  * One entry of `exam_sessions.flags`: a warning for staff, never a fail (AGENTS › Invariant 8).
  * US-4.4 writes the Grader's flags with their question; US-4.7 adds the cheating signals.
  */

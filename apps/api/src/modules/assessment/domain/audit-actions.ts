@@ -26,6 +26,12 @@ export const ASSESSMENT_AUDIT_ACTIONS = {
    * scoreB, sTest, preferenceId, sFinal }`. The preference's move is its own TRANSITION entry.
    */
   EXAM_RESULTS_PUBLISHED: 'EXAM_RESULTS_PUBLISHED',
+  /**
+   * CENTER graded an essay the Grader handed over (US-4.5 AC-3, CONTEXT D54); entity the answer,
+   * before is `{ finalScore: null, rowVersion }`, after is `{ sessionId, questionId, finalScore,
+   * criteria, note, rowVersion }`.
+   */
+  EXAM_ANSWER_GRADED_MANUALLY: 'EXAM_ANSWER_GRADED_MANUALLY',
 } as const;
 
 /** Audit entity of a question bank, its `entity_id` the bank id; also `questionBankMachine.name`. */
@@ -36,3 +42,6 @@ export const EXAM_SESSION_ENTITY = 'exam_session';
 
 /** Audit entity of an essay grading run (US-4.4), its `entity_id` the run id. */
 export const ESSAY_GRADING_RUN_ENTITY = 'essay_grading_run';
+
+/** Audit entity of an exam answer (US-4.5), its `entity_id` `exam_answers.id`. */
+export const EXAM_ANSWER_ENTITY = 'exam_answer';

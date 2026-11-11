@@ -60,6 +60,8 @@ export const API_ERROR_CODES = [
   'PREFERENCE_NOT_PENDING_TEST',
   // Grading (US-4.4, CONTEXT D53).
   'EXAM_NOT_CLOSED',
+  // Manual grading (US-4.5, CONTEXT D54).
+  'EXAM_ANSWER_ALREADY_GRADED',
   'RATE_LIMITED',
   'INTERNAL_ERROR',
 ] as const;

@@ -20,6 +20,7 @@ goal: 'Ship US-2.7: danh mục kỹ năng có vùng, họ và quan hệ kéo the
 | US-4.2 | Validator và khóa ngân hàng câu hỏi                | EPIC-4 | P0  | 8      | 👀 review  | from W48 | [stories/US-4.2-validator-and-question-bank-lock.md](stories/US-4.2-validator-and-question-bank-lock.md)     |
 | US-4.3 | Phòng thi                                          | EPIC-4 | P0  | 8      | 👀 review  | from W49 | [stories/US-4.3-exam-room.md](stories/US-4.3-exam-room.md)                                                   |
 | US-4.4 | Chấm bài, S_test và S_final                        | EPIC-4 | P0  | 13     | 👀 review  | from W50 | [stories/US-4.4-grading-stest-sfinal.md](stories/US-4.4-grading-stest-sfinal.md)                             |
+| US-4.5 | Chấm tay câu tự luận được chuyển                   | EPIC-4 | P0  | 5      | 👀 review      | from W50 | [stories/US-4.5-manual-essay-grading.md](stories/US-4.5-manual-essay-grading.md)                             |
 | US-5.1 | Allocation Engine và property-based test           | EPIC-5 | P0  | 5      | 📋 backlog | from W42 | [stories/US-5.1-allocation-engine-property-tests.md](stories/US-5.1-allocation-engine-property-tests.md)     |
 | US-6.4 | Mô phỏng phân bổ so với baseline                   | EPIC-6 | P1  | 5      | 📋 backlog | from W44 | [stories/US-6.4-allocation-simulation-vs-baselines.md](stories/US-6.4-allocation-simulation-vs-baselines.md) |
 
@@ -47,7 +48,9 @@ Ngày 2026-11-06, sau khi US-4.1 merge vào `dev` (PR #25), kéo US-4.2 sớm t�
 
 Ngày 2026-11-10, sau khi US-4.3 merge vào `dev` (PR #28), kéo US-4.4 sớm từ W50 (8 → 13 điểm). Phiên Plan chốt ở [CONTEXT D53](../CONTEXT.md): tự luận được chấm khi hết pha *Làm test* (CENTER có nút gửi sớm); mọi câu trong một phần ngang nhau; Grader nhận đáp án mẫu; giữ năm Đề xuất của story; trắc nghiệm được chấm trong giao dịch đóng phiên.
 
-**Deliverable cut**: US-2.7 ship 0.14.0, US-3.5 ship 0.15.0, US-3.6 ship 0.16.0 (sớm hơn lộ trình W46), US-3.2 ship 0.17.0 (sớm hơn lộ trình W47), US-3.3 ship 0.18.0, US-3.4 ship 0.19.0 (sớm hơn lộ trình W48), US-4.1 ship 0.20.0 (sớm hơn lộ trình W47), US-4.2 ship 0.21.0 (sớm hơn lộ trình W48), US-4.3 ship 0.22.0 (sớm hơn lộ trình W49), US-4.4 ship 0.23.0 (sớm hơn lộ trình W50).
+Ngày 2026-11-11, sau khi US-4.4 merge vào `dev` (PR #29), kéo US-4.5 sớm từ W50 (3 → 5 điểm). Phiên Plan chốt bốn điểm theo Đề xuất ở [CONTEXT D54](../CONTEXT.md): thêm cột `exam_answers.id`, người chấm thấy hai lượt AI, giảng viên dùng tài khoản CENTER, trang kết quả của SV giữ như US-4.4.
+
+**Deliverable cut**: US-2.7 ship 0.14.0, US-3.5 ship 0.15.0, US-3.6 ship 0.16.0 (sớm hơn lộ trình W46), US-3.2 ship 0.17.0 (sớm hơn lộ trình W47), US-3.3 ship 0.18.0, US-3.4 ship 0.19.0 (sớm hơn lộ trình W48), US-4.1 ship 0.20.0 (sớm hơn lộ trình W47), US-4.2 ship 0.21.0 (sớm hơn lộ trình W48), US-4.3 ship 0.22.0 (sớm hơn lộ trình W49), US-4.4 ship 0.23.0 (sớm hơn lộ trình W50), US-4.5 ship 0.24.0 (sớm hơn lộ trình W50).
 
 ## Phased plan
 

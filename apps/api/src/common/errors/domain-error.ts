@@ -544,6 +544,21 @@ export class ExamNotClosedError extends DomainError {
   }
 }
 
+// Manual grading (US-4.5, CONTEXT D54).
+
+/**
+ * The answer already has its final score (AC-4): someone graded it first. A change of a final score
+ * goes through an appeal (US-4.6).
+ */
+export class ExamAnswerAlreadyGradedError extends DomainError {
+  readonly code = 'EXAM_ANSWER_ALREADY_GRADED';
+  readonly httpStatus = 409;
+
+  constructor(answerId: number) {
+    super(`exam answer ${answerId} is already graded`, { answerId });
+  }
+}
+
 /** Too many calls of one route by one user within the window (AC-12); `Retry-After` says when to retry. */
 export class RateLimitedError extends DomainError {
   readonly code = 'RATE_LIMITED';

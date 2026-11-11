@@ -267,6 +267,13 @@
       "when": 1794327553906,
       "tag": "0037_preference_s_cv",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1794367215232,
+      "tag": "0038_exam_answer_manual_grading",
+      "breakpoints": true
     }
   ]
 }

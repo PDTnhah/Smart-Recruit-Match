@@ -2643,6 +2643,167 @@
           "grading"
         ]
       }
+    },
+    "/api/campaigns/{id}/grading-queue": {
+      "get": {
+        "operationId": "ManualGradingController_queue",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "maximum": 9007199254740991,
+              "exclusiveMinimum": true,
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "reason",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "RUNS_DIVERGE",
+                "LOW_CONFIDENCE",
+                "FLAGGED",
+                "AI_FAILED",
+                "NEAR_THRESHOLD"
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "offset",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 0,
+              "maximum": 9007199254740991,
+              "default": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GradingQueueDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "grading"
+        ]
+      }
+    },
+    "/api/exam-answers/{id}/manual-grading": {
+      "get": {
+        "operationId": "ManualGradingController_detail",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "maximum": 9007199254740991,
+              "exclusiveMinimum": true,
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManualGradingDetailDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "grading"
+        ]
+      }
+    },
+    "/api/exam-answers/{id}/manual-grade": {
+      "put": {
+        "operationId": "ManualGradingController_grade",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "maximum": 9007199254740991,
+              "exclusiveMinimum": true,
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManualGradeRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManualGradeResultDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "grading"
+        ]
+      }
     }
   },
   "info": {
@@ -10962,6 +11123,669 @@
         },
         "required": [
           "runs"
+        ],
+        "additionalProperties": false
+      },
+      "GradingQueueDto_Output": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "sessionId": {
+                  "type": "integer",
+                  "exclusiveMinimum": true,
+                  "maximum": 9007199254740991,
+                  "minimum": 0
+                },
+                "jdTitle": {
+                  "type": "string"
+                },
+                "companyName": {
+                  "type": "string"
+                },
+                "submittedAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                },
+                "answers": {
+                  "minItems": 1,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "answerId": {
+                        "type": "integer",
+                        "exclusiveMinimum": true,
+                        "maximum": 9007199254740991,
+                        "minimum": 0
+                      },
+                      "questionNo": {
+                        "type": "integer",
+                        "exclusiveMinimum": true,
+                        "maximum": 9007199254740991,
+                        "minimum": 0
+                      },
+                      "skill": {
+                        "type": "string"
+                      },
+                      "maxPoints": {
+                        "type": "integer",
+                        "exclusiveMinimum": true,
+                        "maximum": 9007199254740991,
+                        "minimum": 0
+                      },
+                      "reasons": {
+                        "minItems": 1,
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "enum": [
+                            "RUNS_DIVERGE",
+                            "LOW_CONFIDENCE",
+                            "FLAGGED",
+                            "AI_FAILED",
+                            "NEAR_THRESHOLD"
+                          ]
+                        }
+                      }
+                    },
+                    "required": [
+                      "answerId",
+                      "questionNo",
+                      "skill",
+                      "maxPoints",
+                      "reasons"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "sessionId",
+                "jdTitle",
+                "companyName",
+                "submittedAt",
+                "answers"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "totalSessions": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "totalAnswers": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "items",
+          "totalSessions",
+          "totalAnswers"
+        ],
+        "additionalProperties": false
+      },
+      "ManualGradingDetailDto_Output": {
+        "type": "object",
+        "properties": {
+          "answerId": {
+            "type": "integer",
+            "exclusiveMinimum": true,
+            "maximum": 9007199254740991,
+            "minimum": 0
+          },
+          "sessionId": {
+            "type": "integer",
+            "exclusiveMinimum": true,
+            "maximum": 9007199254740991,
+            "minimum": 0
+          },
+          "rowVersion": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "jdTitle": {
+            "type": "string"
+          },
+          "companyName": {
+            "type": "string"
+          },
+          "questionNo": {
+            "type": "integer",
+            "exclusiveMinimum": true,
+            "maximum": 9007199254740991,
+            "minimum": 0
+          },
+          "skill": {
+            "type": "string"
+          },
+          "stem": {
+            "type": "string"
+          },
+          "rubric": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "properties": {
+                "criterion": {
+                  "type": "string"
+                },
+                "maxPoints": {
+                  "type": "integer",
+                  "exclusiveMinimum": true,
+                  "maximum": 9007199254740991,
+                  "minimum": 0
+                }
+              },
+              "required": [
+                "criterion",
+                "maxPoints"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "maxPoints": {
+            "type": "integer",
+            "exclusiveMinimum": true,
+            "maximum": 9007199254740991,
+            "minimum": 0
+          },
+          "sampleAnswer": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "answerText": {
+            "type": "string"
+          },
+          "reasons": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "enum": [
+                "RUNS_DIVERGE",
+                "LOW_CONFIDENCE",
+                "FLAGGED",
+                "AI_FAILED",
+                "NEAR_THRESHOLD"
+              ]
+            }
+          },
+          "aiPasses": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "passNo": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 2
+                },
+                "points": {
+                  "type": "number",
+                  "minimum": 0,
+                  "nullable": true
+                },
+                "confidence": {
+                  "type": "string",
+                  "enum": [
+                    "LOW",
+                    "MEDIUM",
+                    "HIGH",
+                    null
+                  ],
+                  "nullable": true
+                },
+                "flags": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "INSTRUCTION_IN_ANSWER"
+                    ]
+                  }
+                },
+                "criteria": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "index": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "points": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "reason": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "index",
+                      "points",
+                      "reason"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "failureCode": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "passNo",
+                "points",
+                "confidence",
+                "flags",
+                "criteria",
+                "failureCode"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "manualGrade": {
+            "type": "object",
+            "properties": {
+              "criteria": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "index": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9
+                    },
+                    "points": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 100
+                    }
+                  },
+                  "required": [
+                    "index",
+                    "points"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "note": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "finalScore": {
+                "type": "number",
+                "minimum": 0
+              },
+              "gradedAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              }
+            },
+            "required": [
+              "criteria",
+              "note",
+              "finalScore",
+              "gradedAt"
+            ],
+            "additionalProperties": false,
+            "nullable": true
+          }
+        },
+        "required": [
+          "answerId",
+          "sessionId",
+          "rowVersion",
+          "jdTitle",
+          "companyName",
+          "questionNo",
+          "skill",
+          "stem",
+          "rubric",
+          "maxPoints",
+          "sampleAnswer",
+          "answerText",
+          "reasons",
+          "aiPasses",
+          "manualGrade"
+        ],
+        "additionalProperties": false
+      },
+      "ManualGradeRequestDto": {
+        "type": "object",
+        "properties": {
+          "rowVersion": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "criteria": {
+            "minItems": 1,
+            "maxItems": 10,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "index": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9
+                },
+                "points": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 100
+                }
+              },
+              "required": [
+                "index",
+                "points"
+              ]
+            }
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 1000,
+            "nullable": true
+          }
+        },
+        "required": [
+          "rowVersion",
+          "criteria"
+        ]
+      },
+      "ManualGradeResultDto_Output": {
+        "type": "object",
+        "properties": {
+          "detail": {
+            "type": "object",
+            "properties": {
+              "answerId": {
+                "type": "integer",
+                "exclusiveMinimum": true,
+                "maximum": 9007199254740991,
+                "minimum": 0
+              },
+              "sessionId": {
+                "type": "integer",
+                "exclusiveMinimum": true,
+                "maximum": 9007199254740991,
+                "minimum": 0
+              },
+              "rowVersion": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "jdTitle": {
+                "type": "string"
+              },
+              "companyName": {
+                "type": "string"
+              },
+              "questionNo": {
+                "type": "integer",
+                "exclusiveMinimum": true,
+                "maximum": 9007199254740991,
+                "minimum": 0
+              },
+              "skill": {
+                "type": "string"
+              },
+              "stem": {
+                "type": "string"
+              },
+              "rubric": {
+                "minItems": 1,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "criterion": {
+                      "type": "string"
+                    },
+                    "maxPoints": {
+                      "type": "integer",
+                      "exclusiveMinimum": true,
+                      "maximum": 9007199254740991,
+                      "minimum": 0
+                    }
+                  },
+                  "required": [
+                    "criterion",
+                    "maxPoints"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "maxPoints": {
+                "type": "integer",
+                "exclusiveMinimum": true,
+                "maximum": 9007199254740991,
+                "minimum": 0
+              },
+              "sampleAnswer": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "answerText": {
+                "type": "string"
+              },
+              "reasons": {
+                "minItems": 1,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "RUNS_DIVERGE",
+                    "LOW_CONFIDENCE",
+                    "FLAGGED",
+                    "AI_FAILED",
+                    "NEAR_THRESHOLD"
+                  ]
+                }
+              },
+              "aiPasses": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "passNo": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 2
+                    },
+                    "points": {
+                      "type": "number",
+                      "minimum": 0,
+                      "nullable": true
+                    },
+                    "confidence": {
+                      "type": "string",
+                      "enum": [
+                        "LOW",
+                        "MEDIUM",
+                        "HIGH",
+                        null
+                      ],
+                      "nullable": true
+                    },
+                    "flags": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "INSTRUCTION_IN_ANSWER"
+                        ]
+                      }
+                    },
+                    "criteria": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "index": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "points": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "reason": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "index",
+                          "points",
+                          "reason"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "failureCode": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "passNo",
+                    "points",
+                    "confidence",
+                    "flags",
+                    "criteria",
+                    "failureCode"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "manualGrade": {
+                "type": "object",
+                "properties": {
+                  "criteria": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "index": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9
+                        },
+                        "points": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 100
+                        }
+                      },
+                      "required": [
+                        "index",
+                        "points"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "note": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "finalScore": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "gradedAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                  }
+                },
+                "required": [
+                  "criteria",
+                  "note",
+                  "finalScore",
+                  "gradedAt"
+                ],
+                "additionalProperties": false,
+                "nullable": true
+              }
+            },
+            "required": [
+              "answerId",
+              "sessionId",
+              "rowVersion",
+              "jdTitle",
+              "companyName",
+              "questionNo",
+              "skill",
+              "stem",
+              "rubric",
+              "maxPoints",
+              "sampleAnswer",
+              "answerText",
+              "reasons",
+              "aiPasses",
+              "manualGrade"
+            ],
+            "additionalProperties": false
+          },
+          "session": {
+            "type": "object",
+            "properties": {
+              "remainingAnswers": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "publication": {
+                "type": "string",
+                "enum": [
+                  "PUBLISHED",
+                  "AFTER_TESTING_END",
+                  "WAITING_OTHER_ANSWERS",
+                  "NEXT_SWEEP"
+                ]
+              }
+            },
+            "required": [
+              "remainingAnswers",
+              "publication"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "detail",
+          "session"
         ],
         "additionalProperties": false
       }

@@ -11,12 +11,12 @@
 - Jest, ESM: §9 gói chỉ có ESM (`@nestjs/schedule`, `file-type`, `promise-breaker`…) · §11 `testTimeout` trong `projects` bị bỏ qua · §21 `--selectProjects` nuốt đường dẫn test
 - Integration test: §22 các file dùng chung DB, thông báo gửi mọi tài khoản CENTER và tác vụ quét mọi đợt lọt vào test khác · §30 bảng mới trong `core` làm đỏ `core-schema` và `ai-service-role` · §40 `PEXPIREAT` theo giờ của `FakeClock` làm key Redis hết hạn ngay
 - Drizzle, migration: §6 migration có mốc thời gian cũ bị bỏ qua · §7 hàm dùng chung nhiều bảng: khai kiểu cụ thể · §12 `FOR UPDATE OF` sinh tên có schema (gặp lại ở 0.23.0)
-- Giao dịch, khóa: §38 đọc bản ghi của module khác ngoài giao dịch rồi chuyển trạng thái không đảo ngược
+- Giao dịch, khóa: §38 đọc bản ghi của module khác ngoài giao dịch rồi chuyển trạng thái không đảo ngược · §43 thêm `row_version` vào bảng đã có hàm ghi: các UPDATE cũ không tăng nó · §44 việc chạy sau commit ném lỗi: API trả `500` cho thao tác đã lưu, bấm lại nhận `409`
 - Dữ liệu giữa các module: §42 tra theo phiên bản hiện hành của module khác hỏng khi phiên bản đổi ở pha mà module đó không chạy lại
 - Bảo mật: §39 đầu ra của PRNG có seed tới client làm lộ cả chuỗi (vị trí gốc của phương án)
 - pgvector: §24 index HNSW lọc sau khi quét, hàng cũ chiếm chỗ ứng viên
 - Ranh giới module: §5 `exclude: node_modules` làm dependency-cruiser bỏ sót
-- Thư viện API, web: §8 CLI shadcn 4.21 · §10 Zod 4 bỏ qua `refine` khi trường khác lỗi · §13 multer đọc tên file theo latin1 · §25 form gửi `row_version` của query mới nhất, bỏ qua khóa lạc quan · §26 lỗi tổng của form không mất khi sửa ô khác của tổng · §28 react-pdf 11 mặc định Suspense, PDF lỗi làm sập route · §29 Esc trong combobox tự viết đóng cả dialog Radix · §35 Handlebars bỏ dòng chỉ chứa `{{#each}}`, email văn bản dính dòng · §41 hàng chờ tự lưu bỏ qua debounce, lượt gộp vượt body 100 KB của Express
+- Thư viện API, web: §8 CLI shadcn 4.21 · §10 Zod 4 bỏ qua `refine` khi trường khác lỗi · §13 multer đọc tên file theo latin1 · §25 form gửi `row_version` của query mới nhất, bỏ qua khóa lạc quan · §26 lỗi tổng của form không mất khi sửa ô khác của tổng · §28 react-pdf 11 mặc định Suspense, PDF lỗi làm sập route · §29 Esc trong combobox tự viết đóng cả dialog Radix · §35 Handlebars bỏ dòng chỉ chứa `{{#each}}`, email văn bản dính dòng · §41 hàng chờ tự lưu bỏ qua debounce, lượt gộp vượt body 100 KB của Express · §45 `keepPreviousData` giữ trang của bộ lọc khác trên màn hình
 - RabbitMQ, job AI: §16 `RabbitMQModule` giữ connection static · §17 mặc định sai của thư viện message · §32 kiểm chéo trên schema hợp đồng message làm cả kết quả AI vào DLQ · §33 kết quả AI về trước khi API ghi `job_id`, message của một job xử lý song song, message cuối đóng run khi còn dòng thiếu
 - Sự kiện, tác vụ định kỳ: §34 việc phải chạy một lần ở mốc pha mà chỉ nằm trong listener `campaign.phase_changed` thì mất khi lỗi hoặc API dừng · §36 `emitAsync` không chờ listener `async: true`, test sự kiện trùng xanh mà không kiểm gì
 - ai-service (Python): §19 chặn mạng trong pytest trên Windows · §20 PyMuPDF cắt chữ ngoài trang, màu nền theo thứ tự vẽ · §23 `HF_HUB_OFFLINE` đọc lúc import, bge-m3 tải 4,5 GB · §31 fixture LLM mất khóa khi nâng prompt hoặc sửa dữ liệu test nằm trong prompt · §37 nhóm gửi LLM lỗi tất định được gửi lại y nguyên, câu chờ giữ chỗ của ô
@@ -628,3 +628,41 @@ See [US-4.3](sprints/stories/US-4.3-exam-room.md).
 - Test: tăng phiên bản của bản ghi nguồn giữa lúc chấm và lúc công bố (`grading.int-spec.ts`).
 
 See [US-4.4](sprints/stories/US-4.4-grading-stest-sfinal.md), [CONTEXT D53](CONTEXT.md).
+
+## 43. Thêm `row_version` vào bảng đã có hàm ghi: các UPDATE cũ không tăng nó
+
+**What happened (0.24.0)**: US-4.5 thêm `exam_answers.row_version` để khóa lạc quan việc chấm tay. Hàm ghi mới (`writeManualGrade`) tăng cột này, nhưng bốn hàm ghi có sẵn của US-4.4 (`writeAiGrading`, `writeHandoffs`, `writeMcqGrades`, `writeEssayScores`) thì không. `/code-review` chỉ ra rằng `409 ROW_VERSION_CONFLICT` gần như không bao giờ xảy ra: lý do chuyển hay lượt AI đổi mà người chấm đang giữ bản cũ vẫn lưu được.
+
+**Why**: Cột mới có `default 0`, nên migration và test đều xanh. Test của story mới chỉ đi qua hàm ghi mới, và giá trị cứng `rowVersion: 0` sau bước chuyển người chấm còn che lỗi.
+
+**How to avoid**:
+- Thêm `row_version` vào bảng có sẵn thì tìm mọi `.update(<bảng>)` (`grep -rn "update(examAnswers)" apps/api/src`) và cho mỗi lệnh tăng cột, như `nextAnswerVersion` trong `exam-grading.repository.ts`: ``sql`${t.rowVersion} + 1` ``.
+- Test lấy `rowVersion` từ DB hoặc từ response, không viết cứng. Thêm một assert rằng bước ghi trước đó đã tăng nó (`expect(version).toBeGreaterThan(0)` trong `manual-grading.int-spec.ts`).
+
+See [US-4.5](sprints/stories/US-4.5-manual-essay-grading.md), [CONTEXT D54](CONTEXT.md).
+
+## 44. Việc chạy sau commit ném lỗi: API trả `500` cho thao tác đã lưu, bấm lại nhận `409`
+
+**What happened (0.24.0)**: Bản đầu của `ManualGradingService.grade` commit điểm, rồi mới đếm câu chờ, gọi `finalizeIfReady` và đọc lại chi tiết (join bốn bảng, gọi thêm `JdService`). Chỉ `finalizeIfReady` nằm trong `try/catch`. `/code-review` chỉ ra: nếu lệnh đếm hoặc lệnh đọc lại lỗi thì client nhận `500` dù điểm đã lưu. Người chấm bấm "Lưu điểm" lần nữa thì nhận `409 EXAM_ANSWER_ALREADY_GRADED`, kèm câu báo "cán bộ khác đã chấm".
+
+**Why**: Sau commit, thao tác đã xảy ra. Lỗi ở bước sau phải đổi thành một kết quả trong response, không thành lỗi của cả request. Bước đọc lại để dựng response là chỗ dễ quên nhất.
+
+**How to avoid**:
+- Đọc mọi thứ response cần ngay trong giao dịch, dưới khóa dòng; dựng response từ dòng đã khóa cộng với giá trị vừa ghi.
+- Gom các bước sau commit vào một hàm có `try/catch` trả kết quả xấu nhất (ở đây là `NEXT_SWEEP`), và để tác vụ quét làm lưới an toàn (LESSONS §34).
+- Câu báo cho `409` "đã xong" viết trung tính: người nhận có thể chính là người vừa lưu, gửi lại sau khi mất response.
+- Test: `jest.spyOn(repository, 'countWaiting').mockRejectedValueOnce(...)` rồi kiểm `200` và điểm đã lưu.
+
+See [US-4.5](sprints/stories/US-4.5-manual-essay-grading.md), [CONTEXT D54](CONTEXT.md).
+
+## 45. `keepPreviousData` giữ trang của bộ lọc khác trên màn hình
+
+**What happened (0.24.0)**: Hàng đợi chấm tay dùng `placeholderData: keepPreviousData` để trang cũ ở lại trong lúc tải trang sau. Khi đổi đợt hoặc lý do, query key cũng đổi, nên các bài của đợt cũ vẫn hiện dưới tên đợt mới cho tới khi tải xong. Nút "Chấm" lúc đó mở câu của đợt cũ, `isPending` vẫn `false` nên không có skeleton. Nhãn "Bài x–y" tính theo số trang trong URL nên cũng sai trong lúc chờ.
+
+**Why**: `keepPreviousData` giữ dữ liệu của query trước bất kể key khác ở phần nào. Với danh sách tìm kiếm khi gõ thì đó là điều mong muốn, như `useCatalogSkills`. Với danh sách có bộ lọc thì đổi bộ lọc là chuyển sang một danh sách khác.
+
+**How to avoid**:
+- Chỉ giữ dữ liệu cũ khi phần đổi là trang: `placeholderData: (previous, query) => cùng bộ lọc với query?.queryKey ? previous : undefined`, như `useGradingQueue`.
+- Mọi số hiển thị lấy từ dữ liệu đang hiện, không lấy từ URL: `queryFn` trả kèm `offset` đã dùng.
+
+See [US-4.5](sprints/stories/US-4.5-manual-essay-grading.md).
