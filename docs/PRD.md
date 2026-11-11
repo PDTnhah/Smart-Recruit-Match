@@ -902,7 +902,7 @@ Mọi thông báo đều hiện trong ứng dụng (chuông ở ba cổng, cập
 | FR-20 | Sinh viên làm bài test: rút đề ngẫu nhiên theo ma trận, giới hạn T_test, tự lưu, làm tiếp khi mất kết nối, chỉ làm 1 lần (UC-14, BR-06) | P0 | 🚧 in-progress | EPIC-4 |
 | FR-21 | Ghi nhận tín hiệu gian lận (chuyển tab, thoát toàn màn hình, copy/paste, bài tự luận tương đồng), chỉ dùng để cảnh báo | P1 | 📋 backlog | EPIC-4 |
 | FR-22 | Chấm trắc nghiệm tự động; AI chấm tự luận theo rubric 2 lần độc lập và chuyển người chấm khi cần; tính S_test, bản đồ năng lực và S_final (UC-33, GĐ6) | P0 | 🚧 in-progress | EPIC-4 |
-| FR-23 | Cán bộ Trung tâm hoặc giảng viên chấm tay các câu tự luận được chuyển (UC-06) | P0 | 📋 backlog | EPIC-4 |
+| FR-23 | Cán bộ Trung tâm hoặc giảng viên chấm tay các câu tự luận được chuyển (UC-06); giảng viên dùng tài khoản `CENTER` do Trung tâm cấp ([CONTEXT D54](CONTEXT.md)) | P0 | 🚧 in-progress | EPIC-4 |
 | FR-24 | Sinh viên xem điểm, phúc khảo phần tự luận trong 48 giờ và báo lỗi câu hỏi; câu sai bị loại và các bài liên quan được chấm lại (UC-15, UC-06) | P1 | 📋 backlog | EPIC-4 |
 | FR-25 | Câu hỏi xác minh CV (phần D) và chỉ số tin cậy CV cho HR tham khảo | P1 | 📋 backlog | EPIC-4 |
 | FR-26 | Chạy phân bổ Deferred Acceptance có sức chứa, kết quả ở trạng thái dự thảo; kiểm tra tính ổn định; lưu snapshot đầu vào và cấu hình (UC-34, BR-07, BR-09, BR-17, GĐ7) | P0 | 📋 backlog | EPIC-5 |

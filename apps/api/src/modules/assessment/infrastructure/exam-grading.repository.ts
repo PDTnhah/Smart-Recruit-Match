@@ -72,7 +72,8 @@ const CHUNK = 500;
 
 const isClosed = ne(examSessions.status, 'IN_PROGRESS');
 
-const ofCampaign = (campaignId: number): SQL =>
+/** Sessions of the campaign's banks. */
+export const ofCampaign = (campaignId: number): SQL =>
   inArray(
     examSessions.bankId,
     sql`(select ${questionBanks.id} from ${questionBanks} where ${questionBanks.campaignId} = ${campaignId})`,
@@ -83,6 +84,12 @@ const ofCampaigns = (campaignIds: readonly number[]): SQL =>
     examSessions.bankId,
     sql`(select ${questionBanks.id} from ${questionBanks} where ${inArray(questionBanks.campaignId, [...campaignIds])})`,
   );
+
+/**
+ * Every UPDATE of `exam_answers` takes a new row version, so a grader holding an old one sees the
+ * answer changed (AD-8, US-4.5).
+ */
+const nextAnswerVersion = sql`${examAnswers.rowVersion} + 1`;
 
 /** The `ai_grading` value `column` holds both passes, each graded or failed. */
 const hasBothPasses = (column: SQL): SQL => {
@@ -165,7 +172,7 @@ export class ExamGradingRepository {
     for (const { questionId, points } of grades) {
       await tx
         .update(examAnswers)
-        .set({ autoScore: points, finalScore: points })
+        .set({ autoScore: points, finalScore: points, rowVersion: nextAnswerVersion })
         .where(and(eq(examAnswers.sessionId, sessionId), eq(examAnswers.questionId, questionId)));
     }
   }
@@ -179,7 +186,7 @@ export class ExamGradingRepository {
     for (const { questionId, finalScoreX100 } of scores) {
       await tx
         .update(examAnswers)
-        .set({ finalScore: finalScoreX100 / 100 })
+        .set({ finalScore: finalScoreX100 / 100, rowVersion: nextAnswerVersion })
         .where(
           and(eq(examAnswers.sessionId, sessionId), eq(examAnswers.questionId, questionId), isNull(examAnswers.finalScore)),
         );
@@ -195,7 +202,7 @@ export class ExamGradingRepository {
     for (const { questionId, reasons } of handoffs) {
       await tx
         .update(examAnswers)
-        .set({ needsHuman: true, needsHumanReasons: reasons })
+        .set({ needsHuman: true, needsHumanReasons: reasons, rowVersion: nextAnswerVersion })
         .where(and(eq(examAnswers.sessionId, sessionId), eq(examAnswers.questionId, questionId)));
     }
   }
@@ -378,7 +385,7 @@ export class ExamGradingRepository {
   async writeAiGrading(tx: DbTx, sessionId: number, questionId: number, aiGrading: ExamAnswerAiGrading): Promise<void> {
     await tx
       .update(examAnswers)
-      .set({ aiGrading })
+      .set({ aiGrading, rowVersion: nextAnswerVersion })
       .where(and(eq(examAnswers.sessionId, sessionId), eq(examAnswers.questionId, questionId)));
   }
 

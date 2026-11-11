@@ -4,7 +4,12 @@ import {
   ExamPaperSchema,
   ExamResultSchema,
   ExamSubmissionSchema,
+  GradingQueueQuerySchema,
+  GradingQueueSchema,
   LockQuestionBankRequestSchema,
+  ManualGradeRequestSchema,
+  ManualGradeResultSchema,
+  ManualGradingDetailSchema,
   MyExamsResponseSchema,
   QuestionGenerationRunSchema,
   SaveExamAnswersRequestSchema,
@@ -40,3 +45,15 @@ export class MyExamsResponseDto extends createZodDto(MyExamsResponseSchema) {}
 export class ExamResultDto extends createZodDto(ExamResultSchema) {}
 
 export class EssayGradingDispatchDto extends createZodDto(EssayGradingDispatchSchema) {}
+
+// Manual grading (US-4.5): responses are whitelists without the student (BR-03).
+
+export class GradingQueueQueryDto extends createZodDto(GradingQueueQuerySchema) {}
+
+export class GradingQueueDto extends createZodDto(GradingQueueSchema) {}
+
+export class ManualGradingDetailDto extends createZodDto(ManualGradingDetailSchema) {}
+
+export class ManualGradeRequestDto extends createZodDto(ManualGradeRequestSchema) {}
+
+export class ManualGradeResultDto extends createZodDto(ManualGradeResultSchema) {}

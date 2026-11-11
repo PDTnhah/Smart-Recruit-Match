@@ -60,6 +60,7 @@
 - D51 · Phòng thi: hạn phiên cắt theo `testing_end`, ân hạn 10 giây, liên kết NV ↔ phiên suy ra, bố cục đề ở PostgreSQL, hash Redis + Lua, giới hạn tần suất; chưa dùng chung bài theo nhóm vị trí (US-4.3) → sửa một phần bởi D52 (mã phương án, đóng phiên lỗi)
 - D52 · Phòng thi: mã phương án từ nguồn ngẫu nhiên mật mã, không từ seed; đóng phiên lỗi thì Redis nhận lưu lại (US-4.3)
 - D53 · Chấm bài: trắc nghiệm trong giao dịch đóng phiên, Grader hai lượt qua batch có đáp án mẫu, câu ngang nhau trong phần, chuyển người chấm, S_final theo NV, dưới ngưỡng sau hạn phúc khảo (US-4.4)
+- D54 · Chấm tay câu tự luận: cột `exam_answers.id`, người chấm thấy hai lượt AI, giảng viên dùng tài khoản CENTER, điểm tiêu chí số nguyên, công bố qua `finalizeIfReady` sau commit (US-4.5)
 
 ---
 
@@ -2347,3 +2348,76 @@ Story còn đề xuất cột `preferences.exam_session_id`, và các cột `sta
 
 **Date**: 2026-11-10
 **Version**: 0.23.0
+
+### D54. Chấm tay câu tự luận: cột `exam_answers.id`, người chấm thấy hai lượt AI, giảng viên dùng tài khoản CENTER, chấm theo tiêu chí bằng số nguyên, công bố qua `finalizeIfReady` (US-4.5) (chốt điểm mở của US-4.5; bổ sung D53)
+
+**Context**: Story US-4.5 viết ngày 2026-10-07, trước US-4.4 và D53. Phiên Plan ngày 2026-11-11 gặp các điểm sau:
+
+- Story để ngỏ ba điểm và ghi "hỏi trước khi chốt":
+  - PRD FR-23 ghi "Cán bộ Trung tâm hoặc giảng viên", nhưng RBAC chỉ có `CENTER`, `STUDENT`, `HR`, `ADMIN`;
+  - có cho người chấm thấy điểm AI không, vì người chấm dễ bị neo theo điểm đó;
+  - `exam_answers` có khóa chính `(session_id, question_id)`, còn ARCH › *API architecture* dùng `/api/exam-answers/{id}` (`/appeal` của US-4.6).
+- US-4.4 cho trang kết quả của SV hiện câu do cán bộ chấm chỉ bằng tổng điểm, không có tiêu chí. Chấm theo tiêu chí ở US-4.5 thì cần biết có đổi trang đó không.
+- Hàm dùng chung `finalizeSessionIfComplete()` mà story định tách ra thì đã có: `GradingService.finalizeIfReady` (D53). D53 cũng đã chốt rằng trước `testing_end` thì không công bố gì, trong khi AC-5 cũ viết như thể công bố ngay khi lưu điểm.
+
+**Decision** (người dùng chốt bốn điểm đầu ngày 2026-11-11, đều theo cột Đề xuất; các điểm còn lại nằm trong plan đã được duyệt):
+
+- **Cột `exam_answers.id`** (bigint identity, unique). Khóa chính `(session_id, question_id)` giữ nguyên; các dòng có sẵn được cấp số khi chạy migration. Route `GET /api/exam-answers/{id}/manual-grading`, `PUT /api/exam-answers/{id}/manual-grade`; US-4.6 dùng cùng mã cho `/appeal`.
+- **Người chấm thấy cả hai lượt của Grader:** điểm và lý do từng tiêu chí, độ tự tin, cờ; lượt lỗi thì hiện mã lỗi. Màn chấm còn hiện lý do chuyển, đề, rubric, đáp án mẫu và bài làm.
+- **Giảng viên dùng tài khoản `CENTER`** do Trung tâm cấp. Không thêm vai trò; chỉ `CENTER` gọi được ba API chấm tay, `HR`, `STUDENT` (và `ADMIN`) nhận `403`.
+- **Trang kết quả của SV giữ như US-4.4:** câu do cán bộ chấm chỉ hiện tổng điểm. Điểm từng tiêu chí và ghi chú của người chấm chỉ lưu nội bộ (`exam_answers.manual_grading` và `audit_logs`). US-4.6 xem lại khi làm phúc khảo.
+- **Ẩn danh (BR-03):** hàng đợi và chi tiết là whitelist, không có trường nào của SV. Phiên hiện là "Bài #<id>": không màn nào của CENTER nối mã phiên với SV, nên không cần mã mờ riêng. Hàng đợi có thêm tên JD và công ty để người chấm biết bài thuộc đề nào.
+- **Chấm theo tiêu chí** (AD-2):
+  - Người chấm nhập điểm cho mọi tiêu chí của rubric. Điểm là số nguyên trong `[0, max_points]`, như đầu ra của Grader; không có ô nhập điểm tổng. Code cộng thành `final_score`.
+  - Luật kiểm có một nguồn: `manualGradeCriteriaSchemaFor(rubric)` ở `packages/shared`, một `z.tuple` theo rubric. Form của web và domain của API cùng dùng hàm này. Không dùng `superRefine` (LESSONS §10).
+  - Sai khoảng điểm, thiếu tiêu chí, thừa tiêu chí hay sai thứ tự thì trả `400 VALIDATION_FAILED`, kèm đường dẫn `criteria.N.points`.
+- **Lưu điểm** trong một giao dịch:
+  1. khóa dòng `exam_answers` bằng câu không join (LESSONS §12);
+  2. câu không phải tự luận có `needs_human` thì trả `404`; đã có `final_score` thì `409 EXAM_ANSWER_ALREADY_GRADED` (kiểm trước, vì sửa điểm sau đó đi qua phúc khảo); lệch `row_version` thì `409 ROW_VERSION_CONFLICT`;
+  3. ghi `final_score`, `manual_grading` (`{ criteria: [{ index, points }], note }`), `graded_by`, `graded_at` (theo `Clock`) và tăng `row_version`;
+  4. ghi `audit_logs` (`EXAM_ANSWER_GRADED_MANUALLY`, entity `exam_answer`, trước/sau).
+
+  `needs_human` và `needs_human_reasons` giữ nguyên sau khi chấm, như D53.
+
+  Mọi lệnh UPDATE `exam_answers` đều tăng `row_version`, kể cả các hàm ghi của US-4.4 (lượt AI, chuyển người chấm, điểm trắc nghiệm, điểm tự luận). Nhờ vậy, khi lý do chuyển hay lượt AI đổi, người chấm đang giữ bản cũ nhận `409` (AD-8; thêm sau `/code-review`).
+- **Công bố qua `finalizeIfReady`, sau khi commit.** Phiên hết câu chờ thì API gọi `GradingService.finalizeIfReady(sessionId)`. Hàm này tự mở giao dịch và tự xử lý `CONFLICT`, `NO_SCV`. Response cho biết chuyện gì xảy ra:
+  - `PUBLISHED`: đã công bố;
+  - `AFTER_TESTING_END`: chưa qua `testing_end`, tác vụ quét sẽ công bố sau (D53);
+  - `WAITING_OTHER_ANSWERS`: phiên còn câu chờ chấm;
+  - `NEXT_SWEEP`: lỗi hoặc xung đột; điểm đã lưu, API vẫn trả `200`, tác vụ quét `GradingScheduler` thử lại (LESSONS §34).
+
+  Dữ liệu của response được đọc trong giao dịch lưu điểm. Sau commit chỉ còn bước đếm câu chờ và bước công bố; lỗi ở hai bước này cũng thành `NEXT_SWEEP`, không thành `500` (thêm sau `/code-review`). `finalizeIfReady` chỉ xét `NEAR_THRESHOLD` cho các câu chưa có điểm, nên câu đã chấm tay không bị chuyển lại.
+- **Không chặn theo pha.** Hàng đợi chỉ chứa câu đang giữ kết quả của một phiên, và `finalizeIfReady` đã giữ việc công bố tới sau `testing_end`. Chặn thêm thì bài kẹt lại mà không được gì.
+- **Không gọi LLM, không phát job AI** (BR-13, Nguyên tắc 2).
+- **Dữ liệu** (migration `0038`): `exam_answers` thêm `id`, `row_version`, `manual_grading` JSONB, `graded_by` (→ `users.id`), `graded_at`. CHECK `exam_answers_manual_check`: ba cột `manual_grading`, `graded_by`, `graded_at` cùng có hoặc cùng không. CHECK `exam_answers_manual_final_check`: `manual_grading is null or (needs_human and final_score is not null)` (Nguyên tắc 11).
+- **Giao diện:** `/admin/grading` ở cổng Trung tâm. Bảng hàng đợi nhóm theo phiên, lọc theo đợt và lý do, phân trang ở server. Ngăn chi tiết là `Sheet`, form một ô cho mỗi tiêu chí, tổng tự cộng. Trước khi lưu, `AlertDialog` hỏi lại, vì điểm này là điểm cuối của câu. Dùng `Table` của shadcn; không thêm TanStack Table, vì phân trang ở server và nhóm theo phiên không cần nó.
+
+**Rationale**:
+
+- Cột `id` cho một mã ngắn, ổn định, dùng chung cho chấm tay và phúc khảo, đúng route của ARCH. Đường dẫn hai khóa sẽ phải sửa cả ARCH lẫn route của US-4.6.
+- Hai lượt AI cho người chấm thấy vì sao câu bị chuyển (lệch bao nhiêu, cờ gì). Nguy cơ bị neo theo điểm AI được chấp nhận: người chấm vẫn phải nhập từng tiêu chí, và mọi lần chấm có audit.
+- Thêm vai trò giảng viên thì phải sửa RBAC, cổng, điều hướng và seed, lớn hơn cả story. Tài khoản `CENTER` đủ cho đợt của đồ án.
+- Gọi `finalizeIfReady` sau commit thì giữ được một đường công bố duy nhất (D53). Điểm đã lưu không bị rollback chỉ vì bước công bố gặp xung đột.
+
+**Alternatives considered**:
+
+- **Đường dẫn hai khóa `/api/exam-sessions/{sessionId}/answers/{questionId}/manual-grade`:** người dùng không chọn.
+- **Chỉ hiện lý do của AI, ẩn điểm; hoặc ẩn hết phần AI:** người dùng không chọn.
+- **Vai trò giảng viên riêng:** người dùng không chọn. Nếu cần thì tách story riêng.
+- **SV thấy điểm từng tiêu chí của người chấm, có hoặc không kèm ghi chú:** người dùng không chọn ở story này.
+- **Tính lại điểm trong cùng giao dịch lưu điểm:** loại. Xung đột ở bước công bố sẽ làm mất cả điểm vừa chấm, và cần thêm một đường công bố thứ hai bên cạnh `finalizeIfReady`.
+- **Cho phép số lẻ (0,5 điểm):** loại để khớp với thang của Grader và rubric. `final_score` numeric(6,2) vẫn cho phép đổi sau.
+
+**Impact**:
+
+- US-4.5 viết lại AC-4, AC-5, AC-6, task và bảng *Verification commands*; 3 → 5 điểm.
+- ARCH: *API architecture* (nhóm Trung tâm), *Các bảng chính* (`exam_answers`). PRD FR-23: chú thích giảng viên dùng tài khoản `CENTER`.
+- Code:
+  - `packages/shared/schemas/manual-grading.ts`, `EXAM_ANSWER_ALREADY_GRADED`.
+  - Migration `0038`.
+  - Module `assessment`: `domain/manual-grade.ts`, `ManualGradingService`, `ManualGradingRepository`, `ManualGradingController`.
+  - Web: `features/center/grading/`.
+- Story sau: US-4.6 dùng `exam_answers.id`, `row_version`, form chấm theo tiêu chí và `finalizeIfReady`; xem lại việc SV có thấy điểm từng tiêu chí do cán bộ chấm không.
+
+**Date**: 2026-11-11
+**Version**: 0.24.0

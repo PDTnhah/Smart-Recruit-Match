@@ -15,6 +15,32 @@ Lịch sử phát hành của Smart Recruit Match. Mỗi commit ship code tăng 
 
 ---
 
+## [0.24.0] — 2026-11-11 — Chấm tay câu tự luận — v0.24.0
+
+US-4.5. Cán bộ Trung tâm chấm lại các câu tự luận mà Grader chuyển sang, theo từng tiêu chí của rubric, và không thấy danh tính sinh viên. Giảng viên chấm bằng tài khoản `CENTER`. Code cộng điểm, lưu điểm kèm audit, rồi công bố kết quả qua `finalizeIfReady` (FR-23, BR-03, BR-13, AD-2, AD-8, [CONTEXT D54](CONTEXT.md)).
+
+### Added
+- **API** (chỉ `CENTER`; `HR`, `STUDENT`, `ADMIN` nhận `403`):
+  - `GET /api/campaigns/{id}/grading-queue?reason=&limit=&offset=`: các câu `needs_human` chưa có điểm, nhóm theo phiên ("Bài #id"). Lọc được theo lý do, phân trang theo phiên, có `totalSessions` và `totalAnswers`;
+  - `GET /api/exam-answers/{id}/manual-grading`: đề, rubric, đáp án mẫu, bài làm, lý do chuyển và hai lượt chấm của Grader. Response là whitelist, không có trường nào của SV (BR-03). Câu đã chấm vẫn mở được, ở chế độ chỉ đọc;
+  - `PUT /api/exam-answers/{id}/manual-grade`: gửi điểm nguyên cho từng tiêu chí, ghi chú (không bắt buộc) và `rowVersion`. Điểm sai luật thì `400` kèm `criteria.N.points` (`manualGradeCriteriaSchemaFor`). API khóa dòng; câu đã chấm thì `409 EXAM_ANSWER_ALREADY_GRADED`, lệch phiên bản thì `409 ROW_VERSION_CONFLICT`; mỗi lần chấm ghi audit `EXAM_ANSWER_GRADED_MANUALLY`. Sau commit, nếu phiên hết câu chờ thì API gọi `finalizeIfReady`. Response báo một trong `PUBLISHED`, `AFTER_TESTING_END`, `WAITING_OTHER_ANSWERS`, `NEXT_SWEEP`; lỗi xảy ra sau commit vẫn trả `200`.
+- **Cột** (migration `0038`): `exam_answers` thêm `id` (identity, unique), `row_version`, `manual_grading` JSONB, `graded_by`, `graded_at`. Hai CHECK: ba cột chấm tay cùng có hoặc cùng không; `manual_grading` chỉ có ở câu `needs_human` đã có `final_score`.
+- **Giao diện** `/admin/grading` (mục "Chấm tay"):
+  - bảng hàng đợi nhóm theo bài, lọc theo đợt và lý do, phân trang;
+  - `Sheet` chi tiết: một ô điểm cho mỗi tiêu chí, tổng tự cộng, `AlertDialog` xác nhận trước khi lưu;
+  - nút Back của trình duyệt đóng `Sheet`.
+
+### Changed
+- Mọi lệnh UPDATE `exam_answers` của US-4.4 giờ tăng `row_version`.
+- Tài liệu:
+  - ARCHITECTURE: *API architecture*, *Các bảng chính* (`exam_answers`);
+  - PRD: FR-23;
+  - DESIGN: §6, §8;
+  - AGENTS › *Mẫu có sẵn*: thêm dòng form chấm theo tiêu chí, sửa dòng bài test đã nộp;
+  - LESSONS: thêm §43–§45.
+
+---
+
 ## [0.23.0] — 2026-11-10 — Chấm bài, S_test và S_final — v0.23.0
 
 US-4.4. Trắc nghiệm được chấm bằng code lúc đóng phiên; Grader chấm mỗi câu tự luận hai lần độc lập qua batch; code quyết định câu nào chuyển cán bộ chấm, tính S_test, điểm phần, bản đồ năng lực và S_final theo NV, rồi công bố kết quả sau `testing_end` (FR-22, BR-07, BR-13, AGENTS › Nguyên tắc 1, 2, 9, 12, [CONTEXT D53](CONTEXT.md)).

@@ -820,6 +820,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/campaigns/{id}/grading-queue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ManualGradingController_queue"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/exam-answers/{id}/manual-grading": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ManualGradingController_detail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/exam-answers/{id}/manual-grade": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["ManualGradingController_grade"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2698,6 +2746,121 @@ export interface components {
                 sent: boolean;
             }[];
         };
+        GradingQueueDto_Output: {
+            items: {
+                sessionId: number;
+                jdTitle: string;
+                companyName: string;
+                /** Format: date-time */
+                submittedAt: string;
+                answers: {
+                    answerId: number;
+                    questionNo: number;
+                    skill: string;
+                    maxPoints: number;
+                    reasons: ("RUNS_DIVERGE" | "LOW_CONFIDENCE" | "FLAGGED" | "AI_FAILED" | "NEAR_THRESHOLD")[];
+                }[];
+            }[];
+            totalSessions: number;
+            totalAnswers: number;
+        };
+        ManualGradingDetailDto_Output: {
+            answerId: number;
+            sessionId: number;
+            rowVersion: number;
+            jdTitle: string;
+            companyName: string;
+            questionNo: number;
+            skill: string;
+            stem: string;
+            rubric: {
+                criterion: string;
+                maxPoints: number;
+            }[];
+            maxPoints: number;
+            sampleAnswer: string[];
+            answerText: string;
+            reasons: ("RUNS_DIVERGE" | "LOW_CONFIDENCE" | "FLAGGED" | "AI_FAILED" | "NEAR_THRESHOLD")[];
+            aiPasses: {
+                passNo: number;
+                points: number | null;
+                /** @enum {string|null} */
+                confidence: "LOW" | "MEDIUM" | "HIGH" | null;
+                flags: "INSTRUCTION_IN_ANSWER"[];
+                criteria: {
+                    index: number;
+                    points: number;
+                    reason: string;
+                }[];
+                failureCode: string | null;
+            }[];
+            manualGrade: {
+                criteria: {
+                    index: number;
+                    points: number;
+                }[];
+                note: string | null;
+                finalScore: number;
+                /** Format: date-time */
+                gradedAt: string;
+            } | null;
+        };
+        ManualGradeRequestDto: {
+            rowVersion: number;
+            criteria: {
+                index: number;
+                points: number;
+            }[];
+            note?: string | null;
+        };
+        ManualGradeResultDto_Output: {
+            detail: {
+                answerId: number;
+                sessionId: number;
+                rowVersion: number;
+                jdTitle: string;
+                companyName: string;
+                questionNo: number;
+                skill: string;
+                stem: string;
+                rubric: {
+                    criterion: string;
+                    maxPoints: number;
+                }[];
+                maxPoints: number;
+                sampleAnswer: string | null;
+                answerText: string;
+                reasons: ("RUNS_DIVERGE" | "LOW_CONFIDENCE" | "FLAGGED" | "AI_FAILED" | "NEAR_THRESHOLD")[];
+                aiPasses: {
+                    passNo: number;
+                    points: number | null;
+                    /** @enum {string|null} */
+                    confidence: "LOW" | "MEDIUM" | "HIGH" | null;
+                    flags: "INSTRUCTION_IN_ANSWER"[];
+                    criteria: {
+                        index: number;
+                        points: number;
+                        reason: string;
+                    }[];
+                    failureCode: string | null;
+                }[];
+                manualGrade: {
+                    criteria: {
+                        index: number;
+                        points: number;
+                    }[];
+                    note: string | null;
+                    finalScore: number;
+                    /** Format: date-time */
+                    gradedAt: string;
+                } | null;
+            };
+            session: {
+                remainingAnswers: number;
+                /** @enum {string} */
+                publication: "PUBLISHED" | "AFTER_TESTING_END" | "WAITING_OTHER_ANSWERS" | "NEXT_SWEEP";
+            };
+        };
     };
     responses: never;
     parameters: never;
@@ -4208,6 +4371,77 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EssayGradingDispatchDto_Output"];
+                };
+            };
+        };
+    };
+    ManualGradingController_queue: {
+        parameters: {
+            query?: {
+                reason?: "RUNS_DIVERGE" | "LOW_CONFIDENCE" | "FLAGGED" | "AI_FAILED" | "NEAR_THRESHOLD";
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GradingQueueDto_Output"];
+                };
+            };
+        };
+    };
+    ManualGradingController_detail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManualGradingDetailDto_Output"];
+                };
+            };
+        };
+    };
+    ManualGradingController_grade: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ManualGradeRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManualGradeResultDto_Output"];
                 };
             };
         };

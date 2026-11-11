@@ -94,6 +94,7 @@ describe('AD-9: migrations apply on empty DB and create core tables with constra
       [
         'campaigns',
         'cvs',
+        'exam_answers',
         'exam_sessions',
         'job_descriptions',
         'preferences',

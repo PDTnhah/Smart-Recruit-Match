@@ -67,6 +67,7 @@ const MESSAGES: Record<ApiErrorCode, string> = {
   EXAM_BANK_INCOMPLETE: 'Ngân hàng câu hỏi của JD này đang thiếu câu nên chưa rút đề được. Liên hệ Trung tâm.',
   PREFERENCE_NOT_PENDING_TEST: 'Nguyện vọng này không còn chờ làm bài test.',
   EXAM_NOT_CLOSED: 'Bài test chưa nộp nên chưa có kết quả.',
+  EXAM_ANSWER_ALREADY_GRADED: 'Câu này đã được chấm xong. Điểm đã lưu chỉ sửa được qua phúc khảo.',
   RATE_LIMITED: 'Bạn thao tác quá nhanh. Chờ một lát rồi thử lại.',
   INTERNAL_ERROR: 'Hệ thống đang gặp sự cố. Thử lại sau ít phút.',
 };
