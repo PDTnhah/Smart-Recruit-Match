@@ -22,20 +22,27 @@ const DEADLINES: Record<CampaignDeadlineKey, { title: string; task: string; href
   testing_end: { title: 'Sắp hết hạn làm bài test', task: 'làm bài test', href: '/sv/exams' },
 };
 
+/** "Hồ sơ" of the campaign named: without `?campaign=` it opens the one holding the CV (US-1.8). */
+const profileOf = (campaignId: number) => `${DEADLINES.intake_end.href}?campaign=${campaignId}`;
+
 export function describeNotification(notification: Notification): NotificationView {
   switch (notification.type) {
     case 'CAMPAIGN_OPENED': {
-      const { campaignName, intakeEnd } = notification.payload;
+      const { campaignId, campaignName, intakeEnd } = notification.payload;
       return {
         title: 'Đợt thực tập đã mở',
         body: `Đợt "${campaignName}" nhận CV đến ${formatDateTime(intakeEnd)}.`,
-        href: DEADLINES.intake_end.href,
+        href: profileOf(campaignId),
       };
     }
     case 'DEADLINE_REMINDER': {
-      const { campaignName, deadlineKey, deadline } = notification.payload;
+      const { campaignId, campaignName, deadlineKey, deadline } = notification.payload;
       const { title, task, href } = DEADLINES[deadlineKey];
-      return { title, body: `Hạn ${task} của đợt "${campaignName}" là ${formatDateTime(deadline)}.`, href };
+      return {
+        title,
+        body: `Hạn ${task} của đợt "${campaignName}" là ${formatDateTime(deadline)}.`,
+        href: deadlineKey === 'intake_end' ? profileOf(campaignId) : href,
+      };
     }
     case 'HR_INVITED':
       // Email only; listed never, typed for completeness.
@@ -69,7 +76,7 @@ export function describeNotification(notification: Notification): NotificationVi
       return {
         title: 'Hồ sơ năng lực sẵn sàng để xác nhận',
         body: `Hệ thống đã trích hồ sơ năng lực từ CV của đợt "${campaignName}".`,
-        href: `${DEADLINES.intake_end.href}?campaign=${campaignId}`,
+        href: profileOf(campaignId),
       };
     }
     case 'CV_ANALYSIS_FAILED': {
@@ -77,7 +84,7 @@ export function describeNotification(notification: Notification): NotificationVi
       return {
         title: 'Chưa phân tích được CV',
         body: `Hệ thống không đọc được CV của đợt "${campaignName}". Tải lên lại CV trước hạn nộp.`,
-        href: `${DEADLINES.intake_end.href}?campaign=${campaignId}`,
+        href: profileOf(campaignId),
       };
     }
     case 'CV_NEEDS_ATTENTION': {

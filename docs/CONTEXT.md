@@ -61,6 +61,7 @@
 - D52 · Phòng thi: mã phương án từ nguồn ngẫu nhiên mật mã, không từ seed; đóng phiên lỗi thì Redis nhận lưu lại (US-4.3)
 - D53 · Chấm bài: trắc nghiệm trong giao dịch đóng phiên, Grader hai lượt qua batch có đáp án mẫu, câu ngang nhau trong phần, chuyển người chấm, S_final theo NV, dưới ngưỡng sau hạn phúc khảo (US-4.4)
 - D54 · Chấm tay câu tự luận: cột `exam_answers.id`, người chấm thấy hai lượt AI, giảng viên dùng tài khoản CENTER, điểm tiêu chí số nguyên, công bố qua `finalizeIfReady` sau commit (US-4.5)
+- D55 · Màn Hồ sơ chọn đợt mặc định theo CV của SV; tách US-1.9 (phiên giữa các tab), US-2.8 (tìm kỹ năng khi query rỗng) (US-1.8)
 
 ---
 
@@ -2421,3 +2422,55 @@ Story còn đề xuất cột `preferences.exam_session_id`, và các cột `sta
 
 **Date**: 2026-11-11
 **Version**: 0.24.0
+
+### D55. Màn Hồ sơ chọn đợt mặc định theo CV của sinh viên; thêm US-1.8, US-1.9, US-2.8 (revision of hành vi màn Hồ sơ của US-1.6; bổ sung D21, D42)
+
+**Context**: Ngày 2026-11-15 người dùng báo lỗi: "cùng một tab, đăng xuất SV A, đăng nhập SV khác (hình như có nộp CV), đăng nhập lại A thì CV của A mất". Log request của container `api` ngày 13/11 cho thấy:
+
+- dữ liệu không mất, và SV kia không nộp CV;
+- giữa hai lần A đăng nhập, CENTER mở đợt 6 cho cùng khóa và ngành;
+- `GET /api/cvs/me` của A vẫn trả CV ở đợt 1, nhưng màn Hồ sơ mở đợt 6, nơi A chưa có CV;
+- A đồng ý điều khoản rồi nộp lại CV vào đợt 6.
+
+Bảng dòng thời gian ở US-1.8 › *Background*. Nguyên nhân: `defaultCampaign` của `cv-page.tsx` (US-1.6) chọn đợt mới nhất đang nhận CV mà không xét SV đã có CV ở đâu. Ô chọn đợt chỉ ghi tên đợt. Một SV được có CV ở nhiều đợt (D40), nên không chặn được bằng quy tắc nghiệp vụ.
+
+Lúc điều tra còn thấy hai lỗi khác, không gây ra sự cố này:
+
+- Web cài access token của bất kỳ tài khoản nào cookie refresh (dùng chung giữa các tab) trả về. Tab cũ vì thế lặng lẽ chạy dưới danh nghĩa tài khoản đăng nhập sau, và request 401 được gửi lại bằng token đó.
+- `GET /api/skills` không có `query` trả `500` vì `ORDER BY 0`; log 13/11 có bốn lần.
+
+**Decision** (người dùng chốt ngày 2026-11-15):
+
+- **Thứ tự chọn đợt mặc định của màn Hồ sơ**, khi URL không có `?campaign=` của một đợt SV thấy được:
+  1. đợt đang nhận CV mà SV đã có CV đang dùng;
+  2. đợt đang nhận CV khác;
+  3. đợt của CV đang dùng mới nhất, chưa `DRAFT`, chưa `CLOSED` (cùng quy tắc với shortlist, D47);
+  4. đợt mới nhất.
+
+  Trong mỗi bậc, đợt mới hơn đứng trước. Quy tắc là hàm thuần `pickProfileCampaign` ở `packages/shared`, có unit test.
+- **Màn Hồ sơ cho biết CV nằm ở đâu.** Ô chọn đợt ghi "Đã có CV" / "Chưa nộp CV" cho từng đợt. Đợt đang xem chưa có CV mà đợt khác có thì hiện `Alert` nêu tên đợt đó, kèm nút chuyển sang, đặt trước thẻ nộp CV.
+- **Thêm ba story**, tổng thành 43:
+  - US-1.8 sửa màn Hồ sơ (EPIC-1, 3 điểm, làm ngay);
+  - US-1.9 phiên nhất quán giữa các tab (EPIC-1, 3 điểm, backlog). Hành vi đã chọn: tab cũ tự tải lại và sang tài khoản mới kèm thông báo; đăng xuất ở một tab thì các tab khác về `/login`;
+  - US-2.8 tìm kỹ năng khi query rỗng (EPIC-2, 1 điểm, backlog).
+
+**Rationale**: SV mở "Hồ sơ" để xem hồ sơ của mình, nên đợt đã có CV đứng trước. Đợt mới vẫn hiện thành việc cần làm ở trang chủ, kèm link `?campaign=`. Thông báo và nhãn trạng thái phủ trường hợp còn lại: đợt cũ đã qua hạn nộp nên bậc 2 chọn đợt mới. Hai lỗi phụ thuộc vùng code khác (phiên đăng nhập, module `skills`), nên tách story để mỗi story review gọn.
+
+**Alternatives considered**:
+
+- **Giữ thứ tự cũ, chỉ thêm thông báo và nhãn:** người dùng không chọn, vì SV vẫn rơi vào đợt trống trước.
+- **Chọn theo CV mới nhất trước, như shortlist:** người dùng không chọn, vì đợt mới đang nhận CV bị xếp sau một đợt cũ đã qua hạn.
+- **Chặn Trung tâm mở hai đợt cùng đối tượng:** loại, vì một SV được có CV ở nhiều đợt (D40) và đây là thay đổi nghiệp vụ lớn hơn lỗi.
+- **Gộp ba lỗi vào một story:** người dùng không chọn.
+
+**Impact**:
+
+- Story mới US-1.8, US-1.9, US-2.8.
+- PRD › *Epics & User Stories*, EPIC-1, EPIC-2, `sprints/README.md`, AGENTS › *Trạng thái* (số story), `sprint-2026-W46` (mở cho US-1.8).
+- Code của US-1.8: `packages/shared/schemas/student-campaign.ts` (`takesCvs`, `campaignOfNewestActiveCv`, `pickProfileCampaign`, `otherCampaignWithCv`); web `features/student/profile/cv-page.tsx`, `intake.ts`, `features/student/home/student-home-page.tsx`. Không migration, không đổi route hay contract API.
+- Thêm sau review của US-1.8 (cùng ngày):
+  - `Alert` không trỏ tới đợt `CLOSED`, như bậc 3: CV ở đợt đã đóng không còn dùng, nên không được khuyên SV đừng nộp ở đợt đang mở;
+  - thông báo trong app và email nêu một đợt ("Đợt thực tập đã mở", nhắc hạn `intake_end`, "Chưa phân tích được CV") dẫn tới `/sv/cv?campaign=<id>`, vì đợt mặc định không còn là đợt mới nhất (`shared/notifications/messages.ts`, `notification/application/email-renderer.ts`; LESSONS §46).
+
+**Date**: 2026-11-15
+**Version**: 0.24.1

@@ -976,7 +976,7 @@ Priority: `P0` = bắt buộc cho MVP, `P1` = nên có, `P2` = tùy chọn, `P3`
 
 ## Epics & User Stories
 
-Mỗi epic tương ứng một giai đoạn trong [ARCHITECTURE.md › Implementation roadmap](ARCHITECTURE.md#implementation-roadmap). Chi tiết epic ở `docs/sprints/epics/EPIC-N.md`; file story của cả 40 story nằm ở `docs/sprints/stories/` ([CONTEXT D21](CONTEXT.md); US-2.7, US-3.5, US-3.6 thêm theo [CONTEXT D42](CONTEXT.md)). Lịch theo tuần và thứ tự làm ở [sprints/README › Lộ trình](sprints/README.md#lộ-trình) ([CONTEXT D20](CONTEXT.md)).
+Mỗi epic tương ứng một giai đoạn trong [ARCHITECTURE.md › Implementation roadmap](ARCHITECTURE.md#implementation-roadmap). Chi tiết epic ở `docs/sprints/epics/EPIC-N.md`; file story của cả 43 story nằm ở `docs/sprints/stories/` ([CONTEXT D21](CONTEXT.md); US-2.7, US-3.5, US-3.6 thêm theo [CONTEXT D42](CONTEXT.md); US-1.8, US-1.9, US-2.8 thêm theo [CONTEXT D55](CONTEXT.md)). Lịch theo tuần và thứ tự làm ở [sprints/README › Lộ trình](sprints/README.md#lộ-trình) ([CONTEXT D20](CONTEXT.md)).
 
 ### EPIC-1: Nền tảng, tài khoản và đợt thực tập
 
@@ -995,6 +995,8 @@ Mỗi epic tương ứng một giai đoạn trong [ARCHITECTURE.md › Implement
 | US-1.5 | Doanh nghiệp, tài khoản HR, đăng và duyệt JD | ✅ done | 0.4.0 |
 | US-1.6 | Đồng ý xử lý dữ liệu và nộp CV | ✅ done | 0.5.0 |
 | US-1.7 | Thông báo trong app, SSE, email, nhắc hạn | ✅ done | 0.6.0 |
+| US-1.8 | Màn Hồ sơ mở đúng đợt khi sinh viên thấy nhiều đợt | 👀 review | 0.24.1 |
+| US-1.9 | Phiên đăng nhập nhất quán giữa các tab | 📋 backlog | — |
 
 ### EPIC-2: Phân tích CV và JD bằng AI
 
@@ -1013,6 +1015,7 @@ Mỗi epic tương ứng một giai đoạn trong [ARCHITECTURE.md › Implement
 | US-2.5 | Embedding và danh mục kỹ năng | ✅ done | 0.11.0 |
 | US-2.6 | SV xác nhận hồ sơ năng lực | ✅ done | 0.12.0 |
 | US-2.7 | Vùng, họ và quan hệ kéo theo của kỹ năng | 📋 backlog | — |
+| US-2.8 | Tìm kỹ năng trong danh mục khi ô tìm còn trống | 📋 backlog | — |
 
 ### EPIC-3: Chấm phù hợp và chọn nguyện vọng
 

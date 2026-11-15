@@ -13,6 +13,9 @@ const DEADLINE_TASKS: Record<CampaignDeadlineKey, { task: string; path: string }
   testing_end: { task: 'làm bài test', path: '/sv/exams' },
 };
 
+/** "Hồ sơ" of the campaign named: without `?campaign=` it opens the one holding the CV (US-1.8). */
+const profilePath = (campaignId: number) => `${DEADLINE_TASKS.intake_end.path}?campaign=${campaignId}`;
+
 /** The campaign page of the center portal; `/{campaignId}` follows (apps/web router). */
 const CENTER_CAMPAIGN_PATH = '/admin/campaigns';
 
@@ -92,7 +95,7 @@ export class EmailRenderer {
         return {
           campaignName: content.payload.campaignName,
           intakeEnd: formatVietnamTime(content.payload.intakeEnd),
-          link: `${this.webOrigin}${DEADLINE_TASKS.intake_end.path}`,
+          link: `${this.webOrigin}${profilePath(content.payload.campaignId)}`,
         };
       case 'HR_INVITED':
         if (!links.invitation) throw new Error('an invitation email needs the current invitation link');
@@ -101,18 +104,19 @@ export class EmailRenderer {
           link: `${this.webOrigin}${links.invitation.invitationPath}`,
         };
       case 'DEADLINE_REMINDER': {
-        const { task, path } = DEADLINE_TASKS[content.payload.deadlineKey];
+        const { campaignId, deadlineKey } = content.payload;
+        const { task, path } = DEADLINE_TASKS[deadlineKey];
         return {
           task,
           campaignName: content.payload.campaignName,
           deadline: formatVietnamTime(content.payload.deadline),
-          link: `${this.webOrigin}${path}`,
+          link: `${this.webOrigin}${deadlineKey === 'intake_end' ? profilePath(campaignId) : path}`,
         };
       }
       case 'CV_ANALYSIS_FAILED':
         return {
           campaignName: content.payload.campaignName,
-          link: `${this.webOrigin}${DEADLINE_TASKS.intake_end.path}`,
+          link: `${this.webOrigin}${profilePath(content.payload.campaignId)}`,
         };
       case 'PREFERENCES_AUTO_ASSIGNED':
         return {

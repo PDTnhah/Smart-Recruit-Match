@@ -12,6 +12,7 @@ export * from './company.js';
 export * from './job-description.js';
 export * from './consent.js';
 export * from './cv.js';
+export * from './student-campaign.js';
 export * from './notification.js';
 export * from './skill.js';
 export * from './matching.js';

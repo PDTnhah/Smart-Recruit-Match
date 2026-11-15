@@ -83,9 +83,9 @@ describe('FR-8: email outbox (US-1.7 AC-4)', () => {
     const [message] = mail1.to(user.email);
     expect(message?.subject).toBe('Nhắc hạn: nộp CV cho đợt "Đợt HK1 & HK2"');
     expect(message?.text).toContain('Chào Trần Thị Bích');
-    // Vietnam time (UTC+7) and an absolute link from WEB_ORIGIN.
+    // Vietnam time (UTC+7) and an absolute link from WEB_ORIGIN, to the campaign named (US-1.8).
     expect(message?.text).toContain('02/06/1999 17:00');
-    expect(message?.text).toContain('http://srm.test/sv/cv');
+    expect(message?.text).toContain('http://srm.test/sv/cv?campaign=3');
     // HTML escapes what users typed; the subject and plain text do not need to.
     expect(message?.html).toContain('Đợt HK1 &amp; HK2');
 

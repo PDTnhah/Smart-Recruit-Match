@@ -15,6 +15,35 @@ Lịch sử phát hành của Smart Recruit Match. Mỗi commit ship code tăng 
 
 ---
 
+## [0.24.1] — 2026-11-15 — Màn Hồ sơ mở đúng đợt — v0.24.1
+
+US-1.8. Sửa lỗi người dùng báo ngày 2026-11-15: "CV của SV mất sau khi đăng nhập tài khoản khác". Dữ liệu không mất. Trung tâm vừa mở một đợt mới cùng khóa và ngành, và màn "Hồ sơ" mở đợt mới nhất đang nhận CV, nơi SV chưa nộp CV (FR-6, [CONTEXT D55](CONTEXT.md)).
+
+### Fixed
+- Màn "Hồ sơ" của sinh viên mở đợt có CV của mình thay vì đợt mới nhất đang nhận CV. Trước đây, khi Trung tâm mở thêm một đợt cùng khóa và ngành, CV trông như đã mất. Không có `?campaign=` hợp lệ thì màn chọn theo thứ tự:
+  1. đợt đang nhận CV mà SV đã có CV;
+  2. đợt đang nhận CV khác;
+  3. đợt của CV mới nhất, chưa đóng (như "Nguyện vọng", D47);
+  4. đợt mới nhất.
+
+  Quy tắc là hàm thuần `pickProfileCampaign` ở `@srm/shared`, có unit test.
+- Ô chọn đợt cho biết đợt nào đã có CV ("Đã có CV" / "Chưa nộp CV"). Đang xem một đợt chưa có CV trong khi một đợt khác chưa đóng đã có, màn chỉ ra đợt đó, kèm nút "Xem CV đã nộp" (nút Back của trình duyệt quay lại đợt đang xem).
+- Thông báo trong app và email "Đợt thực tập đã mở", "Sắp hết hạn nộp CV" và "Chưa phân tích được CV" mở đúng đợt được nêu (`/sv/cv?campaign=<id>`), không còn phụ thuộc đợt mặc định.
+
+### Changed
+- `takesCvs` và quy tắc đợt của CV mới nhất (`campaignOfNewestActiveCv`) chuyển từ web sang `packages/shared/schemas/student-campaign.ts`; trang chủ SV dùng chung các hàm này.
+- Tài liệu:
+  - DESIGN §6: `select` có dòng phụ trong mục, `alert` có nút dài;
+  - PRD › *Epics & User Stories*, EPIC-1, EPIC-2, lộ trình, AGENTS › *Trạng thái*: thêm US-1.8, US-1.9, US-2.8 (43 story);
+  - mở `sprint-2026-W46` cho US-1.8, vì W45 đã qua ngày kết thúc; W45 vẫn mở với các story `review`;
+  - LESSONS: thêm §46, §47.
+
+### Not done
+- Chưa kiểm tay AC-2 đến AC-6 (ca sự cố trên compose, `?campaign=999`, 360 / 768 / 1024 px).
+- Bản CV nộp trùng vào đợt 6 trên DB dev vẫn còn; giữ hay bỏ do người dùng quyết.
+
+---
+
 ## [0.24.0] — 2026-11-11 — Chấm tay câu tự luận — v0.24.0
 
 US-4.5. Cán bộ Trung tâm chấm lại các câu tự luận mà Grader chuyển sang, theo từng tiêu chí của rubric, và không thấy danh tính sinh viên. Giảng viên chấm bằng tài khoản `CENTER`. Code cộng điểm, lưu điểm kèm audit, rồi công bố kết quả qua `finalizeIfReady` (FR-23, BR-03, BR-13, AD-2, AD-8, [CONTEXT D54](CONTEXT.md)).
