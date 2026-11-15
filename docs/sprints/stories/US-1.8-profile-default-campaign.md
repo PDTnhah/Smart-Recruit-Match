@@ -10,7 +10,7 @@ version_shipped: 0.24.1
 prd_ref: [FR-6]
 depends_on: [US-1.6, US-2.6]
 assignee: PDTnhah
-commit:
+commit: 842ad98
 created: 2026-11-15
 updated: 2026-11-15
 ---
@@ -123,7 +123,7 @@ Unit: `pnpm --filter @srm/shared test`. Integration: `pnpm --filter @srm/api exe
 - Ô chọn đợt cho biết đợt nào đã có CV. Đang xem một đợt chưa có CV trong khi một đợt khác chưa đóng đã có, màn chỉ ra đợt đó, kèm nút chuyển sang.
 - Thông báo trong app và email "Đợt thực tập đã mở", "Sắp hết hạn nộp CV" và "Chưa phân tích được CV" mở đúng đợt được nêu.
 
-**Commit**:
+**Commit**: 842ad98
 
 ## Implementation notes
 
