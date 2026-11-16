@@ -1,8 +1,8 @@
 # Sprint Status
 
 > **AUTO-GENERATED** by `koni-docs status`. Do not hand-edit (RULE-5).
-> Last generated: 2026-11-15 10:19:22 UTC
-> Total stories: 43
+> Last generated: 2026-11-16 02:30:53 UTC
+> Total stories: 44
 
 ## ⏰ Deadlines (0)
 
@@ -38,11 +38,12 @@ _No stories_
 
 _No stories_
 
-## 👀 Review (13)
+## 👀 Review (14)
 
 | ID | Title | Epic | Pri | Points | Sprint | Assignee |
 |---|---|---|---|---|---|---|
 | US-1.8 | Màn Hồ sơ mở đúng đợt khi sinh viên thấy nhiều đợt | EPIC-1 | P1 | 3 | sprint-2026-W46 | PDTnhah |
+| US-1.10 | Sửa, hủy và xóa đợt sau khi mở | EPIC-1 | P1 | 8 | sprint-2026-W46 | PDTnhah |
 | US-2.7 | Vùng, họ và quan hệ kéo theo của kỹ năng | EPIC-2 | P0 | 8 | sprint-2026-W45 | PDTnhah |
 | US-3.1 | Lọc điều kiện cứng và công thức S_cv | EPIC-3 | P0 | 5 | sprint-2026-W44 | PDTnhah |
 | US-3.2 | Matching Agent chạy hàng loạt | EPIC-3 | P0 | 13 | sprint-2026-W45 | PDTnhah |
@@ -89,7 +90,7 @@ _No stories_
 - 📋 **Backlog**: 17
 - 🟢 **Ready**: 0
 - 🟡 **In Progress**: 0
-- 👀 **Review**: 13
+- 👀 **Review**: 14
 - ✅ **Done**: 13
 - 🚫 **Blocked**: 0
 - 🗑️ **Deprecated**: 0

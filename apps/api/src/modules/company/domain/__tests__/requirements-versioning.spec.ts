@@ -1,4 +1,10 @@
-import { CAMPAIGN_STATES, type CampaignStatus, JOB_DESCRIPTION_STATES, type JobDescriptionStatus } from '@srm/shared';
+import {
+  CAMPAIGN_STATES,
+  type CampaignStatus,
+  isCampaignFinal,
+  JOB_DESCRIPTION_STATES,
+  type JobDescriptionStatus,
+} from '@srm/shared';
 import {
   canConfirm,
   decideRequirementsEdit,
@@ -10,7 +16,7 @@ import {
 const decide = (jdStatus: JobDescriptionStatus, campaignStatus: CampaignStatus, editor: RequirementsEditor) =>
   decideRequirementsEdit({ jdStatus, campaignStatus, editor });
 
-const OPEN_CAMPAIGN_PHASES = CAMPAIGN_STATES.filter((status) => status !== 'CLOSED');
+const OPEN_CAMPAIGN_PHASES = CAMPAIGN_STATES.filter((status) => !isCampaignFinal(status));
 
 describe('BR-18: editing requirements after approval creates a new version (US-2.3 AC-11)', () => {
   it.each(OPEN_CAMPAIGN_PHASES.flatMap((phase) => [['APPROVED', phase] as const, ['RECRUITING', phase] as const]))(
@@ -23,6 +29,18 @@ describe('BR-18: editing requirements after approval creates a new version (US-2
 
   it('BR-18 sửa trước khi mở test không tăng phiên bản: HR, JD chờ xác nhận, đợt INTAKE', () => {
     expect(decide('PENDING_HR_CONFIRMATION', 'INTAKE', 'HR')).toEqual({ kind: 'IN_PLACE' });
+  });
+
+  it('FR-41: a cancelled campaign is read only, like a closed one (US-1.10 AC-7)', () => {
+    for (const jdStatus of ['APPROVED', 'RECRUITING'] as const) {
+      for (const editor of ['HR', 'CENTER'] as const) {
+        expect(decide(jdStatus, 'CANCELLED', editor)).toEqual({ kind: 'FORBIDDEN', reasonCode: REQUIREMENTS_REASON_CODES.CLOSED });
+      }
+    }
+    expect(decide('PENDING_HR_CONFIRMATION', 'CANCELLED', 'HR')).toEqual({
+      kind: 'FORBIDDEN',
+      reasonCode: REQUIREMENTS_REASON_CODES.CAMPAIGN_NOT_IN_INTAKE,
+    });
   });
 
   it('BR-18 a closed campaign or JD is read only', () => {

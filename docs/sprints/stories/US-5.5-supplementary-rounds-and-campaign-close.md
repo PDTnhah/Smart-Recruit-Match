@@ -14,7 +14,7 @@ depends_on:
 assignee:
 commit:
 created: 2026-10-07
-updated: 2026-10-07
+updated: 2026-11-16
 ---
 
 ## Goal
@@ -98,6 +98,7 @@ Story dùng lại gần như toàn bộ phần đã có: hàm `computeCapacity` 
 - Builds on [US-4.3](US-4.3-exam-room.md) — mở phiên thi cho NV mới. `Clock`/`FakeClock` cho test cửa sổ thêm NV và hạn test lấy từ [US-1.4](US-1.4-campaign-setup-and-config.md).
 - Builds on [US-1.4](US-1.4-campaign-setup-and-config.md) — trạng thái đợt *Vòng bổ sung*, *Đã đóng*, chặn thao tác sai pha, `campaigns.config`.
 - Builds on [US-1.7](US-1.7-notifications-sse-email-reminders.md) — thông báo cho SV trong hàng chờ.
+- Builds on [US-1.10](US-1.10-campaign-edit-cancel-delete.md) — `CANCELLED` là trạng thái cuối, có cạnh từ mọi pha `INTAKE`…`SUPPLEMENTARY` ([CONTEXT D56](../../CONTEXT.md)). Thao tác qua `assertPhase` đã bị chặn với đợt hủy; tác vụ quét và thông báo mới của story này phải liệt kê trạng thái cụ thể (như các tác vụ hiện có) để bỏ qua đợt hủy, và có test cho đợt hủy.
 - Required by [US-6.5](US-6.5-campaign-close-report-export.md) — đợt ở *Đã đóng*, danh sách SV chưa được phân bổ.
 - Required by [US-6.6](US-6.6-demo-data-e2e-load-test.md) — E2E luồng đầy đủ có vòng bổ sung.
 - Sibling [US-5.4](US-5.4-interviews-reserve-and-offers.md) — cùng tuần T12, làn A; bắt đầu sau khi US-5.4 merge.

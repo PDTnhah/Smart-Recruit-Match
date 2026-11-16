@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useCampaigns } from '@/features/center/campaigns/api';
+import { isWorkCampaign } from '@/features/center/campaigns/running-campaign';
 import { formatDateTime, formatNumber } from '@/lib/format';
 import { apiErrorMessage } from '@/shared/api/errors';
 import { GRADING_QUEUE_PAGE_SIZE, type GradingQueuePage, useGradingQueue } from './api';
@@ -152,7 +153,7 @@ export function GradingQueuePage() {
   const location = useLocation();
   const navigate = useNavigate();
   const campaigns = useCampaigns();
-  const running = (campaigns.data ?? []).filter((campaign) => campaign.status !== 'DRAFT');
+  const running = (campaigns.data ?? []).filter((campaign) => isWorkCampaign(campaign.status));
   const campaignId = positiveInt(searchParams.get('campaign')) ?? defaultCampaignId(running);
   const reasonParam = searchParams.get('reason');
   const reason = isReason(reasonParam) ? reasonParam : undefined;

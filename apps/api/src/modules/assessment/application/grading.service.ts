@@ -33,7 +33,8 @@ import { McqGrader } from './mcq-grader.js';
  *   was waiting for them);
  * - WAITING: a pass of the Grader is not in yet; NEEDS_HUMAN: an essay waits for a human grader
  *   (US-4.5), the preference stays PENDING_TEST; NOT_DUE: everything is graded, but the campaign
- *   is before `testing_end`, so nothing is published yet (the grading sweep does it after);
+ *   is before `testing_end`, so nothing is published yet (the grading sweep does it after), or it
+ *   was cancelled, so nothing is ever published (US-1.10 AC-7);
  * - NO_SCV: the preference's pair has no current S_cv; CONFLICT: a row changed meanwhile. Nothing
  *   was written; the grading sweep tries again;
  * - NOT_CLOSED, ALREADY_PUBLISHED, NOT_FOUND: nothing to do.
@@ -96,7 +97,7 @@ export class GradingService {
       campaign,
       jdId: bank.jdId,
       weights: partWeightsOf(bank.blueprint),
-      due: isPastTestingEnd(campaign, this.clock.now()),
+      due: canPublishResults(campaign, this.clock.now()),
     };
 
     let pending: PendingNotifications | null = null;
@@ -269,8 +270,16 @@ interface FinalizeContext {
   campaign: CampaignSettings;
   jdId: number;
   weights: PartWeights;
-  /** The campaign is past `testing_end`: results may be published. */
+  /** {@link canPublishResults}. */
   due: boolean;
+}
+
+/**
+ * Results of the campaign may be published: it is past `testing_end` and was not cancelled. A
+ * cancelled campaign is hidden from its students, so no result of it is announced (US-1.10 AC-7).
+ */
+export function canPublishResults(campaign: Pick<CampaignSettings, 'status' | 'phaseDeadlines'>, now: Date): boolean {
+  return campaign.status !== 'CANCELLED' && isPastTestingEnd(campaign, now);
 }
 
 /**

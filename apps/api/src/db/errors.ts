@@ -17,3 +17,8 @@ export function uniqueViolation(error: unknown): string | null {
   const fields = pgFields(error);
   return fields?.code === '23505' && typeof fields.constraint === 'string' ? fields.constraint : null;
 }
+
+/** Whether a statement broke a foreign key (SQLSTATE 23503): e.g. deleting a row others refer to. */
+export function foreignKeyViolation(error: unknown): boolean {
+  return pgFields(error)?.code === '23503';
+}

@@ -26,7 +26,11 @@ function NewJdButton() {
 
 function JdTable({ jds }: { jds: JobDescription[] }) {
   const campaigns = useCampaigns();
-  const campaignName = (id: number) => campaigns.data?.find((campaign) => campaign.id === id)?.name ?? '—';
+  // HR no longer sees a cancelled campaign (US-1.10 AC-7); a JD is only made in one HR could see.
+  const campaignName = (id: number) => {
+    if (!campaigns.isSuccess) return '—';
+    return campaigns.data.find((campaign) => campaign.id === id)?.name ?? 'Đợt đã hủy';
+  };
   return (
     <Table>
       <TableHeader>

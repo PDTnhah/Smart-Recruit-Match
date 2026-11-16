@@ -1,5 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import { type CampaignDeadlineKey, type EmailNotificationType, isEmailNotificationType, type NotificationContent } from '@srm/shared';
+import {
+  CAMPAIGN_NOTICE_DEADLINE_NAMES,
+  type CampaignDeadlineKey,
+  type CampaignNoticeAudience,
+  type EmailNotificationType,
+  isEmailNotificationType,
+  type NotificationContent,
+} from '@srm/shared';
 import Handlebars from 'handlebars';
 import { loadEnv } from '../../../common/config/env.js';
 import type { UserContact } from '../../iam/index.js';
@@ -18,6 +25,17 @@ const profilePath = (campaignId: number) => `${DEADLINE_TASKS.intake_end.path}?c
 
 /** The campaign page of the center portal; `/{campaignId}` follows (apps/web router). */
 const CENTER_CAMPAIGN_PATH = '/admin/campaigns';
+
+/** Home of each portal, and the JD list of the HR portal (apps/web router). */
+const STUDENT_HOME_PATH = '/sv';
+const HR_HOME_PATH = '/hr';
+const HR_JDS_PATH = '/hr/job-descriptions';
+
+/** What a cancelled campaign means for the reader (US-1.10 AC-8). */
+const CANCELLED_CONSEQUENCES: Record<CampaignNoticeAudience, string> = {
+  STUDENT: 'Đợt không còn hiện trên hệ thống và bạn không cần làm thêm gì cho đợt này. CV, nguyện vọng và bài test bạn đã nộp vẫn được lưu.',
+  HR: 'Đợt không còn hiện trên hệ thống và không nhận thêm thao tác nào. Các JD của doanh nghiệp trong đợt vẫn được lưu.',
+};
 
 /** The result page of an exam session in the student portal (apps/web router, US-4.4). */
 const examResultPath = (sessionId: number) => `/sv/exams/${sessionId}/result`;
@@ -152,6 +170,29 @@ export class EmailRenderer {
           companyName: content.payload.companyName,
           link: `${this.webOrigin}${examResultPath(content.payload.sessionId)}`,
         };
+      case 'CAMPAIGN_DEADLINES_CHANGED': {
+        const { campaignId, audience } = content.payload;
+        return {
+          campaignName: content.payload.campaignName,
+          deadlines: content.payload.deadlines.map((move) => ({
+            label: CAMPAIGN_NOTICE_DEADLINE_NAMES[audience][move.key],
+            before: formatVietnamTime(move.before),
+            after: formatVietnamTime(move.after),
+          })),
+          reason: content.payload.reason,
+          link: `${this.webOrigin}${audience === 'STUDENT' ? profilePath(campaignId) : HR_JDS_PATH}`,
+        };
+      }
+      case 'CAMPAIGN_CANCELLED': {
+        const { audience } = content.payload;
+        return {
+          campaignName: content.payload.campaignName,
+          consequence: CANCELLED_CONSEQUENCES[audience],
+          reason: content.payload.reason,
+          // The campaign is hidden now: its pages answer 404 (US-1.10 AC-7).
+          link: `${this.webOrigin}${audience === 'STUDENT' ? STUDENT_HOME_PATH : HR_HOME_PATH}`,
+        };
+      }
       case 'JD_REQUIREMENTS_READY':
       case 'JD_ANALYSIS_FAILED':
       case 'JD_REQUIREMENTS_VERSIONED':

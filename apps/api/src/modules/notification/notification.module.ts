@@ -14,6 +14,7 @@ import {
   EVENT_STREAM_SETTINGS,
   EventStreamService,
 } from './application/event-stream.service.js';
+import { CampaignChangesListener } from './application/listeners/campaign-changes.listener.js';
 import { CampaignOpenedListener } from './application/listeners/campaign-opened.listener.js';
 import { CvAnalysisListener } from './application/listeners/cv-analysis.listener.js';
 import { HrInvitedListener } from './application/listeners/hr-invited.listener.js';
@@ -46,6 +47,7 @@ import { RealtimePublisher, RealtimeSubscriber } from './infrastructure/redis-pu
     DeadlineReminderScheduler,
     CvIntakeReminderSource,
     CampaignOpenedListener,
+    CampaignChangesListener,
     CvAnalysisListener,
     HrInvitedListener,
   ],

@@ -108,6 +108,15 @@ describe('GĐ0: campaign phase scheduler (US-1.4)', () => {
     expect((await readState(t.db, 'campaign', noDeadline.id)).status).toBe('INTAKE');
   });
 
+  it('FR-41: scheduler skips cancelled campaigns', async () => {
+    const cancelled = await createCampaign(t.db, { status: 'CANCELLED', rowVersion: 2, phaseDeadlines: DEADLINES });
+    clock.set('2001-02-01T00:00:00.000Z');
+    const report = await scheduler.runOnce();
+    expect(report.transitions.filter((x) => x.campaignId === cancelled.id)).toEqual([]);
+    expect(await readState(t.db, 'campaign', cancelled.id)).toMatchObject({ status: 'CANCELLED', rowVersion: 2 });
+    expect(changesOf(cancelled.id)).toEqual([]);
+  });
+
   it('GĐ0: two concurrent scheduler runs produce one transition and one audit row', async () => {
     const other = await createAuthTestApp(withFakeClock);
     try {

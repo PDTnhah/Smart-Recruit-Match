@@ -36,4 +36,11 @@ describe('FR-2: campaign read scope (CONTEXT D27)', () => {
     expect(canSeeCampaign(student('K67', null), campaign('INTAKE'))).toBe(false);
     expect(canSeeCampaign({ role: 'STUDENT', audience: null }, campaign('INTAKE'))).toBe(false);
   });
+
+  it('FR-41: a cancelled campaign is hidden from HR and students, not from CENTER and ADMIN', () => {
+    expect(canSeeCampaign({ role: 'HR' }, campaign('CANCELLED'))).toBe(false);
+    expect(canSeeCampaign(student('K67', 'CNTT'), campaign('CANCELLED'))).toBe(false);
+    expect(canSeeCampaign({ role: 'CENTER' }, campaign('CANCELLED'))).toBe(true);
+    expect(canSeeCampaign({ role: 'ADMIN' }, campaign('CANCELLED'))).toBe(true);
+  });
 });

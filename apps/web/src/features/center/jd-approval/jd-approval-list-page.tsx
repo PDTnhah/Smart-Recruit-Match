@@ -8,7 +8,8 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { useCampaigns } from '@/features/center/campaigns/api';
+import { useCampaigns, useCancelledCampaignIds } from '@/features/center/campaigns/api';
+import { isWorkCampaign } from '@/features/center/campaigns/running-campaign';
 import { useJds } from '@/features/jds/api';
 import { WORK_MODE_LABELS } from '@/features/jds/labels';
 import { formatDateTime } from '@/lib/format';
@@ -19,7 +20,7 @@ const ALL_CAMPAIGNS = 'all';
 
 function CampaignFilter({ value, onChange }: { value: string; onChange: (value: string) => void }) {
   const campaigns = useCampaigns();
-  const running = (campaigns.data ?? []).filter((campaign) => campaign.status !== 'DRAFT');
+  const running = (campaigns.data ?? []).filter((campaign) => isWorkCampaign(campaign.status));
   return (
     <Select value={value} onValueChange={onChange} disabled={campaigns.isPending}>
       <SelectTrigger aria-label="Đợt thực tập" className="w-full sm:w-72">
@@ -87,6 +88,9 @@ export function JdApprovalListPage() {
     status: 'PENDING_APPROVAL',
     ...(campaign === ALL_CAMPAIGNS ? {} : { campaignId: Number(campaign) }),
   });
+  // A JD of a cancelled campaign can no longer be approved (409), so it is not listed.
+  const cancelled = useCancelledCampaignIds();
+  const listed = jds.data?.filter((jd) => !cancelled.has(jd.campaignId)) ?? [];
 
   let content;
   if (jds.isPending) {
@@ -110,7 +114,7 @@ export function JdApprovalListPage() {
         </AlertAction>
       </Alert>
     );
-  } else if (jds.data.length === 0) {
+  } else if (listed.length === 0) {
     content = (
       <Empty className="border">
         <EmptyHeader>
@@ -125,7 +129,7 @@ export function JdApprovalListPage() {
       </Empty>
     );
   } else {
-    content = <PendingTable jds={jds.data} />;
+    content = <PendingTable jds={listed} />;
   }
 
   return (

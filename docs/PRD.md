@@ -296,6 +296,15 @@ Quyết định kiến trúc và quy trình được ghi trong [CONTEXT.md](CONT
 
 Trạng thái đợt: `Nháp → Mở nhận JD/CV → Chọn nguyện vọng → Làm test → Phân bổ & HR duyệt → Vòng bổ sung → Đã đóng`. Ở mỗi trạng thái hệ thống chỉ cho phép các thao tác tương ứng (VD: quá hạn nộp CV thì không nộp được nữa).
 
+Sau khi mở, Cán bộ Trung tâm vẫn sửa được đợt, kèm lý do ([CONTEXT D56](CONTEXT.md)):
+
+- đổi tên;
+- thêm khóa hoặc ngành trong pha nhận CV;
+- chỉnh tham số khi pha dùng nó chưa bắt đầu;
+- dời mốc chưa tới muộn hơn, hoặc sớm hơn nếu còn ít nhất 24 giờ.
+
+Đợt đã có dữ liệu thì hủy được (`Đã hủy`, trạng thái cuối: dừng mọi thao tác, giữ dữ liệu). Đợt chưa có dữ liệu thì xóa được.
+
 #### GĐ1 – Doanh nghiệp đăng JD
 
 1. HR nhập JD (theo form hoặc tải file PDF/DOCX), kèm: vị trí, chỉ tiêu, địa điểm, hình thức (onsite/hybrid/remote), thời gian thực tập, phụ cấp (nếu có).
@@ -848,6 +857,7 @@ Mọi thông báo đều hiện trong ứng dụng (chuông ở ba cổng, cập
 | Hồ sơ năng lực sẵn sàng để xác nhận | Sinh viên | |
 | Yêu cầu chuẩn hóa JD sẵn sàng để xác nhận; phân tích JD lỗi, cần nhập tay | HR | Chỉ trong app ([CONTEXT D35](CONTEXT.md)) |
 | Yêu cầu của JD đã duyệt có phiên bản mới (BR-18) | Cán bộ Trung tâm | Chỉ trong app ([CONTEXT D35](CONTEXT.md)) |
+| Mốc của đợt thay đổi; đợt bị hủy | Sinh viên thuộc đối tượng, HR có JD trong đợt | Trong app + email ([CONTEXT D56](CONTEXT.md)) |
 | Hệ thống tự gán NV cho sinh viên không chọn (Q6) | Sinh viên | Trong app + email ([CONTEXT D47](CONTEXT.md)) |
 | Hết hạn chọn NV: danh sách JD có số NV ít hơn chỉ tiêu | Cán bộ Trung tâm | Trong app + email ([CONTEXT D48](CONTEXT.md)) |
 | Có kết quả test, kết quả phúc khảo | Sinh viên | |
@@ -920,6 +930,7 @@ Mọi thông báo đều hiện trong ứng dụng (chuông ở ba cổng, cập
 | FR-38 | Cán bộ Trung tâm xem kết quả chấm phù hợp theo JD: CV phù hợp sắp theo S_cv, tỷ lệ CV phù hợp / chỉ tiêu, số cặp bị lọc sơ bộ; ngay sau GĐ3 hệ thống báo các JD có tỷ lệ < 1. HR không xem được (UC-09, BR-11, GĐ3) | P1 | 📋 backlog | EPIC-3 |
 | FR-39 | Danh mục kỹ năng có vùng, họ (nhóm kỹ năng thay thế được cho nhau) và quan hệ kéo theo; kỹ năng mềm quy về bộ năng lực chuẩn; Quản trị gán và sửa khi duyệt kỹ năng (GĐ2, FR-13, [CONTEXT D42](CONTEXT.md)) | P0 | 🚧 In progress | EPIC-2 |
 | FR-40 | Khớp kỹ năng CV–JD bằng code, không dùng LLM: bậc bằng chứng của từng kỹ năng (cả kỹ năng mềm), khớp đúng / kéo theo / cùng họ, quy đổi ngoại ngữ theo CEFR (cả điều kiện cứng), ngoại ngữ ưu tiên của JD, mức khớp ngành, độ phủ theo vùng; mọi verdict kèm nguồn trong CV (GĐ3, NFR-4, [CONTEXT D42, D45](CONTEXT.md)) | P0 | 🚧 In progress | EPIC-3 |
+| FR-41 | Cán bộ Trung tâm sửa đợt sau khi mở (tên, thêm đối tượng, tham số của pha chưa bắt đầu, dời mốc chưa tới); hủy đợt đã có dữ liệu; xóa đợt chưa có dữ liệu; SV và HR của đợt được báo khi mốc đổi hoặc đợt bị hủy (GĐ0, [CONTEXT D56](CONTEXT.md)) | P1 | 🚧 In progress | EPIC-1 |
 
 Priority: `P0` = bắt buộc cho MVP, `P1` = nên có, `P2` = tùy chọn, `P3` = mở rộng. Status: `✅ shipped (vX.Y.Z)` / `🚧 in-progress` / `📋 backlog` / `⏪ reverted in vX.Y.Z` / `🗑️ deprecated vX.Y.Z`.
 
@@ -976,7 +987,7 @@ Priority: `P0` = bắt buộc cho MVP, `P1` = nên có, `P2` = tùy chọn, `P3`
 
 ## Epics & User Stories
 
-Mỗi epic tương ứng một giai đoạn trong [ARCHITECTURE.md › Implementation roadmap](ARCHITECTURE.md#implementation-roadmap). Chi tiết epic ở `docs/sprints/epics/EPIC-N.md`; file story của cả 43 story nằm ở `docs/sprints/stories/` ([CONTEXT D21](CONTEXT.md); US-2.7, US-3.5, US-3.6 thêm theo [CONTEXT D42](CONTEXT.md); US-1.8, US-1.9, US-2.8 thêm theo [CONTEXT D55](CONTEXT.md)). Lịch theo tuần và thứ tự làm ở [sprints/README › Lộ trình](sprints/README.md#lộ-trình) ([CONTEXT D20](CONTEXT.md)).
+Mỗi epic tương ứng một giai đoạn trong [ARCHITECTURE.md › Implementation roadmap](ARCHITECTURE.md#implementation-roadmap). Chi tiết epic ở `docs/sprints/epics/EPIC-N.md`; file story của cả 44 story nằm ở `docs/sprints/stories/` ([CONTEXT D21](CONTEXT.md); US-2.7, US-3.5, US-3.6 thêm theo [CONTEXT D42](CONTEXT.md); US-1.8, US-1.9, US-2.8 thêm theo [CONTEXT D55](CONTEXT.md); US-1.10 theo [CONTEXT D56](CONTEXT.md)). Lịch theo tuần và thứ tự làm ở [sprints/README › Lộ trình](sprints/README.md#lộ-trình) ([CONTEXT D20](CONTEXT.md)).
 
 ### EPIC-1: Nền tảng, tài khoản và đợt thực tập
 
@@ -997,6 +1008,7 @@ Mỗi epic tương ứng một giai đoạn trong [ARCHITECTURE.md › Implement
 | US-1.7 | Thông báo trong app, SSE, email, nhắc hạn | ✅ done | 0.6.0 |
 | US-1.8 | Màn Hồ sơ mở đúng đợt khi sinh viên thấy nhiều đợt | 👀 review | 0.24.1 |
 | US-1.9 | Phiên đăng nhập nhất quán giữa các tab | 📋 backlog | — |
+| US-1.10 | Sửa, hủy và xóa đợt sau khi mở | 👀 review | 0.25.0 |
 
 ### EPIC-2: Phân tích CV và JD bằng AI
 

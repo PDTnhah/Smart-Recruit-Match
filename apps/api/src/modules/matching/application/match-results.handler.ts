@@ -63,9 +63,8 @@ export class MatchResultsHandler {
   async apply(result: AiResultEvent<'MATCH'>): Promise<void> {
     const { job } = result;
     const output = result.result;
-    const scoring = output !== null && output.items.length > 0 ? await this.scoringOf(job.campaign_id) : null;
-
     const applied = await this.db.transaction(async (tx) => {
+      const scoring = output !== null && output.items.length > 0 ? await this.scoringOf(tx, job.campaign_id) : null;
       const counts: Applied =
         output !== null && scoring !== null
           ? await this.score(tx, job, output, scoring)
@@ -90,12 +89,13 @@ export class MatchResultsHandler {
   }
 
   /**
-   * Other modules' data through their services (Invariant 13), read outside the transaction: the
-   * weights of now, and each JD at its current version with its requirements.
+   * Other modules' data through their services (Invariant 13): the weights of now, read `FOR SHARE`
+   * in the transaction that writes S_cv, so a weight change during intake (US-1.10 AC-2) waits for
+   * it and then recomputes these pairs too; each JD at its current version with its requirements.
    */
-  private async scoringOf(campaignId: number): Promise<Scoring> {
+  private async scoringOf(tx: DbTx, campaignId: number): Promise<Scoring> {
     const [campaign, jds] = await Promise.all([
-      this.campaigns.getSettings(campaignId),
+      this.campaigns.getSettings(campaignId, { tx }),
       // A JD filled or closed while the job ran keeps the scores it was assessed for.
       this.jds.listApprovedForMatching(campaignId, { withEnded: true }),
     ]);

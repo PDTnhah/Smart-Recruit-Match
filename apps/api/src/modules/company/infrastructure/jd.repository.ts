@@ -220,6 +220,19 @@ export class JdRepository {
       .orderBy(jobDescriptions.id);
   }
 
+  /**
+   * Companies with a JD in the campaign, whatever its status, by id: whose HR hear of a moved
+   * deadline or a cancelled campaign (US-1.10 AC-5, AC-8).
+   */
+  async companyIdsInCampaign(campaignId: number): Promise<number[]> {
+    const rows = await this.db
+      .selectDistinct({ companyId: jobDescriptions.companyId })
+      .from(jobDescriptions)
+      .where(eq(jobDescriptions.campaignId, campaignId))
+      .orderBy(jobDescriptions.companyId);
+    return rows.map((row) => row.companyId);
+  }
+
   async insert(tx: DbTx, values: JdInsert): Promise<number> {
     const [row] = await tx.insert(jobDescriptions).values(values).returning({ id: jobDescriptions.id });
     if (!row) throw new Error('insert into job_descriptions returned no row');

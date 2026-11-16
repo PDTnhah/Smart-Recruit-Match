@@ -15,6 +15,50 @@ Lịch sử phát hành của Smart Recruit Match. Mỗi commit ship code tăng 
 
 ---
 
+## [0.25.0] — 2026-11-16 — Sửa, hủy và xóa đợt sau khi mở — v0.25.0
+
+US-1.10. Trước đây đợt rời *Nháp* thì tên, đối tượng và tham số bị khóa, mốc chỉ lùi được, và không xóa được đợt. Người dùng yêu cầu ngày 2026-11-15: "chỉnh sửa đợt xét tuyển sau khi mở, có thể chỉnh sửa hoặc xóa cho trung tâm" (FR-41, AD-8, [CONTEXT D56](CONTEXT.md)).
+
+### Added
+- **Sửa đợt đã mở** (`PATCH /api/campaigns/{id}`, chỉ `CENTER`). Đợt `CLOSED`, `CANCELLED` không sửa được gì (`409`). Mọi lần sửa cần lý do và ghi audit `CAMPAIGN_UPDATED_AFTER_OPEN`. Pha tính theo mốc: mốc kết thúc pha đã qua thì coi như đã sang pha sau, dù tác vụ định kỳ chưa chạy (`actualCampaignPhase` ở `@srm/shared`, web và API dùng chung). Sửa được:
+  - tên;
+  - đối tượng: chỉ thêm khóa hoặc ngành, chỉ trong pha nhận CV. SV mới thuộc đối tượng nhận "Đợt thực tập đã mở";
+  - tham số, tới khi pha dùng nó bắt đầu (`CAMPAIGN_CONFIG_USED_FROM`). Tham số đã khóa trả `409 CAMPAIGN_CONFIG_LOCKED` kèm tên trường và pha;
+  - mốc chưa qua: dời muộn hơn, hoặc sớm hơn nhưng cách hiện tại ít nhất 24 giờ.
+- **Tính lại S_cv** khi đổi trọng số trong pha nhận CV: code tính lại các cặp đã chấm từ verdict đã lưu, không gọi lại AI. Lượt matching lúc hết hạn nộp CV cũng tính lại trước khi chạy, phòng khi listener lỗi.
+- **Hủy đợt** (`POST /api/campaigns/{id}/cancel`, lý do bắt buộc), từ mọi pha *Nhận CV*…*Vòng bổ sung*. Đợt đã hủy (`CANCELLED`, trạng thái cuối):
+  - dừng mọi thao tác và tác vụ định kỳ;
+  - ẩn với sinh viên và HR (`404`);
+  - giữ nguyên CV, JD, nguyện vọng, bài test và nhật ký;
+  - không duyệt JD, không sinh câu hỏi (không tốn lượt gọi AI). Hai chặn này cũng áp dụng cho đợt đã đóng.
+  - Migration `0039` thêm `CANCELLED` vào CHECK `campaigns.status` và hai loại thông báo mới.
+- **Xóa đợt chưa có dữ liệu** (`DELETE /api/campaigns/{id}?rowVersion=`), có audit `CAMPAIGN_DELETED`. Khóa ngoại của DB quyết định đợt có dữ liệu hay không; đợt có dữ liệu trả `409 CAMPAIGN_HAS_DATA`.
+- **Thông báo** trong app và email cho SV thuộc đối tượng và HR của các công ty có JD trong đợt:
+  - `CAMPAIGN_DEADLINES_CHANGED`: mốc trước và sau, lý do. Một lần sửa chỉ báo một lần; SV vừa được thêm trong cùng lần sửa chỉ nhận thông báo mở đợt;
+  - `CAMPAIGN_CANCELLED`: lý do hủy.
+- **Giao diện** trang đợt của cổng Trung tâm:
+  - form theo pha thực tế: giá trị đối tượng cũ không có nút xóa; tham số đã khóa chỉ đọc, ghi "Đã dùng từ giai đoạn …"; lịch chặn ngày sớm hơn 24 giờ tới; một ô lý do;
+  - khung "Hủy hoặc xóa đợt" cuối trang, hai `AlertDialog`. Đợt có dữ liệu thì hộp thoại xóa gợi ý "Hủy đợt thay vì xóa";
+  - nhãn "Đã hủy". *CV cần xử lý*, *Duyệt JD*, *Chấm tay* không còn liệt kê đợt hủy, kể cả với "Tất cả đợt";
+  - màn JD của HR ghi "Đợt đã hủy"; JD nháp của đợt hủy chỉ đọc.
+
+### Changed
+- `GET /api/me/exams` bỏ qua đợt đã hủy và hiện đợt gần nhất còn lại của SV.
+- Trọng số S_cv được đọc trong giao dịch ghi S_cv (`FOR SHARE`), cả khi tính lại lẫn khi nhận kết quả Matching, nên một lần đọc cũ không ghi đè điểm theo trọng số mới.
+- Tài liệu:
+  - PRD: FR-41;
+  - ARCHITECTURE: *Các module* (`campaign`, `notification`), *Các bảng chính* (`campaigns`), *API architecture*;
+  - DESIGN §6: badge "Đã hủy", hộp thoại hủy/xóa, form sửa một phần theo giai đoạn;
+  - AGENTS › *Mẫu có sẵn*: dòng chặn thao tác theo pha thêm `assertNotFinal`, `actualCampaignPhase`;
+  - US-5.5, US-6.1, US-6.5 thêm ghi chú về đợt `CANCELLED`;
+  - LESSONS: thêm §48.
+
+### Not done
+- Chưa kiểm tay AC-10 (360 / 768 / 1024 px) theo checklist trong story.
+- Người dùng chạy `db:migrate` để áp `0039` trước khi thử.
+
+---
+
 ## [0.24.1] — 2026-11-15 — Màn Hồ sơ mở đúng đợt — v0.24.1
 
 US-1.8. Sửa lỗi người dùng báo ngày 2026-11-15: "CV của SV mất sau khi đăng nhập tài khoản khác". Dữ liệu không mất. Trung tâm vừa mở một đợt mới cùng khóa và ngành, và màn "Hồ sơ" mở đợt mới nhất đang nhận CV, nơi SV chưa nộp CV (FR-6, [CONTEXT D55](CONTEXT.md)).

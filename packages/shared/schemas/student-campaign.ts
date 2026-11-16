@@ -1,10 +1,11 @@
-import type { Campaign } from './campaign.js';
+import { type Campaign, isCampaignFinal } from './campaign.js';
 import type { Cv } from './cv.js';
 
 // Which campaign the student screens show (US-1.6, US-1.8, CONTEXT D47, D55). The API checks
 // phases and ownership on every write; these rules only decide what a screen opens and offers.
 // `campaigns` are those the student sees (`GET /api/campaigns`), in any order: a higher id is a
-// newer campaign, as that route sorts them (CONTEXT D27). `cvs` are every version of the student
+// newer campaign, as that route sorts them (CONTEXT D27); a cancelled campaign is never among them
+// (CONTEXT D56), but the rules skip it like a closed one. `cvs` are every version of the student
 // (`GET /api/cvs/me`).
 
 /** The fields of a campaign the rules read. */
@@ -25,8 +26,8 @@ export function campaignIdsWithActiveCv(cvs: readonly StudentCv[]): Set<number> 
 }
 
 /**
- * The student's newest active CV whose campaign is among `campaigns` and is neither a draft nor
- * closed, with that campaign; CVs of other campaigns are skipped. It is the rule
+ * The student's newest active CV whose campaign is among `campaigns` and is not a draft, closed or
+ * cancelled, with that campaign; CVs of other campaigns are skipped. It is the rule
  * `GET /api/me/shortlist` and "Nguyện vọng" follow (CONTEXT D47).
  */
 export function campaignOfNewestActiveCv<C extends StudentCampaign, V extends StudentCv>(
@@ -36,7 +37,7 @@ export function campaignOfNewestActiveCv<C extends StudentCampaign, V extends St
   const byId = new Map(campaigns.map((campaign) => [campaign.id, campaign]));
   for (const cv of cvs.filter((item) => item.active).sort((a, b) => b.id - a.id)) {
     const campaign = byId.get(cv.campaignId);
-    if (campaign && campaign.status !== 'DRAFT' && campaign.status !== 'CLOSED') return { campaign, cv };
+    if (campaign && campaign.status !== 'DRAFT' && !isCampaignFinal(campaign.status)) return { campaign, cv };
   }
   return null;
 }
@@ -71,10 +72,10 @@ export function pickProfileCampaign<C extends StudentCampaign>(
 
 /**
  * Where to send a student who looks at a campaign without a CV of theirs while another campaign,
- * not closed, holds their active CV (US-1.8 AC-3): of those, the one "Hồ sơ" would open by
- * default. A CV in a closed campaign no longer counts (as in tier 3), so it sends nobody away
- * from a campaign where they have to submit again. `undefined` when the campaign shown has a CV
- * or no such campaign exists.
+ * not over, holds their active CV (US-1.8 AC-3): of those, the one "Hồ sơ" would open by
+ * default. A CV in a closed or cancelled campaign no longer counts (as in tier 3), so it sends
+ * nobody away from a campaign where they have to submit again. `undefined` when the campaign shown
+ * has a CV or no such campaign exists.
  */
 export function otherCampaignWithCv<C extends StudentCampaign>(
   campaigns: readonly C[],
@@ -85,7 +86,7 @@ export function otherCampaignWithCv<C extends StudentCampaign>(
   const withCv = campaignIdsWithActiveCv(cvs);
   if (withCv.has(shownId)) return undefined;
   return pickProfileCampaign(
-    campaigns.filter((campaign) => withCv.has(campaign.id) && campaign.status !== 'CLOSED'),
+    campaigns.filter((campaign) => withCv.has(campaign.id) && !isCampaignFinal(campaign.status)),
     cvs,
     now,
   );

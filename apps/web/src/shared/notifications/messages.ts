@@ -1,9 +1,14 @@
-import type { CampaignDeadlineKey, Notification } from '@srm/shared';
+import {
+  CAMPAIGN_NOTICE_DEADLINE_NAMES,
+  type CampaignDeadlineKey,
+  type CampaignNoticeAudience,
+  type Notification,
+} from '@srm/shared';
 import { campaignPath } from '@/features/center/campaigns/paths';
 import { examResultPath } from '@/features/exam/paths';
 import { centerCvsPath } from '@/features/center/cvs/paths';
 import { jdApprovalPath } from '@/features/center/jd-approval/paths';
-import { hrJdPath } from '@/features/hr/jds/paths';
+import { HR_JDS_PATH, hrJdPath } from '@/features/hr/jds/paths';
 import { formatDateTime } from '@/lib/format';
 
 // What each notification type says in the bell (DESIGN.md §9, §10). A type added in
@@ -24,6 +29,9 @@ const DEADLINES: Record<CampaignDeadlineKey, { title: string; task: string; href
 
 /** "Hồ sơ" of the campaign named: without `?campaign=` it opens the one holding the CV (US-1.8). */
 const profileOf = (campaignId: number) => `${DEADLINES.intake_end.href}?campaign=${campaignId}`;
+
+/** Home of each portal: a cancelled campaign has no page left to open (US-1.10 AC-8). */
+const HOME_OF: Record<CampaignNoticeAudience, string> = { STUDENT: '/sv', HR: '/hr' };
 
 export function describeNotification(notification: Notification): NotificationView {
   switch (notification.type) {
@@ -120,6 +128,23 @@ export function describeNotification(notification: Notification): NotificationVi
         title: `Đã có kết quả test nguyện vọng ${rank}`,
         body: `Bài test cho "${jdTitle}" đã được chấm. Xem điểm và nhận xét từng câu tự luận.`,
         href: examResultPath(sessionId),
+      };
+    }
+    case 'CAMPAIGN_DEADLINES_CHANGED': {
+      const { campaignId, campaignName, audience, deadlines, reason } = notification.payload;
+      const moves = deadlines.map((move) => `${CAMPAIGN_NOTICE_DEADLINE_NAMES[audience][move.key]}: ${formatDateTime(move.after)}`);
+      return {
+        title: 'Đợt thực tập đổi mốc thời gian',
+        body: `Đợt "${campaignName}": ${moves.join('; ')}. Lý do: ${reason}`,
+        href: audience === 'STUDENT' ? profileOf(campaignId) : HR_JDS_PATH,
+      };
+    }
+    case 'CAMPAIGN_CANCELLED': {
+      const { campaignName, audience, reason } = notification.payload;
+      return {
+        title: 'Đợt thực tập đã bị hủy',
+        body: `Đợt "${campaignName}" đã bị hủy và không còn hiện trên hệ thống. Lý do: ${reason}`,
+        href: HOME_OF[audience],
       };
     }
     case 'JD_LOW_PREFERENCES': {

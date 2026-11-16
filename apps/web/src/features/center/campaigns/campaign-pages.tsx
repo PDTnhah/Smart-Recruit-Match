@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { apiErrorMessage } from '@/shared/api/errors';
 import { useCampaign } from './api';
 import { CampaignStatusBadge } from './campaign-status-badge';
+import { CampaignStopCard } from './campaign-stop-card';
 import { DraftCampaignForm } from './draft-campaign-form';
 import { EssayGradingDialog } from './essay-grading-dialog';
 import { ESSAY_GRADING_PHASES } from './labels';
@@ -43,7 +44,10 @@ export function CampaignCreatePage() {
   );
 }
 
-/** `/admin/campaigns/:id`: edit a draft, or view a running campaign and move its deadlines. */
+/**
+ * `/admin/campaigns/:id`: edit a draft, or what an open campaign still allows (US-1.10); cancel or
+ * delete it at the end of the page.
+ */
 export function CampaignEditPage() {
   const id = Number(useParams().id);
   if (!Number.isInteger(id) || id <= 0) return <Navigate to={CAMPAIGNS_PATH} replace />;
@@ -98,6 +102,7 @@ function CampaignEditor({ id }: { id: number }) {
       ) : (
         <RunningCampaignForm key={data.rowVersion} campaign={data} />
       )}
+      <CampaignStopCard campaign={data} />
     </div>
   );
 }

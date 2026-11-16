@@ -12,7 +12,7 @@ depends_on: [US-5.5]
 assignee:
 commit:
 created: 2026-10-07
-updated: 2026-10-07
+updated: 2026-11-16
 ---
 
 ## Goal
@@ -90,6 +90,7 @@ Phần duy nhất dùng LLM là đoạn tổng hợp lý do HR từ chối dạn
 - Builds on [US-5.3](US-5.3-hr-nomination-review.md) — `hr_reviews.reason_code`, `note`.
 - Builds on [US-2.1](US-2.1-ai-job-pipeline-message-contracts.md), [US-2.2](US-2.2-llm-client-versioned-prompts.md) — `aigateway`, `ai.results`, view `core.v_ai_*`, `LLMClient`, fixture.
 - Builds on [US-1.6](US-1.6-data-consent-and-cv-upload.md) — cách lưu file lên MinIO và URL tạm 5 phút.
+- Builds on [US-1.10](US-1.10-campaign-edit-cancel-delete.md) — `CANCELLED` là trạng thái cuối thứ hai (`isCampaignFinal`); đợt hủy không qua `CLOSED` nên không có sự kiện đóng đợt ([CONTEXT D56](../../CONTEXT.md)). Story này chốt có xuất báo cáo cho đợt hủy không; nếu có thì báo cáo ghi rõ đã hủy, lúc hủy và lý do (audit của `transitionTo`).
 - Sibling [US-6.1](US-6.1-campaign-dashboard.md) — cùng module `reporting`, cùng T12; làm US-6.1 trước.
 - Required by [US-6.6](US-6.6-demo-data-e2e-load-test.md) — đợt demo phải xuất được báo cáo khi đóng.
 

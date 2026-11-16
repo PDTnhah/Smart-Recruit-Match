@@ -1,4 +1,4 @@
-import type { CampaignDeadlineKey, CampaignStatus } from '@srm/shared';
+import { CAMPAIGN_STATES, type CampaignDeadlineKey, type CampaignStatus, campaignMachine, canTransition } from '@srm/shared';
 
 // Which campaign transitions happen by deadline and which by hand (US-1.4 Dev notes, CONTEXT D27).
 // PRD GĐ0 only says the campaign "moves by its deadlines"; the split below is the story's proposal.
@@ -19,14 +19,18 @@ export const AUTO_EDGES: readonly AutoEdge[] = [
   { from: 'TESTING', to: 'ALLOCATION_REVIEW', deadlineKey: 'testing_end' },
 ];
 
+/** Phases an open campaign may be cancelled from, as the state table says (US-1.10 AC-6, CONTEXT D56). */
+const CANCELLABLE = CAMPAIGN_STATES.filter((from) => canTransition(campaignMachine, from, 'CANCELLED'));
+
 /**
  * Taken by a CENTER user: opening the campaign (US-1.4 AC-5); the supplementary round and closing
- * (GĐ10, US-5.5).
+ * (GĐ10, US-5.5); cancelling it (US-1.10).
  */
 export const MANUAL_EDGES: readonly PhaseEdge[] = [
   { from: 'DRAFT', to: 'INTAKE' },
   { from: 'ALLOCATION_REVIEW', to: 'SUPPLEMENTARY' },
   { from: 'SUPPLEMENTARY', to: 'CLOSED' },
+  ...CANCELLABLE.map((from): PhaseEdge => ({ from, to: 'CANCELLED' })),
 ];
 
 /** Statuses the scheduler looks at. */

@@ -32,7 +32,7 @@ const MESSAGES: Record<ApiErrorCode, string> = {
   EMAIL_TAKEN: 'Email này đã có tài khoản.',
   STUDENT_CODE_TAKEN: 'Mã sinh viên này đã tồn tại.',
   ROLE_NOT_ALLOWED: 'Không thể tạo tài khoản với vai trò này.',
-  CAMPAIGN_CONFIG_LOCKED: 'Đợt đã mở nên không sửa được mục này. Chỉ được lùi các mốc chưa tới.',
+  CAMPAIGN_CONFIG_LOCKED: 'Giai đoạn hiện tại của đợt không cho sửa mục này nữa.',
   CAMPAIGN_PHASE_MISMATCH: 'Thao tác này không làm được ở giai đoạn hiện tại của đợt.',
   INVITATION_INVALID: 'Liên kết mời không hợp lệ, đã hết hạn hoặc đã được dùng. Liên hệ Trung tâm để nhận liên kết mới.',
   JD_NOT_EDITABLE: 'JD đã được nộp nên không sửa được nữa.',
@@ -68,6 +68,7 @@ const MESSAGES: Record<ApiErrorCode, string> = {
   PREFERENCE_NOT_PENDING_TEST: 'Nguyện vọng này không còn chờ làm bài test.',
   EXAM_NOT_CLOSED: 'Bài test chưa nộp nên chưa có kết quả.',
   EXAM_ANSWER_ALREADY_GRADED: 'Câu này đã được chấm xong. Điểm đã lưu chỉ sửa được qua phúc khảo.',
+  CAMPAIGN_HAS_DATA: 'Đợt đã có dữ liệu nên không xóa được. Hãy hủy đợt: dữ liệu được giữ lại.',
   RATE_LIMITED: 'Bạn thao tác quá nhanh. Chờ một lát rồi thử lại.',
   INTERNAL_ERROR: 'Hệ thống đang gặp sự cố. Thử lại sau ít phút.',
 };

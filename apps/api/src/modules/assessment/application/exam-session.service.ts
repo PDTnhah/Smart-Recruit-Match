@@ -32,7 +32,7 @@ import { examSessionLifecycle } from '../../../db/lifecycles.js';
 import { DRIZZLE } from '../../../db/tokens.js';
 import type { Database, DbTx } from '../../../db/types.js';
 import { type Actor, AuditService, SYSTEM_ACTOR } from '../../audit/index.js';
-import { CampaignService } from '../../campaign/index.js';
+import { CampaignService, type CampaignSettings } from '../../campaign/index.js';
 import { JdService } from '../../company/index.js';
 import { PreferenceExamService } from '../../matching/index.js';
 import { studentIdOf } from '../../student/index.js';
@@ -219,21 +219,18 @@ export class ExamSessionService {
 
   /**
    * AC-14: `GET /api/me/exams`, the preferences of the student's latest campaign, NV1 first, with
-   * where each test stands and how long the student would have if they started now.
+   * where each test stands and how long the student would have if they started now. A cancelled
+   * campaign is hidden from students (US-1.10 AC-7): the latest campaign not cancelled, if any.
    */
   async overview(user: AuthUser): Promise<MyExamsResponse> {
     const studentId = studentIdOf(user);
     const now = this.clock.now();
     const all = await this.preferences.listForStudent(studentId);
-    const campaignId = all[0]?.campaignId;
-    if (campaignId === undefined) return { campaign: null, items: [], serverNow: now.toISOString() };
-    const preferences = all.filter((preference) => preference.campaignId === campaignId);
+    const campaign = await this.latestNotCancelled(all.map((preference) => preference.campaignId));
+    if (!campaign) return { campaign: null, items: [], serverNow: now.toISOString() };
+    const preferences = all.filter((preference) => preference.campaignId === campaign.id);
     const jdIds = preferences.map((preference) => preference.jdId);
-    const [campaign, cards, banks] = await Promise.all([
-      this.campaigns.getSettings(campaignId),
-      this.jds.listCardsByIds(jdIds),
-      this.banks.findByJds(jdIds),
-    ]);
+    const [cards, banks] = await Promise.all([this.jds.listCardsByIds(jdIds), this.banks.findByJds(jdIds)]);
     const sessions = await this.sessions.listOfStudent(
       studentId,
       banks.map((bank) => bank.id),
@@ -448,6 +445,15 @@ export class ExamSessionService {
       ),
       answers: savedAnswersOf(session.questionIds, answers),
     };
+  }
+
+  /** Campaign ids newest first, as `listForStudent` sorts them; cancelled ones are skipped. */
+  private async latestNotCancelled(campaignIds: number[]): Promise<CampaignSettings | null> {
+    for (const campaignId of new Set(campaignIds)) {
+      const campaign = await this.campaigns.getSettings(campaignId);
+      if (campaign.status !== 'CANCELLED') return campaign;
+    }
+    return null;
   }
 
   private async submissionOf(session: ExamSessionRecord, answered?: number): Promise<ExamSubmission> {

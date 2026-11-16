@@ -25,6 +25,7 @@ import { hardFilterFacts } from '../domain/student-facts.js';
 import { indexTaxonomy } from '../domain/taxonomy-index.js';
 import { type MatchCodeRow, MatchResultsRepository } from '../infrastructure/match-results.repository.js';
 import { type MatchRunCounts, type MatchRunRecord, MatchRunsRepository } from '../infrastructure/match-runs.repository.js';
+import { RecomputeScvService } from './recompute-scv.js';
 
 /** Matching runs while CVs come in and while students choose (US-3.2 AC-13, CONTEXT D46). */
 export const MATCHING_PHASES: readonly CampaignStatus[] = ['INTAKE', 'PREFERENCE_SELECTION'];
@@ -80,6 +81,7 @@ export class RunMatchingService {
     private readonly results: MatchResultsRepository,
     private readonly runs: MatchRunsRepository,
     private readonly aiGateway: AiGatewayService,
+    private readonly recomputeScv: RecomputeScvService,
     private readonly clock: Clock,
   ) {}
 
@@ -117,6 +119,9 @@ export class RunMatchingService {
     const now = this.clock.now().getTime();
     await this.runs.closeStale(tx, campaignId, new Date(now - STALE_AFTER_MS), new Date(now - UNDISPATCHED_AFTER_MS));
     const runId = await this.runs.insertRunning(tx, campaignId, actor, RULES_VERSION);
+    // US-1.10 AC-2: pairs scored earlier follow the weights in force, should the recompute after a
+    // weight change have failed (LESSONS §34). Code only, in this transaction.
+    await this.recomputeScv.recomputeIn(tx, campaign);
     const pinned = await this.results.pinnedPrompt(tx, campaignId);
     const known = await this.results.knownPairs(tx, campaignId, RULES_VERSION, pinned);
 

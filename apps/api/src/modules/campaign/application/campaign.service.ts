@@ -3,17 +3,20 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
   CAMPAIGN_DEADLINE_KEYS,
+  CAMPAIGN_EDIT_REASON_REQUIRED,
   type Campaign,
   type CampaignConfig,
   CampaignConfigSchema,
   type CampaignDeadlines,
   type CampaignList,
+  CAMPAIGN_STATES,
   campaignMachine,
   type CampaignStatus,
   type CampaignTarget,
+  CampaignTargetSchema,
+  type CancelCampaignRequest,
   type CreateCampaignRequest,
-  DEADLINE_NOT_LATER,
-  DEADLINE_REASON_REQUIRED,
+  isCampaignFinal,
   type PhaseDeadlinesInput,
   PhaseDeadlinesSchema,
   type UpdateCampaignRequest,
@@ -23,6 +26,7 @@ import { Clock } from '../../../common/clock/index.js';
 import { emitSafely } from '../../../common/events/index.js';
 import {
   CampaignConfigLockedError,
+  CampaignHasDataError,
   CampaignPhaseMismatchError,
   EntityNotFoundError,
   RowVersionConflictError,
@@ -30,20 +34,25 @@ import {
 } from '../../../common/errors/index.js';
 import { StateTransitionService, type TransitionResult } from '../../../common/state/index.js';
 import { parseOrFail } from '../../../common/validation/validation-issues.js';
+import { foreignKeyViolation } from '../../../db/errors.js';
 import { campaignLifecycle } from '../../../db/lifecycles.js';
 import { DRIZZLE } from '../../../db/tokens.js';
 import type { Database, DbTx } from '../../../db/types.js';
 import { type Actor, AuditService, SYSTEM_ACTOR, userActor } from '../../audit/index.js';
 import { CAMPAIGN_AUDIT_ACTIONS } from '../domain/audit-actions.js';
-import { checkDeadlineExtension } from '../domain/deadline-change.js';
 import {
+  CAMPAIGN_CANCELLED,
   CAMPAIGN_OPENED,
   CAMPAIGN_PHASE_CHANGED,
+  CAMPAIGN_UPDATED,
+  type CampaignCancelledEvent,
   type CampaignOpenedEvent,
   type CampaignPhaseChangedEvent,
+  type CampaignUpdatedEvent,
 } from '../domain/events.js';
 import type { DueTransition } from '../domain/next-auto-transition.js';
 import { checkOpenable, checkPhase } from '../domain/phase-check.js';
+import { hasChanges, planRunningEdit } from '../domain/running-edit.js';
 import { canSeeCampaign, type CampaignViewer } from '../domain/visibility.js';
 import {
   type CampaignContent,
@@ -51,6 +60,9 @@ import {
   CampaignRepository,
 } from '../infrastructure/campaign.repository.js';
 import type { StudentAudienceLookup } from './student-audience.js';
+
+/** What `assertNotFinal` allows, for its 409 `allowed`. */
+const NOT_FINAL_STATES = CAMPAIGN_STATES.filter((status) => !isCampaignFinal(status));
 
 /** Audit entity and error entity name, shared with transitionTo (the machine name). */
 const ENTITY = campaignMachine.name;
@@ -69,6 +81,8 @@ interface Change {
   content: CampaignContent;
   action: string;
   reason?: string;
+  /** Published after commit, with the new row_version; edits of a draft publish nothing. */
+  updated?: Omit<CampaignUpdatedEvent, 'rowVersion'>;
 }
 
 /**
@@ -134,18 +148,19 @@ export class CampaignService {
   }
 
   /**
-   * AC-4: a draft accepts any edit; once open, only deadlines still ahead may move later, with a
-   * reason. The stale-version check comes first, so a lost race always answers 409.
+   * US-1.4 AC-4: a draft accepts any edit. US-1.10 AC-1–AC-4: once open, what the actual phase still
+   * allows, with a reason (CONTEXT D56). The stale-version check comes first, so a lost race always
+   * answers 409. After commit an edit of an open campaign publishes `campaign.updated`.
    */
   async update(user: AuthUser, id: number, patch: UpdateCampaignRequest): Promise<Campaign> {
-    const record = await this.db.transaction(async (tx) => {
+    const { record, updated } = await this.db.transaction(async (tx) => {
       const before = await this.repository.findById(id, { tx, lock: 'update' });
       if (!before) throw new EntityNotFoundError(ENTITY, id);
       if (before.rowVersion !== patch.rowVersion) {
         throw new RowVersionConflictError(ENTITY, id, patch.rowVersion, before.rowVersion);
       }
       const change = before.status === 'DRAFT' ? draftChange(before, patch) : this.runningChange(before, patch);
-      if (!change) return before;
+      if (!change) return { record: before, updated: undefined };
       const after = await this.repository.updateVersioned(tx, id, before.rowVersion, change.content);
       await this.audit.record(tx, {
         actor: userActor(user),
@@ -156,8 +171,11 @@ export class CampaignService {
         after: snapshot(after),
         reason: change.reason ?? null,
       });
-      return after;
+      return { record: after, updated: change.updated };
     });
+    if (updated) {
+      this.publish(CAMPAIGN_UPDATED, { ...updated, rowVersion: record.rowVersion } satisfies CampaignUpdatedEvent);
+    }
     return toCampaign(record);
   }
 
@@ -185,6 +203,54 @@ export class CampaignService {
     this.publish(CAMPAIGN_OPENED, { campaignId: id } satisfies CampaignOpenedEvent);
     this.publishPhaseChanged(result, 'USER');
     return toCampaign(await this.requireRecord(id));
+  }
+
+  /**
+   * US-1.10 AC-6: INTAKE…SUPPLEMENTARY → CANCELLED, a final state; the table has no edge from DRAFT,
+   * CLOSED or CANCELLED (422). Every row of the campaign stays. After commit `campaign.phase_changed`,
+   * then `campaign.cancelled`, which tells students and HR the reason.
+   */
+  async cancel(user: AuthUser, id: number, request: CancelCampaignRequest): Promise<Campaign> {
+    const result = await this.transitions.transitionTo<CampaignStatus>({
+      lifecycle: campaignLifecycle,
+      id,
+      to: 'CANCELLED',
+      actor: userActor(user),
+      reason: request.reason,
+      expectedRowVersion: request.rowVersion,
+    });
+    this.publishPhaseChanged(result, 'USER');
+    this.publish(CAMPAIGN_CANCELLED, { campaignId: id, reason: request.reason } satisfies CampaignCancelledEvent);
+    return toCampaign(await this.requireRecord(id));
+  }
+
+  /**
+   * US-1.10 AC-9: deletes a campaign that no row refers to, in any status. The foreign keys of the
+   * other modules' tables decide, not a count here (AGENTS › Invariants 11, 13): PostgreSQL refuses
+   * the DELETE, the audit entry rolls back with it, and the caller gets 409 CAMPAIGN_HAS_DATA. Nobody
+   * is told: no student has consented and no HR has a JD in such a campaign.
+   */
+  async delete(user: AuthUser, id: number, rowVersion: number): Promise<void> {
+    try {
+      await this.db.transaction(async (tx) => {
+        const before = await this.repository.findById(id, { tx, lock: 'update' });
+        if (!before) throw new EntityNotFoundError(ENTITY, id);
+        if (before.rowVersion !== rowVersion) {
+          throw new RowVersionConflictError(ENTITY, id, rowVersion, before.rowVersion);
+        }
+        await this.audit.record(tx, {
+          actor: userActor(user),
+          action: CAMPAIGN_AUDIT_ACTIONS.DELETED,
+          entity: ENTITY,
+          entityId: id,
+          before: snapshot(before),
+        });
+        await this.repository.delete(tx, id);
+      });
+    } catch (error) {
+      if (foreignKeyViolation(error)) throw new CampaignHasDataError(id);
+      throw error;
+    }
   }
 
   /**
@@ -226,6 +292,20 @@ export class CampaignService {
   }
 
   /**
+   * Refuses work for a campaign that is over, closed or cancelled (US-1.10 AC-7), for actions with
+   * no phase of their own: approving a JD, generating its questions. With `tx`, the row stays
+   * share-locked until the transaction ends, so a cancellation waits for it.
+   */
+  async assertNotFinal(campaignId: number, options: { tx?: DbTx } = {}): Promise<CampaignSettings> {
+    const record = await this.repository.findById(campaignId, options.tx ? { tx: options.tx, lock: 'share' } : {});
+    if (!record) throw new EntityNotFoundError(ENTITY, campaignId);
+    if (isCampaignFinal(record.status)) {
+      throw new CampaignPhaseMismatchError(campaignId, record.status, NOT_FINAL_STATES);
+    }
+    return settingsOf(record);
+  }
+
+  /**
    * What `assertPhase` would answer now for settings already read, without reading or locking the
    * row again; for display, e.g. whether preferences can still be edited (US-3.3).
    */
@@ -233,9 +313,16 @@ export class CampaignService {
     return checkPhase(campaign.status, campaign.phaseDeadlines, allowed, this.clock.now()).ok;
   }
 
-  /** Parameters, target and deadlines of a campaign, for other modules. 404 when it does not exist. */
-  async getSettings(campaignId: number): Promise<CampaignSettings> {
-    return settingsOf(await this.requireRecord(campaignId));
+  /**
+   * Parameters, target and deadlines of a campaign, for other modules. 404 when it does not exist.
+   * With `tx`, the row is read `FOR SHARE`: an edit of the campaign waits for the caller's
+   * transaction, so what it computes from the settings is not overwritten by an older read.
+   */
+  async getSettings(campaignId: number, options: { tx?: DbTx } = {}): Promise<CampaignSettings> {
+    if (!options.tx) return settingsOf(await this.requireRecord(campaignId));
+    const record = await this.repository.findById(campaignId, { tx: options.tx, lock: 'share' });
+    if (!record) throw new EntityNotFoundError(ENTITY, campaignId);
+    return settingsOf(record);
   }
 
   /** Every campaign currently in `status`, oldest first; e.g. INTAKE for the CV deadline reminder (US-1.7). */
@@ -260,30 +347,43 @@ export class CampaignService {
     return { role: 'STUDENT', audience };
   }
 
-  /** Edits of a campaign that has left DRAFT (CONTEXT D27). */
+  /**
+   * Edits of a campaign that has left DRAFT (US-1.10, CONTEXT D56): locked fields answer 409 before
+   * any value is checked, as in US-1.4. Values sent unchanged need no reason.
+   */
   private runningChange(before: CampaignRecord, patch: UpdateCampaignRequest): Change | null {
-    const locked = lockedFieldChanges(before, patch);
-    if (locked.length > 0) throw new CampaignConfigLockedError(before.id, before.status, locked);
-    if (!patch.phaseDeadlines) return null;
-
-    const extension = checkDeadlineExtension(before.phaseDeadlines, patch.phaseDeadlines, this.clock.now());
-    if (!extension.ok) {
-      const fields = extension.keys.map((key) => `phaseDeadlines.${key}`);
-      if (extension.kind === 'LOCKED') throw new CampaignConfigLockedError(before.id, before.status, fields);
-      throw new ValidationFailedError(fields.map((path) => ({ path, message: DEADLINE_NOT_LATER })));
+    const edit = planRunningEdit(before, patch, this.clock.now());
+    // AC-7: a closed or cancelled campaign refuses every edit, even one that changes nothing.
+    if (edit.locked.length > 0 || isCampaignFinal(edit.phase)) {
+      throw new CampaignConfigLockedError(before.id, edit.phase, edit.locked);
     }
-    if (extension.changed.length === 0) return null;
-    if (!patch.reason) throw new ValidationFailedError([{ path: 'reason', message: DEADLINE_REASON_REQUIRED }]);
+    if (edit.invalid.length > 0) throw new ValidationFailedError(edit.invalid);
+    if (!hasChanges(edit)) return null;
+    if (!patch.reason) throw new ValidationFailedError([{ path: 'reason', message: CAMPAIGN_EDIT_REASON_REQUIRED }]);
 
-    const phaseDeadlines = parseOrFail(
-      PhaseDeadlinesSchema,
-      mergeDeadlines(before.phaseDeadlines, patch.phaseDeadlines),
-      'phaseDeadlines',
-    );
+    const configKeys = Object.keys(edit.config) as (keyof CampaignConfig)[];
+    const moved = Object.fromEntries(edit.deadlines.map((move) => [move.key, move.after]));
+    const content: CampaignContent = {
+      name: edit.name ?? before.name,
+      // At most 50 values per list: checked on the merged target.
+      target: edit.target ? parseOrFail(CampaignTargetSchema, edit.target, 'target') : before.target,
+      config:
+        configKeys.length > 0
+          ? parseOrFail(CampaignConfigSchema, { ...before.config, ...edit.config }, 'config')
+          : before.config,
+      phaseDeadlines: parseOrFail(PhaseDeadlinesSchema, { ...before.phaseDeadlines, ...moved }, 'phaseDeadlines'),
+    };
     return {
-      content: { ...contentOf(before), phaseDeadlines },
-      action: CAMPAIGN_AUDIT_ACTIONS.DEADLINES_EXTENDED,
+      content,
+      action: CAMPAIGN_AUDIT_ACTIONS.UPDATED_AFTER_OPEN,
       reason: patch.reason,
+      updated: {
+        campaignId: before.id,
+        targetBefore: edit.target !== undefined ? before.target : null,
+        configKeys,
+        deadlines: edit.deadlines,
+        reason: patch.reason,
+      },
     };
   }
 
@@ -317,20 +417,6 @@ function draftChange(before: CampaignRecord, patch: UpdateCampaignRequest): Chan
   };
   if (isDeepStrictEqual(content, contentOf(before))) return null;
   return { content, action: CAMPAIGN_AUDIT_ACTIONS.UPDATED, reason: patch.reason };
-}
-
-/** Name, target and parameters the patch would change; all locked once the campaign is open. */
-function lockedFieldChanges(before: CampaignRecord, patch: UpdateCampaignRequest): string[] {
-  const fields: string[] = [];
-  if (patch.name !== undefined && patch.name !== before.name) fields.push('name');
-  if (patch.target !== undefined && !isDeepStrictEqual(patch.target, before.target)) fields.push('target');
-  for (const [key, value] of Object.entries(patch.config ?? {})) {
-    // Deep: `competition_thresholds` is an object, sent again unchanged by a form (CONTEXT D48).
-    if (value !== undefined && !isDeepStrictEqual(value, before.config[key as keyof CampaignConfig])) {
-      fields.push(`config.${key}`);
-    }
-  }
-  return fields;
 }
 
 /** Applies a deadline patch: `null` clears a key; values are stored as UTC ISO strings. */

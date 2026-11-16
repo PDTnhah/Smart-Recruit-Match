@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { CAMPAIGN_DEADLINE_KEYS } from './campaign.js';
+import { CAMPAIGN_DEADLINE_KEYS, type CampaignDeadlineKey } from './campaign.js';
 
 // Notifications (FR-8, US-1.7, CONTEXT D31). The API validates `type` + `payload` with these
 // schemas before writing a row, and the web renders each type from the same shapes, so both sides
@@ -31,6 +31,9 @@ export const NOTIFICATION_TYPES = [
   'EXAM_NOT_TAKEN',
   // The results of a graded test are out (US-4.4 AC-11, CONTEXT D53).
   'EXAM_RESULT_PUBLISHED',
+  // A campaign that has left DRAFT moved deadlines, or was cancelled (US-1.10, CONTEXT D56).
+  'CAMPAIGN_DEADLINES_CHANGED',
+  'CAMPAIGN_CANCELLED',
 ] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
@@ -185,6 +188,57 @@ export const ExamResultPublishedPayloadSchema = z.object({
   companyName: z.string().min(1),
 });
 
+/**
+ * Who a campaign notice is written for (US-1.10): students and HR take part in a campaign through
+ * different pages, so the link and the wording depend on it.
+ */
+export const CAMPAIGN_NOTICE_AUDIENCES = ['STUDENT', 'HR'] as const;
+
+export type CampaignNoticeAudience = (typeof CAMPAIGN_NOTICE_AUDIENCES)[number];
+
+/**
+ * How a campaign notice names each deadline: what it closes for the reader. The notice in the app
+ * and its email use the same names (US-1.10 AC-5).
+ */
+export const CAMPAIGN_NOTICE_DEADLINE_NAMES: Readonly<
+  Record<CampaignNoticeAudience, Readonly<Record<CampaignDeadlineKey, string>>>
+> = {
+  STUDENT: { intake_end: 'Hạn nộp CV', preference_end: 'Hạn chọn nguyện vọng', testing_end: 'Hạn làm bài test' },
+  HR: {
+    intake_end: 'Hạn gửi JD',
+    preference_end: 'Hạn sinh viên chọn nguyện vọng',
+    testing_end: 'Hạn sinh viên làm bài test',
+  },
+};
+
+const reason = z.string().trim().min(1).max(500);
+
+/**
+ * Deadlines of an open campaign moved, later or earlier (US-1.10 AC-5, CONTEXT D56). One notice per
+ * edit, to the target students and the HR of companies with a JD in the campaign, in the app and by
+ * email, with the reason the center gave.
+ */
+export const CampaignDeadlinesChangedPayloadSchema = z.object({
+  campaignId: id,
+  campaignName: z.string().min(1),
+  audience: z.enum(CAMPAIGN_NOTICE_AUDIENCES),
+  deadlines: z
+    .array(z.object({ key: z.enum(CAMPAIGN_DEADLINE_KEYS), before: instant, after: instant }))
+    .min(1),
+  reason,
+});
+
+/**
+ * A campaign was cancelled (US-1.10 AC-8): it is hidden from students and HR, its data is kept. Sent
+ * to the same people as a deadline change, in the app and by email.
+ */
+export const CampaignCancelledPayloadSchema = z.object({
+  campaignId: id,
+  campaignName: z.string().min(1),
+  audience: z.enum(CAMPAIGN_NOTICE_AUDIENCES),
+  reason,
+});
+
 /** `type` and the `payload` that goes with it. */
 export const NotificationContentSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('CAMPAIGN_OPENED'), payload: CampaignOpenedPayloadSchema }),
@@ -200,6 +254,8 @@ export const NotificationContentSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('JD_LOW_PREFERENCES'), payload: JdLowPreferencesPayloadSchema }),
   z.object({ type: z.literal('EXAM_NOT_TAKEN'), payload: ExamNotTakenPayloadSchema }),
   z.object({ type: z.literal('EXAM_RESULT_PUBLISHED'), payload: ExamResultPublishedPayloadSchema }),
+  z.object({ type: z.literal('CAMPAIGN_DEADLINES_CHANGED'), payload: CampaignDeadlinesChangedPayloadSchema }),
+  z.object({ type: z.literal('CAMPAIGN_CANCELLED'), payload: CampaignCancelledPayloadSchema }),
 ]);
 
 export type NotificationContent = z.output<typeof NotificationContentSchema>;

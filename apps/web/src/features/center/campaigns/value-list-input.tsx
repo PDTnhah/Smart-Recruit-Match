@@ -1,6 +1,7 @@
 import { normalizeAudienceValue } from '@srm/shared';
 import { X } from 'lucide-react';
 import { useState } from 'react';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -14,11 +15,17 @@ interface ValueListInputProps {
   /** What one value is, e.g. "khóa"; read out on the remove buttons. */
   itemName: string;
   disabled?: boolean;
+  /**
+   * Values that stay: shown without a remove button (an open campaign only adds to its target,
+   * US-1.10 AC-3). Matched as `normalizeAudienceValue` matches them.
+   */
+  fixed?: readonly string[];
 }
 
 /**
  * A short list of values (cohorts, majors): type one and press Enter, a comma or "Thêm"; each value
- * shows as a button that removes it. Values differing only in case count as the same.
+ * shows as a button that removes it, except the `fixed` ones. Values differing only in case count
+ * as the same.
  */
 export function ValueListInput({
   id,
@@ -29,8 +36,10 @@ export function ValueListInput({
   placeholder,
   itemName,
   disabled,
+  fixed = [],
 }: ValueListInputProps) {
   const [draft, setDraft] = useState('');
+  const kept = new Set(fixed.map(normalizeAudienceValue));
 
   function add() {
     const next = draft.trim();
@@ -68,21 +77,27 @@ export function ValueListInput({
       </div>
       {value.length > 0 && (
         <ul className="flex flex-wrap gap-2">
-          {value.map((item) => (
-            <li key={item}>
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                disabled={disabled}
-                onClick={() => onChange(value.filter((other) => other !== item))}
-              >
-                <span className="sr-only">Xóa {itemName}</span>
-                {item}
-                <X data-icon="inline-end" />
-              </Button>
-            </li>
-          ))}
+          {value.map((item) =>
+            kept.has(normalizeAudienceValue(item)) ? (
+              <li key={item}>
+                <Badge variant="secondary">{item}</Badge>
+              </li>
+            ) : (
+              <li key={item}>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  disabled={disabled}
+                  onClick={() => onChange(value.filter((other) => other !== item))}
+                >
+                  <span className="sr-only">Xóa {itemName}</span>
+                  {item}
+                  <X data-icon="inline-end" />
+                </Button>
+              </li>
+            ),
+          )}
         </ul>
       )}
     </div>

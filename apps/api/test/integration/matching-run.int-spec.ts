@@ -173,6 +173,9 @@ describe('GĐ3 matching runs (US-3.2)', () => {
       pairs: [{ cv_id: cvWeak.id, jd_id: jdB.id }],
     });
     await closeRuns(campaign.id);
+    // Every run first scores the stored pairs again with the campaign's weights (US-1.10 AC-2).
+    const scored = (await rowsOf(campaign.id)).find((r) => r.cvId === cvGood.id && r.jdId === jdA.id)!;
+    expect(scored.sCv).not.toBeNull();
 
     // A new version of JD A (BR-18): the scored row stays, the new version is sent.
     await t.db.update(jobDescriptions).set({ version: 2 }).where(eq(jobDescriptions.id, jdA.id));
@@ -185,7 +188,7 @@ describe('GĐ3 matching runs (US-3.2)', () => {
       .filter((r) => r.cvId === cvGood.id && r.jdId === jdA.id)
       .sort((a, b) => a.jdVersion - b.jdVersion);
     expect(versionsOfA.map((r) => [r.jdVersion, r.promptVersion, r.sCv])).toEqual([
-      [1, 'matching/v1', 70],
+      [1, 'matching/v1', scored.sCv],
       [2, null, null],
     ]);
 

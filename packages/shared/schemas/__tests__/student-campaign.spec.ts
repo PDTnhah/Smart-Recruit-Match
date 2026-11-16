@@ -106,6 +106,13 @@ describe('US-1.8: the campaign the student screens open (CONTEXT D55)', () => {
       expect(campaignOfNewestActiveCv([campaign(1, 'DRAFT')], [cv(1, 1)])).toBeNull();
     });
 
+    it('FR-41: a cancelled campaign is skipped like a closed one (CONTEXT D56)', () => {
+      const campaigns = [campaign(3, 'CANCELLED'), campaign(2, 'TESTING')];
+      expect(campaignOfNewestActiveCv(campaigns, [cv(4, 2), cv(5, 3)])).toEqual({ campaign: campaigns[1], cv: cv(4, 2) });
+      expect(campaignOfNewestActiveCv(campaigns, [cv(5, 3)])).toBeNull();
+      expect(otherCampaignWithCv([campaign(6, 'INTAKE', LATER), ...campaigns], [cv(5, 3)], 6, NOW)).toBeUndefined();
+    });
+
     it('GĐ4: does not reorder the CV list it is given', () => {
       const cvs = [cv(1, 1), cv(2, 1, false), cv(3, 2)];
       campaignOfNewestActiveCv([campaign(1, 'INTAKE')], cvs);

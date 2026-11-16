@@ -13,7 +13,7 @@
 - Jest, ESM: §9 gói chỉ có ESM (`@nestjs/schedule`, `file-type`, `promise-breaker`…) · §11 `testTimeout` trong `projects` bị bỏ qua · §21 `--selectProjects` nuốt đường dẫn test
 - Integration test: §22 các file dùng chung DB, thông báo gửi mọi tài khoản CENTER và tác vụ quét mọi đợt lọt vào test khác · §30 bảng mới trong `core` làm đỏ `core-schema` và `ai-service-role` · §40 `PEXPIREAT` theo giờ của `FakeClock` làm key Redis hết hạn ngay
 - Drizzle, migration: §6 migration có mốc thời gian cũ bị bỏ qua · §7 hàm dùng chung nhiều bảng: khai kiểu cụ thể · §12 `FOR UPDATE OF` sinh tên có schema (gặp lại ở 0.23.0)
-- Giao dịch, khóa: §38 đọc bản ghi của module khác ngoài giao dịch rồi chuyển trạng thái không đảo ngược · §43 thêm `row_version` vào bảng đã có hàm ghi: các UPDATE cũ không tăng nó · §44 việc chạy sau commit ném lỗi: API trả `500` cho thao tác đã lưu, bấm lại nhận `409`
+- Giao dịch, khóa: §38 đọc bản ghi của module khác ngoài giao dịch rồi chuyển trạng thái không đảo ngược · §43 thêm `row_version` vào bảng đã có hàm ghi: các UPDATE cũ không tăng nó · §44 việc chạy sau commit ném lỗi: API trả `500` cho thao tác đã lưu, bấm lại nhận `409` · §48 nới một bất biến (tham số sửa được sau khi mở, trạng thái cuối mới): chỗ đọc ngoài giao dịch, chỗ chọn bản ghi mới nhất sai mà test vẫn xanh
 - Dữ liệu giữa các module: §42 tra theo phiên bản hiện hành của module khác hỏng khi phiên bản đổi ở pha mà module đó không chạy lại
 - Bảo mật: §39 đầu ra của PRNG có seed tới client làm lộ cả chuỗi (vị trí gốc của phương án)
 - pgvector: §24 index HNSW lọc sau khi quét, hàng cũ chiếm chỗ ứng viên
@@ -695,3 +695,21 @@ See [US-1.8](sprints/stories/US-1.8-profile-default-campaign.md), [CONTEXT D55](
 - Muốn bỏ hẳn bẫy thì thêm `* text=auto eol=lf` vào `.gitattributes`. Việc này chuẩn hóa lại toàn bộ working tree, nên phải hỏi người dùng trước.
 
 See [US-1.8](sprints/stories/US-1.8-profile-default-campaign.md).
+
+## 48. Nới một bất biến cũ: code dựa vào nó vẫn chạy, test vẫn xanh, kết quả sai
+
+**What happened (0.25.0)**: US-1.10 nới hai bất biến: tham số của đợt không còn cố định sau khi mở (trọng số S_cv sửa được trong pha nhận CV), và đợt có thêm trạng thái cuối `CANCELLED` ngoài `CLOSED`. Rà màn ở phiên 2c và `/code-review` ở phiên 3 tìm thấy bốn chỗ code cũ đúng dưới bất biến cũ nhưng sai sau đó:
+- `RecomputeScvService` và `MatchResultsHandler` đọc trọng số ngoài giao dịch rồi mới ghi S_cv dưới khóa dòng. Hai lần sửa trọng số liên tiếp, hoặc kết quả Matching về đúng lúc sửa, để lại S_cv tính theo trọng số cũ, trong khi `campaigns.config` đã giữ trọng số mới.
+- `GET /api/me/exams` lấy đợt mới nhất của SV (`all[0]`). Bản sửa đầu tiên trả trang trống khi đợt đó bị hủy, nên giấu bài test của một đợt cũ hơn đang ở *Làm bài test*.
+- Duyệt JD và sinh câu hỏi không gắn với pha nào nên không gọi `assertPhase`, và vẫn chạy Test Generator (tốn LLM) cho đợt đã hủy.
+
+**Why**: Code và test của các chỗ này viết khi bất biến còn đúng. Không test nào đổi trọng số giữa lúc đọc và lúc ghi, hay tạo đợt hủy mới hơn một đợt đang chạy, nên không có gì đỏ.
+
+**How to avoid**:
+- Story nới một bất biến (cho sửa một giá trị trước đây cố định, thêm một trạng thái cuối) thì liệt kê ngay ở phiên Plan mọi chỗ đọc giá trị đó (`getSettings`, `scvWeightsOf`, `config.`) và mọi chỗ chọn "bản ghi mới nhất" hoặc lọc theo trạng thái. Ghi danh sách vào story và rà hết ở phiên 2.
+- Chỗ đọc rồi ghi kết quả tính từ giá trị đó: đọc trong chính giao dịch ghi, khóa `FOR SHARE` dòng nguồn (`CampaignService.getSettings(id, { tx })`). Lần sửa sẽ chờ giao dịch đó, rồi việc tính lại sau khi sửa chạy sau nó.
+- Chỗ chọn đợt mới nhất của người dùng: bỏ qua đợt bị ẩn (`CANCELLED`) và lấy đợt kế tiếp, không trả trống. `ShortlistService.currentCampaignOf` là mẫu.
+- Thao tác không gắn pha của một đợt: `CampaignService.assertNotFinal`.
+- Mỗi chỗ sửa có một test dựng đúng tình huống mà bất biến cũ loại trừ (đợt hủy mới hơn đợt đang chạy; trọng số đổi giữa hai lần đọc).
+
+See [US-1.10](sprints/stories/US-1.10-campaign-edit-cancel-delete.md), [CONTEXT D56](CONTEXT.md).

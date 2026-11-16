@@ -33,7 +33,7 @@
 - D24 · Lược đồ `core`, cột `audit_logs`, cách áp migration (US-1.2)
 - D25 · Xác thực, phân quyền, refresh token (US-1.3)
 - D26 · Nền shadcn/ui, API client, thư viện web (US-1.3)
-- D27 · Đợt thực tập: đối tượng, phạm vi đọc, khóa tham số, gia hạn mốc, kiểm tra pha (US-1.4)
+- D27 · Đợt thực tập: đối tượng, phạm vi đọc, khóa tham số, gia hạn mốc, kiểm tra pha (US-1.4) → sửa một phần bởi D56 (sửa đợt sau khi mở, hủy, xóa)
 - D28 · Doanh nghiệp, lời mời HR, JD, lưu file (US-1.5) → sửa bởi D29
 - D29 · Thu hồi link mời cũ, tải file qua nginx, bucket lúc khởi động
 - D30 · Đồng ý xử lý dữ liệu, phiên bản CV, nộp CV (US-1.6)
@@ -62,6 +62,7 @@
 - D53 · Chấm bài: trắc nghiệm trong giao dịch đóng phiên, Grader hai lượt qua batch có đáp án mẫu, câu ngang nhau trong phần, chuyển người chấm, S_final theo NV, dưới ngưỡng sau hạn phúc khảo (US-4.4)
 - D54 · Chấm tay câu tự luận: cột `exam_answers.id`, người chấm thấy hai lượt AI, giảng viên dùng tài khoản CENTER, điểm tiêu chí số nguyên, công bố qua `finalizeIfReady` sau commit (US-4.5)
 - D55 · Màn Hồ sơ chọn đợt mặc định theo CV của SV; tách US-1.9 (phiên giữa các tab), US-2.8 (tìm kỹ năng khi query rỗng) (US-1.8)
+- D56 · Sửa đợt sau khi mở theo pha dùng tham số, đối tượng chỉ thêm, dời mốc sớm có báo trước 24 giờ; hủy đợt có dữ liệu (`CANCELLED`), xóa đợt trống theo khóa ngoại (US-1.10)
 
 ---
 
@@ -2474,3 +2475,55 @@ Lúc điều tra còn thấy hai lỗi khác, không gây ra sự cố này:
 
 **Date**: 2026-11-15
 **Version**: 0.24.1
+
+### D56. Sửa đợt sau khi mở theo pha dùng tham số, hủy đợt có dữ liệu bằng `CANCELLED`, xóa đợt trống; thêm US-1.10 (revision of D27: khóa tên, đối tượng, tham số, chỉ lùi mốc)
+
+**Context**: Ngày 2026-11-15 người dùng yêu cầu "chỉnh sửa đợt xét tuyển sau khi mở, có thể chỉnh sửa hoặc xóa cho trung tâm". D27 khóa tên, đối tượng và tham số khi đợt rời `DRAFT`, chỉ cho lùi mốc chưa tới. Hệ thống chưa có thao tác xóa. Các điểm phải chốt:
+
+- PRD chỉ nói không tự đổi trọng số trong một đợt đang chạy. Tham số đổi sau khi đã chấm thì SV trong cùng đợt bị chấm theo hai thước đo.
+- Thu hẹp đối tượng làm SV đã nộp CV không còn thấy đợt (D27: STUDENT thấy đợt khi `target` chứa khóa và ngành).
+- Dời mốc sớm hơn làm SV và HR mất thời gian đã được báo.
+- Tám bảng có khóa ngoại tới `campaigns` (`consents`, `cvs`, `job_descriptions`, `question_banks`, `essay_grading_runs`, `match_runs`, `match_results`, `preferences`). Xóa cứng phải đi xuyên module (Nguyên tắc 13) và mất dữ liệu audit.
+
+**Decision** (người dùng chốt bốn điểm theo Đề xuất ngày 2026-11-15):
+
+- **Tham số** sửa được khi pha dùng nó chưa bắt đầu, theo bảng `CAMPAIGN_CONFIG_USED_FROM` ở `packages/shared`. Pha tính như `assertPhase`: mốc kết thúc pha hiện tại đã qua thì coi như đã sang pha sau. Chi tiết từng tham số ở US-1.10 › *Tham số theo pha*:
+  - `t_test_minutes`, `match_top_m` khóa ngay khi mở. `t_test_minutes` là thời lượng mặc định của ma trận đề, lấy khi tạo ngân hàng câu hỏi trong `INTAKE`. `match_top_m` dùng ở lượt matching chạy tay trong `INTAKE`, và giảm nó sau đó không bỏ được cặp đã chấm. Câu hỏi gửi người dùng lấy `match_top_m` làm ví dụ tham số sửa được trong `INTAKE`; khi lập story mới thấy lượt chạy tay dùng nó.
+  - Trọng số S_cv, `theta_cv`, `n_nv`, `require_full_preferences`, `no_preference_policy`, `competition_thresholds` sửa được tới hết `INTAKE`. Đổi trọng số S_cv thì `RecomputeScvService` (US-3.2 AC-11) tính lại các cặp đã chấm, không gọi LLM. Lượt matching lúc hết `intake_end` cũng tính lại trước khi chạy (LESSONS §34).
+  - `theta_test`, `alpha`, `beta`, `appeal_window_hours` sửa được tới trước `TESTING`. `k`, `r_max`, `sla_hr_business_days`, `t_offer_days` sửa được tới trước `ALLOCATION_REVIEW`.
+  - `reminder_hours_before` sửa được tới `CLOSED`: nó chỉ đổi lúc nhắc, không ảnh hưởng điểm hay thứ tự.
+- **Tên** sửa được khi đợt chưa `CLOSED` hay `CANCELLED`. **Đối tượng** chỉ được thêm khóa hoặc ngành, và chỉ khi đợt ở `INTAKE` trước `intake_end`. SV mới thuộc đối tượng nhận "Đợt thực tập đã mở"; dedupe theo người nhận nên SV cũ không nhận lại.
+- **Mốc chưa qua** dời được muộn hơn như D27, hoặc sớm hơn nếu không sớm hơn `now + DEADLINE_MIN_NOTICE_HOURS` (24 giờ). Các mốc phải tăng dần, không xóa được mốc, mốc đã qua vẫn khóa. SV thuộc đối tượng và HR của các công ty có JD trong đợt nhận `CAMPAIGN_DEADLINES_CHANGED` (trong app + email). Nhắc hạn tự theo mốc mới, vì dedupe key của nhắc hạn có giá trị mốc (D31).
+- Mọi lần sửa sau `DRAFT` bắt buộc có lý do, ghi một dòng audit trước/sau. Sau commit phát `campaign.updated`; `matching`, `notification`, `company` nghe sự kiện này, `campaign` không import các module đó.
+- **Hủy đợt**: trạng thái cuối `CANCELLED`, có cạnh từ `INTAKE`, `PREFERENCE_SELECTION`, `TESTING`, `ALLOCATION_REVIEW`, `SUPPLEMENTARY`. Chuyển qua `transitionTo`, lý do bắt buộc. Migration thêm giá trị vào CHECK `campaigns.status`.
+  - `assertPhase` từ chối mọi thao tác. Tác vụ định kỳ bỏ qua đợt.
+  - STUDENT và HR không thấy đợt (`404`), CENTER và ADMIN vẫn thấy. Dữ liệu giữ nguyên.
+  - SV thuộc đối tượng và HR của đợt nhận `CAMPAIGN_CANCELLED`. Link không trỏ tới đợt.
+- **Xóa đợt** (`DELETE /api/campaigns/{id}?rowVersion=`) ở mọi trạng thái, khi không bảng nào tham chiếu tới đợt. Khóa ngoại `NO ACTION` của DB quyết định: lỗi `23503` thành `409 CAMPAIGN_HAS_DATA` (Nguyên tắc 11). Audit `CAMPAIGN_DELETED` giữ ảnh trước. Bảng mới trỏ tới `campaigns` phải có khóa ngoại.
+- Thông báo cho HR đặt ở module `company`, vì `company` đã import `notification`, nên `notification` không import ngược được.
+- Thêm FR-41 và US-1.10 (EPIC-1, 8 điểm, sprint W46). Tổng thành 44 story.
+
+**Rationale**: Khóa theo pha dùng giữ được Nguyên tắc 1 và 9: mọi SV trong đợt được chấm cùng một thước đo, vì tham số chỉ đổi trước khi được dùng. Trọng số S_cv là ngoại lệ có kiểm soát, vì code tính lại được toàn bộ mà không gọi LLM (AD-2). Đối tượng chỉ được mở rộng, nên không ai đã tham gia mất quyền xem đợt. Khi dời mốc sớm, 24 giờ báo trước và thông báo cho SV, HR giúp không ai bị cắt ngang không biết. Khóa ngoại quyết định "đợt trống" nên không cần đếm bảng của module khác, và story sau thêm bảng thì vẫn đúng. Hủy thay cho xóa giữ được audit và dữ liệu để giải trình.
+
+**Alternatives considered**:
+
+- **Sửa mọi tham số mọi lúc, kèm lý do:** người dùng không chọn, vì phải tính lại S_cv/S_final hoặc chấp nhận lệch giữa các SV.
+- **Giữ khóa tham số như D27:** người dùng không chọn.
+- **Đối tượng sửa tự do:** người dùng không chọn, vì SV ngoài đối tượng mới mất quyền xem đợt đã tham gia.
+- **Chỉ lùi mốc như D27; hoặc cho dời sớm mà không thông báo:** người dùng không chọn.
+- **Xóa mềm bằng `deleted_at`:** người dùng không chọn, vì mọi module phải tự lọc đợt đã xóa.
+- **Chỉ xóa đợt `DRAFT`; hoặc xóa hẳn kèm mọi dữ liệu:** người dùng không chọn. Xóa hẳn còn trái Nguyên tắc 13 và mất audit.
+- **Đếm dữ liệu của đợt qua cổng các module đăng ký:** loại, vì khóa ngoại đã quyết định được và không bỏ sót bảng mới.
+
+**Impact**:
+
+- Story mới US-1.10; PRD › GĐ0 (trạng thái "Đã hủy"), *Thông báo*, FR-41, *Epics & User Stories*; EPIC-1; `sprint-2026-W46`; `sprints/README.md`, AGENTS › *Trạng thái* (44 story).
+- ARCH › *Các module* (`campaign`, `notification`), *Các bảng chính* (`campaigns`), *API architecture*.
+- Code dự kiến:
+  - `packages/shared`: `states/campaign.ts`, `schemas/campaign.ts`, `schemas/notification.ts`, `schemas/errors.ts`.
+  - API: module `campaign` (`running-edit.ts` thay `deadline-change.ts`, `cancel`, `delete`); listener ở `matching`, `notification`, `company`; migration `0039`.
+  - Web: `features/center/campaigns/`, `shared/notifications/messages.ts`.
+- US-5.5, US-6.1, US-6.5 phải xử lý đợt `CANCELLED`.
+
+**Date**: 2026-11-15
+**Version**: 0.25.0 (dự kiến)

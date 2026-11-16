@@ -254,7 +254,7 @@ export interface paths {
         get: operations["CampaignController_get"];
         put?: never;
         post?: never;
-        delete?: never;
+        delete: operations["CampaignController_remove"];
         options?: never;
         head?: never;
         patch: operations["CampaignController_update"];
@@ -270,6 +270,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["CampaignController_open"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/campaigns/{id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["CampaignController_cancel"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1261,7 +1277,7 @@ export interface components {
             id: number;
             name: string;
             /** @enum {string} */
-            status: "DRAFT" | "INTAKE" | "PREFERENCE_SELECTION" | "TESTING" | "ALLOCATION_REVIEW" | "SUPPLEMENTARY" | "CLOSED";
+            status: "DRAFT" | "INTAKE" | "PREFERENCE_SELECTION" | "TESTING" | "ALLOCATION_REVIEW" | "SUPPLEMENTARY" | "CLOSED" | "CANCELLED";
             target: {
                 cohorts: string[];
                 majors: string[];
@@ -1340,7 +1356,7 @@ export interface components {
                 id: number;
                 name: string;
                 /** @enum {string} */
-                status: "DRAFT" | "INTAKE" | "PREFERENCE_SELECTION" | "TESTING" | "ALLOCATION_REVIEW" | "SUPPLEMENTARY" | "CLOSED";
+                status: "DRAFT" | "INTAKE" | "PREFERENCE_SELECTION" | "TESTING" | "ALLOCATION_REVIEW" | "SUPPLEMENTARY" | "CLOSED" | "CANCELLED";
                 target: {
                     cohorts: string[];
                     majors: string[];
@@ -1461,6 +1477,10 @@ export interface components {
         };
         OpenCampaignRequestDto: {
             rowVersion: number;
+        };
+        CancelCampaignRequestDto: {
+            rowVersion: number;
+            reason: string;
         };
         CatalogSkillListDto_Output: {
             items: {
@@ -2052,6 +2072,44 @@ export interface components {
                     jdTitle: string;
                     companyName: string;
                 };
+            } | {
+                id: number;
+                /** Format: date-time */
+                readAt: string | null;
+                /** Format: date-time */
+                createdAt: string;
+                /** @enum {string} */
+                type: "CAMPAIGN_DEADLINES_CHANGED";
+                payload: {
+                    campaignId: number;
+                    campaignName: string;
+                    /** @enum {string} */
+                    audience: "STUDENT" | "HR";
+                    deadlines: {
+                        /** @enum {string} */
+                        key: "intake_end" | "preference_end" | "testing_end";
+                        /** Format: date-time */
+                        before: string;
+                        /** Format: date-time */
+                        after: string;
+                    }[];
+                    reason: string;
+                };
+            } | {
+                id: number;
+                /** Format: date-time */
+                readAt: string | null;
+                /** Format: date-time */
+                createdAt: string;
+                /** @enum {string} */
+                type: "CAMPAIGN_CANCELLED";
+                payload: {
+                    campaignId: number;
+                    campaignName: string;
+                    /** @enum {string} */
+                    audience: "STUDENT" | "HR";
+                    reason: string;
+                };
             })[];
             unreadCount: number;
             nextBefore: number | null;
@@ -2080,7 +2138,7 @@ export interface components {
                 id: number;
                 name: string;
                 /** @enum {string} */
-                status: "DRAFT" | "INTAKE" | "PREFERENCE_SELECTION" | "TESTING" | "ALLOCATION_REVIEW" | "SUPPLEMENTARY" | "CLOSED";
+                status: "DRAFT" | "INTAKE" | "PREFERENCE_SELECTION" | "TESTING" | "ALLOCATION_REVIEW" | "SUPPLEMENTARY" | "CLOSED" | "CANCELLED";
                 /** Format: date-time */
                 preferenceEnd: string | null;
                 nNv: number;
@@ -3423,6 +3481,27 @@ export interface operations {
             };
         };
     };
+    CampaignController_remove: {
+        parameters: {
+            query: {
+                rowVersion: string;
+            };
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     CampaignController_update: {
         parameters: {
             query?: never;
@@ -3460,6 +3539,31 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["OpenCampaignRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CampaignDto_Output"];
+                };
+            };
+        };
+    };
+    CampaignController_cancel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CancelCampaignRequestDto"];
             };
         };
         responses: {
