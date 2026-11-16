@@ -55,7 +55,7 @@ PRD và ARCHITECTURE là spec gốc, code phải khớp với chúng. Khi spec m
 
 ## Đọc gì trước khi làm
 
-PRD (~990 dòng), ARCHITECTURE (~820 dòng), CONTEXT (~1200 dòng) và LESSONS (~330 dòng) quá dài để đọc hết. Không đọc cả file: lấy số dòng bằng `grep -n` (tiêu đề mục, `^### D37\.`, `^## 15\.`) rồi chỉ đọc đoạn đó. CONTEXT và LESSONS có mục lục ở đầu file. Mỗi file chỉ đọc một lần trong một phiên. Chỉ đọc mục liên quan:
+PRD (~1100 dòng), ARCHITECTURE (~900 dòng), CONTEXT (~2500 dòng) và LESSONS (~700 dòng) quá dài để đọc hết. Không đọc cả file: lấy số dòng bằng `grep -n` (tiêu đề mục, `^### D37\.`, `^## 15\.`) rồi chỉ đọc đoạn đó. CONTEXT và LESSONS có mục lục ở đầu file. Mỗi file chỉ đọc một lần trong một phiên. Chỉ đọc mục liên quan:
 
 | Việc | Đọc |
 |---|---|
@@ -154,8 +154,27 @@ Hai nhà cung cấp sau `LLMClient`: Gemini (mặc định, `gemini-3.8-flash`) 
 
 ## Kiểm thử
 
+Viết test để giữ các *Nguyên tắc bất biến* và logic có nhánh, không phải để phủ mọi dòng. Mục này thay chuẩn mặc định của skill koni-qc và koni-harness (mỗi hàm một unit test, độ phủ ≥ 80%, TDD từng hàm, ma trận AC↔TC, `docs/tests/`). Repo không áp dụng các chuẩn đó, trừ khi người dùng yêu cầu.
+
+**Phải có test**
+
 - Công thức điểm, bảng chuyển trạng thái, quy tắc phá hòa: unit test.
 - Allocation: property-based test (fast-check) cho ba tính chất ổn định, không vượt sức chứa, tất định. Ví dụ ở PRD › *Ví dụ minh họa* phải là một test cố định.
+- Logic có nhánh mới hoặc vừa đổi trong `domain/`, `packages/shared` (schema có `refine`/`superRefine`) và agent của ai-service: unit test, mỗi nhánh nghiệp vụ một ca, không cần mọi tổ hợp.
+- Phân quyền cấp bản ghi (Nguyên tắc 7), phòng thi (Nguyên tắc 8), che PII, ràng buộc DB mới (Nguyên tắc 11), giao dịch có khóa hoặc `row_version`: integration test.
+- Sửa lỗi logic: một test tái hiện đúng lỗi đó.
+
+**Không cần test mới**
+
+- Controller, DTO, wiring module, repository chỉ đọc ghi thẳng, mapper không có nhánh: đủ khi một integration test sẵn có đã đi qua đường đó.
+- Giao diện web (repo chưa có test FE), nhãn, chuỗi, cấu hình, tài liệu.
+- Refactor không đổi hành vi: test cũ còn xanh là đủ.
+- Hành vi do thư viện bảo đảm (Zod kiểm kiểu, Drizzle sinh SQL).
+
+**Viết gọn**
+
+- Integration test: thêm ca vào file sẵn có của module. Chỉ tạo file mới khi module chưa có file nào. Mỗi AC một ca thành công cộng ca lỗi quan trọng nhất; ca biên để ở unit test của domain.
+- Một quy tắc chỉ test ở một tầng, tầng thấp nhất bắt được lỗi. Đừng test lại nó ở cả schema, domain và integration.
 - Integration test dùng PostgreSQL/RabbitMQ/Redis/MinIO thật qua testcontainers.
 - Ghi mã BR-xx hoặc GĐx liên quan vào tên test để truy vết khi viết báo cáo.
 
@@ -164,10 +183,24 @@ Hai nhà cung cấp sau `LLMClient`: Gemini (mặc định, `gemini-3.8-flash`) 
 Theo vòng lặp koni (skill koni-harness): Plan → Execute → Self-verify → Review → Doc/Version gate → Commit.
 
 1. **Plan.** Mỗi việc là một story trong `docs/sprints/stories/`. Chưa có thì tạo bằng template story của skill koni-docs; mã story phải có trong PRD › Epics & User Stories. Đặt `status: in-progress`. Đọc mục lục `docs/LESSONS.md` và các mục liên quan, ghi `Lessons applied:` vào story.
-2. **Execute.** Code theo spec; đánh `[x]` từng task ngay khi xong. Quyết định kiến trúc hoặc phạm vi mới thì thêm mục D vào `docs/CONTEXT.md` ngay lúc đó. Việc có giao diện: đọc `DESIGN.md` trước khi code và ghi `Design applied: …` vào story.
+2. **Execute.** Code theo spec; đánh `[x]` từng task ngay khi xong. Quyết định thuộc loại ở *Ghi CONTEXT, LESSONS* thì thêm mục D vào `docs/CONTEXT.md` ngay lúc đó; lựa chọn nhỏ hơn ghi vào *Dev notes* của story. Việc có giao diện: đọc `DESIGN.md` trước khi code và ghi `Design applied: …` vào story.
 3. **Self-verify.** Chạy typecheck, lint, test.
-4. **Review.** `/code-review`; độ phủ test theo skill koni-qc; giao diện so với `DESIGN.md` và quy tắc của skill shadcn.
-5. **Doc/Version gate.** Làm checklist ở [docs/README.md](docs/README.md): VERSION + CHANGELOG cùng commit với code; ghi kết luận bài học (mục mới trong LESSONS.md hoặc dòng `Lessons: none new — <lý do>`); chạy `koni-docs sync`, `status`, `validate`; cập nhật `.active-context.md`. Mục mới trong CONTEXT hay LESSONS thì thêm cả một dòng vào mục lục của file đó.
+4. **Review.** `/code-review`; test đủ theo mục *Kiểm thử* (không dựng ma trận AC↔TC); giao diện so với `DESIGN.md` và quy tắc của skill shadcn.
+5. **Doc/Version gate.** Làm checklist ở [docs/README.md](docs/README.md): VERSION + CHANGELOG cùng commit với code; ghi kết luận bài học, mặc định là dòng `Lessons: none new — <lý do>` trong story; chạy `koni-docs sync`, `status`, `validate`; cập nhật `.active-context.md`. Mục mới trong CONTEXT hay LESSONS thì thêm cả một dòng vào mục lục của file đó.
+
+### Ghi CONTEXT, LESSONS
+
+Mặc định một story **không thêm mục nào** vào CONTEXT hay LESSONS. Phần lớn story chỉ làm theo spec và *Mẫu có sẵn*; ghi vào file story là đủ. Mục này thay quy tắc chung của skill koni-docs và koni-harness ("có quyết định thì ghi CONTEXT", "mỗi việc ghi LESSONS").
+
+**CONTEXT.md**: thêm mục D chỉ khi có một trong các việc dưới đây, và người sau sẽ hỏi "sao không làm cách kia" mà đọc code không ra câu trả lời:
+
+- spec đổi, hoặc được hiểu khác với chữ trong PRD/ARCH; người dùng chốt một điểm mở (Q1–Q8 hoặc điểm mở của story);
+- thêm hay bỏ story, đổi phạm vi epic;
+- thêm thư viện, đổi ranh giới module, đổi hợp đồng giữa Core Backend và AI Service, hoặc một đánh đổi ảnh hưởng tới story khác.
+
+Không ghi vào CONTEXT: tên cột, tên hàm, mã lỗi, nhãn giao diện, cấu trúc file, cách hiện thực đúng spec. Những thứ đó để ở *Dev notes* / *Implementation notes* của story, hoặc chỉ ở code. Một mục dài tối đa khoảng 15 dòng theo template (*Context*, *Decision*, *Rationale*, *Impact*). Nhiều điểm của cùng một story thì gộp vào một mục, mỗi điểm một dòng.
+
+**LESSONS.md**: thêm mục chỉ khi bẫy vừa gặp thỏa cả hai điều: (a) tốn nhiều thời gian hoặc lọt qua test hay review; (b) sẽ gặp lại ở story khác, thường là bẫy của thư viện, công cụ, môi trường, hoặc một kiểu lỗi đã lặp lại. Không ghi: lỗi thường của story đã sửa và đã có test; điều đã có trong *Mẫu có sẵn* hay CONTEXT; lời khuyên chung chung. Một cách làm dùng lại được thì thêm dòng vào *Mẫu có sẵn* thay vì LESSONS. Một mục dài tối đa khoảng 10 dòng. Không có bẫy nào thì ghi `Lessons: none new — <lý do một câu>` vào story; cổng `lesson-capture` chấp nhận dòng này.
 6. **Commit.** Message tiếng Anh, prefix `feat:`/`fix:`/`chore:`/`docs:`/`style:`/`refactor:`/`test:`, có mã story (US-x.y).
 
 ### Phiên và context

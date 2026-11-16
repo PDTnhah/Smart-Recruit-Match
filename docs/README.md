@@ -9,8 +9,8 @@ Tài liệu theo cấu trúc koni-docs. Tên file tiếng Anh, nội dung tiến
 | [BRIEF.md](BRIEF.md) | Tóm tắt sản phẩm cho người đọc nhanh | Đổi tầm nhìn, phạm vi, tiêu chí thành công |
 | [PRD.md](PRD.md) | Yêu cầu nghiệp vụ: quy trình GĐ0–GĐ10, chấm điểm, phân bổ, vòng đời trạng thái, BR, FR, NFR, epic | Đổi nghiệp vụ; thêm hoặc đổi trạng thái story |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Kiến trúc: stack, thành phần, dữ liệu, queue, API, bảo mật, triển khai, AD-N | Có quyết định kiến trúc mới |
-| [CONTEXT.md](CONTEXT.md) | Nhật ký quyết định D-N, chỉ ghi thêm | Mỗi khi ra quyết định |
-| [LESSONS.md](LESSONS.md) | Bẫy và bài học | Gặp bẫy hoặc tìm ra mẫu dùng lại được |
+| [CONTEXT.md](CONTEXT.md) | Nhật ký quyết định D-N, chỉ ghi thêm | Đổi spec, chốt điểm mở, đổi phạm vi hoặc kiến trúc ([AGENTS › Ghi CONTEXT, LESSONS](../AGENTS.md#ghi-context-lessons)) |
+| [LESSONS.md](LESSONS.md) | Bẫy và bài học | Gặp bẫy sẽ lặp lại ở story khác ([AGENTS › Ghi CONTEXT, LESSONS](../AGENTS.md#ghi-context-lessons)) |
 | [CHANGELOG.md](CHANGELOG.md) + [VERSION](../VERSION) | Lịch sử phát hành | Mỗi commit ship code |
 | [SETUP.md](SETUP.md) | Cài môi trường phát triển | Thêm công cụ hoặc biến môi trường |
 | [sprints/](sprints/README.md) | Epic, story, sprint; `STATUS.md` tự sinh | Theo vòng đời story |
@@ -31,8 +31,8 @@ Ngoài `docs/`: [`DEPLOY.md`](../DEPLOY.md) ở gốc repo (chạy Docker Compos
 [ ] CHANGELOG ghi SHA thật, không để "pending" (RULE-2)
 [ ] Story: các task đã xong được đánh [x]; status đúng; version_shipped là semver không có "v"
 [ ] PRD cập nhật nếu phạm vi đổi; BRIEF cập nhật nếu tầm nhìn/phạm vi đổi
-[ ] CONTEXT.md có mục mới nếu vừa ra quyết định
-[ ] LESSONS.md có mục mới, hoặc story ghi "Lessons: none new — <lý do>"
+[ ] CONTEXT.md có mục mới chỉ khi quyết định thuộc loại ở AGENTS › *Ghi CONTEXT, LESSONS* (mặc định: không có)
+[ ] Story ghi "Lessons: none new — <lý do>" (mặc định), hoặc LESSONS.md có mục mới cho bẫy thỏa AGENTS › *Ghi CONTEXT, LESSONS*
 [ ] Biến môi trường mới: SETUP.md + DEPLOY.md + deploy/.env.example trong cùng commit (RULE-11)
 [ ] koni-docs sync → status → validate không lỗi
 [ ] .active-context.md cập nhật (khối koni-docs:auto-update)
