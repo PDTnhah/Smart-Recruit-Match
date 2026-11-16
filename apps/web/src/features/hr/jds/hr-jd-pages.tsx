@@ -1,10 +1,11 @@
 import type { JobDescription } from '@srm/shared';
-import { ArrowLeft, CircleAlert } from 'lucide-react';
+import { ArrowLeft, CircleAlert, Info } from 'lucide-react';
 import { type ReactNode, useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router';
 import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useCampaigns } from '@/features/center/campaigns/api';
 import { useJd } from '@/features/jds/api';
 import { JdDetails } from '@/features/jds/jd-details';
 import { JdStatusBadge } from '@/features/jds/jd-status-badge';
@@ -33,6 +34,28 @@ function PageHeader({ title, jd, actions }: { title: string; jd?: JobDescription
   );
 }
 
+/**
+ * Whether the JD's campaign is no longer listed for HR. A JD is only made in a campaign HR could
+ * see, and HR sees every campaign but drafts and cancelled ones, so it was cancelled (US-1.10 AC-7).
+ */
+function useCampaignCancelled(campaignId: number): boolean {
+  const campaigns = useCampaigns();
+  return campaigns.isSuccess && !campaigns.data.some((campaign) => campaign.id === campaignId);
+}
+
+function CampaignCancelledAlert() {
+  return (
+    <Alert>
+      <Info />
+      <AlertTitle>Đợt thực tập của JD đã bị hủy</AlertTitle>
+      <AlertDescription>
+        JD được giữ lại để tra cứu nhưng không sửa, nộp hay nhận sinh viên được nữa. Trung tâm đã gửi thông báo kèm lý
+        do.
+      </AlertDescription>
+    </Alert>
+  );
+}
+
 /** `/hr/job-descriptions/new` (US-1.5 AC-4, AC-5, AC-10). */
 export function HrJdCreatePage() {
   return (
@@ -56,6 +79,7 @@ export function HrJdDetailPage() {
 function HrJdDetail({ id }: { id: number }) {
   const jd = useJd(id);
   const [unsaved, setUnsaved] = useState(false);
+  const cancelled = useCampaignCancelled(jd.data?.campaignId ?? 0);
 
   if (jd.isPending) {
     return (
@@ -86,7 +110,8 @@ function HrJdDetail({ id }: { id: number }) {
   }
 
   const data = jd.data;
-  if (data.status === 'DRAFT') {
+  // A draft of a cancelled campaign is read-only: the API refuses every edit (409).
+  if (data.status === 'DRAFT' && !cancelled) {
     return (
       <div className="flex w-full max-w-3xl flex-col gap-6">
         <PageHeader title={data.title} jd={data} actions={<SubmitJdDialog jd={data} unsavedChanges={unsaved} />} />
@@ -101,10 +126,15 @@ function HrJdDetail({ id }: { id: number }) {
   return (
     <div className="flex w-full max-w-6xl flex-col gap-6">
       <PageHeader title={data.title} jd={data} />
-      <div className="grid items-start gap-6 lg:grid-cols-2">
+      {cancelled && <CampaignCancelledAlert />}
+      {data.status === 'DRAFT' ? (
         <JdDetails jd={data} />
-        <RequirementsPanel jdId={data.id} />
-      </div>
+      ) : (
+        <div className="grid items-start gap-6 lg:grid-cols-2">
+          <JdDetails jd={data} />
+          <RequirementsPanel jdId={data.id} />
+        </div>
+      )}
     </div>
   );
 }

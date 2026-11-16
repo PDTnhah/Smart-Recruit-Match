@@ -76,6 +76,7 @@ export interface ScoredRow {
   assessment: StoredMatchAssessment;
   facts: HardFilterFacts;
   sCv: number;
+  scvBreakdown: ScvBreakdownRow[];
 }
 
 /** The LLM part of a pair and the S_cv code computed from it (AGENTS › Invariant 12). */
@@ -345,6 +346,7 @@ export class MatchResultsRepository {
         assessment: matchResults.assessment,
         facts: matchResults.facts,
         sCv: matchResults.sCv,
+        scvBreakdown: matchResults.scvBreakdown,
       })
       .from(matchResults)
       .where(and(eq(matchResults.campaignId, campaignId), isNotNull(matchResults.sCv)))
@@ -352,10 +354,16 @@ export class MatchResultsRepository {
       .for('update');
     // The CHECKs of the table: a row with S_cv has the code verdicts and the LLM part.
     return rows.map((row) => {
-      if (row.criteria === null || row.assessment === null || row.sCv === null) {
+      if (row.criteria === null || row.assessment === null || row.sCv === null || row.scvBreakdown === null) {
         throw new Error(`match_results ${row.id}: S_cv without its verdicts`);
       }
-      return { ...row, criteria: row.criteria, assessment: row.assessment, sCv: row.sCv };
+      return {
+        ...row,
+        criteria: row.criteria,
+        assessment: row.assessment,
+        sCv: row.sCv,
+        scvBreakdown: row.scvBreakdown,
+      };
     });
   }
 

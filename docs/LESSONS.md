@@ -7,11 +7,13 @@
 **Mục lục** (chủ đề → mục)
 
 - Claude Code, skill, hook, koni-docs: §1 skill phải nằm ở `.claude/skills` · §2 `docs:sync` định dạng lại PRD, đổi ngày · §3 snippet hook của koni-harness không chặn commit
+- Git, Windows: §47 `core.autocrlf=false` trên working tree CRLF, sửa file nào là cả file thành thay đổi
+- Điều hướng, link: §46 đổi lựa chọn mặc định của một màn làm link thông báo, email tới màn đó mở sai đợt
 - Docker, compose, image: §4 `minio/minio` không còn trên Docker Hub · §14 compose truyền biến chưa đặt thành `""` · §15 hết RAM khi chạy test (compose, số worker Jest, commit memory của Windows) · §18 testcontainers build image không cache, Jest treo · §27 nginx trả `.mjs` là `octet-stream`, worker pdf.js không nạp
 - Jest, ESM: §9 gói chỉ có ESM (`@nestjs/schedule`, `file-type`, `promise-breaker`…) · §11 `testTimeout` trong `projects` bị bỏ qua · §21 `--selectProjects` nuốt đường dẫn test
 - Integration test: §22 các file dùng chung DB, thông báo gửi mọi tài khoản CENTER và tác vụ quét mọi đợt lọt vào test khác · §30 bảng mới trong `core` làm đỏ `core-schema` và `ai-service-role` · §40 `PEXPIREAT` theo giờ của `FakeClock` làm key Redis hết hạn ngay
 - Drizzle, migration: §6 migration có mốc thời gian cũ bị bỏ qua · §7 hàm dùng chung nhiều bảng: khai kiểu cụ thể · §12 `FOR UPDATE OF` sinh tên có schema (gặp lại ở 0.23.0)
-- Giao dịch, khóa: §38 đọc bản ghi của module khác ngoài giao dịch rồi chuyển trạng thái không đảo ngược · §43 thêm `row_version` vào bảng đã có hàm ghi: các UPDATE cũ không tăng nó · §44 việc chạy sau commit ném lỗi: API trả `500` cho thao tác đã lưu, bấm lại nhận `409`
+- Giao dịch, khóa: §38 đọc bản ghi của module khác ngoài giao dịch rồi chuyển trạng thái không đảo ngược · §43 thêm `row_version` vào bảng đã có hàm ghi: các UPDATE cũ không tăng nó · §44 việc chạy sau commit ném lỗi: API trả `500` cho thao tác đã lưu, bấm lại nhận `409` · §48 nới một bất biến (tham số sửa được sau khi mở, trạng thái cuối mới): chỗ đọc ngoài giao dịch, chỗ chọn bản ghi mới nhất sai mà test vẫn xanh
 - Dữ liệu giữa các module: §42 tra theo phiên bản hiện hành của module khác hỏng khi phiên bản đổi ở pha mà module đó không chạy lại
 - Bảo mật: §39 đầu ra của PRNG có seed tới client làm lộ cả chuỗi (vị trí gốc của phương án)
 - pgvector: §24 index HNSW lọc sau khi quét, hàng cũ chiếm chỗ ứng viên
@@ -666,3 +668,48 @@ See [US-4.5](sprints/stories/US-4.5-manual-essay-grading.md), [CONTEXT D54](CONT
 - Mọi số hiển thị lấy từ dữ liệu đang hiện, không lấy từ URL: `queryFn` trả kèm `offset` đã dùng.
 
 See [US-4.5](sprints/stories/US-4.5-manual-essay-grading.md).
+
+## 46. Đổi lựa chọn mặc định của một màn: link thông báo, email tới màn đó mở sai đợt
+
+**What happened (0.24.1)**: US-1.8 đổi đợt mặc định của `/sv/cv` từ "đợt mới nhất đang nhận CV" sang "đợt đang nhận CV mà SV đã có CV". Thông báo "Đợt thực tập đã mở", "Sắp hết hạn nộp CV" và email "Chưa phân tích được CV" dẫn tới `/sv/cv` không kèm `?campaign=`, tức là ngầm dựa vào mặc định cũ. Sau khi đổi, SV có CV ở đợt 1 bấm thông báo của đợt 6 thì màn mở đợt 1. Plan và execute đều không thấy; `/code-review` mới chỉ ra.
+
+**Why**: Link không mang tham số chỉ đúng khi mặc định của màn trùng với thứ link muốn mở. Thông báo trong app (`shared/notifications/messages.ts`), email (`email-renderer.ts`) và việc cần làm ở trang chủ tự dựng URL ở chỗ khác, nên đổi mặc định của màn không làm test nào đỏ.
+
+**How to avoid**:
+- Link nêu một bản ghi cụ thể (đợt, JD, phiên thi) luôn mang id của bản ghi đó (`?campaign=<id>`), kể cả khi mặc định hiện tại đang đúng.
+- Trước khi đổi mặc định của một route, tìm mọi chỗ dựng URL tới route đó ở cả web và API: `grep -rn "sv/cv" apps/web/src apps/api/src`. Phía API có `DEADLINE_TASKS` của `email-renderer.ts`.
+- Test email kiểm cả query của link (`email-outbox.int-spec.ts`), không chỉ đường dẫn.
+
+See [US-1.8](sprints/stories/US-1.8-profile-default-campaign.md), [CONTEXT D55](CONTEXT.md).
+
+## 47. `core.autocrlf=false` trên working tree CRLF: sửa file nào là cả file thành thay đổi
+
+**What happened (0.24.1)**: Phiên 2 của US-1.8 sửa `cv-page.tsx`, `student-home-page.tsx` và `DESIGN.md`. `git diff --stat` báo +736/−630 dòng, còn `git diff --stat --ignore-cr-at-eol` chỉ +167/−61. Index lưu LF, nhưng working tree của ba file này là CRLF, và khoảng 1 100 file chưa sửa khác cũng vậy. Commit nguyên trạng thì lịch sử git có ba diff cả file, và index có CRLF.
+
+**Why**: Git for Windows đặt `core.autocrlf=true` ở cấu hình hệ thống (`<thư mục Git>/etc/gitconfig`), nên lúc clone git đổi LF thành CRLF trong working tree. Sau đó `~/.gitconfig` đặt `core.autocrlf=false`, ghi đè cấu hình hệ thống, nên khi stage git không đổi CRLF về LF nữa. File chưa sửa không hiện trong `git status` vì stat trong index vẫn khớp. Sửa từng đoạn thì giữ kiểu xuống dòng sẵn có của file (CRLF); file mới trong phiên là LF.
+
+**How to avoid**:
+- Trước khi stage, so `git diff --stat` với `git diff --stat --ignore-cr-at-eol`: hai số phải gần bằng nhau. Kiểm từng file bằng `git ls-files --eol -- <file>`: dòng `i/lf w/crlf` là file sẽ được commit thành CRLF.
+- Đổi về LF bằng `sed -i 's/\r$//' <file>`, chỉ cho file có index `i/lf`.
+- `VERSION` và `apps/api/package.json` cũng là CRLF trong working tree: tăng version xong thì kiểm lại hai file này.
+- Muốn bỏ hẳn bẫy thì thêm `* text=auto eol=lf` vào `.gitattributes`. Việc này chuẩn hóa lại toàn bộ working tree, nên phải hỏi người dùng trước.
+
+See [US-1.8](sprints/stories/US-1.8-profile-default-campaign.md).
+
+## 48. Nới một bất biến cũ: code dựa vào nó vẫn chạy, test vẫn xanh, kết quả sai
+
+**What happened (0.25.0)**: US-1.10 nới hai bất biến: tham số của đợt không còn cố định sau khi mở (trọng số S_cv sửa được trong pha nhận CV), và đợt có thêm trạng thái cuối `CANCELLED` ngoài `CLOSED`. Rà màn ở phiên 2c và `/code-review` ở phiên 3 tìm thấy bốn chỗ code cũ đúng dưới bất biến cũ nhưng sai sau đó:
+- `RecomputeScvService` và `MatchResultsHandler` đọc trọng số ngoài giao dịch rồi mới ghi S_cv dưới khóa dòng. Hai lần sửa trọng số liên tiếp, hoặc kết quả Matching về đúng lúc sửa, để lại S_cv tính theo trọng số cũ, trong khi `campaigns.config` đã giữ trọng số mới.
+- `GET /api/me/exams` lấy đợt mới nhất của SV (`all[0]`). Bản sửa đầu tiên trả trang trống khi đợt đó bị hủy, nên giấu bài test của một đợt cũ hơn đang ở *Làm bài test*.
+- Duyệt JD và sinh câu hỏi không gắn với pha nào nên không gọi `assertPhase`, và vẫn chạy Test Generator (tốn LLM) cho đợt đã hủy.
+
+**Why**: Code và test của các chỗ này viết khi bất biến còn đúng. Không test nào đổi trọng số giữa lúc đọc và lúc ghi, hay tạo đợt hủy mới hơn một đợt đang chạy, nên không có gì đỏ.
+
+**How to avoid**:
+- Story nới một bất biến (cho sửa một giá trị trước đây cố định, thêm một trạng thái cuối) thì liệt kê ngay ở phiên Plan mọi chỗ đọc giá trị đó (`getSettings`, `scvWeightsOf`, `config.`) và mọi chỗ chọn "bản ghi mới nhất" hoặc lọc theo trạng thái. Ghi danh sách vào story và rà hết ở phiên 2.
+- Chỗ đọc rồi ghi kết quả tính từ giá trị đó: đọc trong chính giao dịch ghi, khóa `FOR SHARE` dòng nguồn (`CampaignService.getSettings(id, { tx })`). Lần sửa sẽ chờ giao dịch đó, rồi việc tính lại sau khi sửa chạy sau nó.
+- Chỗ chọn đợt mới nhất của người dùng: bỏ qua đợt bị ẩn (`CANCELLED`) và lấy đợt kế tiếp, không trả trống. `ShortlistService.currentCampaignOf` là mẫu.
+- Thao tác không gắn pha của một đợt: `CampaignService.assertNotFinal`.
+- Mỗi chỗ sửa có một test dựng đúng tình huống mà bất biến cũ loại trừ (đợt hủy mới hơn đợt đang chạy; trọng số đổi giữa hai lần đọc).
+
+See [US-1.10](sprints/stories/US-1.10-campaign-edit-cancel-delete.md), [CONTEXT D56](CONTEXT.md).

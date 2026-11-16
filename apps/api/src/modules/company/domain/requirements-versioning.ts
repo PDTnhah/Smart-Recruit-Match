@@ -1,4 +1,4 @@
-import type { CampaignStatus, JdRequirementsEditMode, JobDescriptionStatus } from '@srm/shared';
+import { type CampaignStatus, isCampaignFinal, type JdRequirementsEditMode, type JobDescriptionStatus } from '@srm/shared';
 
 // Who may change a JD's normalised requirements, and how (US-2.3 AC-8, AC-9, AC-11, BR-02, BR-18,
 // CONTEXT D35). Pure: the service locks the JD, reads the campaign and applies the decision.
@@ -17,7 +17,7 @@ export const REQUIREMENTS_REASON_CODES = {
   NOT_AWAITING_CONFIRMATION: 'JD_NOT_AWAITING_CONFIRMATION',
   /** Confirmed, waiting for the center: there is no edge back to HR (CONTEXT D28). */
   AWAITING_APPROVAL: 'JD_AWAITING_APPROVAL',
-  /** The JD or its campaign is over: nothing left to score against. */
+  /** The JD or its campaign is over (closed or cancelled): nothing left to score against. */
   CLOSED: 'JD_CLOSED',
 } as const;
 
@@ -31,9 +31,10 @@ export type RequirementsEdit =
 /**
  * - Awaiting HR confirmation: HR of the company edits in place while the campaign is in INTAKE;
  *   the version stays, nothing has used the requirements yet (AC-11, second case).
- * - Approved or recruiting, campaign not closed: every edit, by HR or the center, creates
- *   version + 1, whether or not testing has started (BR-18, CONTEXT D35). Matching scores and the
- *   question bank may already rest on the current version, so it is never overwritten.
+ * - Approved or recruiting, campaign neither closed nor cancelled: every edit, by HR or the
+ *   center, creates version + 1, whether or not testing has started (BR-18, CONTEXT D35). Matching
+ *   scores and the question bank may already rest on the current version, so it is never
+ *   overwritten.
  * - Anything else is read only.
  */
 export function decideRequirementsEdit(input: {
@@ -52,7 +53,7 @@ export function decideRequirementsEdit(input: {
       return forbidden('AWAITING_APPROVAL');
     case 'APPROVED':
     case 'RECRUITING':
-      return campaignStatus === 'CLOSED' ? forbidden('CLOSED') : { kind: 'NEW_VERSION' };
+      return isCampaignFinal(campaignStatus) ? forbidden('CLOSED') : { kind: 'NEW_VERSION' };
     case 'FILLED':
     case 'CLOSED':
       return forbidden('CLOSED');

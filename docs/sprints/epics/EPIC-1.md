@@ -11,6 +11,7 @@ prd_ref:
   - FR-6
   - FR-7
   - FR-8
+  - FR-41
 arch_ref:
   - AD-3
   - AD-4
@@ -39,9 +40,9 @@ Epic này **không** gọi LLM. Phân tích JD/CV bằng AI thuộc [EPIC-2](EPI
 | # | Pillar | Stories | Purpose |
 |---|---|---|---|
 | 1 | **Nền móng kỹ thuật** | US-1.1, US-1.2 | Monorepo, Docker Compose, CI, cổng commit; lược đồ `core`, `transitionTo`, nhật ký append-only |
-| 2 | **Danh tính và giao diện nền** | US-1.3 | Đăng nhập JWT, RBAC + kiểm tra cấp bản ghi, `DESIGN.md`, khung 3 cổng |
-| 3 | **Vận hành đợt** | US-1.4, US-1.5 | Cấu hình đợt và trạng thái theo mốc; doanh nghiệp, tài khoản HR, đăng và duyệt JD |
-| 4 | **Tiếp nhận sinh viên** | US-1.6 | Đồng ý xử lý dữ liệu, nộp CV có phiên bản |
+| 2 | **Danh tính và giao diện nền** | US-1.3, US-1.9 | Đăng nhập JWT, RBAC + kiểm tra cấp bản ghi, `DESIGN.md`, khung 3 cổng |
+| 3 | **Vận hành đợt** | US-1.4, US-1.5, US-1.10 | Cấu hình đợt và trạng thái theo mốc; sửa, hủy, xóa đợt sau khi mở; doanh nghiệp, tài khoản HR, đăng và duyệt JD |
+| 4 | **Tiếp nhận sinh viên** | US-1.6, US-1.8 | Đồng ý xử lý dữ liệu, nộp CV có phiên bản |
 | 5 | **Thông báo** | US-1.7 | Thông báo trong app, SSE, email outbox, nhắc hạn |
 
 ### Schedule and dependencies
@@ -57,6 +58,9 @@ Lộ trình chung ở [sprints/README › Lộ trình](../README.md#lộ-trình)
 | US-1.5 | 8 | T2 (W42, kéo sớm từ T3) | A | US-1.2, US-1.3, US-1.4 |
 | US-1.6 | 5 | T2 (W42, kéo sớm từ T4) | A | US-1.4 |
 | US-1.7 | 5 | T2 (W42, kéo sớm từ T4) | A | US-1.2, US-1.3 |
+| US-1.8 | 3 | W46 (sửa lỗi, [CONTEXT D55](../../CONTEXT.md)) | A | US-1.6, US-2.6 |
+| US-1.9 | 3 | backlog ([CONTEXT D55](../../CONTEXT.md)) | – | US-1.3, US-1.7 |
+| US-1.10 | 8 | W46 ([CONTEXT D56](../../CONTEXT.md)) | A | US-1.4, US-1.7, US-3.2 |
 
 ### Out of scope
 
@@ -77,6 +81,7 @@ Lộ trình chung ở [sprints/README › Lộ trình](../README.md#lộ-trình)
 | FR-6 | US-1.6 | ✅ done |
 | FR-7 | US-1.2 | ✅ done |
 | FR-8 | US-1.7 | ✅ done |
+| FR-41 | US-1.10 | 👀 review |
 
 ## AD Coverage
 
@@ -102,6 +107,9 @@ Lộ trình chung ở [sprints/README › Lộ trình](../README.md#lộ-trình)
 | US-1.5 | Doanh nghiệp, tài khoản HR, đăng và duyệt JD | HR đăng JD; Trung tâm duyệt JD | ✅ done | 0.4.0 |
 | US-1.6 | Đồng ý xử lý dữ liệu và nộp CV | Sinh viên đồng ý điều khoản và nộp CV có phiên bản | ✅ done | 0.5.0 |
 | US-1.7 | Thông báo trong app, SSE, email, nhắc hạn | Người dùng nhận thông báo theo sự kiện nghiệp vụ | ✅ done | 0.6.0 |
+| US-1.8 | Màn Hồ sơ mở đúng đợt khi sinh viên thấy nhiều đợt | SV mở "Hồ sơ" là thấy CV của mình, kể cả khi Trung tâm mở thêm đợt | 👀 review | 0.24.1 |
+| US-1.9 | Phiên đăng nhập nhất quán giữa các tab | Token của một tab luôn thuộc tài khoản tab đó đang hiện | 📋 backlog | — |
+| US-1.10 | Sửa, hủy và xóa đợt sau khi mở | Trung tâm sửa đợt đã mở mà điểm không lệch giữa các SV; hủy đợt có dữ liệu, xóa đợt trống | 👀 review | 0.25.0 |
 
 ## Object map & user-story interactions
 
@@ -116,6 +124,9 @@ Lộ trình chung ở [sprints/README › Lộ trình](../README.md#lộ-trình)
 | US-1.5 | module `company`; `companies`, `job_descriptions`, bucket `jd-files` | FR-3, FR-4, FR-5 |
 | US-1.6 | module `student`; `cvs`, bucket `cv-files` | FR-6 |
 | US-1.7 | module `notification`; `notifications`, `GET /api/events/stream` | FR-8 |
+| US-1.8 | `apps/web/src/features/student/profile/cv-page.tsx`; `packages/shared/schemas/student-campaign.ts`; link `?campaign=` của thông báo, email | FR-6 |
+| US-1.9 | `apps/web/src/shared/api/` (`refresh.ts`, `token.ts`, `client.ts`, `upload.ts`); `app/session.ts`; `shared/notifications/event-stream.ts` | FR-1 |
+| US-1.10 | module `campaign` (`running-edit.ts`, `cancel`, `delete`); `campaigns.status` (`CANCELLED`); listener `campaign.updated` / `campaign.cancelled` ở `matching`, `notification`, `company` | FR-41 |
 
 ## Cross-cutting invariants
 
@@ -132,6 +143,7 @@ Lộ trình chung ở [sprints/README › Lộ trình](../README.md#lộ-trình)
 | Resource | New action | Story | Default roles |
 |---|---|---|---|
 | `campaign` | create, update, read | US-1.4 | CENTER (ghi), mọi vai trò (đọc đợt mình tham gia) |
+| `campaign` | update-after-open, cancel, delete | US-1.10 | CENTER; HR và STUDENT không thấy đợt `CANCELLED` |
 | `company` | create, update, invite-hr | US-1.5 | CENTER |
 | `job_description` | create, update | US-1.5 | HR (công ty mình) |
 | `job_description` | approve | US-1.5 | CENTER |
@@ -165,3 +177,6 @@ Lộ trình chung ở [sprints/README › Lộ trình](../README.md#lộ-trình)
 - [ ] HR đăng JD bằng form hoặc file; Trung tâm duyệt JD (US-1.5)
 - [ ] SV đồng ý điều khoản, nộp và cập nhật CV; chỉ có 1 CV hiệu lực mỗi đợt (US-1.6)
 - [ ] Thông báo trong app hiện theo thời gian thực qua SSE; email được gửi qua outbox (US-1.7)
+- [ ] Màn Hồ sơ mở đợt SV đã có CV; đợt đang xem chưa có CV thì chỉ ra đợt đã có (US-1.8)
+- [ ] Tab cũ không bao giờ dùng token của tài khoản khác; đổi tài khoản ở một tab thì các tab khác tải lại có thông báo (US-1.9)
+- [ ] Trung tâm sửa đợt đã mở theo pha dùng tham số, hủy đợt có dữ liệu, xóa đợt trống; SV và HR được báo khi mốc đổi hoặc đợt bị hủy (US-1.10)

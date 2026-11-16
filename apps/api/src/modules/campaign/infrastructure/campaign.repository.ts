@@ -119,6 +119,14 @@ export class CampaignRepository {
     return toRecord(row);
   }
 
+  /**
+   * Deletes the row. Rows of other modules that still refer to it make PostgreSQL refuse with a
+   * foreign key violation (23503), which the caller turns into a 409 (US-1.10 AC-9).
+   */
+  async delete(tx: DbTx, id: number): Promise<void> {
+    await tx.delete(campaigns).where(eq(campaigns.id, id));
+  }
+
   private parseOrSkip(row: CampaignRow): CampaignRecord[] {
     try {
       return [toRecord(row)];

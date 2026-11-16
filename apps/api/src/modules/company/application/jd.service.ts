@@ -241,7 +241,10 @@ export class JdService implements OnModuleInit {
     return this.publishAndGet(user, JD_SUBMITTED, result);
   }
 
-  /** AC-7: PENDING_APPROVAL → APPROVED by the center, once HR has confirmed requirements (BR-02). */
+  /**
+   * AC-7: PENDING_APPROVAL → APPROVED by the center, once HR has confirmed requirements (BR-02).
+   * Not in a closed or cancelled campaign: approval starts the question bank (US-1.10 AC-7).
+   */
   async approve(user: AuthUser, id: number, rowVersion: number): Promise<JobDescription> {
     const result = await this.transitions.transitionTo<JobDescriptionStatus>({
       lifecycle: jobDescriptionLifecycle,
@@ -250,7 +253,11 @@ export class JdService implements OnModuleInit {
       actor: userActor(user),
       reason: 'JD approved by the center',
       expectedRowVersion: rowVersion,
-      guard: async (_row, tx) => checkApprovable(await this.requireRecord(id, tx)),
+      guard: async (_row, tx) => {
+        const record = await this.requireRecord(id, tx);
+        await this.campaigns.assertNotFinal(record.campaignId, { tx });
+        return checkApprovable(record);
+      },
     });
     return this.publishAndGet(user, JD_APPROVED, result);
   }

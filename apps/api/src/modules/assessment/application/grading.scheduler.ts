@@ -11,7 +11,7 @@ import { SYSTEM_ACTOR } from '../../audit/index.js';
 import { CampaignService } from '../../campaign/index.js';
 import { ExamGradingRepository } from '../infrastructure/exam-grading.repository.js';
 import { EssayGradingService } from './essay-grading.service.js';
-import { GradingService, isPastTestingEnd } from './grading.service.js';
+import { canPublishResults, GradingService, isPastTestingEnd } from './grading.service.js';
 
 /** Sessions read per page. */
 const PAGE = 200;
@@ -129,11 +129,15 @@ export class GradingScheduler {
 
   /**
    * Step 3: pages on by id, so a session that keeps failing never holds the rest back. Campaigns
-   * still before `testing_end` are left out: `finalizeIfReady` would not publish them.
+   * still before `testing_end`, and cancelled ones, are left out: `finalizeIfReady` would not
+   * publish them.
    */
   private async publishReady(now: number): Promise<number[]> {
-    const notDue = (await this.campaigns.listSettingsInPhase('TESTING'))
-      .filter((campaign) => !isPastTestingEnd(campaign, new Date(now)))
+    const candidates = (
+      await Promise.all([this.campaigns.listSettingsInPhase('TESTING'), this.campaigns.listSettingsInPhase('CANCELLED')])
+    ).flat();
+    const notDue = candidates
+      .filter((campaign) => !canPublishResults(campaign, new Date(now)))
       .map((campaign) => campaign.id);
     const published: number[] = [];
     let afterId: number | undefined;

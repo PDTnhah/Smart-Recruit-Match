@@ -1,10 +1,15 @@
+import { CAMPAIGN_STATES } from '../../states/campaign.js';
 import {
+  actualCampaignPhase,
+  CAMPAIGN_CONFIG_USED_FROM,
   CampaignConfigPatchSchema,
   CampaignConfigSchema,
   CampaignTargetSchema,
   CreateCampaignRequestSchema,
   DEFAULT_CAMPAIGN_CONFIG,
-  ExtendDeadlinesRequestSchema,
+  DeleteCampaignQuerySchema,
+  earliestDeadlineMove,
+  isConfigKeyLocked,
   normalizeAudienceValue,
   PHASE_END_DEADLINE,
   PhaseDeadlinesInputSchema,
@@ -12,6 +17,7 @@ import {
   SCV_WEIGHT_KEYS,
   scvWeightsOf,
   toHundredths,
+  UpdateRunningCampaignRequestSchema,
 } from '../campaign.js';
 
 const target = { cohorts: ['K66'], majors: ['CNTT'] };
@@ -317,11 +323,85 @@ describe('GĐ0: phase deadlines schema', () => {
   });
 });
 
-describe('FR-2: extend-deadlines form schema', () => {
+describe('FR-41: edit form schema of an open campaign', () => {
   it('requires a reason', () => {
-    expect(issues(ExtendDeadlinesRequestSchema.safeParse({ rowVersion: 1, reason: '  ' }))).toEqual([
-      'reason: Nhập lý do gia hạn',
+    expect(issues(UpdateRunningCampaignRequestSchema.safeParse({ rowVersion: 1, reason: '  ' }))).toEqual([
+      'reason: Nhập lý do sửa đợt',
     ]);
-    expect(ExtendDeadlinesRequestSchema.safeParse({ rowVersion: 1, reason: 'Gia hạn nộp CV' }).success).toBe(true);
+    expect(UpdateRunningCampaignRequestSchema.safeParse({ rowVersion: 1, reason: 'Gia hạn nộp CV' }).success).toBe(true);
+  });
+});
+
+describe('FR-41: parameters lock by the phase that uses them (GĐ0)', () => {
+  it('names every parameter of the config, and only those', () => {
+    expect(Object.keys(CAMPAIGN_CONFIG_USED_FROM).sort()).toEqual(Object.keys(DEFAULT_CAMPAIGN_CONFIG).sort());
+  });
+
+  it('GĐ0: a draft edits everything; opening locks T_test and the top M of matching', () => {
+    for (const key of Object.keys(DEFAULT_CAMPAIGN_CONFIG) as (keyof typeof DEFAULT_CAMPAIGN_CONFIG)[]) {
+      expect(isConfigKeyLocked(key, 'DRAFT')).toBe(false);
+    }
+    expect(isConfigKeyLocked('t_test_minutes', 'INTAKE')).toBe(true);
+    expect(isConfigKeyLocked('match_top_m', 'INTAKE')).toBe(true);
+  });
+
+  it('GĐ0: each parameter stays editable until its phase starts', () => {
+    const lockedIn = (key: keyof typeof CAMPAIGN_CONFIG_USED_FROM) =>
+      CAMPAIGN_STATES.filter((phase) => isConfigKeyLocked(key, phase));
+    expect(lockedIn('scv_weight_project')).toEqual(CAMPAIGN_STATES.slice(2));
+    expect(lockedIn('theta_cv')).toEqual(CAMPAIGN_STATES.slice(2));
+    expect(lockedIn('theta_test')).toEqual(CAMPAIGN_STATES.slice(3));
+    expect(lockedIn('k')).toEqual(CAMPAIGN_STATES.slice(4));
+    // Not used for scores or order: locked only once the campaign is over.
+    expect(lockedIn('reminder_hours_before')).toEqual(['CLOSED', 'CANCELLED']);
+  });
+});
+
+describe('GĐ0: actual phase of a campaign (CONTEXT D27, D56)', () => {
+  const deadlines = {
+    intake_end: '2026-11-01T10:00:00.000Z',
+    preference_end: '2026-11-08T10:00:00.000Z',
+    testing_end: '2026-11-15T10:00:00.000Z',
+  };
+
+  it('FR-41: a passed deadline counts as the next phase before the scheduler moves the campaign', () => {
+    expect(actualCampaignPhase('INTAKE', deadlines, new Date('2026-10-20T00:00:00.000Z'))).toBe('INTAKE');
+    // The deadline itself already belongs to the next phase.
+    expect(actualCampaignPhase('INTAKE', deadlines, new Date(deadlines.intake_end))).toBe('PREFERENCE_SELECTION');
+    // Several deadlines passed while the scheduler was down.
+    expect(actualCampaignPhase('INTAKE', deadlines, new Date('2026-11-20T00:00:00.000Z'))).toBe('ALLOCATION_REVIEW');
+  });
+
+  it('phases without a deadline of their own, or with it unset, stay as they are', () => {
+    const later = new Date('2027-01-01T00:00:00.000Z');
+    expect(actualCampaignPhase('DRAFT', deadlines, later)).toBe('DRAFT');
+    expect(actualCampaignPhase('SUPPLEMENTARY', deadlines, later)).toBe('SUPPLEMENTARY');
+    expect(actualCampaignPhase('CANCELLED', deadlines, later)).toBe('CANCELLED');
+    expect(actualCampaignPhase('TESTING', {}, later)).toBe('TESTING');
+  });
+});
+
+describe('FR-41: earliest move of a deadline still ahead (US-1.10 AC-4)', () => {
+  const now = new Date('2026-11-01T00:00:00.000Z');
+
+  it('a deadline more than 24 hours ahead moves no earlier than 24 hours from now', () => {
+    expect(earliestDeadlineMove('2026-11-10T00:00:00.000Z', now).toISOString()).toBe('2026-11-02T00:00:00.000Z');
+  });
+
+  it('a deadline within 24 hours may still move later, never earlier', () => {
+    expect(earliestDeadlineMove('2026-11-01T06:00:00.000Z', now).toISOString()).toBe('2026-11-01T06:00:00.000Z');
+  });
+});
+
+describe('FR-41: query of deleting a campaign (US-1.10 AC-9)', () => {
+  it('reads the row version from the query string', () => {
+    expect(DeleteCampaignQuerySchema.parse({ rowVersion: '3' })).toEqual({ rowVersion: 3 });
+  });
+
+  it('an empty or blank rowVersion fails instead of matching a new campaign at version 0', () => {
+    for (const rowVersion of ['', ' ', '-1', '1.5', 'abc']) {
+      expect(DeleteCampaignQuerySchema.safeParse({ rowVersion }).success).toBe(false);
+    }
+    expect(DeleteCampaignQuerySchema.safeParse({}).success).toBe(false);
   });
 });

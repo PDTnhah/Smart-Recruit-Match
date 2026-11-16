@@ -1,4 +1,10 @@
-import type { Campaign, Cv, MyExamsResponse } from '@srm/shared';
+import {
+  type Campaign,
+  campaignIdsWithActiveCv,
+  campaignOfNewestActiveCv,
+  type MyExamsResponse,
+  takesCvs,
+} from '@srm/shared';
 import { CircleAlert, ClipboardCheck, FileText, House, ListOrdered, type LucideIcon } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router';
@@ -13,7 +19,7 @@ import { useMyExams } from '@/features/exam/api';
 import { EXAMS_PATH } from '@/features/exam/paths';
 import { PREFERENCES_PATH } from '@/features/student/preferences/paths';
 import { useConsents, useMyCvs } from '@/features/student/profile/api';
-import { hasCurrentConsent, PROFILE_PATH, takesCvs } from '@/features/student/profile/intake';
+import { hasCurrentConsent, PROFILE_PATH } from '@/features/student/profile/intake';
 import { formatDateTime } from '@/lib/format';
 import { apiErrorMessage } from '@/shared/api/errors';
 
@@ -30,22 +36,6 @@ interface Todo {
 function choosesPreferences(campaign: Campaign, now: number): boolean {
   const deadline = campaign.phaseDeadlines.preference_end;
   return campaign.status === 'PREFERENCE_SELECTION' && (!deadline || Date.parse(deadline) > now);
-}
-
-/**
- * The campaign "Nguyện vọng" shows, as `GET /api/me/shortlist` picks it (CONTEXT D47): that of the
- * student's newest active CV, unless the campaign is a draft or closed; with that CV.
- */
-function preferenceCampaignOf(
-  campaigns: readonly Campaign[],
-  cvs: readonly Cv[],
-): { campaign: Campaign; cv: Cv } | null {
-  const byId = new Map(campaigns.map((campaign) => [campaign.id, campaign]));
-  for (const cv of [...cvs].filter((item) => item.active).sort((a, b) => b.id - a.id)) {
-    const campaign = byId.get(cv.campaignId);
-    if (campaign && campaign.status !== 'DRAFT' && campaign.status !== 'CLOSED') return { campaign, cv };
-  }
-  return null;
 }
 
 /** US-4.3: tests the student can start or go on with while the campaign is in TESTING. */
@@ -128,6 +118,8 @@ export function StudentHomePage() {
     action: 'Mở hồ sơ',
     icon: FileText,
   });
+  // The same "has a CV here" as the campaign picker of "Hồ sơ" (US-1.8 AC-4).
+  const withCv = campaignIdsWithActiveCv(cvList);
   const intakeTodos: Todo[] = campaigns.data
     .filter((campaign) => takesCvs(campaign, now))
     .flatMap((campaign) => {
@@ -142,13 +134,14 @@ export function StudentHomePage() {
           ),
         ];
       }
-      if (!cvList.some((cv) => cv.campaignId === campaign.id && cv.active)) {
+      if (!withCv.has(campaign.id)) {
         return [profileTodo(campaign.id, 'Nộp CV', `Đợt ${campaign.name} đang nhận CV${until}.`)];
       }
       return [];
     });
-  // US-3.3: the campaign "Nguyện vọng" shows is in GĐ4 and the student's CV there is confirmed.
-  const shown = preferenceCampaignOf(campaigns.data, cvList);
+  // US-3.3: the campaign "Nguyện vọng" shows (that of `GET /api/me/shortlist`, D47) is in GĐ4 and
+  // the student's CV there is confirmed.
+  const shown = campaignOfNewestActiveCv(campaigns.data, cvList);
   const preferenceTodos: Todo[] = (shown ? [shown] : [])
     .filter(({ campaign, cv }) => cv.status === 'CONFIRMED' && choosesPreferences(campaign, now))
     .map(({ campaign }) => {

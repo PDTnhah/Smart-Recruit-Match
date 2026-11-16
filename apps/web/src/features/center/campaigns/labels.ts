@@ -19,6 +19,7 @@ export const CAMPAIGN_STATUS_LABELS: Record<CampaignStatus, string> = {
   ALLOCATION_REVIEW: 'Phân bổ và HR duyệt',
   SUPPLEMENTARY: 'Vòng bổ sung',
   CLOSED: 'Đã đóng',
+  CANCELLED: 'Đã hủy',
 };
 
 type BadgeVariant = NonNullable<VariantProps<typeof badgeVariants>['variant']>;
@@ -32,6 +33,7 @@ export const CAMPAIGN_STATUS_BADGE: Record<CampaignStatus, BadgeVariant> = {
   ALLOCATION_REVIEW: 'default',
   SUPPLEMENTARY: 'default',
   CLOSED: 'secondary',
+  CANCELLED: 'secondary',
 };
 
 export const DEADLINE_LABELS: Record<CampaignDeadlineKey, { label: string; description: string }> = {

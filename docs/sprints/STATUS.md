@@ -1,17 +1,19 @@
 # Sprint Status
 
 > **AUTO-GENERATED** by `koni-docs status`. Do not hand-edit (RULE-5).
-> Last generated: 2026-11-11 04:53:04 UTC
-> Total stories: 40
+> Last generated: 2026-11-16 02:30:53 UTC
+> Total stories: 44
 
 ## ⏰ Deadlines (0)
 
 _No stories carry an explicit deadline._
 
-## 📋 Backlog (15)
+## 📋 Backlog (17)
 
 | ID | Title | Epic | Pri | Points | Sprint | Assignee |
 |---|---|---|---|---|---|---|
+| US-1.9 | Phiên đăng nhập nhất quán giữa các tab | EPIC-1 | P0 | 3 | — | — |
+| US-2.8 | Tìm kỹ năng trong danh mục khi ô tìm còn trống | EPIC-2 | P1 | 1 | — | — |
 | US-4.6 | Phúc khảo và báo lỗi câu hỏi | EPIC-4 | P1 | 5 | — | — |
 | US-4.7 | Tín hiệu gian lận | EPIC-4 | P1 | 3 | — | — |
 | US-4.8 | Câu hỏi xác minh CV và chỉ số tin cậy | EPIC-4 | P1 | 5 | — | — |
@@ -36,10 +38,12 @@ _No stories_
 
 _No stories_
 
-## 👀 Review (12)
+## 👀 Review (14)
 
 | ID | Title | Epic | Pri | Points | Sprint | Assignee |
 |---|---|---|---|---|---|---|
+| US-1.8 | Màn Hồ sơ mở đúng đợt khi sinh viên thấy nhiều đợt | EPIC-1 | P1 | 3 | sprint-2026-W46 | PDTnhah |
+| US-1.10 | Sửa, hủy và xóa đợt sau khi mở | EPIC-1 | P1 | 8 | sprint-2026-W46 | PDTnhah |
 | US-2.7 | Vùng, họ và quan hệ kéo theo của kỹ năng | EPIC-2 | P0 | 8 | sprint-2026-W45 | PDTnhah |
 | US-3.1 | Lọc điều kiện cứng và công thức S_cv | EPIC-3 | P0 | 5 | sprint-2026-W44 | PDTnhah |
 | US-3.2 | Matching Agent chạy hàng loạt | EPIC-3 | P0 | 13 | sprint-2026-W45 | PDTnhah |
@@ -83,10 +87,10 @@ _No stories_
 
 ## Summary
 
-- 📋 **Backlog**: 15
+- 📋 **Backlog**: 17
 - 🟢 **Ready**: 0
 - 🟡 **In Progress**: 0
-- 👀 **Review**: 12
+- 👀 **Review**: 14
 - ✅ **Done**: 13
 - 🚫 **Blocked**: 0
 - 🗑️ **Deprecated**: 0

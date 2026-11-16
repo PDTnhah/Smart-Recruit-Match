@@ -12,9 +12,9 @@ export type CampaignViewer =
   | { role: 'STUDENT'; audience: StudentAudience | null };
 
 /**
- * Which campaigns a caller may read (EPIC-1 › RBAC additions, CONTEXT D27): CENTER and ADMIN see
- * every campaign; HR sees every campaign that has left DRAFT; a student sees a campaign that has
- * left DRAFT and whose target lists both their cohort and their major.
+ * Which campaigns a caller may read (EPIC-1 › RBAC additions, CONTEXT D27, D56): CENTER and ADMIN
+ * see every campaign; HR sees every campaign that has left DRAFT and was not cancelled; a student
+ * sees such a campaign when its target lists both their cohort and their major.
  */
 export function canSeeCampaign(
   viewer: CampaignViewer,
@@ -25,10 +25,15 @@ export function canSeeCampaign(
     case 'ADMIN':
       return true;
     case 'HR':
-      return campaign.status !== 'DRAFT';
+      return isShown(campaign.status);
     case 'STUDENT':
-      return campaign.status !== 'DRAFT' && viewer.audience !== null && isInTarget(campaign.target, viewer.audience);
+      return isShown(campaign.status) && viewer.audience !== null && isInTarget(campaign.target, viewer.audience);
   }
+}
+
+/** HR and students see neither a draft nor a cancelled campaign (US-1.10 AC-7). */
+function isShown(status: CampaignStatus): boolean {
+  return status !== 'DRAFT' && status !== 'CANCELLED';
 }
 
 /**

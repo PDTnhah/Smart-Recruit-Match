@@ -42,7 +42,7 @@ Ranh giới kiến trúc mà epic này giữ (AD-1, AD-4): AI Service không chu
 | 2 | **Lớp gọi LLM** | US-2.2 | `LLMClient`: effort, structured outputs, refusal, retry, ghi usage/chi phí, prompt có phiên bản, fixture |
 | 3 | **Trích xuất JD** | US-2.3 | JD Analyzer + màn HR sửa và xác nhận yêu cầu chuẩn hóa, phiên bản yêu cầu |
 | 4 | **Trích xuất CV** | US-2.4, US-2.6 | CV Parser có phát hiện chữ ẩn và tách PII; màn SV sửa và xác nhận hồ sơ |
-| 5 | **Embedding và danh mục kỹ năng** | US-2.5 | bge-m3, `ai.embeddings`, chuẩn hóa tên kỹ năng, quản trị duyệt kỹ năng mới |
+| 5 | **Embedding và danh mục kỹ năng** | US-2.5, US-2.8 | bge-m3, `ai.embeddings`, chuẩn hóa tên kỹ năng, quản trị duyệt kỹ năng mới |
 | 6 | **Taxonomy kỹ năng** | US-2.7 | Vùng, họ (kỹ năng thay thế được), quan hệ kéo theo, năng lực chuẩn của kỹ năng mềm; nền cho khớp kỹ năng bằng code ở EPIC-3 ([CONTEXT D42](../../CONTEXT.md)) |
 
 ### Schedule and dependencies
@@ -56,6 +56,7 @@ Ranh giới kiến trúc mà epic này giữ (AD-1, AD-4): AI Service không chu
 | US-2.5 | 8 | T6 (W46), làm sớm ở W44 | B | US-2.1, US-2.4 |
 | US-2.6 | 5 | T6 (W46) | A | US-2.4 |
 | US-2.7 | 8 | T5 (W45) | A | US-2.5 |
+| US-2.8 | 1 | backlog (sửa lỗi, [CONTEXT D55](../../CONTEXT.md)) | – | US-2.5 |
 
 ### Out of scope
 
@@ -102,6 +103,7 @@ Ranh giới kiến trúc mà epic này giữ (AD-1, AD-4): AI Service không chu
 | US-2.5 | Embedding và danh mục kỹ năng | Tên kỹ năng được chuẩn hóa; quản trị duyệt kỹ năng mới | ✅ done | 0.11.0 |
 | US-2.6 | SV xác nhận hồ sơ năng lực | SV xem CV bên cạnh hồ sơ, sửa và xác nhận | ✅ done | 0.12.0 |
 | US-2.7 | Vùng, họ và quan hệ kéo theo của kỹ năng | ADMIN gán vùng, họ, kéo theo; `matching` đọc taxonomy | 👀 review | — |
+| US-2.8 | Tìm kỹ năng trong danh mục khi ô tìm còn trống | `GET /api/skills` không có `query` trả kỹ năng theo tên, không `500` | 📋 backlog | — |
 
 ## Object map & user-story interactions
 
@@ -116,6 +118,7 @@ Ranh giới kiến trúc mà epic này giữ (AD-1, AD-4): AI Service không chu
 | US-2.5 | `ai-service/app/embedding/`; `ai.embeddings`; `skills` | FR-13 |
 | US-2.6 | `apps/web/src/features/student/`; vòng đời CV | FR-12 |
 | US-2.7 | `skills.family`, `skill_implications`; `SkillCatalogService.taxonomy()`; `apps/web/src/features/center/skills/` | FR-39 |
+| US-2.8 | `SkillRepository.search` (module `skills`) | FR-13 |
 
 ## Cross-cutting invariants
 
@@ -156,3 +159,4 @@ Ranh giới kiến trúc mà epic này giữ (AD-1, AD-4): AI Service không chu
 - [ ] Kỹ năng "ReactJS", "React.js" được chuẩn hóa thành `React`; kỹ năng mới chờ quản trị duyệt (US-2.5)
 - [ ] SV xem CV bên cạnh hồ sơ năng lực, sửa và xác nhận; hồ sơ chưa xác nhận không được chấm (US-2.6)
 - [ ] Danh mục kỹ năng có vùng, họ, quan hệ kéo theo; quan hệ tạo chu trình bị chặn; `matching` đọc được bao đóng kéo theo (US-2.7)
+- [ ] `GET /api/skills` không có `query` trả kỹ năng đã duyệt theo tên (US-2.8)

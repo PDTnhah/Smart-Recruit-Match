@@ -142,7 +142,10 @@ export class RoleNotAllowedError extends DomainError {
 
 // Campaign setup and phase checks (US-1.4, CONTEXT D27).
 
-/** The campaign has left DRAFT: name, target and parameters are locked; past deadlines too. */
+/**
+ * The campaign's actual phase no longer lets these fields change: a parameter a phase already
+ * uses, the target after intake, a passed deadline, anything once closed or cancelled (US-1.10).
+ */
 export class CampaignConfigLockedError extends DomainError {
   readonly code = 'CAMPAIGN_CONFIG_LOCKED';
   readonly httpStatus = 409;
@@ -153,6 +156,19 @@ export class CampaignConfigLockedError extends DomainError {
       status,
       fields,
     });
+  }
+}
+
+/**
+ * Other rows still refer to the campaign (a consent, CV, JD…), so it cannot be deleted; it can be
+ * cancelled instead, keeping the data (US-1.10 AC-9, CONTEXT D56). The foreign keys decide.
+ */
+export class CampaignHasDataError extends DomainError {
+  readonly code = 'CAMPAIGN_HAS_DATA';
+  readonly httpStatus = 409;
+
+  constructor(campaignId: number) {
+    super(`campaign ${campaignId} has data and cannot be deleted; cancel it instead`, { campaignId });
   }
 }
 

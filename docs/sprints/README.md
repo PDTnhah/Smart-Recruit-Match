@@ -29,7 +29,7 @@ backlog → ready → in-progress → review → done
 
 ## Lộ trình
 
-Theo [CONTEXT D20](../CONTEXT.md): 1 người code, có agent chạy song song; xong trong tháng 12/2026; đủ 37 story phủ FR-1 – FR-37, không cắt. Tổng khoảng 212 điểm, tức khoảng 18 điểm/tuần. [CONTEXT D42](../CONTEXT.md) thêm US-2.7, US-3.5, US-3.6 (FR-39, FR-40, 21 điểm), thành 40 story, khoảng 233 điểm. Ba story này xếp vào T5–T6, vì dự án đang đi trước lộ trình. Sprint dài 1 tuần (`sprint-YYYY-WNN`).
+Theo [CONTEXT D20](../CONTEXT.md): 1 người code, có agent chạy song song; xong trong tháng 12/2026; đủ 37 story phủ FR-1 – FR-37, không cắt. Tổng khoảng 212 điểm, tức khoảng 18 điểm/tuần. [CONTEXT D42](../CONTEXT.md) thêm US-2.7, US-3.5, US-3.6 (FR-39, FR-40, 21 điểm), thành 40 story, khoảng 233 điểm. Ba story này xếp vào T5–T6, vì dự án đang đi trước lộ trình. [CONTEXT D55](../CONTEXT.md) thêm ba story sửa lỗi US-1.8, US-1.9, US-2.8 (7 điểm), thành 43 story, khoảng 240 điểm. [CONTEXT D56](../CONTEXT.md) thêm US-1.10 (FR-41, 8 điểm), thành 44 story, khoảng 248 điểm. Sprint dài 1 tuần (`sprint-YYYY-WNN`).
 
 ### Giai đoạn và mốc
 
@@ -92,4 +92,4 @@ Theo koni-harness `parallel-orchestration.md` (Tier A):
 
 ## Trạng thái hiện tại
 
-Đã tách 40 story cho 6 epic (`epics/EPIC-1.md` … `EPIC-6.md`). Cả 40 file story đã có trong `stories/` ([CONTEXT D21](../CONTEXT.md); US-2.7, US-3.5, US-3.6 thêm theo [CONTEXT D42](../CONTEXT.md)). Khi bắt đầu một story, đọc lại file của nó và thêm khối *Story refresh* nếu spec đã đổi. `sprint-2026-W41` và `sprint-2026-W42` đã đóng. Sprint đang mở: [`sprint-2026-W43`](sprint-2026-W43.md), gồm US-2.1 và sáu story EPIC-1 đang `review` chuyển từ W41, W42.
+Đã tách 44 story cho 6 epic (`epics/EPIC-1.md` … `EPIC-6.md`). Cả 44 file story đã có trong `stories/` ([CONTEXT D21](../CONTEXT.md); US-2.7, US-3.5, US-3.6 thêm theo [CONTEXT D42](../CONTEXT.md); US-1.8, US-1.9, US-2.8 thêm theo [CONTEXT D55](../CONTEXT.md); US-1.10 theo [CONTEXT D56](../CONTEXT.md)). Khi bắt đầu một story, đọc lại file của nó và thêm khối *Story refresh* nếu spec đã đổi. `sprint-2026-W41` và `sprint-2026-W42` đã đóng. Sprint đang mở: [`sprint-2026-W43`](sprint-2026-W43.md), gồm US-2.1 và sáu story EPIC-1 đang `review` chuyển từ W41, W42.

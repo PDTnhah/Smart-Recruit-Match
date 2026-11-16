@@ -5,6 +5,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
   AiResultMessageSchema,
   CampaignConfigSchema,
+  CampaignSchema,
   type CvProfile,
   MatchingRunSchema,
   type MatchPairRef,
@@ -22,6 +23,7 @@ import { api, type AuthTestApp, createAuthTestApp, type LoggedIn } from '../help
 import { ownerDatabaseUrl } from '../helpers/db.js';
 import { createCampaign, createCompany, createCv, createStudent, TEST_CAMPAIGN_TARGET } from '../helpers/factories.js';
 import { captureEvents, createJdInState, inDays, SAMPLE_REQUIREMENTS } from '../helpers/jd.js';
+import { waitFor } from '../helpers/notifications.js';
 
 const PROMPT = 'matching/v1';
 const MODEL = 'gemini-3.8-flash';
@@ -273,6 +275,45 @@ describe('GĐ3 matching results (US-3.2)', () => {
     expect({ assessment: after.assessment, criteria: after.criteria }).toEqual({ assessment: before.assessment, criteria: before.criteria });
     expect(dispatched).toHaveLength(jobsBefore);
     expect(await calls()).toBe(callsBefore);
+  });
+
+  it('FR-41: S_cv weight change in INTAKE recomputes scored pairs', async () => {
+    const { campaign, job } = await startRun();
+    const [p1] = job.pairs as [Pair];
+    await deliver(message(job, { final: true, items: [item(p1, 2)] }));
+    const before = await rowOf(campaign.id, p1);
+    const jobsBefore = dispatched.length;
+    const settings = CampaignSchema.parse((await center.agent.get(api(`campaigns/${campaign.id}`)).expect(200)).body);
+
+    // AC-2: the edit of the center scores the pair again after commit, without a job.
+    await center.agent
+      .patch(api(`campaigns/${campaign.id}`))
+      .send({
+        rowVersion: settings.rowVersion,
+        config: { scv_weight_project: 0.5, scv_weight_must_have: 0.1 },
+        reason: 'Coi trọng dự án hơn',
+      })
+      .expect(200);
+    const projectWeight = (row: typeof before) => row.scvBreakdown?.find((r) => r.criterion === 'project')?.weightBp;
+    expect(projectWeight(before)).toBe(2000);
+    const after = await waitFor(async () => {
+      const row = await rowOf(campaign.id, p1);
+      return projectWeight(row) === 5000 ? row : undefined;
+    });
+    expect({ sCv: after.sCv, breakdown: after.scvBreakdown }).toEqual(await expectedScv(campaign.id, after));
+    expect({ assessment: after.assessment, criteria: after.criteria }).toEqual({ assessment: before.assessment, criteria: before.criteria });
+    expect(dispatched).toHaveLength(jobsBefore);
+
+    // AC-2: should that recompute have failed, the next matching run scores the pair again first.
+    const weights = { ...scvWeightsOf(CampaignConfigSchema.parse(settings.config)), scv_weight_project: 0.3, scv_weight_language: 0 };
+    await t.db
+      .update(campaigns)
+      .set({ config: { ...campaign.config, ...weights } })
+      .where(eq(campaigns.id, campaign.id));
+    await center.agent.post(api(`campaigns/${campaign.id}/matching-runs`)).send().expect(202);
+    const rerun = await rowOf(campaign.id, p1);
+    expect({ sCv: rerun.sCv, breakdown: rerun.scvBreakdown }).toEqual(await expectedScv(campaign.id, rerun));
+    expect(projectWeight(rerun)).toBe(3000);
   });
 
   it('NFR-4 stored result carries verdicts, evidence and breakdown', async () => {

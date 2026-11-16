@@ -6,6 +6,7 @@ import { CampaignModule } from '../campaign/index.js';
 import { IamModule } from '../iam/index.js';
 import { NotificationModule } from '../notification/index.js';
 import { CompanyController } from './api/company.controller.js';
+import { HrCampaignChangesListener } from './application/campaign-changes.listener.js';
 import { JdRequirementsController } from './api/jd-requirements.controller.js';
 import { JdController } from './api/jd.controller.js';
 import { CompanyService } from './application/company.service.js';
@@ -18,13 +19,21 @@ import { JdRepository } from './infrastructure/jd.repository.js';
 /**
  * Companies, HR invitations, JDs and their normalised requirements (ARCHITECTURE › Các module,
  * GĐ1). Uses the exported services of iam (invitations, recipients), campaign (phase checks),
- * aigateway (JD analysis jobs) and notification (in-app notices); relies on the global DbModule,
+ * aigateway (JD analysis jobs) and notification (notices to HR); relies on the global DbModule,
  * ClockModule, StorageModule and EventEmitterModule set up in AppModule.
  */
 @Module({
   imports: [StateModule, AuditModule, CampaignModule, IamModule, AiGatewayModule, NotificationModule],
   controllers: [CompanyController, JdController, JdRequirementsController],
-  providers: [CompanyService, JdService, JdAnalysisService, JdRequirementsService, CompanyRepository, JdRepository],
+  providers: [
+    CompanyService,
+    JdService,
+    JdAnalysisService,
+    JdRequirementsService,
+    HrCampaignChangesListener,
+    CompanyRepository,
+    JdRepository,
+  ],
   exports: [CompanyService, JdService],
 })
 export class CompanyModule {}

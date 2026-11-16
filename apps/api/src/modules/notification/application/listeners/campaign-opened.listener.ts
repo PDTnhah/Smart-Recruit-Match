@@ -1,7 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { errorMessage } from '../../../../common/errors/index.js';
-import { CAMPAIGN_OPENED, type CampaignOpenedEvent, CampaignService } from '../../../campaign/index.js';
+import {
+  CAMPAIGN_OPENED,
+  CAMPAIGN_UPDATED,
+  type CampaignOpenedEvent,
+  CampaignService,
+  type CampaignUpdatedEvent,
+} from '../../../campaign/index.js';
 import { UserDirectory } from '../../../iam/index.js';
 import { StudentService } from '../../../student/index.js';
 import { DEDUPE_KEYS } from '../../domain/dedupe-keys.js';
@@ -10,7 +16,8 @@ import { NotificationService } from '../notification.service.js';
 /**
  * "Mở đợt" (PRD › Thông báo, US-1.7 AC-5): every student in the campaign's target who has an
  * active account gets it in the app and by email. Recipients follow the same rule as campaign
- * visibility (`isInTarget`), so whoever is told can also open the campaign.
+ * visibility (`isInTarget`), so whoever is told can also open the campaign. Cohorts or majors
+ * added during intake bring new students in: they get it then, the others not again (US-1.10 AC-3).
  */
 @Injectable()
 export class CampaignOpenedListener {
@@ -30,6 +37,17 @@ export class CampaignOpenedListener {
       await this.notifyTargetStudents(event.campaignId);
     } catch (error) {
       this.logger.error(`campaign ${event.campaignId}: opening notice failed: ${errorMessage(error)}`);
+    }
+  }
+
+  /** US-1.10 AC-3: the dedupe key keeps students who already got the notice from getting it twice. */
+  @OnEvent(CAMPAIGN_UPDATED, { async: true })
+  async handleUpdated(event: CampaignUpdatedEvent): Promise<void> {
+    if (!event.targetBefore) return;
+    try {
+      await this.notifyTargetStudents(event.campaignId);
+    } catch (error) {
+      this.logger.error(`campaign ${event.campaignId}: opening notice to added students failed: ${errorMessage(error)}`);
     }
   }
 

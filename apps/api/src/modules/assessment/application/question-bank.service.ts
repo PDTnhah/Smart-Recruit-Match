@@ -301,6 +301,8 @@ export class QuestionBankService {
   ): Promise<QuestionGenerationRun | null> {
     const jd = await this.requireBankJd(jdId);
     const planned = await this.db.transaction(async (tx): Promise<Planned | null> => {
+      // No AI work for a closed or cancelled campaign (US-1.10 AC-7).
+      await this.campaigns.assertNotFinal(jd.campaignId, { tx });
       const bank = await this.lockBank(tx, jd, actor);
       if (onlyFirstRun && (await this.runs.exists(tx, bank.id))) return null;
       if (bank.status === 'LOCKED') throw new QuestionBankLockedError(bank.id);

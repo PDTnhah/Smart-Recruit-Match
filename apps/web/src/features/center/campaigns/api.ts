@@ -2,11 +2,13 @@ import {
   type Campaign,
   CampaignListSchema,
   CampaignSchema,
+  type CancelCampaignRequest,
   type CreateCampaignRequest,
   type UpdateCampaignRequest,
 } from '@srm/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, unwrap } from '@/shared/api/client';
+import { ApiRequestError } from '@/shared/api/errors';
 
 // Campaign API hooks (US-1.4). Responses are parsed with the shared schemas, so the screens work
 // with the same types as the API.
@@ -21,6 +23,15 @@ export function useCampaigns() {
     queryKey: campaignKeys.all,
     queryFn: async () => CampaignListSchema.parse(unwrap(await api.GET('/api/campaigns'))).items,
   });
+}
+
+/**
+ * Ids of the cancelled campaigns, for the center's work lists: under "Tất cả đợt" they leave out
+ * what their campaign filter does not offer (US-1.10 AC-7). Empty while the campaigns load.
+ */
+export function useCancelledCampaignIds(): ReadonlySet<number> {
+  const campaigns = useCampaigns();
+  return new Set((campaigns.data ?? []).filter((campaign) => campaign.status === 'CANCELLED').map(({ id }) => id));
 }
 
 export function useCampaign(id: number) {
@@ -67,4 +78,39 @@ export function useOpenCampaign(id: number) {
       ),
     onSuccess: store,
   });
+}
+
+/** `POST /api/campaigns/{id}/cancel` (US-1.10 AC-6): the campaign stops and keeps its data. */
+export function useCancelCampaign(id: number) {
+  const store = useStoreCampaign();
+  return useMutation({
+    mutationFn: async (body: CancelCampaignRequest) =>
+      CampaignSchema.parse(
+        unwrap(await api.POST('/api/campaigns/{id}/cancel', { params: { path: { id } }, body })),
+      ),
+    onSuccess: store,
+  });
+}
+
+/** `DELETE /api/campaigns/{id}` (US-1.10 AC-9): only a campaign no other row refers to. */
+export function useDeleteCampaign(id: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (rowVersion: number) => {
+      // 204 has no body, so `unwrap` (which wants data) does not fit.
+      const { error, response } = await api.DELETE('/api/campaigns/{id}', {
+        params: { path: { id }, query: { rowVersion: String(rowVersion) } },
+      });
+      if (!response.ok) throw ApiRequestError.from(response.status, error);
+    },
+    // The detail stays cached until it is collected: removing it here would make the page that is
+    // still open fetch it again (404) before the dialog navigates away.
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: campaignKeys.all, exact: true }),
+  });
+}
+
+/** Loads the campaign again after a 409 or 422: the rowVersion or the status the dialog had is stale. */
+export function useReloadCampaign(id: number) {
+  const queryClient = useQueryClient();
+  return () => void queryClient.invalidateQueries({ queryKey: campaignKeys.detail(id) });
 }

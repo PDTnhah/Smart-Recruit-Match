@@ -7,9 +7,14 @@ import type { CampaignDeadlineKey } from '@srm/shared';
  */
 export const DEDUPE_KEYS = {
   campaignOpened: (campaignId: number) => `campaign_opened:${campaignId}`,
+  /** One notice per edit that moved deadlines (US-1.10 AC-5): the row_version after the edit. */
+  campaignDeadlinesChanged: (campaignId: number, rowVersion: number) =>
+    `campaign_deadlines_changed:${campaignId}:${rowVersion}`,
+  /** A campaign is cancelled once (US-1.10 AC-8): CANCELLED is final. */
+  campaignCancelled: (campaignId: number) => `campaign_cancelled:${campaignId}`,
   /**
-   * The deadline value is part of the key: an extended deadline (CONTEXT D27) is a new deadline
-   * and is reminded once more.
+   * The deadline value is part of the key: a moved deadline, later or earlier (CONTEXT D27, D56),
+   * is a new deadline and is reminded once more.
    */
   deadline: (campaignId: number, deadlineKey: CampaignDeadlineKey, deadline: Date) =>
     `deadline:${campaignId}:${deadlineKey}:${deadline.toISOString()}`,

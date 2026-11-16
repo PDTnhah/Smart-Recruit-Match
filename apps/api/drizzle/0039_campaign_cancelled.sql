@@ -1,0 +1,4 @@
+ALTER TABLE "core"."campaigns" DROP CONSTRAINT "campaigns_status_check";--> statement-breakpoint
+ALTER TABLE "core"."notifications" DROP CONSTRAINT "notifications_type_check";--> statement-breakpoint
+ALTER TABLE "core"."campaigns" ADD CONSTRAINT "campaigns_status_check" CHECK ("core"."campaigns"."status" in ('DRAFT', 'INTAKE', 'PREFERENCE_SELECTION', 'TESTING', 'ALLOCATION_REVIEW', 'SUPPLEMENTARY', 'CLOSED', 'CANCELLED'));--> statement-breakpoint
+ALTER TABLE "core"."notifications" ADD CONSTRAINT "notifications_type_check" CHECK ("core"."notifications"."type" in ('CAMPAIGN_OPENED', 'HR_INVITED', 'DEADLINE_REMINDER', 'JD_REQUIREMENTS_READY', 'JD_ANALYSIS_FAILED', 'JD_REQUIREMENTS_VERSIONED', 'CV_PROFILE_READY', 'CV_ANALYSIS_FAILED', 'CV_NEEDS_ATTENTION', 'PREFERENCES_AUTO_ASSIGNED', 'JD_LOW_PREFERENCES', 'EXAM_NOT_TAKEN', 'EXAM_RESULT_PUBLISHED', 'CAMPAIGN_DEADLINES_CHANGED', 'CAMPAIGN_CANCELLED'));

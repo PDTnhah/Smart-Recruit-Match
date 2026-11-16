@@ -12,7 +12,7 @@ depends_on: [US-5.2]
 assignee:
 commit:
 created: 2026-10-07
-updated: 2026-10-07
+updated: 2026-11-16
 ---
 
 ## Goal
@@ -106,6 +106,7 @@ Mọi chỉ số ở đây đếm được bằng code. ARCH › *Những chỗ 
 - Builds on [US-1.4](US-1.4-campaign-setup-and-config.md) — `campaigns.config` (`N_NV`); [US-1.5](US-1.5-company-hr-accounts-jd-posting-approval.md) — `job_descriptions.quota`, trạng thái JD đã duyệt.
 - Builds on [US-1.3](US-1.3-auth-rbac-design-system-app-shell.md) — `@Roles()`, helper đăng nhập theo vai trò, `DESIGN.md`, khung cổng Trung tâm.
 - Builds on [US-4.3](US-4.3-exam-room.md) (`exam_sessions`), [US-5.3](US-5.3-hr-nomination-review.md) (`hr_reviews`), [US-5.4](US-5.4-interviews-reserve-and-offers.md) (`interviews`, `offers`) — nguồn các bậc sau của phễu. Các bậc này bằng 0 cho tới khi những story đó xong; dashboard vẫn chạy.
+- Builds on [US-1.10](US-1.10-campaign-edit-cancel-delete.md) — đợt `CANCELLED` vẫn hiện với CENTER, ADMIN và giữ nguyên dữ liệu ([CONTEXT D56](../../CONTEXT.md)). Dashboard phải ghi rõ đợt đã hủy (nhãn `CAMPAIGN_STATUS_LABELS`) hoặc bỏ nó khỏi bộ chọn đợt như `isWorkCampaign` của web; tổng nhiều đợt không cộng đợt hủy mà không ghi chú.
 - Required by [US-6.5](US-6.5-campaign-close-report-export.md) — báo cáo đóng đợt dùng lại các hàm trong `reporting/domain/` để số liệu trong file khớp với dashboard.
 - Sibling [US-5.4](US-5.4-interviews-reserve-and-offers.md), [US-5.5](US-5.5-supplementary-rounds-and-campaign-close.md) — cùng T12, cùng sửa module `review`/`interview`/`allocation` (TASK-6.1.2 thêm hàm đếm). Merge story nào trước thì story sau rebase.
 - Sibling [US-6.5](US-6.5-campaign-close-report-export.md) — cùng module `reporting`, cùng T12.

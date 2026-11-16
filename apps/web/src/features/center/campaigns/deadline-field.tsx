@@ -22,7 +22,10 @@ interface DeadlineFieldProps {
   onBlur?: () => void;
   invalid?: boolean;
   disabled?: boolean;
-  /** Days before this one cannot be picked: a running campaign only moves deadlines later. */
+  /**
+   * Days before this one cannot be picked. An open campaign moves a deadline later, or earlier but
+   * not within DEADLINE_MIN_NOTICE_HOURS of now (US-1.10 AC-4); the hour is checked on submit.
+   */
   notBefore?: Date;
   /** Show the clear button (drafts only). */
   clearable?: boolean;

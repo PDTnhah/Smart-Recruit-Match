@@ -9,6 +9,7 @@ import {
   FieldLegend,
   FieldSeparator,
   FieldSet,
+  FieldTitle,
 } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -39,13 +40,30 @@ const SUM_ERROR_FIELD: Partial<Record<keyof CampaignConfig, keyof CampaignConfig
   ),
 };
 
+/**
+ * Parameters an open campaign can no longer change (US-1.10 AC-10): shown as text with why, in
+ * place of their input.
+ */
+export interface LockedParameters {
+  /** The stored values. */
+  config: CampaignConfig;
+  /** Why `key` is read-only, or null while it can change. */
+  noteOf: (key: keyof CampaignConfig) => string | null;
+}
+
+/** `U`: the values the form's resolver returns, when they differ from the inputs. */
+interface InputsProps<T extends FieldValues, U extends FieldValues = T> {
+  control: Control<T, unknown, U>;
+  locked?: LockedParameters | undefined;
+}
+
 /** Number inputs of the campaign parameters, bound to `config.<key>` of the form. */
-export function ParameterInputs<T extends FieldValues>({ control }: { control: Control<T> }) {
+export function ParameterInputs<T extends FieldValues, U extends FieldValues = T>({ control, locked }: InputsProps<T, U>) {
   return (
     <FieldGroup>
       <FieldGroup className="grid gap-x-6 md:grid-cols-2">
         {PARAMETER_FIELDS.map((parameter) => (
-          <ParameterInput key={parameter.key} control={control} parameter={parameter} />
+          <ParameterInput key={parameter.key} control={control} parameter={parameter} locked={locked} />
         ))}
       </FieldGroup>
       <FieldSeparator />
@@ -57,7 +75,7 @@ export function ParameterInputs<T extends FieldValues>({ control }: { control: C
         </FieldDescription>
         <FieldGroup className="grid gap-x-6 md:grid-cols-2">
           {SCV_WEIGHT_FIELDS.map((parameter) => (
-            <ParameterInput key={parameter.key} control={control} parameter={parameter} />
+            <ParameterInput key={parameter.key} control={control} parameter={parameter} locked={locked} />
           ))}
         </FieldGroup>
       </FieldSet>
@@ -65,8 +83,8 @@ export function ParameterInputs<T extends FieldValues>({ control }: { control: C
       <FieldSet>
         <FieldLegend>{PREFERENCES_TITLE}</FieldLegend>
         <FieldGroup className="grid gap-x-6 md:grid-cols-2">
-          <PreferencePolicyInputs control={control} />
-          <CompetitionThresholdInputs control={control} />
+          <PreferencePolicyInputs control={control} locked={locked} />
+          <CompetitionThresholdInputs control={control} locked={locked} />
         </FieldGroup>
       </FieldSet>
     </FieldGroup>
@@ -74,92 +92,141 @@ export function ParameterInputs<T extends FieldValues>({ control }: { control: C
 }
 
 /** Q6 and "chọn đủ N_NV" (US-3.3 AC-19, CONTEXT D47): choices, not numbers. */
-function PreferencePolicyInputs<T extends FieldValues>({ control }: { control: Control<T> }) {
+function PreferencePolicyInputs<T extends FieldValues, U extends FieldValues>({ control, locked }: InputsProps<T, U>) {
   const policy = PREFERENCE_POLICY_FIELDS.no_preference_policy;
   const full = PREFERENCE_POLICY_FIELDS.require_full_preferences;
+  const policyNote = locked?.noteOf('no_preference_policy');
+  const fullNote = locked?.noteOf('require_full_preferences');
   return (
     <>
-      <Controller
-        name={'config.no_preference_policy' as Path<T>}
-        control={control}
-        render={({ field, fieldState }) => (
-          <Field data-invalid={fieldState.invalid}>
-            <FieldLabel htmlFor="config-no_preference_policy">{policy.label}</FieldLabel>
-            <Select value={field.value} onValueChange={field.onChange}>
-              <SelectTrigger
-                id="config-no_preference_policy"
-                ref={field.ref}
-                className="w-full"
-                aria-invalid={fieldState.invalid}
-                onBlur={field.onBlur}
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {NO_PREFERENCE_POLICIES.map((value) => (
-                  <SelectItem key={value} value={value}>
-                    {NO_PREFERENCE_POLICY_LABELS[value]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <FieldDescription>{policy.description}</FieldDescription>
-            {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-          </Field>
-        )}
-      />
-      <Controller
-        name={'config.require_full_preferences' as Path<T>}
-        control={control}
-        render={({ field, fieldState }) => (
-          <Field data-invalid={fieldState.invalid}>
-            <FieldLabel htmlFor="config-require_full_preferences">{full.label}</FieldLabel>
-            {/* Radix Select carries strings; the form keeps the boolean. */}
-            <Select value={String(field.value === true)} onValueChange={(next) => field.onChange(next === 'true')}>
-              <SelectTrigger
-                id="config-require_full_preferences"
-                ref={field.ref}
-                className="w-full"
-                aria-invalid={fieldState.invalid}
-                onBlur={field.onBlur}
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {(['false', 'true'] as const).map((value) => (
-                  <SelectItem key={value} value={value}>
-                    {REQUIRE_FULL_PREFERENCES_LABELS[value]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <FieldDescription>{full.description}</FieldDescription>
-            {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-          </Field>
-        )}
-      />
+      {locked && policyNote ? (
+        <LockedValue
+          id="config-no_preference_policy"
+          label={policy.label}
+          value={NO_PREFERENCE_POLICY_LABELS[locked.config.no_preference_policy]}
+          note={policyNote}
+        />
+      ) : (
+        <Controller
+          name={'config.no_preference_policy' as Path<T>}
+          control={control}
+          render={({ field, fieldState }) => (
+            <Field data-invalid={fieldState.invalid}>
+              <FieldLabel htmlFor="config-no_preference_policy">{policy.label}</FieldLabel>
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger
+                  id="config-no_preference_policy"
+                  ref={field.ref}
+                  className="w-full"
+                  aria-invalid={fieldState.invalid}
+                  onBlur={field.onBlur}
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {NO_PREFERENCE_POLICIES.map((value) => (
+                    <SelectItem key={value} value={value}>
+                      {NO_PREFERENCE_POLICY_LABELS[value]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FieldDescription>{policy.description}</FieldDescription>
+              {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+            </Field>
+          )}
+        />
+      )}
+      {locked && fullNote ? (
+        <LockedValue
+          id="config-require_full_preferences"
+          label={full.label}
+          value={REQUIRE_FULL_PREFERENCES_LABELS[locked.config.require_full_preferences ? 'true' : 'false']}
+          note={fullNote}
+        />
+      ) : (
+        <Controller
+          name={'config.require_full_preferences' as Path<T>}
+          control={control}
+          render={({ field, fieldState }) => (
+            <Field data-invalid={fieldState.invalid}>
+              <FieldLabel htmlFor="config-require_full_preferences">{full.label}</FieldLabel>
+              {/* Radix Select carries strings; the form keeps the boolean. */}
+              <Select value={String(field.value === true)} onValueChange={(next) => field.onChange(next === 'true')}>
+                <SelectTrigger
+                  id="config-require_full_preferences"
+                  ref={field.ref}
+                  className="w-full"
+                  aria-invalid={fieldState.invalid}
+                  onBlur={field.onBlur}
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(['false', 'true'] as const).map((value) => (
+                    <SelectItem key={value} value={value}>
+                      {REQUIRE_FULL_PREFERENCES_LABELS[value]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FieldDescription>{full.description}</FieldDescription>
+              {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+            </Field>
+          )}
+        />
+      )}
     </>
   );
 }
 
 /** Where the competition level of a JD changes (US-3.4 AC-9): two ratios, two decimals at most. */
-function CompetitionThresholdInputs<T extends FieldValues>({ control }: { control: Control<T> }) {
-  return COMPETITION_THRESHOLD_FIELDS.map(({ key, label, description }) => (
-    <NumberInput
-      key={key}
-      control={control}
-      name={`config.competition_thresholds.${key}` as Path<T>}
-      id={`config-competition_thresholds-${key}`}
-      label={label}
-      description={description}
-      step={0.01}
-      // The shared schema reports the order error on high_from; changing low_below re-checks it.
-      deps={key === 'low_below' ? [`config.competition_thresholds.high_from` as Path<T>] : undefined}
-    />
-  ));
+function CompetitionThresholdInputs<T extends FieldValues, U extends FieldValues>({
+  control,
+  locked,
+}: InputsProps<T, U>) {
+  const note = locked?.noteOf('competition_thresholds');
+  return COMPETITION_THRESHOLD_FIELDS.map(({ key, label, description }) =>
+    locked && note ? (
+      <LockedValue
+        key={key}
+        id={`config-competition_thresholds-${key}`}
+        label={label}
+        value={formatParameter(locked.config.competition_thresholds[key])}
+        note={note}
+      />
+    ) : (
+      <NumberInput
+        key={key}
+        control={control}
+        name={`config.competition_thresholds.${key}` as Path<T>}
+        id={`config-competition_thresholds-${key}`}
+        label={label}
+        description={description}
+        step={0.01}
+        // The shared schema reports the order error on high_from; changing low_below re-checks it.
+        deps={key === 'low_below' ? [`config.competition_thresholds.high_from` as Path<T>] : undefined}
+      />
+    ),
+  );
 }
 
-function ParameterInput<T extends FieldValues>({ control, parameter }: { control: Control<T>; parameter: ParameterField }) {
+function ParameterInput<T extends FieldValues, U extends FieldValues>({
+  control,
+  parameter,
+  locked,
+}: InputsProps<T, U> & { parameter: ParameterField }) {
+  const note = locked?.noteOf(parameter.key);
+  if (locked && note) {
+    return (
+      <LockedValue
+        id={`config-${parameter.key}`}
+        label={parameter.label}
+        value={formatParameter(locked.config[parameter.key])}
+        note={note}
+      />
+    );
+  }
   const sumField = SUM_ERROR_FIELD[parameter.key];
   return (
     <NumberInput
@@ -174,8 +241,8 @@ function ParameterInput<T extends FieldValues>({ control, parameter }: { control
   );
 }
 
-interface NumberInputProps<T extends FieldValues> {
-  control: Control<T>;
+interface NumberInputProps<T extends FieldValues, U extends FieldValues> {
+  control: Control<T, unknown, U>;
   name: Path<T>;
   id: string;
   label: string;
@@ -185,7 +252,15 @@ interface NumberInputProps<T extends FieldValues> {
   deps?: Path<T>[];
 }
 
-function NumberInput<T extends FieldValues>({ control, name, id, label, description, step, deps }: NumberInputProps<T>) {
+function NumberInput<T extends FieldValues, U extends FieldValues>({
+  control,
+  name,
+  id,
+  label,
+  description,
+  step,
+  deps,
+}: NumberInputProps<T, U>) {
   return (
     <Controller
       name={name}
@@ -221,7 +296,18 @@ function NumberInput<T extends FieldValues>({ control, name, id, label, descript
   );
 }
 
-/** The same parameters, read-only, once the campaign has left DRAFT (US-1.4 AC-9). */
+/** A parameter the phase no longer lets change: its value and why, named for screen readers. */
+function LockedValue({ id, label, value, note }: { id: string; label: string; value: string; note: string }) {
+  return (
+    <Field aria-labelledby={`${id}-label`} aria-describedby={`${id}-note`}>
+      <FieldTitle id={`${id}-label`}>{label}</FieldTitle>
+      <p className="text-sm font-medium tabular-nums">{value}</p>
+      <FieldDescription id={`${id}-note`}>{note}</FieldDescription>
+    </Field>
+  );
+}
+
+/** The same parameters, read-only, once the campaign is over (US-1.4 AC-9, US-1.10). */
 export function ParameterList({ config }: { config: CampaignConfig }) {
   return (
     <div className="flex flex-col gap-4">
@@ -245,9 +331,7 @@ export function ParameterList({ config }: { config: CampaignConfig }) {
         {COMPETITION_THRESHOLD_FIELDS.map(({ key, label }) => (
           <div key={key} className="flex flex-col gap-1">
             <dt className="text-sm text-muted-foreground">{label}</dt>
-            <dd className="text-sm font-medium tabular-nums">
-              {formatNumber(config.competition_thresholds[key], decimalsOf(config.competition_thresholds[key]))}
-            </dd>
+            <dd className="text-sm font-medium tabular-nums">{formatParameter(config.competition_thresholds[key])}</dd>
           </div>
         ))}
       </dl>
@@ -261,9 +345,7 @@ function ParameterValues({ config, fields }: { config: CampaignConfig; fields: r
       {fields.map((parameter) => (
         <div key={parameter.key} className="flex flex-col gap-1">
           <dt className="text-sm text-muted-foreground">{parameter.label}</dt>
-          <dd className="text-sm font-medium tabular-nums">
-            {formatNumber(config[parameter.key], decimalsOf(config[parameter.key]))}
-          </dd>
+          <dd className="text-sm font-medium tabular-nums">{formatParameter(config[parameter.key])}</dd>
         </div>
       ))}
     </dl>
@@ -271,6 +353,6 @@ function ParameterValues({ config, fields }: { config: CampaignConfig; fields: r
 }
 
 /** 0,4 and 1,5 rather than 0,40 and 1,50; parameters have at most two decimals. */
-function decimalsOf(value: number): number {
-  return Math.min((String(value).split('.')[1] ?? '').length, 2);
+function formatParameter(value: number): string {
+  return formatNumber(value, Math.min((String(value).split('.')[1] ?? '').length, 2));
 }

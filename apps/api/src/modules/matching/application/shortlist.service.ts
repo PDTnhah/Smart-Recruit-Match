@@ -33,8 +33,11 @@ import { MatchRunsRepository } from '../infrastructure/match-runs.repository.js'
 import { PreferencesRepository } from '../infrastructure/preferences.repository.js';
 import { CompetitionService } from './competition.service.js';
 
-/** A draft is not open yet and a closed campaign is over: neither has a shortlist to show (CONTEXT D47). */
-const NO_SHORTLIST: readonly CampaignStatus[] = ['DRAFT', 'CLOSED'];
+/**
+ * A draft is not open yet, a closed or cancelled campaign is over: none has a shortlist to show
+ * (CONTEXT D47, D56).
+ */
+const NO_SHORTLIST: readonly CampaignStatus[] = ['DRAFT', 'CLOSED', 'CANCELLED'];
 
 type JdView = ShortlistView<ShortlistJdCard>;
 
@@ -144,7 +147,7 @@ export class ShortlistService {
     return shortlistView({ cv, jds, rows, pinnedPrompt, thetaCv: campaign.config.theta_cv });
   }
 
-  /** The campaign of the student's newest active CV that is neither a draft nor closed (CONTEXT D47). */
+  /** The campaign of the student's newest active CV that is not a draft, closed or cancelled (CONTEXT D47). */
   private async currentCampaignOf(studentId: number): Promise<{ campaign: CampaignSettings; cv: ActiveCv } | null> {
     for (const cv of await this.cvs.activeCvsOf(studentId)) {
       const campaign = await this.campaigns.getSettings(cv.campaignId);

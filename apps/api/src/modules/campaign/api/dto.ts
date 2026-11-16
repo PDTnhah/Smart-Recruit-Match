@@ -1,7 +1,9 @@
 import {
   CampaignListSchema,
   CampaignSchema,
+  CancelCampaignRequestSchema,
   CreateCampaignRequestSchema,
+  DeleteCampaignQuerySchema,
   OpenCampaignRequestSchema,
   UpdateCampaignRequestSchema,
 } from '@srm/shared';
@@ -12,5 +14,7 @@ import { createZodDto } from 'nestjs-zod';
 export class CreateCampaignRequestDto extends createZodDto(CreateCampaignRequestSchema) {}
 export class UpdateCampaignRequestDto extends createZodDto(UpdateCampaignRequestSchema) {}
 export class OpenCampaignRequestDto extends createZodDto(OpenCampaignRequestSchema) {}
+export class CancelCampaignRequestDto extends createZodDto(CancelCampaignRequestSchema) {}
+export class DeleteCampaignQueryDto extends createZodDto(DeleteCampaignQuerySchema) {}
 export class CampaignDto extends createZodDto(CampaignSchema) {}
 export class CampaignListDto extends createZodDto(CampaignListSchema) {}

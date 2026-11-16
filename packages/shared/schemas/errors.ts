@@ -62,6 +62,8 @@ export const API_ERROR_CODES = [
   'EXAM_NOT_CLOSED',
   // Manual grading (US-4.5, CONTEXT D54).
   'EXAM_ANSWER_ALREADY_GRADED',
+  // Deleting a campaign that other rows still refer to (US-1.10, CONTEXT D56).
+  'CAMPAIGN_HAS_DATA',
   'RATE_LIMITED',
   'INTERNAL_ERROR',
 ] as const;

@@ -132,6 +132,40 @@ ${button('Xem bài test')}`,
 Các nguyện vọng bạn đã làm bài test vẫn được xét bình thường. Xem bài test tại: {{link}}
 ${TEXT_FOOTER}`,
   },
+  CAMPAIGN_DEADLINES_CHANGED: {
+    subject: 'Đợt thực tập "{{campaignName}}" đổi mốc thời gian',
+    html: `<p>Chào {{recipientName}},</p>
+<p>Trung tâm quan hệ doanh nghiệp đã đổi mốc thời gian của đợt thực tập <strong>{{campaignName}}</strong> (giờ Việt Nam):</p>
+<ul>{{#each deadlines}}<li>{{label}}: <strong>{{after}}</strong> (trước đây {{before}})</li>{{/each}}</ul>
+<p>Lý do: {{reason}}</p>
+${button('Mở hệ thống')}`,
+    text: `Chào {{recipientName}},
+
+Trung tâm quan hệ doanh nghiệp đã đổi mốc thời gian của đợt thực tập "{{campaignName}}" (giờ Việt Nam):
+{{#each deadlines}}
+- {{label}}: {{after}} (trước đây {{before}})
+{{/each}}
+
+Lý do: {{reason}}
+
+Mở hệ thống: {{link}}
+${TEXT_FOOTER}`,
+  },
+  CAMPAIGN_CANCELLED: {
+    subject: 'Đợt thực tập "{{campaignName}}" đã bị hủy',
+    html: `<p>Chào {{recipientName}},</p>
+<p>Trung tâm quan hệ doanh nghiệp đã hủy đợt thực tập <strong>{{campaignName}}</strong>. {{consequence}}</p>
+<p>Lý do: {{reason}}</p>
+${button('Mở hệ thống')}`,
+    text: `Chào {{recipientName}},
+
+Trung tâm quan hệ doanh nghiệp đã hủy đợt thực tập "{{campaignName}}". {{consequence}}
+
+Lý do: {{reason}}
+
+Mở hệ thống: {{link}}
+${TEXT_FOOTER}`,
+  },
   EXAM_RESULT_PUBLISHED: {
     subject: 'Đã có kết quả bài test nguyện vọng {{rank}} trong đợt "{{campaignName}}"',
     html: `<p>Chào {{recipientName}},</p>

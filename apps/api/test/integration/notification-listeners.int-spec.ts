@@ -90,6 +90,56 @@ describe('EPIC-1 notifications (US-1.7 AC-5)', () => {
       expect(await t.app.get(CampaignOpenedListener).notifyTargetStudents(created.id)).toBe(0);
       expect(await notificationsOf(t.db, ...recipients.map((user) => user.id))).toHaveLength(3);
     });
+
+    it('FR-41: a cohort added during intake hears of the opening, not of a deadline the same edit moved', async () => {
+      const [cohort, added] = [uniqueValue('K'), uniqueValue('K')];
+      const [first, newcomer] = await Promise.all([studentUser(cohort, 'CNTT'), studentUser(added, 'CNTT')]);
+      const now = Date.now();
+      const phaseDeadlines = {
+        intake_end: new Date(now + 7 * DAY_MS).toISOString(),
+        preference_end: new Date(now + 14 * DAY_MS).toISOString(),
+        testing_end: new Date(now + 21 * DAY_MS).toISOString(),
+      };
+      const created = CampaignSchema.parse(
+        (
+          await center.agent
+            .post(api('campaigns'))
+            .send({ name: 'Đợt HK2 bổ sung', target: { cohorts: [cohort], majors: ['CNTT'] }, phaseDeadlines })
+            .expect(201)
+        ).body,
+      );
+      const opened = CampaignSchema.parse(
+        (await center.agent.post(api(`campaigns/${created.id}/open`)).send({ rowVersion: created.rowVersion }).expect(200))
+          .body,
+      );
+      await waitFor(async () => ((await notificationsOf(t.db, first.id)).length === 1 ? true : undefined));
+
+      // The same edit moves a deadline: only students who knew the old one hear of the move.
+      await center.agent
+        .patch(api(`campaigns/${opened.id}`))
+        .send({
+          rowVersion: opened.rowVersion,
+          target: { cohorts: [cohort, added], majors: ['CNTT'] },
+          phaseDeadlines: { testing_end: new Date(now + 28 * DAY_MS).toISOString() },
+          reason: 'Thêm khóa',
+        })
+        .expect(200);
+      const [row] = await waitFor(async () => {
+        const found = await notificationsOf(t.db, newcomer.id);
+        return found.length === 1 ? found : undefined;
+      });
+      expect(row).toMatchObject({ type: 'CAMPAIGN_OPENED', dedupeKey: `campaign_opened:${opened.id}` });
+      // One notify call covers every recipient, so once `first` has the move the newcomer is settled.
+      const told = await waitFor(async () => {
+        const found = await notificationsOf(t.db, first.id);
+        return found.length === 2 ? found : undefined;
+      });
+      expect(told.map((notification) => notification.type).sort()).toEqual([
+        'CAMPAIGN_DEADLINES_CHANGED',
+        'CAMPAIGN_OPENED',
+      ]);
+      expect(await notificationsOf(t.db, newcomer.id)).toHaveLength(1);
+    });
   });
 
   describe('hr.invited', () => {

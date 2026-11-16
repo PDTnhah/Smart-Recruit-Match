@@ -8,7 +8,8 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { useCampaigns } from '@/features/center/campaigns/api';
+import { useCampaigns, useCancelledCampaignIds } from '@/features/center/campaigns/api';
+import { isWorkCampaign } from '@/features/center/campaigns/running-campaign';
 import { CvStatusBadge } from '@/features/student/profile/cv-status-badge';
 import { formatDateTime } from '@/lib/format';
 import { apiErrorMessage } from '@/shared/api/errors';
@@ -20,7 +21,7 @@ const ALL_CAMPAIGNS = 'all';
 
 function CampaignFilter({ value, onChange }: { value: string; onChange: (value: string) => void }) {
   const campaigns = useCampaigns();
-  const running = (campaigns.data ?? []).filter((campaign) => campaign.status !== 'DRAFT');
+  const running = (campaigns.data ?? []).filter((campaign) => isWorkCampaign(campaign.status));
   return (
     <Select value={value} onValueChange={onChange} disabled={campaigns.isPending}>
       <SelectTrigger aria-label="Đợt thực tập" className="w-full sm:w-72">
@@ -103,6 +104,8 @@ export function CvAttentionPage() {
     attention: true,
     ...(campaign === ALL_CAMPAIGNS ? {} : { campaignId: Number(campaign) }),
   });
+  const cancelled = useCancelledCampaignIds();
+  const listed = cvs.data?.filter((cv) => !cancelled.has(cv.campaignId)) ?? [];
 
   let content;
   if (cvs.isPending) {
@@ -126,7 +129,7 @@ export function CvAttentionPage() {
         </AlertAction>
       </Alert>
     );
-  } else if (cvs.data.length === 0) {
+  } else if (listed.length === 0) {
     content = (
       <Empty className="border">
         <EmptyHeader>
@@ -142,7 +145,7 @@ export function CvAttentionPage() {
       </Empty>
     );
   } else {
-    content = <AttentionTable cvs={cvs.data} />;
+    content = <AttentionTable cvs={listed} />;
   }
 
   return (

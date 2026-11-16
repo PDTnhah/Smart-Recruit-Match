@@ -1,3 +1,4 @@
+import type { NotificationContent } from '@srm/shared';
 import { DEDUPE_KEYS } from '../dedupe-keys.js';
 import { emailStillRelevant } from '../email-relevance.js';
 import { afterEmailFailure, EMAIL_MAX_ATTEMPTS } from '../email-retry.js';
@@ -89,6 +90,40 @@ describe('GĐ2: CV analysis notices (US-2.4, CONTEXT D37)', () => {
     expect(DEDUPE_KEYS.cvAnalysis('ready', 5, 'job-1')).toBe('cv_analysis_ready:5:job-1');
     expect(DEDUPE_KEYS.cvAnalysis('failed', 5, null)).toBe('cv_analysis_failed:5:not-dispatched');
     expect(DEDUPE_KEYS.cvAnalysis('failed', 5, 'job-2')).not.toBe(DEDUPE_KEYS.cvAnalysis('failed', 5, 'job-1'));
+  });
+});
+
+describe('FR-41: deadline changes and cancellation (US-1.10, CONTEXT D56)', () => {
+  const changed = (after: string): NotificationContent => ({
+    type: 'CAMPAIGN_DEADLINES_CHANGED',
+    payload: {
+      campaignId: 7,
+      campaignName: 'Đợt',
+      audience: 'STUDENT',
+      deadlines: [
+        { key: 'preference_end', before: '2026-11-09T10:00:00.000Z', after: '2026-11-05T10:00:00.000Z' },
+        { key: 'testing_end', before: '2026-11-12T10:00:00.000Z', after },
+      ],
+      reason: 'Lịch thi đổi',
+    },
+  });
+
+  it('FR-41: one deadline notice per edit, one cancellation per campaign', () => {
+    expect(DEDUPE_KEYS.campaignDeadlinesChanged(7, 4)).toBe('campaign_deadlines_changed:7:4');
+    expect(DEDUPE_KEYS.campaignDeadlinesChanged(7, 5)).not.toBe(DEDUPE_KEYS.campaignDeadlinesChanged(7, 4));
+    expect(DEDUPE_KEYS.campaignCancelled(7)).toBe('campaign_cancelled:7');
+  });
+
+  it('FR-41: a deadline notice is emailed while one of the new deadlines is still ahead', () => {
+    const notice = changed('2026-11-20T10:00:00.000Z');
+    expect(emailStillRelevant(notice, at('2026-11-10T00:00:00.000Z'))).toBe(true);
+    expect(emailStillRelevant(notice, at('2026-11-20T09:59:59.999Z'))).toBe(true);
+    expect(emailStillRelevant(notice, at('2026-11-20T10:00:00.000Z'))).toBe(false);
+  });
+
+  it('FR-41: a cancellation stays true', () => {
+    const payload = { campaignId: 7, campaignName: 'Đợt', audience: 'HR', reason: 'Không đủ doanh nghiệp' } as const;
+    expect(emailStillRelevant({ type: 'CAMPAIGN_CANCELLED', payload }, at('2030-01-01T00:00:00.000Z'))).toBe(true);
   });
 });
 

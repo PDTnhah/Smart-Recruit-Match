@@ -57,6 +57,29 @@ describe('FR-8: notify input schema', () => {
     expect(NotifyInputSchema.safeParse({ ...notice, payload: { ...payload, sessionId: undefined } }).success).toBe(false);
   });
 
+  it('FR-41: a deadline notice lists at least one move; both notices say who they are for and why', () => {
+    const move = { key: 'intake_end', before: '2026-11-01T10:00:00.000Z', after: '2026-11-03T10:00:00.000Z' };
+    const changed = {
+      type: 'CAMPAIGN_DEADLINES_CHANGED',
+      payload: { campaignId: 1, campaignName: 'Đợt', audience: 'STUDENT', deadlines: [move], reason: 'Lùi hạn' },
+      userIds: [9],
+      channels: ['IN_APP', 'EMAIL'],
+    };
+    expect(NotifyInputSchema.safeParse(changed).success).toBe(true);
+    expect(NotifyInputSchema.safeParse({ ...changed, payload: { ...changed.payload, deadlines: [] } }).success).toBe(false);
+    expect(NotifyInputSchema.safeParse({ ...changed, payload: { ...changed.payload, reason: ' ' } }).success).toBe(false);
+    const cancelled = {
+      type: 'CAMPAIGN_CANCELLED',
+      payload: { campaignId: 1, campaignName: 'Đợt', audience: 'HR', reason: 'Không tổ chức' },
+      userIds: [9],
+      channels: ['IN_APP', 'EMAIL'],
+    };
+    expect(NotifyInputSchema.safeParse(cancelled).success).toBe(true);
+    expect(NotifyInputSchema.safeParse({ ...cancelled, payload: { ...cancelled.payload, audience: 'CENTER' } }).success).toBe(
+      false,
+    );
+  });
+
   it('FR-8: needs at least one distinct recipient and one distinct channel', () => {
     expect(NotifyInputSchema.safeParse({ ...opened, userIds: [] }).success).toBe(false);
     expect(NotifyInputSchema.safeParse({ ...opened, userIds: [3, 3] }).success).toBe(false);

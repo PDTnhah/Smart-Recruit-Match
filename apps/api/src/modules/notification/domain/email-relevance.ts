@@ -29,6 +29,12 @@ export function emailStillRelevant(content: NotificationContent, now: Date): boo
     case 'EXAM_RESULT_PUBLISHED':
       // Published results stay published; an appeal changes a score, not that results exist (D53).
       return true;
+    case 'CAMPAIGN_DEADLINES_CHANGED':
+      // Worth reading while one of the new deadlines is still ahead (D56).
+      return content.payload.deadlines.some((move) => Date.parse(move.after) > now.getTime());
+    case 'CAMPAIGN_CANCELLED':
+      // CANCELLED is final (D56).
+      return true;
     case 'JD_REQUIREMENTS_READY':
     case 'JD_ANALYSIS_FAILED':
     case 'JD_REQUIREMENTS_VERSIONED':

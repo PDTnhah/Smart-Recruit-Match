@@ -12,6 +12,7 @@ import { MatchingRunsController } from './api/matching-runs.controller.js';
 import { MePreferencesController } from './api/me-preferences.controller.js';
 import { MeShortlistController } from './api/me-shortlist.controller.js';
 import { AutoAssignPreferencesService } from './application/auto-assign-preferences.service.js';
+import { ScvWeightsChangedListener } from './application/campaign-updated.listener.js';
 import { CompetitionService } from './application/competition.service.js';
 import { LowPreferenceAlertService } from './application/low-preference-alert.service.js';
 import { MatchResultsHandler } from './application/match-results.handler.js';
@@ -54,6 +55,7 @@ import { PreferencesRepository } from './infrastructure/preferences.repository.j
   providers: [
     RunMatchingService,
     MatchingPhaseListener,
+    ScvWeightsChangedListener,
     MatchResultsHandler,
     RecomputeScvService,
     ShortlistService,

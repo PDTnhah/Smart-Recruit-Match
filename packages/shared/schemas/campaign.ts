@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { normalizeAudienceValue } from '../contracts/text.js';
-import { CAMPAIGN_STATES, type CampaignStatus } from '../states/campaign.js';
-import { RowVersionSchema, whenValid } from './common.js';
+import { CAMPAIGN_FINAL_STATES, CAMPAIGN_STATES, type CampaignStatus } from '../states/campaign.js';
+import { RowVersionFieldSchema, RowVersionSchema, whenValid } from './common.js';
 
 // Campaign setup (FR-2, PRD GĐ0, CONTEXT D27). The web form and the API validate with these
 // schemas. Keys inside `phaseDeadlines` and `config` are snake_case: they are stored as-is in
@@ -18,6 +18,23 @@ export const PHASE_END_DEADLINE: Readonly<Partial<Record<CampaignStatus, Campaig
   PREFERENCE_SELECTION: 'preference_end',
   TESTING: 'testing_end',
 };
+
+/**
+ * The phase a campaign is actually in at `now`: a deadline that has passed counts as the move to
+ * the next phase even before the scheduler makes it (CONTEXT D27, D56). The API checks edits of an
+ * open campaign against it, and the campaign form offers only what it allows. Each phase of
+ * PHASE_END_DEADLINE moves on to the next state in CAMPAIGN_STATES (checked against the API's
+ * automatic edges in `phase.spec.ts`).
+ */
+export function actualCampaignPhase(status: CampaignStatus, deadlines: CampaignDeadlines, now: Date): CampaignStatus {
+  let phase = status;
+  for (let key = PHASE_END_DEADLINE[phase]; key; key = PHASE_END_DEADLINE[phase]) {
+    const deadline = deadlines[key];
+    if (deadline === undefined || now.getTime() < Date.parse(deadline)) break;
+    phase = CAMPAIGN_STATES[CAMPAIGN_STATES.indexOf(phase) + 1] ?? phase;
+  }
+  return phase;
+}
 
 /** α and β are compared as integers ×100, never as floats (AGENTS › Invariant 9). */
 export function toHundredths(value: number): number {
@@ -247,6 +264,60 @@ export const CampaignConfigPatchSchema = z
 
 export type CampaignConfigPatch = z.output<typeof CampaignConfigPatchSchema>;
 
+/**
+ * The first phase that uses each parameter (US-1.10 › Tham số theo pha, CONTEXT D56). Once the
+ * campaign has reached that phase the parameter is locked, so every student of a campaign is scored
+ * and ranked with the same values (AGENTS › Invariant 9). `INTAKE`: locked when the campaign opens.
+ * `null`: not used for any score or order, editable until the campaign is closed or cancelled.
+ */
+export const CAMPAIGN_CONFIG_USED_FROM = {
+  // The default length of an exam blueprint, taken when the question bank of a JD is created.
+  t_test_minutes: 'INTAKE',
+  // Used by the first matching run, which the center may start during intake (US-3.2 AC-13).
+  match_top_m: 'INTAKE',
+  // S_cv scored during intake is computed again when a weight changes (US-1.10 AC-2).
+  scv_weight_must_have: 'PREFERENCE_SELECTION',
+  scv_weight_nice_to_have: 'PREFERENCE_SELECTION',
+  scv_weight_project: 'PREFERENCE_SELECTION',
+  scv_weight_education: 'PREFERENCE_SELECTION',
+  scv_weight_language: 'PREFERENCE_SELECTION',
+  theta_cv: 'PREFERENCE_SELECTION',
+  n_nv: 'PREFERENCE_SELECTION',
+  require_full_preferences: 'PREFERENCE_SELECTION',
+  no_preference_policy: 'PREFERENCE_SELECTION',
+  competition_thresholds: 'PREFERENCE_SELECTION',
+  theta_test: 'TESTING',
+  alpha: 'TESTING',
+  beta: 'TESTING',
+  appeal_window_hours: 'TESTING',
+  k: 'ALLOCATION_REVIEW',
+  r_max: 'ALLOCATION_REVIEW',
+  sla_hr_business_days: 'ALLOCATION_REVIEW',
+  t_offer_days: 'ALLOCATION_REVIEW',
+  reminder_hours_before: null,
+} as const satisfies Record<keyof CampaignConfig, CampaignStatus | null>;
+
+/** Whether the campaign has reached `phase`, in the order of CAMPAIGN_STATES (CANCELLED is last). */
+function hasReached(status: CampaignStatus, phase: CampaignStatus): boolean {
+  return CAMPAIGN_STATES.indexOf(status) >= CAMPAIGN_STATES.indexOf(phase);
+}
+
+/** Whether a final state: closed or cancelled. */
+export function isCampaignFinal(status: CampaignStatus): boolean {
+  return (CAMPAIGN_FINAL_STATES as readonly CampaignStatus[]).includes(status);
+}
+
+/**
+ * Whether `key` can no longer change in a campaign whose actual phase is `phase` (US-1.10 AC-1).
+ * The actual phase counts a passed deadline as the next phase, like `assertPhase`; the API works
+ * it out, the form passes the status it shows.
+ */
+export function isConfigKeyLocked(key: keyof CampaignConfig, phase: CampaignStatus): boolean {
+  if (isCampaignFinal(phase)) return true;
+  const usedFrom = CAMPAIGN_CONFIG_USED_FROM[key];
+  return usedFrom !== null && hasReached(phase, usedFrom);
+}
+
 // --- Target (khóa, ngành) ---------------------------------------------------------------------
 
 const valueList = (empty: string, duplicate: string) =>
@@ -337,8 +408,8 @@ export const CreateCampaignRequestSchema = z.object({
 export type CreateCampaignRequest = z.output<typeof CreateCampaignRequestSchema>;
 
 /**
- * Body of `PATCH /api/campaigns/{id}`: only the sections and keys that change. After DRAFT only
- * deadlines may move, later only, with a `reason` (AC-4, CONTEXT D27).
+ * Body of `PATCH /api/campaigns/{id}`: only the sections and keys that change. After DRAFT a change
+ * needs a `reason`, and only what the phase still allows may change (US-1.10, CONTEXT D56).
  */
 export const UpdateCampaignRequestSchema = z.object({
   rowVersion: RowVersionSchema,
@@ -351,18 +422,35 @@ export const UpdateCampaignRequestSchema = z.object({
 
 export type UpdateCampaignRequest = z.output<typeof UpdateCampaignRequestSchema>;
 
-/** Message the API and the form show when a deadline is extended without a reason. */
-export const DEADLINE_REASON_REQUIRED = 'Nhập lý do gia hạn';
+/**
+ * A deadline still ahead may move earlier, but not closer than this to now (US-1.10 AC-4): students
+ * and HR are told, and need time to act on it.
+ */
+export const DEADLINE_MIN_NOTICE_HOURS = 24;
 
-/** Message the API returns when a deadline of a running campaign moves earlier or is cleared. */
-export const DEADLINE_NOT_LATER = 'Chỉ được lùi mốc về sau';
+/**
+ * The earliest a deadline still ahead may move to (US-1.10 AC-4): any time after the current one,
+ * or earlier but at least DEADLINE_MIN_NOTICE_HOURS from `now`.
+ */
+export function earliestDeadlineMove(current: string, now: Date): Date {
+  return new Date(Math.min(Date.parse(current), now.getTime() + DEADLINE_MIN_NOTICE_HOURS * 3_600_000));
+}
+
+/** Message the API and the form show when an open campaign is edited without a reason. */
+export const CAMPAIGN_EDIT_REASON_REQUIRED = 'Nhập lý do sửa đợt';
+
+/** Message the API returns when a deadline moves earlier than DEADLINE_MIN_NOTICE_HOURS from now. */
+export const DEADLINE_TOO_SOON = `Mốc dời sớm phải cách hiện tại ít nhất ${DEADLINE_MIN_NOTICE_HOURS} giờ`;
+
+/** Message the API returns when a deadline of an open campaign is cleared. */
+export const DEADLINE_REQUIRED = 'Đợt đã mở phải có đủ các mốc';
 
 /** The form used once the campaign has left DRAFT: the reason becomes required. */
-export const ExtendDeadlinesRequestSchema = UpdateCampaignRequestSchema.extend({
+export const UpdateRunningCampaignRequestSchema = UpdateCampaignRequestSchema.extend({
   reason: z
     .string()
     .trim()
-    .min(1, { error: DEADLINE_REASON_REQUIRED })
+    .min(1, { error: CAMPAIGN_EDIT_REASON_REQUIRED })
     .max(500, { error: 'Lý do tối đa 500 ký tự' }),
 });
 
@@ -370,6 +458,29 @@ export const ExtendDeadlinesRequestSchema = UpdateCampaignRequestSchema.extend({
 export const OpenCampaignRequestSchema = z.object({ rowVersion: RowVersionSchema });
 
 export type OpenCampaignRequest = z.output<typeof OpenCampaignRequestSchema>;
+
+/** Message the API and the dialog show when a campaign is cancelled without a reason. */
+export const CAMPAIGN_CANCEL_REASON_REQUIRED = 'Nhập lý do hủy đợt';
+
+/**
+ * Body of `POST /api/campaigns/{id}/cancel` (US-1.10 AC-6): students and HR of the campaign are
+ * told the reason.
+ */
+export const CancelCampaignRequestSchema = z.object({
+  rowVersion: RowVersionSchema,
+  reason: z
+    .string()
+    .trim()
+    .min(1, { error: CAMPAIGN_CANCEL_REASON_REQUIRED })
+    .max(500, { error: 'Lý do tối đa 500 ký tự' }),
+});
+
+export type CancelCampaignRequest = z.output<typeof CancelCampaignRequestSchema>;
+
+/** Query of `DELETE /api/campaigns/{id}` (US-1.10 AC-9): a DELETE has no body. */
+export const DeleteCampaignQuerySchema = z.object({ rowVersion: RowVersionFieldSchema });
+
+export type DeleteCampaignQuery = z.output<typeof DeleteCampaignQuerySchema>;
 
 export const CampaignSchema = z.object({
   id: z.number().int(),
