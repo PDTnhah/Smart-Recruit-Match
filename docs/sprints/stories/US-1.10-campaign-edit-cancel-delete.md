@@ -11,7 +11,7 @@ prd_ref: [FR-41]
 arch_ref: [AD-8]
 depends_on: [US-1.4, US-1.7, US-3.2]
 assignee: PDTnhah
-commit:
+commit: 9485724
 created: 2026-11-15
 updated: 2026-11-16
 ---
@@ -106,7 +106,7 @@ Unit: `pnpm --filter @srm/shared test`, `pnpm --filter @srm/api test:unit`. Inte
 
 Bản đầy đủ ở [CHANGELOG 0.25.0](../../CHANGELOG.md).
 
-**Commit**: pending
+**Commit**: 9485724
 
 ## Implementation notes
 
