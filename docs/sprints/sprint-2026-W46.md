@@ -1,6 +1,6 @@
 ---
 id: sprint-2026-W46
-status: in-progress
+status: closed
 start: 2026-11-09T00:00:00.000Z
 end: 2026-11-15T00:00:00.000Z
 goal: 'Sửa lỗi màn Hồ sơ mở đợt trống khi Trung tâm mở thêm đợt cùng khóa và ngành (US-1.8, v0.24.1); Trung tâm sửa, hủy, xóa đợt sau khi mở (US-1.10)'
@@ -51,12 +51,34 @@ Cùng ngày, người dùng yêu cầu cho Trung tâm sửa hoặc xóa đợt s
 
 ## Retrospective
 
-*Điền khi đóng sprint.*
+Đóng ngày 2026-11-16. Sprint ship hai story: 0.24.1 (US-1.8, 3 điểm, sửa lỗi) và 0.25.0 (US-1.10, 8 điểm). Tổng 11 điểm. Nhánh `us-1.10` tạo từ `us-1.8`, nên cả hai merge vào `dev` cùng PR #31. Cả hai còn `review`, chuyển sang W47.
+
+### What went well
+
+- Điều tra bằng log request của container `api` cho thấy dữ liệu không mất, nên sửa đúng chỗ (màn Hồ sơ chọn đợt) thay vì sửa phiên đăng nhập. Cũng từ log này tìm ra hai lỗi phụ, US-1.9 và US-2.8.
+- US-1.10 (8 điểm) chia phiên 2 thành 2a/2b/2c theo nhóm task, mỗi phiên kết thúc với test xanh.
+
+### What didn't
+
+- Ba bẫy mới (LESSONS §46–§48). Bẫy §47 (CRLF trong working tree) làm diff của ba file thành diff cả file.
+- Hai sprint cùng `in-progress` suốt tuần, như *Risks* đã nêu.
+
+### Followups
+
+- Người dùng làm các việc còn chờ ở bảng *Carry-overs to W47*.
+- US-1.9 (phiên giữa các tab) còn ở backlog.
+
+## Carry-overs to W47
+
+| US      | Lý do                                                    | Từ sprint |
+| ------- | -------------------------------------------------------- | --------- |
+| US-1.8  | `review`: chờ kiểm tay AC-2…AC-7 theo checklist trong story | W46       |
+| US-1.10 | `review`: chờ `db:migrate` `0039`, kiểm tay AC-10         | W46       |
 
 ## Cross-references
 
 - [Story US-1.8](stories/US-1.8-profile-default-campaign.md); [US-1.9](stories/US-1.9-cross-tab-session-consistency.md), [US-2.8](stories/US-2.8-skill-search-empty-query.md): tách khi điều tra
-- [Sprint W45](sprint-2026-W45.md): vẫn mở
+- [Sprint W45](sprint-2026-W45.md): đóng cùng ngày · [Sprint W47](sprint-2026-W47.md): nhận các story chuyển tiếp
 - [EPIC-1](epics/EPIC-1.md): epic cha
 - [CONTEXT D55](../CONTEXT.md): thứ tự chọn đợt, thêm ba story
 - [Story US-1.10](stories/US-1.10-campaign-edit-cancel-delete.md); [CONTEXT D56](../CONTEXT.md): sửa, hủy, xóa đợt sau khi mở

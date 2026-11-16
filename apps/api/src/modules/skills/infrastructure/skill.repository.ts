@@ -127,11 +127,13 @@ export class SkillRepository {
   /**
    * Approved skills whose name or alias key contains the key of `query`, so "react js" finds React
    * by its alias ReactJS. A name or alias with exactly that key first, then key prefix, then by name.
+   * An empty key (no query, or only separators) lists every approved skill by name.
    */
   async search(query: string | undefined, limit: number): Promise<CatalogSkill[]> {
     const key = skillMatchKey(query?.trim() ?? '');
     const conditions: SQL[] = [eq(skills.status, 'APPROVED')];
-    let rank = sql`0`;
+    // No constant rank for an empty key: PostgreSQL reads `ORDER BY 0` as a column position.
+    let rank: SQL | undefined;
     if (key !== '') {
       const contains = `%${escapeLike(key)}%`;
       const prefix = `${escapeLike(key)}%`;
@@ -148,7 +150,7 @@ export class SkillRepository {
       .select({ id: skills.id, canonicalName: skills.canonicalName, group: skills.group, aliases: skills.aliases })
       .from(skills)
       .where(and(...conditions))
-      .orderBy(rank, asc(skills.canonicalName))
+      .orderBy(...(rank ? [rank] : []), asc(skills.canonicalName))
       .limit(limit);
     // CHECK skills_approved_group_check: an approved skill always has a group.
     return rows.map((row) => ({ ...row, group: row.group! }));

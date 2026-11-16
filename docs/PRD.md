@@ -1026,8 +1026,8 @@ Mỗi epic tương ứng một giai đoạn trong [ARCHITECTURE.md › Implement
 | US-2.4 | CV Parser: chữ ẩn, tách PII | ✅ done | 0.10.0 |
 | US-2.5 | Embedding và danh mục kỹ năng | ✅ done | 0.11.0 |
 | US-2.6 | SV xác nhận hồ sơ năng lực | ✅ done | 0.12.0 |
-| US-2.7 | Vùng, họ và quan hệ kéo theo của kỹ năng | 📋 backlog | — |
-| US-2.8 | Tìm kỹ năng trong danh mục khi ô tìm còn trống | 📋 backlog | — |
+| US-2.7 | Vùng, họ và quan hệ kéo theo của kỹ năng | 👀 review | 0.14.0 |
+| US-2.8 | Tìm kỹ năng trong danh mục khi ô tìm còn trống | 👀 review | 0.25.1 |
 
 ### EPIC-3: Chấm phù hợp và chọn nguyện vọng
 
@@ -1039,12 +1039,12 @@ Mỗi epic tương ứng một giai đoạn trong [ARCHITECTURE.md › Implement
 
 | Story | Title | Status | Version |
 |-------|-------|--------|---------|
-| US-3.1 | Lọc điều kiện cứng và công thức S_cv | 📋 backlog | — |
-| US-3.2 | Matching Agent chạy hàng loạt | 📋 backlog | — |
-| US-3.3 | Shortlist và chọn nguyện vọng | 📋 backlog | — |
-| US-3.4 | Mức cạnh tranh và gợi ý ít cạnh tranh | 📋 backlog | — |
-| US-3.5 | Hồ sơ kỹ năng chi tiết và khớp kỹ năng bằng code | 📋 backlog | — |
-| US-3.6 | Quy đổi ngoại ngữ CEFR và mức khớp ngành bằng code | 📋 backlog | — |
+| US-3.1 | Lọc điều kiện cứng và công thức S_cv | 👀 review | 0.13.0 |
+| US-3.2 | Matching Agent chạy hàng loạt | 👀 review | 0.17.0 |
+| US-3.3 | Shortlist và chọn nguyện vọng | 👀 review | 0.18.0 |
+| US-3.4 | Mức cạnh tranh và gợi ý ít cạnh tranh | 👀 review | 0.19.0 |
+| US-3.5 | Hồ sơ kỹ năng chi tiết và khớp kỹ năng bằng code | 👀 review | 0.15.0 |
+| US-3.6 | Quy đổi ngoại ngữ CEFR và mức khớp ngành bằng code | 👀 review | 0.16.0 |
 
 ### EPIC-4: Bài test — sinh đề, làm bài, chấm điểm
 
@@ -1056,11 +1056,11 @@ Mỗi epic tương ứng một giai đoạn trong [ARCHITECTURE.md › Implement
 
 | Story | Title | Status | Version |
 |-------|-------|--------|---------|
-| US-4.1 | Ma trận đề và Test Generator | 📋 backlog | — |
-| US-4.2 | Validator và khóa ngân hàng câu hỏi | 📋 backlog | — |
-| US-4.3 | Phòng thi | 📋 backlog | — |
-| US-4.4 | Chấm bài, S_test và S_final | 📋 backlog | — |
-| US-4.5 | Chấm tay câu tự luận được chuyển | 📋 backlog | — |
+| US-4.1 | Ma trận đề và Test Generator | 👀 review | 0.20.0 |
+| US-4.2 | Validator và khóa ngân hàng câu hỏi | 👀 review | 0.21.0 |
+| US-4.3 | Phòng thi | 👀 review | 0.22.0 |
+| US-4.4 | Chấm bài, S_test và S_final | 👀 review | 0.23.0 |
+| US-4.5 | Chấm tay câu tự luận được chuyển | 👀 review | 0.24.0 |
 | US-4.6 | Phúc khảo và báo lỗi câu hỏi | 📋 backlog | — |
 | US-4.7 | Tín hiệu gian lận | 📋 backlog | — |
 | US-4.8 | Câu hỏi xác minh CV và chỉ số tin cậy | 📋 backlog | — |

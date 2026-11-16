@@ -15,6 +15,22 @@ Lịch sử phát hành của Smart Recruit Match. Mỗi commit ship code tăng 
 
 ---
 
+## [0.25.1] — 2026-11-16 — Tìm kỹ năng khi ô tìm còn trống — v0.25.1
+
+US-2.8. Sửa lỗi tìm thấy khi điều tra US-1.8: log ngày 13/11 có bốn lần `GET /api/skills?limit=6` trả `500` lúc ADMIN gộp kỹ năng (FR-13, [CONTEXT D55](CONTEXT.md)).
+
+### Fixed
+- Ô chọn kỹ năng (duyệt, gộp kỹ năng, taxonomy) hiện gợi ý ngay khi mở, chưa cần gõ gì. Trước đây `GET /api/skills` không có `query`, hoặc `query` chỉ có khoảng trắng, `.`, `-`, `_`, `/`, trả `500`. Truy vấn sắp theo hằng `0` khi không có từ khóa, và PostgreSQL hiểu `ORDER BY 0` là số thứ tự cột. Nay API trả các kỹ năng đã duyệt theo tên. Thứ tự khi có từ khóa không đổi.
+
+### Changed
+- Sprint: đóng `sprint-2026-W45`, `sprint-2026-W46`; mở `sprint-2026-W47`, chuyển sang các story còn `review` và US-5.1, US-6.4.
+- PRD › *Epics & User Stories*: bảng trạng thái ghi `review` và phiên bản cho US-2.7, US-2.8, US-3.1…US-3.6, US-4.1…US-4.5 (trước đây còn ghi `backlog`).
+
+### Not done
+- Chưa kiểm tay trên compose: ở màn gộp kỹ năng, mở ô chọn kỹ năng đích khi chưa gõ gì.
+
+---
+
 ## [0.25.0] — 2026-11-16 — Sửa, hủy và xóa đợt sau khi mở — v0.25.0
 
 US-1.10. Trước đây đợt rời *Nháp* thì tên, đối tượng và tham số bị khóa, mốc chỉ lùi được, và không xóa được đợt. Người dùng yêu cầu ngày 2026-11-15: "chỉnh sửa đợt xét tuyển sau khi mở, có thể chỉnh sửa hoặc xóa cho trung tâm" (FR-41, AD-8, [CONTEXT D56](CONTEXT.md)).

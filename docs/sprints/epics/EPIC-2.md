@@ -56,7 +56,7 @@ Ranh giới kiến trúc mà epic này giữ (AD-1, AD-4): AI Service không chu
 | US-2.5 | 8 | T6 (W46), làm sớm ở W44 | B | US-2.1, US-2.4 |
 | US-2.6 | 5 | T6 (W46) | A | US-2.4 |
 | US-2.7 | 8 | T5 (W45) | A | US-2.5 |
-| US-2.8 | 1 | backlog (sửa lỗi, [CONTEXT D55](../../CONTEXT.md)) | – | US-2.5 |
+| US-2.8 | 1 | W47 (sửa lỗi, [CONTEXT D55](../../CONTEXT.md)) | – | US-2.5 |
 
 ### Out of scope
 
@@ -103,7 +103,7 @@ Ranh giới kiến trúc mà epic này giữ (AD-1, AD-4): AI Service không chu
 | US-2.5 | Embedding và danh mục kỹ năng | Tên kỹ năng được chuẩn hóa; quản trị duyệt kỹ năng mới | ✅ done | 0.11.0 |
 | US-2.6 | SV xác nhận hồ sơ năng lực | SV xem CV bên cạnh hồ sơ, sửa và xác nhận | ✅ done | 0.12.0 |
 | US-2.7 | Vùng, họ và quan hệ kéo theo của kỹ năng | ADMIN gán vùng, họ, kéo theo; `matching` đọc taxonomy | 👀 review | — |
-| US-2.8 | Tìm kỹ năng trong danh mục khi ô tìm còn trống | `GET /api/skills` không có `query` trả kỹ năng theo tên, không `500` | 📋 backlog | — |
+| US-2.8 | Tìm kỹ năng trong danh mục khi ô tìm còn trống | `GET /api/skills` không có `query` trả kỹ năng theo tên, không `500` | 👀 review | 0.25.1 |
 
 ## Object map & user-story interactions
 

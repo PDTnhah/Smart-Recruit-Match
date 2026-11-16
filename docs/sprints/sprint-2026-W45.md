@@ -1,6 +1,6 @@
 ---
 id: sprint-2026-W45
-status: in-progress
+status: closed
 start: 2026-11-02T00:00:00.000Z
 end: 2026-11-08T00:00:00.000Z
 goal: 'Ship US-2.7: danh mục kỹ năng có vùng, họ và quan hệ kéo theo, ADMIN gán khi duyệt và sửa cho kỹ năng đã duyệt, `SkillCatalogService.taxonomy()` cho module matching (v0.14.0); bắt đầu US-3.6 ở làn B; đóng US-3.1'
@@ -78,20 +78,58 @@ Ngày 2026-11-11, sau khi US-4.4 merge vào `dev` (PR #29), kéo US-4.5 sớm t�
 
 | Epic   | Retro Status | Notes                                                                                           |
 | ------ | ------------ | ----------------------------------------------------------------------------------------------- |
-| EPIC-2 | optional     | US-2.7 là story cuối của epic                                                                   |
-| EPIC-3 | optional     | US-3.1 chờ kiểm tay; US-3.5 0.15.0; US-3.6 0.16.0; US-3.2 0.17.0; US-3.3 0.18.0; US-3.4 0.19.0 |
+| EPIC-2 | optional     | US-2.7 0.14.0, chờ kiểm tay; D55 thêm US-2.8 (W47)                                              |
+| EPIC-3 | optional     | Đủ code US-3.1…US-3.6 (0.13.0, 0.15.0…0.19.0); cả sáu chờ kiểm tay hoặc chạy với key thật       |
+| EPIC-4 | optional     | US-4.1…US-4.5 0.20.0…0.24.0, kéo sớm từ W47–W50; US-4.6…US-4.9 chưa bắt đầu                    |
 | EPIC-5 | optional     | US-5.1 chưa bắt đầu                                                                             |
 | EPIC-6 | optional     | US-6.4 chưa bắt đầu                                                                             |
 
 ## Retrospective
 
-*Điền khi đóng sprint.*
+Đóng ngày 2026-11-16, trễ 8 ngày so với ngày kết thúc. Sprint ship 11 story: 0.14.0 (US-2.7), 0.15.0 (US-3.5), 0.16.0 (US-3.6), 0.17.0 (US-3.2), 0.18.0 (US-3.3), 0.19.0 (US-3.4), 0.20.0 (US-4.1), 0.21.0 (US-4.2), 0.22.0 (US-4.3), 0.23.0 (US-4.4), 0.24.0 (US-4.5). Tổng 87 điểm; kế hoạch ban đầu là 13 điểm (US-2.7, US-3.6). Cả 11 story đã merge vào `dev` (PR #19–#30), nhưng vẫn ở `review` cùng US-3.1, nên chuyển sang W47.
+
+### What went well
+
+- Đi trước lộ trình: EPIC-3 đủ code, EPIC-4 kéo sớm năm story từ W47–W50.
+- Migration `0020`…`0038` không trùng số thứ tự: mỗi story sinh migration sau khi story trước merge vào `dev`.
+- Điểm mở của mỗi story được chốt ở phiên Plan (D43…D54), trước khi code.
+
+### What didn't
+
+- Việc chờ người dùng dồn lại: 12 story `review` chờ kiểm tay, `db:migrate` (`0030`…`0038`) hoặc `evals/smoke_llm.py` với key thật, nên chưa đóng được story nào trong sprint.
+- US-5.1, US-6.4 vẫn chưa bắt đầu, nên mốc M1 còn thiếu engine phân bổ và mô phỏng.
+- Sprint không đóng đúng hạn: W46 phải mở song song cho US-1.8.
+- 17 bẫy mới (LESSONS §29–§45), nhiều nhất ở giao dịch và khóa, job AI và form web.
+
+### Followups
+
+- Người dùng làm các việc còn chờ ở bảng *Carry-overs to W47*, rồi chuyển story sang `done`.
+- Làm US-5.1, US-6.4 khi một làn rảnh.
+
+## Carry-overs to W47
+
+| US     | Lý do                                                                                      | Từ sprint |
+| ------ | ------------------------------------------------------------------------------------------ | --------- |
+| US-2.7 | `review`: chờ kiểm tay AC-5, AC-10 ở 360 / 768 / 1024 px                                   | W45       |
+| US-3.1 | `review`: chờ kiểm tay form đợt AC-13 ở 360 / 768 / 1024 px                                | W44       |
+| US-3.2 | `review`: chờ `evals/smoke_llm.py` cho batch với key thật, đo ba số của *Performance budget* | W45       |
+| US-3.3 | `review`: chờ kiểm tay AC-14, AC-15, AC-19                                                 | W45       |
+| US-3.4 | `review`: chờ kiểm tay AC-8, AC-9                                                          | W45       |
+| US-3.5 | `review`: chờ người dùng duyệt bảng tín hiệu kỹ năng mềm                                   | W45       |
+| US-3.6 | `review`: chờ kiểm tay AC-9 ở 768 / 1024 px                                                | W45       |
+| US-4.1 | `review`: chờ `db:migrate`, `smoke_llm --bank`, kiểm tay AC-11                             | W45       |
+| US-4.2 | `review`: chờ `db:migrate` `0030`–`0031`, `smoke_llm --bank`, kiểm tay AC-10               | W45       |
+| US-4.3 | `review`: chờ `db:migrate` `0032`–`0033`, kiểm tay AC-13                                   | W45       |
+| US-4.4 | `review`: chờ `db:migrate` `0034`–`0037`, `smoke_llm --grader`, kiểm tay AC-12             | W45       |
+| US-4.5 | `review`: chờ `db:migrate` `0038`, kiểm tay AC-6                                           | W45       |
+| US-5.1 | Chưa bắt đầu; hai làn dồn cho EPIC-3, EPIC-4                                               | W42       |
+| US-6.4 | Chưa bắt đầu; phụ thuộc US-5.1                                                             | W44       |
 
 ## Cross-references
 
 - [Story US-2.7](stories/US-2.7-skill-zones-families-implications.md), [US-3.6](stories/US-3.6-language-cefr-major-match.md) — story mới theo D42
 - [Story US-3.1](stories/US-3.1-hard-filters-and-scv-formula.md), [US-5.1](stories/US-5.1-allocation-engine-property-tests.md), [US-6.4](stories/US-6.4-allocation-simulation-vs-baselines.md) — chuyển từ W42, W44
-- [Sprint W44 (đã đóng)](sprint-2026-W44.md)
+- [Sprint W44 (đã đóng)](sprint-2026-W44.md) · [Sprint W47](sprint-2026-W47.md): nhận các story chuyển tiếp
 - [EPIC-2](epics/EPIC-2.md), [EPIC-3](epics/EPIC-3.md) — epic cha
 - [CONTEXT D42, D43](../CONTEXT.md) — khớp kỹ năng bằng code, taxonomy
 - [README.md](README.md) — quy ước sprint

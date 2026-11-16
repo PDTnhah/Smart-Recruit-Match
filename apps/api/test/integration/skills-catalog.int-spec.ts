@@ -13,7 +13,7 @@ import {
   skillMatchKey,
   type SkillSuggestion,
 } from '@srm/shared';
-import { eq, inArray } from 'drizzle-orm';
+import { asc, eq, inArray } from 'drizzle-orm';
 import { Client } from 'pg';
 import { skills } from '../../src/db/schema/index.js';
 import {
@@ -400,6 +400,25 @@ describe('US-2.5: skill catalogue', () => {
       }
       expect(await rowById(pending.id)).toMatchObject({ status: 'PENDING' });
       await t.http().get(api('skills')).expect(401);
+    });
+
+    it('FR-13 US-2.8 không có query hoặc key rỗng: kỹ năng đã duyệt theo tên', async () => {
+      const { agent } = await t.loginAs('STUDENT');
+      // No query, as the web sends for an empty box; then queries skillMatchKey reduces to ''.
+      for (const params of [{ limit: 6 }, { query: '   ', limit: 6 }, { query: ' . - _ / ', limit: 6 }]) {
+        const { items } = CatalogSkillListSchema.parse((await agent.get(api('skills')).query(params).expect(200)).body);
+        expect(items).toHaveLength(6);
+        // Other files write skills to the same database (LESSONS §22): check the order of the
+        // returned rows by the database's own collation rather than a fixed list.
+        const ids = items.map((item) => item.id);
+        const rows = await t.db
+          .select({ id: skills.id, status: skills.status })
+          .from(skills)
+          .where(inArray(skills.id, ids))
+          .orderBy(asc(skills.canonicalName));
+        expect(rows.map((row) => row.id)).toEqual(ids);
+        expect(rows.every((row) => row.status === 'APPROVED')).toBe(true);
+      }
     });
   });
 
