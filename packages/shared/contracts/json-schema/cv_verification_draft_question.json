@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./cv_verification_draft_question.json",
+  "type": "object",
+  "properties": {
+    "claim_ref": {
+      "$ref": "./cv_claim_ref.json"
+    },
+    "stem": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1000,
+      "description": "The question, in Vietnamese"
+    }
+  },
+  "required": [
+    "claim_ref",
+    "stem"
+  ],
+  "additionalProperties": false,
+  "title": "CvVerificationDraftQuestion",
+  "description": "One drafted question about a CV entry"
+}

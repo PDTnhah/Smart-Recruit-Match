@@ -15,6 +15,31 @@ Lịch sử phát hành của Smart Recruit Match. Mỗi commit ship code tăng 
 
 ---
 
+## [0.26.0] — 2026-11-18 — Câu hỏi xác minh CV và chỉ số tin cậy — v0.26.0
+
+US-4.8. Bài test có thêm phần D, tùy chọn theo JD: 2–3 câu hỏi về dự án, kinh nghiệm, kỹ năng mà sinh viên đã khai trong CV. Câu trả lời được đối chiếu với CV và quy thành chỉ số tin cậy CV để tham khảo, **không** tính vào S_test, S_final hay phân bổ (FR-25, AD-2, [CONTEXT D57](CONTEXT.md)).
+
+### Added
+- **Bật phần D theo JD**: form ma trận đề có ô "Phần D – Xác minh CV" (Không dùng / 2 câu / 3 câu), sửa được tới khi khóa ngân hàng câu hỏi. API `GET`/`PUT /api/jds/{id}/exam-blueprint` có khối `cvVerification`; request không gửi khối này thì giữ nguyên cấu hình. Migration `0040` thêm cột cho `question_banks`, bảng `cv_verifications`, `cv_verification_questions`, cột `exam_sessions.verification_question_ids`.
+- **Sinh câu hỏi**: khi đợt sang giai đoạn làm test, tác vụ quét mỗi phút gửi một job `CV_VERIFY_GENERATE` cho mỗi nguyện vọng của JD bật phần D. Agent mới `cv_verification` (prompt `cv_verification/v1`, effort `medium`) chỉ đọc các mục của hồ sơ đã che PII (BR-03). Sinh lỗi thì nguyện vọng đó không có phần D, sinh viên vẫn thi bình thường.
+- **Phòng thi**: câu phần D nằm trong nhóm riêng có nhãn "Không tính điểm", tự lưu như câu tự luận, làm trong thời gian của bài test. Câu sinh xong sau khi sinh viên bắt đầu thi thì không được thêm vào bài. Số câu khi nộp bài gồm cả phần D.
+- **Đối chiếu và chỉ số**: phiên đóng thì job `CV_VERIFY_EVALUATE` (prompt `cv_verification_check/v1`, đọc view `v_ai_cv_verification_answers` của migration `0041`) cho mỗi câu một nhận định kèm trích dẫn và lý do.
+  - Câu bỏ trống là "Bỏ trống" do code đặt, không gọi LLM.
+  - "Khớp" hoặc "Khớp một phần" mà trích dẫn không có trong câu trả lời thì bị hạ thành "Không khớp" (Nguyên tắc 5).
+  - Code tính chỉ số = trung bình 1 / 0,5 / 0 / 0, ×100, làm tròn half-up; Cao ≥ 75, Trung bình ≥ 40, còn lại Thấp.
+- **Xem chỉ số**: Trung tâm đọc qua `GET /api/exam-sessions/{id}/cv-trust`, và trong khối "Chỉ số tin cậy CV" của Sheet chấm tay, đặt sau ô nhập điểm. HR và sinh viên nhận `403`. `CvTrustService.getForPreference` sẵn cho màn HR của US-5.3.
+
+### Changed
+- `IconBadge` (`apps/web/src/shared/ui/icon-badge.tsx`) dùng chung cho các badge có icon: nhận định kỹ năng, mức cạnh tranh, phần D.
+- Tài liệu: ARCHITECTURE (*Agent*, *Hàng đợi*, *Các bảng chính*, *Tác vụ định kỳ*), PRD GĐ5, EPIC-4, DESIGN §6 (badge phần D, chỗ đặt khối tham khảo trong Sheet chấm tay).
+
+### Not done
+- Chưa kiểm tay ở 360 / 768 / 1024 px (AC-1, AC-4, AC-7).
+- Người dùng cần chạy `db:migrate` cho `0040`–`0041`.
+- Job đã thất bại không được thử lại. Khối chỉ số chỉ hiện với bài nằm trong hàng đợi chấm tay. Chất lượng nhận định của LLM chưa được đo (US-6.3).
+
+---
+
 ## [0.25.1] — 2026-11-16 — Tìm kỹ năng khi ô tìm còn trống — v0.25.1
 
 US-2.8. Sửa lỗi tìm thấy khi điều tra US-1.8: log ngày 13/11 có bốn lần `GET /api/skills?limit=6` trả `500` lúc ADMIN gộp kỹ năng (FR-13, [CONTEXT D55](CONTEXT.md)).

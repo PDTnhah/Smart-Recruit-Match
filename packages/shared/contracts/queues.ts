@@ -8,6 +8,8 @@ export const AI_JOB_QUEUES = {
   MATCH: 'ai.match.run',
   QUESTIONS_GENERATE: 'ai.questions.generate',
   ESSAY_GRADE: 'ai.essay.grade',
+  CV_VERIFY_GENERATE: 'ai.cv_verification.generate',
+  CV_VERIFY_EVALUATE: 'ai.cv_verification.evaluate',
 } as const satisfies Record<AiJobType, string>;
 
 export const AI_RESULTS_QUEUE = 'ai.results';

@@ -281,6 +281,20 @@
       "when": 1794757023974,
       "tag": "0039_campaign_cancelled",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1794804027996,
+      "tag": "0040_cv_verification",
+      "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1794804046470,
+      "tag": "0041_ai_cv_verification_view",
+      "breakpoints": true
     }
   ]
 }

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { CV_VERIFICATION_QUESTIONS } from '../contracts/cv-verification.js';
 import {
   EXAM_PARTS,
   ExamBlueprintSchema,
@@ -118,10 +119,32 @@ export function examBlueprintRequestSchema(requirements: Pick<JdRequirements, 'm
   return ExamBlueprintSchema.superRefine((value, ctx) => checkBlueprint(value, known, ctx), whenBlueprintIsObject);
 }
 
-/** Body of `PUT /api/jds/{id}/exam-blueprint`; the service checks the blueprint against the JD. */
+/**
+ * Part D of the JD's test (FR-25, US-4.8 AC-1, CONTEXT D57): 2–3 questions about the student's own
+ * CV, never scored. Kept in columns of the bank, outside the `ExamBlueprint` contract the Test
+ * Generator reads: part D is not drawn from the bank.
+ */
+export const CvVerificationSettingsSchema = z.object({
+  enabled: z.boolean({ error: 'Chọn có dùng phần D hay không' }),
+  questionCount: z
+    .int({ error: 'Số câu phần D phải là số nguyên' })
+    .min(CV_VERIFICATION_QUESTIONS.min, { error: `Phần D có ${CV_VERIFICATION_QUESTIONS.min} hoặc ${CV_VERIFICATION_QUESTIONS.max} câu` })
+    .max(CV_VERIFICATION_QUESTIONS.max, { error: `Phần D có ${CV_VERIFICATION_QUESTIONS.min} hoặc ${CV_VERIFICATION_QUESTIONS.max} câu` }),
+});
+
+export type CvVerificationSettings = z.output<typeof CvVerificationSettingsSchema>;
+
+/** Part D is off until CENTER turns it on; 2 questions when turned on without a count. */
+export const CV_VERIFICATION_DEFAULTS: CvVerificationSettings = { enabled: false, questionCount: CV_VERIFICATION_QUESTIONS.min };
+
+/**
+ * Body of `PUT /api/jds/{id}/exam-blueprint`; the service checks the blueprint against the JD.
+ * `cvVerification` left out keeps part D as it is.
+ */
 export const UpdateExamBlueprintRequestSchema = z.object({
   rowVersion: RowVersionSchema,
   blueprint: ExamBlueprintSchema,
+  cvVerification: CvVerificationSettingsSchema.optional(),
 });
 
 export type UpdateExamBlueprintRequest = z.output<typeof UpdateExamBlueprintRequestSchema>;
@@ -228,6 +251,7 @@ export const ExamBlueprintViewSchema = z.object({
   /** Not locked and no generation running: CENTER may change the blueprint. */
   editable: z.boolean(),
   blueprint: ExamBlueprintSchema,
+  cvVerification: CvVerificationSettingsSchema,
   /** The JD's current requirements: the skills a cell may name. */
   requirements: JdRequirementsSchema,
   coverage: z.array(CellCoverageSchema),

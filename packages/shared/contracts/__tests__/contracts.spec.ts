@@ -128,6 +128,8 @@ describe('AD-6: contracts are generated, not written by hand', () => {
       'ai.match.run',
       'ai.questions.generate',
       'ai.essay.grade',
+      'ai.cv_verification.generate',
+      'ai.cv_verification.evaluate',
       'ai.results',
       'ai.cv.parse.dlq',
       'ai.jd.analyze.dlq',
@@ -135,6 +137,8 @@ describe('AD-6: contracts are generated, not written by hand', () => {
       'ai.match.run.dlq',
       'ai.questions.generate.dlq',
       'ai.essay.grade.dlq',
+      'ai.cv_verification.generate.dlq',
+      'ai.cv_verification.evaluate.dlq',
       'ai.results.dlq',
     ]);
   });

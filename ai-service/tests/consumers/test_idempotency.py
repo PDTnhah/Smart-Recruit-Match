@@ -13,6 +13,10 @@ from app.consumers.base import DEFERRED, Deferred
 from app.consumers.outbox import RabbitOutbox
 from app.contracts.cv_parse_job import CvParseJob
 from app.contracts.cv_parse_output import CvParseOutput
+from app.contracts.cv_verify_evaluate_job import CvVerifyEvaluateJob
+from app.contracts.cv_verify_evaluate_output import CvVerifyEvaluateOutput
+from app.contracts.cv_verify_generate_job import CvVerifyGenerateJob
+from app.contracts.cv_verify_generate_output import CvVerifyGenerateOutput
 from app.contracts.essay_grade_job import EssayGradeJob
 from app.contracts.essay_grade_output import EssayGradeOutput
 from app.contracts.jd_analyze_job import JdAnalyzeJob
@@ -103,6 +107,38 @@ async def stub_essay_grade(job: EssayGradeJob) -> EssayGradeOutput:
     return EssayGradeOutput(prompt_version="grader/v1", final=True, items=[], failed=[])
 
 
+async def stub_cv_verify_generate(job: CvVerifyGenerateJob) -> CvVerifyGenerateOutput:
+    """Stands in for part D drafting (tests/agents/test_cv_verification.py)."""
+    question = {
+        "claim_ref": {"section": "PROJECT", "index": 0},
+        "claim_label": "Project",
+        "stem": "Question?",
+    }
+    return CvVerifyGenerateOutput.model_validate(
+        {
+            "prompt_version": "cv_verification/v1",
+            "model": "fixture",
+            "preference_id": job.preference_id,
+            "questions": [question],
+        }
+    )
+
+
+async def stub_cv_verify_evaluate(job: CvVerifyEvaluateJob) -> CvVerifyEvaluateOutput:
+    """Stands in for part D checking: one blank answer, so no LLM."""
+    item = {
+        "question_id": 1,
+        "llm_verdict": None,
+        "verdict": "NO_ANSWER",
+        "quote": None,
+        "quote_score": None,
+        "reason": "Blank.",
+    }
+    return CvVerifyEvaluateOutput.model_validate(
+        {"prompt_version": None, "model": None, "preference_id": job.preference_id, "items": [item]}
+    )
+
+
 STUBS = {
     "cv_parser": stub_cv_parse,
     "jd_analyzer": stub_jd_analyze,
@@ -110,6 +146,8 @@ STUBS = {
     "matching": stub_match,
     "test_generator": stub_questions_generate,
     "grader": stub_essay_grade,
+    "cv_verify_generate": stub_cv_verify_generate,
+    "cv_verify_evaluate": stub_cv_verify_evaluate,
 }
 HANDLERS = build_handlers(**STUBS, fake_file_keys=True)
 

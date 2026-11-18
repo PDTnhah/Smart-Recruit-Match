@@ -50,11 +50,22 @@ export const ExamOptionSchema = z.object({
 
 export type ExamOption = z.output<typeof ExamOptionSchema>;
 
-/** One question of the paper, in display order; `no` counts from 1 across both parts. */
+/**
+ * Part D (FR-25, US-4.8, CONTEXT D57): essays about the student's own CV, after parts A and B,
+ * never scored. Not a blueprint part: its questions are drafted per student, not drawn.
+ */
+export const CV_VERIFICATION_PART = 'D';
+
+/** Parts a paper may show. */
+export const EXAM_PAPER_PARTS = [...EXAM_PARTS, CV_VERIFICATION_PART] as const;
+
+export type ExamPaperPart = (typeof EXAM_PAPER_PARTS)[number];
+
+/** One question of the paper, in display order; `no` counts from 1 across every part. */
 export const ExamQuestionSchema = z.object({
   questionId: id,
   no: z.number().int().positive(),
-  part: z.enum(EXAM_PARTS),
+  part: z.enum(EXAM_PAPER_PARTS),
   type: z.enum(QUESTION_TYPES),
   stem: z.string(),
   /** MCQ options in this session's order; null for an essay. */

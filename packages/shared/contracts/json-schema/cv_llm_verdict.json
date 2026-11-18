@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./cv_llm_verdict.json",
+  "type": "string",
+  "enum": [
+    "CONSISTENT",
+    "PARTIAL",
+    "INCONSISTENT"
+  ],
+  "title": "CvLlmVerdict",
+  "description": "CONSISTENT = the answer shows the student did what the entry claims; PARTIAL = it shows part of it, or stays vague; INCONSISTENT = it contradicts the entry or shows no first-hand knowledge of it"
+}

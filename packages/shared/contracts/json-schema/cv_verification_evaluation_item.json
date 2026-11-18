@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./cv_verification_evaluation_item.json",
+  "type": "object",
+  "properties": {
+    "question_id": {
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "maximum": 9007199254740991,
+      "description": "core.cv_verification_questions.id"
+    },
+    "llm_verdict": {
+      "anyOf": [
+        {
+          "$ref": "./cv_llm_verdict.json"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "The LLM's verdict; null for a blank answer"
+    },
+    "verdict": {
+      "$ref": "./cv_verdict.json"
+    },
+    "quote": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "The quote as the LLM wrote it; null when it gave none"
+    },
+    "quote_score": {
+      "anyOf": [
+        {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "rapidfuzz score of the quote against the answer, both normalised: partial_ratio, or ratio for a quote longer than the answer; null without a quote"
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1000,
+      "description": "Why this verdict, in Vietnamese"
+    }
+  },
+  "required": [
+    "question_id",
+    "llm_verdict",
+    "verdict",
+    "quote",
+    "quote_score",
+    "reason"
+  ],
+  "additionalProperties": false,
+  "title": "CvVerificationEvaluationItem",
+  "description": "The checked verdict on one answer of part D"
+}

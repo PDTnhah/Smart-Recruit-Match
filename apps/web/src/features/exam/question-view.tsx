@@ -1,12 +1,19 @@
-import { EXAM_ESSAY_MAX_LENGTH, type ExamAnswerValue, type ExamOption, type ExamQuestion } from '@srm/shared';
+import {
+  CV_VERIFICATION_PART,
+  EXAM_ESSAY_MAX_LENGTH,
+  type ExamAnswerValue,
+  type ExamOption,
+  type ExamQuestion,
+} from '@srm/shared';
 import type { Ref } from 'react';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, FieldContent, FieldDescription, FieldLabel, FieldLegend, FieldSet } from '@/components/ui/field';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
 import { formatNumber } from '@/lib/format';
-import { optionLetter, PART_LABELS } from './labels';
+import { optionLetter, PART_LABELS, UNSCORED_LABEL } from './labels';
 import type { AnswerChange } from './use-exam-autosave';
 
 interface QuestionViewProps {
@@ -32,6 +39,11 @@ export function QuestionView({ question, total, answer, locked, onAnswer, headin
           </h2>
         </CardTitle>
         <CardDescription>{PART_LABELS[question.part]}</CardDescription>
+        {question.part === CV_VERIFICATION_PART && (
+          <CardAction>
+            <Badge variant="outline">{UNSCORED_LABEL}</Badge>
+          </CardAction>
+        )}
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         <p id={stemId} className="break-words whitespace-pre-wrap">

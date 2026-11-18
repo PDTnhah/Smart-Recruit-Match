@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import {
+  type CvVerificationSettings,
   type ExamBlueprintView,
   examBlueprintRequestSchema,
   type LockQuestionBankRequest,
@@ -80,14 +81,16 @@ export class BlueprintService {
       if (bank.rowVersion !== body.rowVersion) {
         throw new RowVersionConflictError(QUESTION_BANK_ENTITY, bank.id, body.rowVersion, bank.rowVersion);
       }
-      await this.banks.updateBlueprint(tx, bank.id, body.rowVersion, { blueprint, jdVersion: jd.jdVersion });
+      const before = cvVerificationOf(bank);
+      const cvVerification = body.cvVerification ?? before;
+      await this.banks.updateBlueprint(tx, bank.id, body.rowVersion, { blueprint, jdVersion: jd.jdVersion, cvVerification });
       await this.audit.record(tx, {
         actor,
         action: ASSESSMENT_AUDIT_ACTIONS.EXAM_BLUEPRINT_UPDATED,
         entity: QUESTION_BANK_ENTITY,
         entityId: bank.id,
-        before: { blueprint: bank.blueprint, jdVersion: bank.jdVersion },
-        after: { blueprint, jdVersion: jd.jdVersion },
+        before: { blueprint: bank.blueprint, jdVersion: bank.jdVersion, cvVerification: before },
+        after: { blueprint, jdVersion: jd.jdVersion, cvVerification },
       });
     });
     return this.get(jdId);
@@ -127,9 +130,15 @@ export class BlueprintService {
       lock: { allowed: blockers.length === 0, blockers },
       editable: !locked && !generationRunning,
       blueprint: bank.blueprint,
+      cvVerification: cvVerificationOf(bank),
       requirements: jd.requirements,
       coverage,
       run: run ? runView(run) : null,
     };
   }
+}
+
+/** Part D of the bank (US-4.8 AC-1). */
+function cvVerificationOf(bank: QuestionBankRecord): CvVerificationSettings {
+  return { enabled: bank.cvVerificationEnabled, questionCount: bank.cvVerificationCount };
 }

@@ -67,6 +67,8 @@ def test_ad6_queues_json_ships_with_the_package() -> None:
         "MATCH",
         "QUESTIONS_GENERATE",
         "ESSAY_GRADE",
+        "CV_VERIFY_GENERATE",
+        "CV_VERIFY_EVALUATE",
     }
 
 

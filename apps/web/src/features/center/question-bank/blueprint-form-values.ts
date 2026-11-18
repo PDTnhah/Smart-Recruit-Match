@@ -1,4 +1,6 @@
 import {
+  CV_VERIFICATION_QUESTIONS,
+  type CvVerificationSettings,
   EXAM_PARTS,
   type ExamBlueprint,
   type ExamPart,
@@ -33,6 +35,27 @@ export interface PartFormValues {
 export interface BlueprintFormValues {
   duration_minutes: number;
   parts: Record<ExamPart, PartFormValues>;
+  /** Part D (US-4.8 AC-1): `CV_VERIFICATION_OFF` or a question count, as the Select holds it. */
+  cvVerification: string;
+}
+
+/** Part D turned off; Radix's Select takes no empty value (DESIGN.md §6 `select`). */
+export const CV_VERIFICATION_OFF = 'NONE';
+
+/** The question counts part D may have, 2 to 3. */
+export const CV_VERIFICATION_COUNTS = Array.from(
+  { length: CV_VERIFICATION_QUESTIONS.max - CV_VERIFICATION_QUESTIONS.min + 1 },
+  (_, index) => CV_VERIFICATION_QUESTIONS.min + index,
+);
+
+export const cvVerificationChoiceOf = (settings: CvVerificationSettings) =>
+  settings.enabled ? String(settings.questionCount) : CV_VERIFICATION_OFF;
+
+/** The settings a choice stands for; turning part D off keeps the count it had. */
+export function cvVerificationOf(choice: string, loaded: CvVerificationSettings): CvVerificationSettings {
+  return choice === CV_VERIFICATION_OFF
+    ? { enabled: false, questionCount: loaded.questionCount }
+    : { enabled: true, questionCount: Number(choice) };
 }
 
 interface CellPosition {
@@ -60,7 +83,11 @@ export function matrixRows(
   return [...rows.values()];
 }
 
-export function formValuesOf(blueprint: ExamBlueprint, rows: readonly MatrixRow[]): BlueprintFormValues {
+export function formValuesOf(
+  blueprint: ExamBlueprint,
+  cvVerification: CvVerificationSettings,
+  rows: readonly MatrixRow[],
+): BlueprintFormValues {
   const rowOf = new Map(rows.map((row, index) => [row.key, index]));
   const partValues = (part: ExamPart): PartFormValues => {
     const { weight_percent, question_count, cells } = blueprint.parts[part];
@@ -71,7 +98,11 @@ export function formValuesOf(blueprint: ExamBlueprint, rows: readonly MatrixRow[
     }
     return { weight_percent, question_count, counts };
   };
-  return { duration_minutes: blueprint.duration_minutes, parts: { A: partValues('A'), B: partValues('B') } };
+  return {
+    duration_minutes: blueprint.duration_minutes,
+    parts: { A: partValues('A'), B: partValues('B') },
+    cvVerification: cvVerificationChoiceOf(cvVerification),
+  };
 }
 
 /** An empty input holds NaN (the number inputs' convention) and means 0, like a blank cell. */

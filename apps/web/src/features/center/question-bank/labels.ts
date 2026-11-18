@@ -27,6 +27,12 @@ export const EXAM_PART_TITLES: Readonly<Record<ExamPart, string>> = {
   B: 'Phần B – Tự luận chấm theo rubric',
 };
 
+/** Part D (US-4.8): not a blueprint part, set apart from A and B. */
+export const CV_VERIFICATION_TITLE = 'Phần D – Xác minh CV (không tính điểm)';
+
+export const CV_VERIFICATION_DESCRIPTION =
+  'Câu tự luận về dự án, kinh nghiệm, kỹ năng sinh viên khai trong CV, sinh riêng cho từng sinh viên từ hồ sơ đã che thông tin cá nhân khi đợt sang giai đoạn làm test. Câu trả lời được đối chiếu với CV thành chỉ số tin cậy để tham khảo, không tính vào điểm bài test. Thời gian làm phần D nằm trong thời gian làm bài.';
+
 type BadgeVariant = NonNullable<VariantProps<typeof badgeVariants>['variant']>;
 
 export const RUN_STATUS_LABELS: Readonly<Record<QuestionGenerationRunStatus, string>> = {

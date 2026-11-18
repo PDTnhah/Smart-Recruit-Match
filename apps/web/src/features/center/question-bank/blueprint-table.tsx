@@ -1,5 +1,6 @@
 import {
   type CellCoverage,
+  type CvVerificationSettings,
   type ExamPart,
   type ExamPartBlueprint,
   QUESTION_DIFFICULTIES,
@@ -10,7 +11,7 @@ import { CircleAlert } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCaption, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatNumber } from '@/lib/format';
-import { DIFFICULTY_LABELS, EXAM_PART_TITLES, REJECT_REASON_LABELS } from './labels';
+import { CV_VERIFICATION_TITLE, DIFFICULTY_LABELS, EXAM_PART_TITLES, REJECT_REASON_LABELS } from './labels';
 
 interface SkillRow {
   skill: string;
@@ -83,6 +84,22 @@ function CoverageCell({ cell }: { cell: CellCoverage | undefined }) {
         </Badge>
       )}
     </div>
+  );
+}
+
+/** Part D of the saved blueprint, read only (US-4.8 AC-1). */
+export function CvVerificationSummary({ settings }: { settings: CvVerificationSettings }) {
+  return (
+    <section className="flex flex-col gap-1" aria-labelledby="blueprint-part-D">
+      <h3 id="blueprint-part-D" className="font-heading text-base font-medium">
+        {CV_VERIFICATION_TITLE}
+      </h3>
+      <p className="text-sm text-muted-foreground">
+        {settings.enabled
+          ? `${formatNumber(settings.questionCount)} câu mỗi bài, hỏi về dự án, kinh nghiệm, kỹ năng sinh viên khai trong CV. Câu trả lời cho ra chỉ số tin cậy CV để tham khảo, không tính vào điểm bài test.`
+          : 'Không dùng.'}
+      </p>
+    </section>
   );
 }
 

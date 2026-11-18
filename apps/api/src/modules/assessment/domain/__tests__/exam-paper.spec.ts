@@ -1,5 +1,12 @@
 import type { ExamAnswerValue, ExamOptionLayout } from '@srm/shared';
-import { paperQuestionsOf, type QuestionForPaper, savedAnswersOf, storedAnswersOf } from '../exam-paper.js';
+import {
+  paperQuestionsOf,
+  type QuestionForPaper,
+  savedAnswersOf,
+  storedAnswersOf,
+  verificationAnswersOf,
+  verificationQuestionsOf,
+} from '../exam-paper.js';
 
 // US-4.3 AC-3, AC-7, AC-8 (AGENTS › Invariant 8): what a student sees of a paper, and which of
 // their answers `exam_answers` keeps.
@@ -74,5 +81,29 @@ describe('GĐ5: exam paper (US-4.3)', () => {
     expect(storedAnswersOf([11, 20], LAYOUT, misfits)).toEqual([]);
     expect(storedAnswersOf([11], LAYOUT, new Map([[11, { text: 'B' }]]))).toEqual([]);
     expect(storedAnswersOf([20], LAYOUT, new Map([[20, { text: '  \n ' }]]))).toEqual([]);
+  });
+});
+
+describe('FR-25: part D of the paper (US-4.8)', () => {
+  it('FR-25 part D follows parts A and B as unscored essays, numbered on', () => {
+    expect(verificationQuestionsOf([501, 502], new Map([[501, 'Dự án X?'], [502, 'Kỹ năng Y?']]), 22)).toEqual([
+      { questionId: 501, no: 23, part: 'D', type: 'ESSAY', stem: 'Dự án X?', options: null },
+      { questionId: 502, no: 24, part: 'D', type: 'ESSAY', stem: 'Kỹ năng Y?', options: null },
+    ]);
+  });
+
+  it('FR-25 part D answers never reach exam_answers; a blank one is stored as null', () => {
+    const answers = new Map<number, ExamAnswerValue>([
+      [20, { text: 'Bài làm' }],
+      [501, { text: 'Em làm phần API' }],
+      [502, { text: '   ' }],
+    ]);
+    // storedAnswersOf reads only the scored question ids of the session.
+    expect(storedAnswersOf([11, 20], LAYOUT, answers)).toEqual([{ questionId: 20, answer: { text: 'Bài làm' } }]);
+    expect(verificationAnswersOf([501, 502, 503], answers)).toEqual([
+      { questionId: 501, answer: 'Em làm phần API' },
+      { questionId: 502, answer: null },
+      { questionId: 503, answer: null },
+    ]);
   });
 });

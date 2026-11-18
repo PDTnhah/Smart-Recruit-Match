@@ -1,4 +1,4 @@
-import type { ExamPart, MyExamStatus } from '@srm/shared';
+import type { ExamPaperPart, MyExamStatus } from '@srm/shared';
 import type { VariantProps } from 'class-variance-authority';
 import type { badgeVariants } from '@/components/ui/badge';
 import { formatMinutes } from '@/lib/format';
@@ -8,10 +8,14 @@ import type { SaveStatus } from './use-exam-autosave';
 
 type BadgeVariant = NonNullable<VariantProps<typeof badgeVariants>['variant']>;
 
-export const PART_LABELS: Record<ExamPart, string> = {
+export const PART_LABELS: Record<ExamPaperPart, string> = {
   A: 'Phần A – Trắc nghiệm',
   B: 'Phần B – Tự luận',
+  D: 'Phần D – Xác minh CV',
 };
+
+/** Badge of part D (US-4.8 AC-4), next to its title in the grid and on each of its questions. */
+export const UNSCORED_LABEL = 'Không tính điểm';
 
 /** Where the test of a preference stands (AC-14). */
 export const MY_EXAM_STATUS_LABELS: Record<MyExamStatus, string> = {

@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./cv_claim_ref.json",
+  "type": "object",
+  "properties": {
+    "section": {
+      "$ref": "./cv_claim_section.json"
+    },
+    "index": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 99,
+      "description": "Position of the entry in its list of profile_masked, from 0"
+    }
+  },
+  "required": [
+    "section",
+    "index"
+  ],
+  "additionalProperties": false,
+  "title": "CvClaimRef",
+  "description": "The CV entry a question asks about"
+}

@@ -6,6 +6,10 @@ from app.consumers.base import JobKind
 from app.contracts.ai_result_status import AiResultStatus
 from app.contracts.cv_parse_job import CvParseJob
 from app.contracts.cv_parse_result import CvParseResult
+from app.contracts.cv_verify_evaluate_job import CvVerifyEvaluateJob
+from app.contracts.cv_verify_evaluate_result import CvVerifyEvaluateResult
+from app.contracts.cv_verify_generate_job import CvVerifyGenerateJob
+from app.contracts.cv_verify_generate_result import CvVerifyGenerateResult
 from app.contracts.essay_grade_job import EssayGradeJob
 from app.contracts.essay_grade_result import EssayGradeResult
 from app.contracts.jd_analyze_job import JdAnalyzeJob
@@ -64,5 +68,17 @@ JOB_KINDS: dict[str, JobKind] = {
         EssayGradeJob,
         EssayGradeResult,
         status_of=essay_status,
+    ),
+    "CV_VERIFY_GENERATE": JobKind(
+        "CV_VERIFY_GENERATE",
+        QUEUES.jobs["CV_VERIFY_GENERATE"],
+        CvVerifyGenerateJob,
+        CvVerifyGenerateResult,
+    ),
+    "CV_VERIFY_EVALUATE": JobKind(
+        "CV_VERIFY_EVALUATE",
+        QUEUES.jobs["CV_VERIFY_EVALUATE"],
+        CvVerifyEvaluateJob,
+        CvVerifyEvaluateResult,
     ),
 }

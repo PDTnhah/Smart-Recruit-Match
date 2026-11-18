@@ -20,6 +20,11 @@ from faststream.rabbit import Channel, RabbitBroker
 from psycopg_pool import AsyncConnectionPool
 
 from app.agents.cv_parser import CvParser
+from app.agents.cv_verification import (
+    CvVerificationEvaluator,
+    CvVerificationGenerator,
+    PostgresCvVerificationSourceRepo,
+)
 from app.agents.grader import EssayGrader, GraderCompletion, PostgresEssayAnswerRepo
 from app.agents.jd_analyzer import JdAnalyzer, PostgresJdSourceRepo
 from app.agents.matching import MatchCompletion, MatchingAgent, PostgresMatchSourceRepo
@@ -108,6 +113,7 @@ def create_app() -> FastStream:
     outbox = RabbitOutbox(broker)
     match_sources = PostgresMatchSourceRepo(pool)
     essay_answers = PostgresEssayAnswerRepo(pool)
+    cv_verification_sources = PostgresCvVerificationSourceRepo(pool)
     batches = BatchCoordinator(
         PostgresBatchStore(pool),
         build_batch_client(llm_settings, objects=log_store, calls=calls),
@@ -153,6 +159,12 @@ def create_app() -> FastStream:
             spend=calls,
         ),
         grader=EssayGrader(sources=essay_answers, prompts=prompts, batches=batches),
+        cv_verify_generate=CvVerificationGenerator(
+            sources=cv_verification_sources, llm=llm, prompts=prompts
+        ),
+        cv_verify_evaluate=CvVerificationEvaluator(
+            sources=cv_verification_sources, llm=llm, prompts=prompts
+        ),
         fake_file_keys=settings.fake_file_keys,
     )
     subscribe_all(broker, build_runners(PostgresJobStore(pool), outbox, handlers))

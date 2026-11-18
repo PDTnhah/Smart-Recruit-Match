@@ -55,6 +55,8 @@ export const ADVISORY_LOCK_KEYS = {
    * dispatch of a campaign (US-4.4 AC-2): the sweep and CENTER's button never pick the same sessions.
    */
   ESSAY_GRADING: 4_403,
+  /** Sweep of part D (US-4.8, CONTEXT D57): drafting and checking jobs, stale rows. */
+  CV_VERIFICATION_SWEEP: 4_801,
 } as const;
 
 /**
