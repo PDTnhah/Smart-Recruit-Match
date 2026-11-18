@@ -58,16 +58,18 @@ function totalOf(criteria: readonly { points?: number }[] | undefined): number {
  * the total below is only shown. Saving asks first, since the score is final: a change after that
  * goes through an appeal. The row version sent is that of the detail the form was filled from
  * (LESSONS §25); a 409 closes the dialog and reloads the answer. `children` are the answer's
- * sections, shown above the inputs in the same scrolling area.
+ * sections, shown above the inputs in the same scrolling area; `after`, below them.
  */
 export function ManualGradeForm({
   detail,
   onSaved,
   children,
+  after,
 }: {
   detail: ManualGradingDetail;
   onSaved: (result: ManualGradeResult) => void;
   children: ReactNode;
+  after?: ReactNode;
 }) {
   const schema = useMemo(
     () => manualGradeFormSchemaFor(detail.rubric.map((criterion) => ({ criterion: criterion.criterion, max_points: criterion.maxPoints }))),
@@ -191,6 +193,7 @@ export function ManualGradeForm({
             />
           </FieldGroup>
         </FieldSet>
+        {after}
       </div>
       <SheetFooter className="pb-[max(1rem,env(safe-area-inset-bottom))]">
         <Button type="submit" disabled={pending}>

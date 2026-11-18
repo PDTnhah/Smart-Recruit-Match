@@ -78,6 +78,7 @@ def test_ad10_effort_map_matches_arch():
         "rejection_summary": "low",
         "matching": "medium",
         "cv_verification": "medium",
+        "cv_verification_check": "medium",
         "test_generator": "high",
         "validator": "high",
         "grader": "high",

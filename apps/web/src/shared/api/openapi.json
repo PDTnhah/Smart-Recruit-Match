@@ -2890,6 +2890,44 @@
           "grading"
         ]
       }
+    },
+    "/api/exam-sessions/{id}/cv-trust": {
+      "get": {
+        "operationId": "CvTrustController_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "maximum": 9007199254740991,
+              "exclusiveMinimum": true,
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CvTrustViewDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "grading"
+        ]
+      }
     }
   },
   "info": {
@@ -10004,6 +10042,24 @@
             "title": "ExamBlueprint",
             "description": "Exam blueprint of a JD (BR-05)"
           },
+          "cvVerification": {
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              },
+              "questionCount": {
+                "type": "integer",
+                "minimum": 2,
+                "maximum": 3
+              }
+            },
+            "required": [
+              "enabled",
+              "questionCount"
+            ],
+            "additionalProperties": false
+          },
           "requirements": {
             "type": "object",
             "properties": {
@@ -10385,6 +10441,7 @@
           "lock",
           "editable",
           "blueprint",
+          "cvVerification",
           "requirements",
           "coverage",
           "run"
@@ -10559,6 +10616,23 @@
             "additionalProperties": false,
             "title": "ExamBlueprint",
             "description": "Exam blueprint of a JD (BR-05)"
+          },
+          "cvVerification": {
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              },
+              "questionCount": {
+                "type": "integer",
+                "minimum": 2,
+                "maximum": 3
+              }
+            },
+            "required": [
+              "enabled",
+              "questionCount"
+            ]
           }
         },
         "required": [
@@ -10908,7 +10982,8 @@
                   "type": "string",
                   "enum": [
                     "A",
-                    "B"
+                    "B",
+                    "D"
                   ]
                 },
                 "type": {
@@ -12066,6 +12141,111 @@
         "required": [
           "detail",
           "session"
+        ],
+        "additionalProperties": false
+      },
+      "CvTrustViewDto_Output": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "NONE",
+              "PENDING",
+              "FAILED",
+              "DONE"
+            ]
+          },
+          "trustScore": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100,
+            "nullable": true
+          },
+          "trustLevel": {
+            "type": "string",
+            "enum": [
+              "HIGH",
+              "MEDIUM",
+              "LOW",
+              null
+            ],
+            "nullable": true
+          },
+          "questions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "no": {
+                  "type": "integer",
+                  "exclusiveMinimum": true,
+                  "maximum": 9007199254740991,
+                  "minimum": 0
+                },
+                "stem": {
+                  "type": "string"
+                },
+                "claimSection": {
+                  "type": "string",
+                  "enum": [
+                    "PROJECT",
+                    "EXPERIENCE",
+                    "SKILLS_LIST"
+                  ]
+                },
+                "claimLabel": {
+                  "type": "string"
+                },
+                "answer": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "verdict": {
+                  "type": "string",
+                  "enum": [
+                    "CONSISTENT",
+                    "PARTIAL",
+                    "INCONSISTENT",
+                    "NO_ANSWER",
+                    null
+                  ],
+                  "nullable": true
+                },
+                "quote": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "reason": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "no",
+                "stem",
+                "claimSection",
+                "claimLabel",
+                "answer",
+                "verdict",
+                "quote",
+                "reason"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "state",
+          "trustScore",
+          "trustLevel",
+          "questions"
         ],
         "additionalProperties": false
       }

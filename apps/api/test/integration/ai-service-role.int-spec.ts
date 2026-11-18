@@ -7,6 +7,7 @@
 // cannot write core.questions (the core tables loop below).
 // US-4.2 AC-5 (CONTEXT D50): ai.question_validations, insert only.
 // US-4.4 AC-3 (CONTEXT D53): the essay answers awaiting the Grader, without the student.
+// US-4.8 AC-3 (CONTEXT D57): the part D answers of closed sessions, without the student.
 import {
   CV_STATES,
   JOB_DESCRIPTION_STATES,
@@ -24,9 +25,17 @@ import { eq } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import { Client } from 'pg';
 import { aiDatabaseUrl, createTestDb, ownerDatabaseUrl, type TestDb } from '../helpers/db.js';
-import { examAnswers, examSessions, matchResults, questionBanks, questions } from '../../src/db/schema/index.js';
+import {
+  cvVerificationQuestions,
+  cvVerifications,
+  examAnswers,
+  examSessions,
+  matchResults,
+  questionBanks,
+  questions,
+} from '../../src/db/schema/index.js';
 import { createBank } from '../helpers/exam.js';
-import { createCv, createJobDescription, createStudent, SAMPLE_CV_PROFILE } from '../helpers/factories.js';
+import { createCv, createJobDescription, createPreference, createStudent, SAMPLE_CV_PROFILE } from '../helpers/factories.js';
 import { SAMPLE_REQUIREMENTS } from '../helpers/jd.js';
 
 const CV_VIEW = 'core.v_ai_cv_profile_masked';
@@ -37,6 +46,7 @@ const SKILL_CANDIDATES_VIEW = 'core.v_ai_skill_candidates';
 const MATCH_PAIRS_VIEW = 'core.v_ai_match_pairs';
 const QUESTION_BANKS_VIEW = 'core.v_ai_question_banks';
 const ESSAY_ANSWERS_VIEW = 'core.v_ai_essay_answers';
+const CV_VERIFICATION_ANSWERS_VIEW = 'core.v_ai_cv_verification_answers';
 
 /** PostgreSQL's insufficient_privilege, raised before the statement touches any row. */
 async function expectDenied(promise: Promise<unknown>): Promise<void> {
@@ -169,6 +179,7 @@ describe('AD-4: database roles of the AI Service and the API', () => {
       'ai.question_validations INSERT',
       'ai.question_validations SELECT',
       `${CV_VIEW} SELECT`,
+      `${CV_VERIFICATION_ANSWERS_VIEW} SELECT`,
       `${ESSAY_ANSWERS_VIEW} SELECT`,
       `${JD_VIEW} SELECT`,
       `${JD_SOURCE_VIEW} SELECT`,
@@ -263,6 +274,15 @@ describe('AD-4: views the AI Service reads', () => {
     ]);
     // The blueprint and which JD version it was made for; no question, no answer (US-4.1).
     expect(await columnsOf(QUESTION_BANKS_VIEW)).toEqual(['bank_id', 'jd_id', 'jd_version', 'campaign_id', 'blueprint']);
+    // Part D by preference only, the CV entry as a reference into profile_masked (US-4.8 AC-3, BR-03).
+    expect(await columnsOf(CV_VERIFICATION_ANSWERS_VIEW)).toEqual([
+      'preference_id',
+      'question_id',
+      'no',
+      'stem',
+      'claim_ref',
+      'answer_text',
+    ]);
     // The question and the answer by session only; nothing of the student (US-4.4 AC-3, BR-03).
     expect(await columnsOf(ESSAY_ANSWERS_VIEW)).toEqual([
       'session_id',
@@ -319,6 +339,81 @@ describe('AD-4: views the AI Service reads', () => {
         rubric: toGrade!.rubric,
         sample_answer: toGrade!.answerKey.sample_answer,
         answer_text: 'Chỉ mục giúp tìm nhanh hơn.',
+      },
+    ]);
+  });
+
+  it('US-4.8 v_ai_cv_verification_answers shows part D of closed sessions only', async () => {
+    const jd = await createJobDescription(seed.db, { status: 'APPROVED' });
+    const bank = await createBank(seed.db, jd);
+    const paper = await seed.db.select({ id: questions.id }).from(questions).where(eq(questions.bankId, bank!.id));
+    const preferenceIds: number[] = [];
+    const questionIds: number[] = [];
+    for (const status of ['SUBMITTED', 'IN_PROGRESS'] as const) {
+      const student = await createStudent(seed.db);
+      const cv = await createCv(seed.db, { studentId: student.id, campaignId: jd.campaignId, status: 'CONFIRMED' });
+      const preference = await createPreference(seed.db, {
+        campaignId: jd.campaignId,
+        studentId: student.id,
+        jdId: jd.id,
+        status: 'PENDING_TEST',
+      });
+      preferenceIds.push(preference.id);
+      const startedAt = new Date(Date.now() - 30 * 60_000);
+      const [session] = await seed.db
+        .insert(examSessions)
+        .values({
+          studentId: student.id,
+          bankId: bank!.id,
+          bankVersion: bank!.version,
+          seed: 1,
+          questionIds: paper.map((question) => question.id),
+          optionLayout: {},
+          startedAt,
+          deadlineAt: new Date(startedAt.getTime() + 45 * 60_000),
+          status,
+          submittedAt: status === 'SUBMITTED' ? new Date(startedAt.getTime() + 20 * 60_000) : null,
+        })
+        .returning({ id: examSessions.id });
+      const [verification] = await seed.db
+        .insert(cvVerifications)
+        .values({
+          preferenceId: preference.id,
+          cvId: cv.id,
+          cvVersion: cv.version,
+          jdId: jd.id,
+          questionCount: 2,
+          sessionId: session!.id,
+          jobId: randomUUID(),
+          status: 'READY',
+          model: 'gemini-3.8-flash',
+          promptVersion: 'cv_verification/v1',
+        })
+        .returning({ id: cvVerifications.id });
+      const [question] = await seed.db
+        .insert(cvVerificationQuestions)
+        .values({
+          verificationId: verification!.id,
+          no: 1,
+          stem: 'Bạn làm gì trong dự án này?',
+          claimRef: { section: 'PROJECT', index: 0 },
+          claimLabel: 'Dự án 1',
+          answer: status === 'SUBMITTED' ? 'Em viết API.' : null,
+        })
+        .returning({ id: cvVerificationQuestions.id });
+      questionIds.push(question!.id);
+    }
+    const { rows } = await ai.query(`SELECT * FROM ${CV_VERIFICATION_ANSWERS_VIEW} WHERE preference_id = ANY($1)`, [
+      preferenceIds,
+    ]);
+    expect(rows).toEqual([
+      {
+        preference_id: String(preferenceIds[0]),
+        question_id: String(questionIds[0]),
+        no: 1,
+        stem: 'Bạn làm gì trong dự án này?',
+        claim_ref: { section: 'PROJECT', index: 0 },
+        answer_text: 'Em viết API.',
       },
     ]);
   });

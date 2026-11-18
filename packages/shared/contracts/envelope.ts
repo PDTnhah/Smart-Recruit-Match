@@ -1,5 +1,11 @@
 import { z } from 'zod';
 import { CvPiiSchema, CvProfileSchema, CvSourceSchema } from './cv.js';
+import {
+  CvVerifyEvaluateJobSchema,
+  CvVerifyEvaluateOutputSchema,
+  CvVerifyGenerateJobSchema,
+  CvVerifyGenerateOutputSchema,
+} from './cv-verification.js';
 import { EssayGradeJobSchema, EssayGradeOutputSchema } from './essay-grade.js';
 import { JdRequirementsSchema, PositionGroupSchema } from './jd.js';
 import {
@@ -244,6 +250,24 @@ export const EssayGradeResultSchema = resultMessage('ESSAY_GRADE', EssayGradeJob
   description: 'Message on ai.results for an ESSAY_GRADE job',
 });
 
+export const CvVerifyGenerateResultSchema = resultMessage(
+  'CV_VERIFY_GENERATE',
+  CvVerifyGenerateJobSchema,
+  CvVerifyGenerateOutputSchema,
+).meta({
+  title: 'CvVerifyGenerateResult',
+  description: 'Message on ai.results for a CV_VERIFY_GENERATE job',
+});
+
+export const CvVerifyEvaluateResultSchema = resultMessage(
+  'CV_VERIFY_EVALUATE',
+  CvVerifyEvaluateJobSchema,
+  CvVerifyEvaluateOutputSchema,
+).meta({
+  title: 'CvVerifyEvaluateResult',
+  description: 'Message on ai.results for a CV_VERIFY_EVALUATE job',
+});
+
 /**
  * A message on `ai.results`. The status/result/error checks live here only: `z.toJSONSchema` drops
  * refinements, so the AI Service builds the message in one place and tests it (CONTEXT D33).
@@ -256,6 +280,8 @@ export const AiResultMessageSchema = z
     MatchRunResultSchema,
     QuestionsGenerateResultSchema,
     EssayGradeResultSchema,
+    CvVerifyGenerateResultSchema,
+    CvVerifyEvaluateResultSchema,
   ])
   .superRefine((msg, ctx) => {
     if (msg.job.job_id !== msg.job_id) {

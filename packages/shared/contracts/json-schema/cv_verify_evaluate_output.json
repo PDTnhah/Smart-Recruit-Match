@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./cv_verify_evaluate_output.json",
+  "type": "object",
+  "properties": {
+    "prompt_version": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Versioned prompt file, e.g. cv_verification_check/v1"
+    },
+    "model": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Model id that produced the verdicts"
+    },
+    "preference_id": {
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "maximum": 9007199254740991,
+      "description": "core.preferences.id of the job"
+    },
+    "items": {
+      "minItems": 1,
+      "maxItems": 3,
+      "type": "array",
+      "items": {
+        "$ref": "./cv_verification_evaluation_item.json"
+      }
+    }
+  },
+  "required": [
+    "prompt_version",
+    "model",
+    "preference_id",
+    "items"
+  ],
+  "additionalProperties": false,
+  "title": "CvVerifyEvaluateOutput",
+  "description": "Result of CV_VERIFY_EVALUATE"
+}

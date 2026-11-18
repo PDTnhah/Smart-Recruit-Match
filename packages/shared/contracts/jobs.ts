@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { CvVerifyEvaluateJobSchema, CvVerifyGenerateJobSchema } from './cv-verification.js';
 import { EssayGradeJobSchema } from './essay-grade.js';
 import { SKILL_NORMALIZE_BATCH } from './skills.js';
 
@@ -13,6 +14,8 @@ export const AI_JOB_TYPES = [
   'MATCH',
   'QUESTIONS_GENERATE',
   'ESSAY_GRADE',
+  'CV_VERIFY_GENERATE',
+  'CV_VERIFY_EVALUATE',
 ] as const;
 
 export type AiJobType = (typeof AI_JOB_TYPES)[number];
@@ -117,6 +120,8 @@ export const AI_JOB_SCHEMAS = {
   MATCH: MatchRunJobSchema,
   QUESTIONS_GENERATE: QuestionsGenerateJobSchema,
   ESSAY_GRADE: EssayGradeJobSchema,
+  CV_VERIFY_GENERATE: CvVerifyGenerateJobSchema,
+  CV_VERIFY_EVALUATE: CvVerifyEvaluateJobSchema,
 } as const satisfies Record<AiJobType, z.ZodType>;
 
 export type AiJobPayload<T extends AiJobType> = z.infer<(typeof AI_JOB_SCHEMAS)[T]>;

@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type { ExamBlueprint, QuestionRejectReason, QuestionStatus } from '@srm/shared';
+import type { CvVerificationSettings, ExamBlueprint, QuestionRejectReason, QuestionStatus } from '@srm/shared';
 import { and, asc, count, eq, inArray, sql } from 'drizzle-orm';
 import { RowVersionConflictError } from '../../../common/errors/index.js';
 import { questionBanks, questions } from '../../../db/schema/index.js';
@@ -79,16 +79,26 @@ export class QuestionBanksRepository {
     return row;
   }
 
-  /** Writes with `WHERE row_version = n` and bumps it; a lost race is a 409. */
+  /** Writes with `WHERE row_version = n` and bumps it; a lost race is a 409. Part D with it (US-4.8). */
   async updateBlueprint(
     tx: DbTx,
     id: number,
     expectedRowVersion: number,
-    { blueprint, jdVersion }: { blueprint: ExamBlueprint; jdVersion: number },
+    {
+      blueprint,
+      jdVersion,
+      cvVerification,
+    }: { blueprint: ExamBlueprint; jdVersion: number; cvVerification: CvVerificationSettings },
   ): Promise<void> {
     const updated = await tx
       .update(questionBanks)
-      .set({ blueprint, jdVersion, rowVersion: expectedRowVersion + 1 })
+      .set({
+        blueprint,
+        jdVersion,
+        cvVerificationEnabled: cvVerification.enabled,
+        cvVerificationCount: cvVerification.questionCount,
+        rowVersion: expectedRowVersion + 1,
+      })
       .where(and(eq(questionBanks.id, id), eq(questionBanks.rowVersion, expectedRowVersion)))
       .returning({ id: questionBanks.id });
     if (updated.length === 0) throw new RowVersionConflictError(QUESTION_BANK_ENTITY, id, expectedRowVersion);

@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./cv_verdict.json",
+  "type": "string",
+  "enum": [
+    "CONSISTENT",
+    "PARTIAL",
+    "INCONSISTENT",
+    "NO_ANSWER"
+  ],
+  "title": "CvVerdict",
+  "description": "The verdict that counts: the LLM verdict after the quote check, or NO_ANSWER for a blank answer"
+}

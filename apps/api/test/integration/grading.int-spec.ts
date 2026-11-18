@@ -6,15 +6,35 @@
 // published sessions all have the MCQ right (S_test ≥ 60), so the threshold sweep of
 // threshold.int-spec.ts leaves them alone.
 import type { TestingModuleBuilder } from '@nestjs/testing';
-import { type AiJobInput, ApiErrorSchema, EssayGradingDispatchSchema } from '@srm/shared';
+import { type AiJobInput, ApiErrorSchema, CvTrustViewSchema, EssayGradingDispatchSchema } from '@srm/shared';
 import { and, eq, sql } from 'drizzle-orm';
+import type { Pool } from 'pg';
 import { Clock } from '../../src/common/clock/index.js';
 import { RowVersionConflictError } from '../../src/common/errors/index.js';
-import { auditLogs, cvs, essayGradingRuns, jobDescriptions, preferences } from '../../src/db/schema/index.js';
+import { auditLogs, campaigns, cvs, essayGradingRuns, jobDescriptions, preferences } from '../../src/db/schema/index.js';
+import { PG_POOL } from '../../src/db/tokens.js';
 import { AI_JOB_DISPATCHED, type AiJobDispatchedEvent, AiGatewayService } from '../../src/modules/aigateway/index.js';
-import { EssayResultsHandler, GradingScheduler, GradingService } from '../../src/modules/assessment/index.js';
+import {
+  CvVerificationResultsHandler,
+  CvVerificationScheduler,
+  EssayResultsHandler,
+  GradingScheduler,
+  GradingService,
+} from '../../src/modules/assessment/index.js';
+import { NO_ANSWER_REASON } from '../../src/modules/assessment/domain/cv-verification.js';
 import { PreferenceGradingService } from '../../src/modules/matching/index.js';
 import { api, type AuthTestApp, createAuthTestApp } from '../helpers/auth.js';
+import {
+  CHECK_PROMPT,
+  checkResult,
+  createPartD,
+  CV_VERIFY_MODEL,
+  DRAFT_PROMPT,
+  draftedQuestion,
+  draftResult,
+  verificationOf,
+  verificationQuestionsOf,
+} from '../helpers/cv-verification.js';
 import { minutesAfter, sessionRow } from '../helpers/exam.js';
 import { FakeClock } from '../helpers/fake-clock.js';
 import {
@@ -391,5 +411,211 @@ describe('GĐ6 grading (US-4.4)', () => {
     await t.db.update(jobDescriptions).set({ version: 2 }).where(eq(jobDescriptions.id, exam.jdId));
     expect(await results.finalizeIfReady(taken.sessionId)).toMatchObject({ kind: 'PUBLISHED', sTestX100: 6_000, sFinalX100: 5_600 });
     expect(await preferenceRow(exam.preferenceId)).toMatchObject({ status: 'TEST_GRADED', sCv: 50, sFinal: 56 });
+  });
+
+  describe('FR-25 part D (US-4.8)', () => {
+    let sweep: CvVerificationScheduler;
+    let results: CvVerificationResultsHandler;
+
+    beforeAll(() => {
+      sweep = t.app.get(CvVerificationScheduler);
+      results = t.app.get(CvVerificationResultsHandler);
+    });
+
+    const partDOn = { cvVerification: { enabled: true, questionCount: 3 } };
+
+    it('FR-25 the sweep writes the job id before the drafting job; READY keeps model and prompt; FAILED leaves no part D', async () => {
+      const exam = await fixture(partDOn);
+      const refused = await fixture({ ...partDOn, campaignId: exam.campaignId });
+      const off = await fixture({ campaignId: exam.campaignId });
+
+      const report = await sweep.runOnce();
+      const row = (await verificationOf(t.db, exam.preferenceId))!;
+      const refusedRow = (await verificationOf(t.db, refused.preferenceId))!;
+      expect(row).toMatchObject({ status: 'RUNNING', jdId: exam.jdId, questionCount: 3, dispatchedAt: expect.any(Date) as unknown });
+      expect(report.drafted).toEqual(expect.arrayContaining([row.id, refusedRow.id]));
+      expect(report.dispatched).toEqual(expect.arrayContaining([row.id, refusedRow.id]));
+      expect(await verificationOf(t.db, off.preferenceId)).toBeUndefined();
+      // AD-5: IDs only, with the job id stored before the job was sent.
+      expect(dispatched.filter((event) => event.jobId === row.jobId)).toEqual([
+        {
+          jobId: row.jobId,
+          type: 'CV_VERIFY_GENERATE',
+          job: {
+            job_id: row.jobId,
+            preference_id: exam.preferenceId,
+            cv_id: row.cvId,
+            cv_version: row.cvVersion,
+            jd_id: exam.jdId,
+            question_count: 3,
+          },
+        },
+      ]);
+      const again = await sweep.runOnce();
+      expect([...again.drafted, ...again.dispatched]).not.toContain(row.id);
+
+      // AC-2: the questions in order, with the model and prompt (Invariant 12); a second copy changes nothing.
+      const drafted = [draftedQuestion(0), draftedQuestion(2)];
+      await results.applyDraft(draftResult(row, drafted));
+      await results.applyDraft(draftResult(row, [draftedQuestion(1)]));
+      expect(await verificationOf(t.db, exam.preferenceId)).toMatchObject({
+        status: 'READY',
+        model: CV_VERIFY_MODEL,
+        promptVersion: DRAFT_PROMPT,
+      });
+      expect(
+        (await verificationQuestionsOf(t.db, row.id)).map(({ no, stem, claimRef, claimLabel }) => ({ no, stem, claimRef, claimLabel })),
+      ).toEqual(
+        drafted.map((question, index) => ({
+          no: index + 1,
+          stem: question.stem,
+          claimRef: question.claim_ref,
+          claimLabel: question.claim_label,
+        })),
+      );
+
+      // A refusal: FAILED with its code, and the student still takes the test, without part D.
+      await results.applyDraft(draftResult(refusedRow, null));
+      expect(await verificationOf(t.db, refused.preferenceId)).toMatchObject({
+        status: 'FAILED',
+        errorCode: 'LLM_REFUSAL',
+        sessionId: null,
+      });
+      const taken = await takeExam(t, refused, { mcq: 'RIGHT', essays: ['B1', 'B2'] }, { submit: false });
+      expect(await sessionRow(t.db, taken.sessionId)).toMatchObject({ verificationQuestionIds: [] });
+    });
+
+    it('FR-25 a closed session is checked once; code computes the index; CENTER reads it, HR and STUDENT get 403', async () => {
+      const exam = await fixture(partDOn);
+      const partD = await createPartD(t.db, exam);
+      const [d1, d2] = partD.questionIds as [number, number];
+      const taken = await takeExam(t, exam, { mcq: 'RIGHT', essays: ['B1', 'B2'] }, { submit: false });
+      await exam.student.agent
+        .put(api(`exam-sessions/${taken.sessionId}/answers`))
+        .send({ answers: [{ questionId: d1, answer: { text: 'Em dùng PostgreSQL cho bảng đơn hàng' } }] })
+        .expect(200);
+      const center = await t.loginAs('CENTER');
+      const trust = async () =>
+        CvTrustViewSchema.parse((await center.agent.get(api(`exam-sessions/${taken.sessionId}/cv-trust`)).expect(200)).body);
+      // Still open: nothing to check yet.
+      expect((await sweep.runOnce()).evaluations).not.toContain(partD.id);
+      await exam.student.agent.post(api(`exam-sessions/${taken.sessionId}/submit`)).send().expect(200);
+      expect(await trust()).toMatchObject({ state: 'PENDING', trustScore: null, trustLevel: null });
+
+      // AC-5: the job id is stored before the checking job; IDs only.
+      expect((await sweep.runOnce()).evaluations).toContain(partD.id);
+      const row = (await verificationOf(t.db, exam.preferenceId))!;
+      expect(row).toMatchObject({ evaluationStatus: 'RUNNING', evaluationDispatchedAt: expect.any(Date) as unknown });
+      expect(dispatched.filter((event) => event.jobId === row.evaluationJobId)).toEqual([
+        {
+          jobId: row.evaluationJobId,
+          type: 'CV_VERIFY_EVALUATE',
+          job: { job_id: row.evaluationJobId, preference_id: exam.preferenceId, cv_id: row.cvId, cv_version: row.cvVersion },
+        },
+      ]);
+      expect((await sweep.runOnce()).evaluations).not.toContain(partD.id);
+
+      // A blank answer is NO_ANSWER whatever the result says; 1 + 0 over 2 questions is 50, MEDIUM.
+      await results.applyEvaluation(
+        checkResult(row, [
+          {
+            question_id: d1,
+            llm_verdict: 'CONSISTENT',
+            verdict: 'CONSISTENT',
+            quote: 'PostgreSQL cho bảng đơn hàng',
+            quote_score: 100,
+            reason: 'Khớp dự án.',
+          },
+          {
+            question_id: d2,
+            llm_verdict: 'PARTIAL',
+            verdict: 'PARTIAL',
+            quote: 'Em làm phần API',
+            quote_score: 100,
+            reason: 'Không rõ.',
+          },
+        ]),
+      );
+      expect(await verificationOf(t.db, exam.preferenceId)).toMatchObject({
+        evaluationStatus: 'DONE',
+        evaluationModel: CV_VERIFY_MODEL,
+        evaluationPromptVersion: CHECK_PROMPT,
+        trustX100: 50,
+        trustLevel: 'MEDIUM',
+      });
+      expect(await trust()).toEqual({
+        state: 'DONE',
+        trustScore: 50,
+        trustLevel: 'MEDIUM',
+        questions: [
+          {
+            no: 1,
+            stem: 'Bạn đã làm gì trong dự án 1?',
+            claimSection: 'PROJECT',
+            claimLabel: 'Dự án 1',
+            answer: 'Em dùng PostgreSQL cho bảng đơn hàng',
+            verdict: 'CONSISTENT',
+            quote: 'PostgreSQL cho bảng đơn hàng',
+            reason: 'Khớp dự án.',
+          },
+          {
+            no: 2,
+            stem: 'Bạn đã làm gì trong dự án 2?',
+            claimSection: 'PROJECT',
+            claimLabel: 'Dự án 2',
+            answer: null,
+            verdict: 'NO_ANSWER',
+            quote: null,
+            reason: NO_ANSWER_REASON,
+          },
+        ],
+      });
+      // AC-6: the scored answers are A and B only.
+      expect([...(await answersOf(t, taken.sessionId)).keys()].sort()).toEqual([taken.mcqId, ...taken.essayIds].sort());
+
+      // AC-7: staff only.
+      const hr = await t.loginAs('HR');
+      await hr.agent.get(api(`exam-sessions/${taken.sessionId}/cv-trust`)).expect(403);
+      await exam.student.agent.get(api(`exam-sessions/${taken.sessionId}/cv-trust`)).expect(403);
+    });
+
+    it('FR-25 the database refuses part D rows that break its rules (Invariant 11)', async () => {
+      const pool = t.app.get<Pool>(PG_POOL);
+      const exam = await fixture(partDOn);
+      const partD = await createPartD(t.db, exam);
+      await takeExam(t, exam, { mcq: 'RIGHT', essays: ['B1', 'B2'] });
+      const refused = (statement: string, id: number, constraint: string) =>
+        expect(pool.query(statement, [id])).rejects.toMatchObject({ code: '23514', constraint });
+
+      // Only READY questions go into a session; a check is DONE with its index, never without.
+      await refused("UPDATE core.cv_verifications SET status = 'RUNNING' WHERE id = $1", partD.id, 'cv_verifications_session_check');
+      await refused(
+        "UPDATE core.cv_verifications SET evaluation_status = 'DONE', evaluation_job_id = gen_random_uuid(), evaluation_requested_at = now() WHERE id = $1",
+        partD.id,
+        'cv_verifications_trust_check',
+      );
+      await refused(
+        'UPDATE core.cv_verification_questions SET no = 4 WHERE id = $1',
+        partD.questionIds[0]!,
+        'cv_verification_questions_no_check',
+      );
+    });
+
+    it('FR-25 a cancelled campaign gets no part D job: a draft left unsent stays unsent, a closed session is not checked', async () => {
+      const exam = await fixture(partDOn);
+      const partD = await createPartD(t.db, exam);
+      await takeExam(t, exam, { mcq: 'RIGHT', essays: ['B1', 'B2'] });
+      const queued = await fixture({ ...partDOn, campaignId: exam.campaignId });
+      const draft = await createPartD(t.db, queued, { status: 'RUNNING', dispatched: false });
+      await t.db.update(campaigns).set({ status: 'CANCELLED' }).where(eq(campaigns.id, exam.campaignId));
+
+      const report = await sweep.runOnce();
+      expect(report.dispatched).not.toContain(draft.id);
+      expect(report.evaluations).not.toContain(partD.id);
+      const draftRow = (await verificationOf(t.db, queued.preferenceId))!;
+      expect(draftRow).toMatchObject({ status: 'RUNNING', dispatchedAt: null });
+      expect(dispatched.filter((event) => event.jobId === draftRow.jobId)).toEqual([]);
+      expect(await verificationOf(t.db, exam.preferenceId)).toMatchObject({ evaluationStatus: null, evaluationJobId: null });
+    });
   });
 });

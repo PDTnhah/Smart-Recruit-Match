@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./cv_verify_generate_job.json",
+  "type": "object",
+  "properties": {
+    "job_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique id of this job; the AI Service processes each job_id once (AD-5)"
+    },
+    "preference_id": {
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "maximum": 9007199254740991,
+      "description": "core.preferences.id the questions are for"
+    },
+    "cv_id": {
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "maximum": 9007199254740991,
+      "description": "core.cvs.id of the CV version the questions ask about"
+    },
+    "cv_version": {
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "maximum": 9007199254740991,
+      "description": "core.cvs.version of that row"
+    },
+    "jd_id": {
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "maximum": 9007199254740991,
+      "description": "core.job_descriptions.id; its requirements say which entries matter most"
+    },
+    "question_count": {
+      "type": "integer",
+      "minimum": 2,
+      "maximum": 3,
+      "description": "Questions to draft; fewer when the CV has fewer entries to ask about"
+    }
+  },
+  "required": [
+    "job_id",
+    "preference_id",
+    "cv_id",
+    "cv_version",
+    "jd_id",
+    "question_count"
+  ],
+  "additionalProperties": false,
+  "title": "CvVerifyGenerateJob",
+  "description": "Job on ai.cv_verification.generate: draft part D for one preference"
+}

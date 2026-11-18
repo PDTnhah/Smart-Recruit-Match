@@ -2,10 +2,19 @@
 // JD, its exam blueprint as CENTER edits it, and the generation runs of the Test Generator. The AI
 // Service is not running here: jobs stay in their queue and results are handed to the listener.
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { ApiErrorSchema, type ExamBlueprint, ExamBlueprintViewSchema, QuestionGenerationRunSchema, type QuestionsGenerateJob } from '@srm/shared';
+import {
+  ApiErrorSchema,
+  CV_VERIFICATION_DEFAULTS,
+  type ExamBlueprint,
+  ExamBlueprintViewSchema,
+  QuestionGenerationRunSchema,
+  type QuestionsGenerateJob,
+} from '@srm/shared';
 import { and, eq } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
+import type { Pool } from 'pg';
 import { auditLogs, jobDescriptions, questionBanks, questionGenerationRuns, questions } from '../../src/db/schema/index.js';
+import { PG_POOL } from '../../src/db/tokens.js';
 import { AI_JOB_DISPATCHED, type AiJobDispatchedEvent, type AiResultEvent } from '../../src/modules/aigateway/index.js';
 import { QuestionBankService } from '../../src/modules/assessment/application/question-bank.service.js';
 import { buildDefaultBlueprint } from '../../src/modules/assessment/domain/blueprint.js';
@@ -198,6 +207,22 @@ describe('GĐ5 question bank and exam blueprint (US-4.1)', () => {
     // The stored row_version moved on: the old one is a conflict.
     const stale = await putBlueprint(jd.id, 0, edited).expect(409);
     expect(ApiErrorSchema.parse(stale.body).code).toBe('ROW_VERSION_CONFLICT');
+  });
+
+  it('FR-25 part D is saved with the blueprint and kept when a request leaves it out; 2 or 3 questions (US-4.8 AC-1)', async () => {
+    const jd = await approvedJd();
+    const view = ExamBlueprintViewSchema.parse((await getBlueprint(jd.id).expect(200)).body);
+    expect(view.cvVerification).toEqual(CV_VERIFICATION_DEFAULTS);
+    const put = (rowVersion: number, cvVerification?: unknown) =>
+      center.agent.put(api(`jds/${jd.id}/exam-blueprint`)).send({ rowVersion, blueprint: view.blueprint, cvVerification });
+    const on = { enabled: true, questionCount: 3 };
+    expect(ExamBlueprintViewSchema.parse((await put(0, on).expect(200)).body).cvVerification).toEqual(on);
+    expect(ExamBlueprintViewSchema.parse((await put(1).expect(200)).body).cvVerification).toEqual(on);
+    await put(2, { enabled: true, questionCount: 4 }).expect(400);
+    // The database holds the same range (Invariant 11).
+    await expect(
+      t.app.get<Pool>(PG_POOL).query('UPDATE core.question_banks SET cv_verification_count = 4 WHERE jd_id = $1', [jd.id]),
+    ).rejects.toMatchObject({ code: '23514', constraint: 'question_banks_cv_verification_count_check' });
   });
 
   it('BR-05 AC-2 a blueprint naming a skill outside the JD is a 400 on that field', async () => {

@@ -1,5 +1,7 @@
 {
   "cv_parser": "cv_parser/v2",
+  "cv_verification": "cv_verification/v1",
+  "cv_verification_check": "cv_verification_check/v1",
   "grader": "grader/v1",
   "jd_analyzer": "jd_analyzer/v2",
   "matching": "matching/v1",

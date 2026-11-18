@@ -884,6 +884,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/exam-sessions/{id}/cv-trust": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["CvTrustController_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2469,6 +2485,10 @@ export interface components {
                     };
                 };
             };
+            cvVerification: {
+                enabled: boolean;
+                questionCount: number;
+            };
             /**
              * JdRequirements
              * @description Normalised requirements of a JD (FR-9)
@@ -2629,6 +2649,10 @@ export interface components {
                     };
                 };
             };
+            cvVerification?: {
+                enabled: boolean;
+                questionCount: number;
+            };
         };
         QuestionGenerationRunDto_Output: {
             runId: number;
@@ -2713,7 +2737,7 @@ export interface components {
                 questionId: number;
                 no: number;
                 /** @enum {string} */
-                part: "A" | "B";
+                part: "A" | "B" | "D";
                 /** @enum {string} */
                 type: "MCQ" | "ESSAY";
                 stem: string;
@@ -2918,6 +2942,25 @@ export interface components {
                 /** @enum {string} */
                 publication: "PUBLISHED" | "AFTER_TESTING_END" | "WAITING_OTHER_ANSWERS" | "NEXT_SWEEP";
             };
+        };
+        CvTrustViewDto_Output: {
+            /** @enum {string} */
+            state: "NONE" | "PENDING" | "FAILED" | "DONE";
+            trustScore: number | null;
+            /** @enum {string|null} */
+            trustLevel: "HIGH" | "MEDIUM" | "LOW" | null;
+            questions: {
+                no: number;
+                stem: string;
+                /** @enum {string} */
+                claimSection: "PROJECT" | "EXPERIENCE" | "SKILLS_LIST";
+                claimLabel: string;
+                answer: string | null;
+                /** @enum {string|null} */
+                verdict: "CONSISTENT" | "PARTIAL" | "INCONSISTENT" | "NO_ANSWER" | null;
+                quote: string | null;
+                reason: string | null;
+            }[];
         };
     };
     responses: never;
@@ -4546,6 +4589,27 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ManualGradeResultDto_Output"];
+                };
+            };
+        };
+    };
+    CvTrustController_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CvTrustViewDto_Output"];
                 };
             };
         };

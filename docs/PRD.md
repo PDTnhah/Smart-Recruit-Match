@@ -362,7 +362,7 @@ Quy tắc: mỗi sinh viên có 1 CV hiệu lực trong một đợt. Thông tin
 | A. Trắc nghiệm | 20 câu, 4 phương án, 1 đáp án đúng, phủ các kỹ năng của JD | 60% |
 | B. Tự luận ngắn / tình huống | 2–3 câu: giải thích khái niệm, xử lý tình huống, thiết kế đơn giản | 40% |
 | C. Lập trình (mở rộng) | 1 bài, chấm bằng test case trong sandbox | Thay một phần B nếu bật |
-| D. Xác minh CV (tùy chọn) | 2–3 câu hỏi về dự án/kỹ năng sinh viên khai trong CV | Không — chỉ tạo "chỉ số tin cậy CV" để HR tham khảo |
+| D. Xác minh CV (tùy chọn) | 2–3 câu hỏi về dự án/kỹ năng sinh viên khai trong CV, sinh khi đợt sang *Làm test*; thời gian làm tính chung trong T_test ([CONTEXT D57](CONTEXT.md)) | Không — chỉ tạo "chỉ số tin cậy CV" để HR tham khảo |
 
 Ví dụ ma trận đề phần A — JD "Thực tập sinh Backend Java":
 
@@ -914,7 +914,7 @@ Mọi thông báo đều hiện trong ứng dụng (chuông ở ba cổng, cập
 | FR-22 | Chấm trắc nghiệm tự động; AI chấm tự luận theo rubric 2 lần độc lập và chuyển người chấm khi cần; tính S_test, bản đồ năng lực và S_final (UC-33, GĐ6) | P0 | 🚧 in-progress | EPIC-4 |
 | FR-23 | Cán bộ Trung tâm hoặc giảng viên chấm tay các câu tự luận được chuyển (UC-06); giảng viên dùng tài khoản `CENTER` do Trung tâm cấp ([CONTEXT D54](CONTEXT.md)) | P0 | 🚧 in-progress | EPIC-4 |
 | FR-24 | Sinh viên xem điểm, phúc khảo phần tự luận trong 48 giờ và báo lỗi câu hỏi; câu sai bị loại và các bài liên quan được chấm lại (UC-15, UC-06) | P1 | 📋 backlog | EPIC-4 |
-| FR-25 | Câu hỏi xác minh CV (phần D) và chỉ số tin cậy CV cho HR tham khảo | P1 | 📋 backlog | EPIC-4 |
+| FR-25 | Câu hỏi xác minh CV (phần D) và chỉ số tin cậy CV cho HR tham khảo | P1 | 🚧 in-progress | EPIC-4 |
 | FR-26 | Chạy phân bổ Deferred Acceptance có sức chứa, kết quả ở trạng thái dự thảo; kiểm tra tính ổn định; lưu snapshot đầu vào và cấu hình (UC-34, BR-07, BR-09, BR-17, GĐ7) | P0 | 📋 backlog | EPIC-5 |
 | FR-27 | Cán bộ Trung tâm xem dự thảo, điều chỉnh thủ công có ghi lý do và công bố danh sách đề cử (UC-05, BR-10) | P0 | 📋 backlog | EPIC-5 |
 | FR-28 | HR xem danh sách đề cử và hồ sơ chi tiết: CV gốc, hồ sơ năng lực, S_cv kèm bằng chứng, S_test và bản đồ năng lực (UC-23, BR-11, GĐ8) | P0 | 📋 backlog | EPIC-5 |
@@ -1063,7 +1063,7 @@ Mỗi epic tương ứng một giai đoạn trong [ARCHITECTURE.md › Implement
 | US-4.5 | Chấm tay câu tự luận được chuyển | 👀 review | 0.24.0 |
 | US-4.6 | Phúc khảo và báo lỗi câu hỏi | 📋 backlog | — |
 | US-4.7 | Tín hiệu gian lận | 📋 backlog | — |
-| US-4.8 | Câu hỏi xác minh CV và chỉ số tin cậy | 📋 backlog | — |
+| US-4.8 | Câu hỏi xác minh CV và chỉ số tin cậy | 👀 review | 0.26.0 |
 | US-4.9 | Duyệt mẫu ngân hàng câu hỏi | 📋 backlog | — |
 
 ### EPIC-5: Phân bổ, HR duyệt và phỏng vấn

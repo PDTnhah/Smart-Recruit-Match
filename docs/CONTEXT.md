@@ -63,6 +63,7 @@
 - D54 · Chấm tay câu tự luận: cột `exam_answers.id`, người chấm thấy hai lượt AI, giảng viên dùng tài khoản CENTER, điểm tiêu chí số nguyên, công bố qua `finalizeIfReady` sau commit (US-4.5)
 - D55 · Màn Hồ sơ chọn đợt mặc định theo CV của SV; tách US-1.9 (phiên giữa các tab), US-2.8 (tìm kỹ năng khi query rỗng) (US-1.8)
 - D56 · Sửa đợt sau khi mở theo pha dùng tham số, đối tượng chỉ thêm, dời mốc sớm có báo trước 24 giờ; hủy đợt có dữ liệu (`CANCELLED`), xóa đợt trống theo khóa ngoại (US-1.10)
+- D57 · Phần D (xác minh CV): sinh câu khi đợt sang `TESTING`, chỉ số theo ngưỡng hằng số, hai job AI, ID câu dùng chung sequence, CENTER xem trong Sheet chấm tay (US-4.8)
 
 ---
 
@@ -2527,3 +2528,24 @@ Lúc điều tra còn thấy hai lỗi khác, không gây ra sự cố này:
 
 **Date**: 2026-11-15
 **Version**: 0.25.0 (dự kiến)
+
+### D57. Phần D (xác minh CV): sinh câu khi đợt sang `TESTING`, chỉ số theo ngưỡng hằng số, hai job AI, ID câu dùng chung sequence (US-4.8)
+
+**Context**: Story US-4.8 để mở 6 điểm: tên agent/queue/bảng, cách tính chỉ số, kiểu agent, lúc sinh câu, thời gian phần D, ai xem chỉ số. `PUT /api/me/preferences` xóa rồi tạo lại mọi dòng NV, nên `preference_id` đổi tới khi đợt rời `PREFERENCE_SELECTION`.
+
+**Decision** (người dùng chốt ngày 2026-11-16; các điểm còn lại theo Đề xuất của story):
+
+- Câu được sinh khi đợt ở `TESTING`: tác vụ quét mỗi phút chọn NV `PENDING_TEST` chưa có phiên, JD bật phần D; một job `CV_VERIFY_GENERATE` (`ai.cv_verification.generate`) cho mỗi NV. Phiên bắt đầu trước khi câu `READY` thì không có phần D.
+- Chỉ số = trung bình CONSISTENT 1 / PARTIAL 0,5 / INCONSISTENT 0 / NO_ANSWER 0, ×100 half-up. Mức Cao ≥ 75, Trung bình ≥ 40, còn lại Thấp; ngưỡng là hằng số ở `@srm/shared`, không phải tham số đợt.
+- Thời gian phần D tính chung trong T_test. SV không xem chỉ số. CENTER xem qua `GET /api/exam-sessions/{id}/cv-trust` và trong Sheet chấm tay; HR xem ở US-5.3.
+- Workflow structured output, không có công cụ. Phiên đóng thì job `CV_VERIFY_EVALUATE` (`ai.cv_verification.evaluate`) trả nhận định từng câu; AI Service đặt `NO_ANSWER` cho câu trống mà không gọi LLM, hạ nhận định có trích dẫn không khớp (RapidFuzz < 85).
+- Bật/tắt phần D là cột của `question_banks`, không nằm trong contract `ExamBlueprint` mà Test Generator đọc. `cv_verification_questions.id` lấy chung `core.questions_id_seq`; câu D nằm ở `exam_sessions.verification_question_ids`, không ở `question_ids`.
+
+**Rationale**: Sinh sau khi NV chốt thì không tốn lượt gọi LLM cho NV bị sửa. Ngưỡng hằng số đủ cho một chỉ số chỉ để tham khảo, như mặc định ma trận đề (D49). Cột riêng giữ nguyên contract và fixture của Test Generator (LESSONS §31). Dùng chung sequence thì phòng thi (Redis, tự lưu) không phải phân biệt hai loại ID, còn tách cột thì chấm điểm không thể đọc nhầm phần D (AC-6).
+
+**Alternatives considered**: sinh khi SV lưu NV (người dùng không chọn); ngưỡng trong `campaigns.config` (không chọn); cộng thêm thời gian cho phần D (không chọn); thêm phần D vào `ExamBlueprintSchema` (loại: phải backfill JSONB, đổi khóa fixture); khóa tổng hợp `(part, id)` cho câu của đề (loại: sửa cả hàng chờ tự lưu của web).
+
+**Impact**: ARCH › *Agent*, *Pipeline*, *Tác vụ định kỳ*, *Các bảng chính*, *Hàng đợi*; PRD GĐ5. Code: `packages/shared` (contract, `cv-trust`, `exam-session`), migration `0040`–`0041`, module `assessment`, `ai-service/app/agents/cv_verification/`, web `question-bank`, `exam`, `grading`.
+
+**Date**: 2026-11-16
+**Version**: 0.26.0 (dự kiến)

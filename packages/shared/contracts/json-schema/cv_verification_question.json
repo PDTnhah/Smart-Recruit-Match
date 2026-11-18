@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./cv_verification_question.json",
+  "type": "object",
+  "properties": {
+    "claim_ref": {
+      "$ref": "./cv_claim_ref.json"
+    },
+    "claim_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 500,
+      "description": "Name of the entry as profile_masked writes it (project, position and organisation, or skill), set by code"
+    },
+    "stem": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1000,
+      "description": "The question, in Vietnamese"
+    }
+  },
+  "required": [
+    "claim_ref",
+    "claim_label",
+    "stem"
+  ],
+  "additionalProperties": false,
+  "title": "CvVerificationQuestion",
+  "description": "One question of part D, checked against the CV"
+}

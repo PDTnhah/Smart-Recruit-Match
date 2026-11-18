@@ -1,4 +1,5 @@
 import {
+  CV_VERIFICATION_PART,
   EXAM_PART_OF_TYPE,
   type ExamAnswerValue,
   type ExamOptionLayout,
@@ -52,6 +53,22 @@ export function paperQuestionsOf(
   });
 }
 
+/**
+ * Part D (US-4.8 AC-4): the session's CV verification questions after parts A and B, numbered on
+ * from `scoredCount`, as essays. They carry no answer key and no expected points.
+ */
+export function verificationQuestionsOf(
+  questionIds: readonly number[],
+  stems: ReadonlyMap<number, string>,
+  scoredCount: number,
+): ExamQuestion[] {
+  return questionIds.map((questionId, index) => {
+    const stem = stems.get(questionId);
+    if (stem === undefined) throw new Error(`paper: part D question ${questionId} not found`);
+    return { questionId, no: scoredCount + index + 1, part: CV_VERIFICATION_PART, type: 'ESSAY', stem, options: null };
+  });
+}
+
 /** The saved answers of the paper's questions, in display order. */
 export function savedAnswersOf(
   questionIds: readonly number[],
@@ -89,5 +106,27 @@ export function storedAnswersOf(
     }
     if (!('text' in answer) || answer.text.trim() === '') return [];
     return [{ questionId, answer: { text: answer.text } }];
+  });
+}
+
+export interface VerificationAnswerRow {
+  questionId: number;
+  /** Null when left blank. */
+  answer: string | null;
+}
+
+/**
+ * US-4.8 AC-5, AC-6: the answers to part D of a closing session, one per question, for
+ * `cv_verification_questions.answer`; a blank answer, or an option code, is null. Part D never
+ * reaches `exam_answers`: `storedAnswersOf` only reads the scored `question_ids`.
+ */
+export function verificationAnswersOf(
+  questionIds: readonly number[],
+  answers: ReadonlyMap<number, ExamAnswerValue>,
+): VerificationAnswerRow[] {
+  return questionIds.map((questionId) => {
+    const answer = answers.get(questionId);
+    const text = answer && 'text' in answer && answer.text.trim() !== '' ? answer.text : null;
+    return { questionId, answer: text };
   });
 }

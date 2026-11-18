@@ -19,6 +19,12 @@
     },
     {
       "$ref": "./essay_grade_result.json"
+    },
+    {
+      "$ref": "./cv_verify_generate_result.json"
+    },
+    {
+      "$ref": "./cv_verify_evaluate_result.json"
     }
   ],
   "title": "AiResultMessage",

@@ -32,6 +32,8 @@ export const AI_RESULT_EVENTS = {
   MATCH: 'ai.result.MATCH',
   QUESTIONS_GENERATE: 'ai.result.QUESTIONS_GENERATE',
   ESSAY_GRADE: 'ai.result.ESSAY_GRADE',
+  CV_VERIFY_GENERATE: 'ai.result.CV_VERIFY_GENERATE',
+  CV_VERIFY_EVALUATE: 'ai.result.CV_VERIFY_EVALUATE',
 } as const satisfies { [T in AiJobType]: `ai.result.${T}` };
 
 export type AiResultEvent<T extends AiJobType> = AiResultOf<T>;

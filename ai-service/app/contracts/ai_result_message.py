@@ -8,6 +8,8 @@ from pydantic import Field, RootModel
 
 from . import (
     cv_parse_result,
+    cv_verify_evaluate_result,
+    cv_verify_generate_result,
     essay_grade_result,
     jd_analyze_result,
     match_run_result,
@@ -24,10 +26,12 @@ class AiResultMessage(
         | match_run_result.MatchRunResult
         | questions_generate_result.QuestionsGenerateResult
         | essay_grade_result.EssayGradeResult
+        | cv_verify_generate_result.CvVerifyGenerateResult
+        | cv_verify_evaluate_result.CvVerifyEvaluateResult
     ]
 ):
     root: Annotated[
-        cv_parse_result.CvParseResult | jd_analyze_result.JdAnalyzeResult | skill_normalize_result.SkillNormalizeResult | match_run_result.MatchRunResult | questions_generate_result.QuestionsGenerateResult | essay_grade_result.EssayGradeResult,
+        cv_parse_result.CvParseResult | jd_analyze_result.JdAnalyzeResult | skill_normalize_result.SkillNormalizeResult | match_run_result.MatchRunResult | questions_generate_result.QuestionsGenerateResult | essay_grade_result.EssayGradeResult | cv_verify_generate_result.CvVerifyGenerateResult | cv_verify_evaluate_result.CvVerifyEvaluateResult,
         Field(title='AiResultMessage'),
     ]
     """

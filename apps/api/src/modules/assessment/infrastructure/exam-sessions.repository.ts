@@ -13,6 +13,8 @@ export interface NewExamSession {
   bankVersion: number;
   seed: number;
   questionIds: number[];
+  /** Part D (US-4.8): empty when the preference had no READY questions at the start. */
+  verificationQuestionIds: number[];
   optionLayout: ExamOptionLayout;
   startedAt: Date;
   deadlineAt: Date;

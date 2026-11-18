@@ -110,6 +110,8 @@ export interface StoredSessionShape {
   studentId: number;
   deadlineAt: Date;
   questionIds: readonly number[];
+  /** Part D (US-4.8): essays to Redis; their ids never collide with `questionIds` (CONTEXT D57). */
+  verificationQuestionIds: readonly number[];
   optionLayout: ExamOptionLayout;
 }
 
@@ -157,6 +159,7 @@ export class ExamAnswerStore {
       const slots = session.optionLayout[String(questionId)];
       fields.push(`q:${questionId}`, slots ? slots.map((slot) => slot.code).join(',') : ESSAY_SPEC);
     }
+    for (const questionId of session.verificationQuestionIds) fields.push(`q:${questionId}`, ESSAY_SPEC);
     const ttl = options.closed
       ? KEEP_AFTER_CLOSE_MS
       : Math.max(0, session.deadlineAt.getTime() - now.getTime()) + KEEP_AFTER_DEADLINE_MS;

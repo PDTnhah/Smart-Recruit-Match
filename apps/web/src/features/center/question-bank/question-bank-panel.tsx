@@ -24,7 +24,7 @@ import { formatDateTime, formatNumber, formatRelative } from '@/lib/format';
 import { ApiRequestError, apiErrorMessage } from '@/shared/api/errors';
 import { useExamBlueprint, useGenerateQuestions, useLockQuestionBank } from './api';
 import { BlueprintForm } from './blueprint-form';
-import { BlueprintTable } from './blueprint-table';
+import { BlueprintTable, CvVerificationSummary } from './blueprint-table';
 import {
   cellLabel,
   LOCK_BLOCKER_MESSAGES,
@@ -129,6 +129,7 @@ export function QuestionBankPanel({ jdId, visible }: { jdId: number; visible: bo
               {EXAM_PARTS.map((part) => (
                 <BlueprintTable key={part} part={part} blueprint={view.blueprint.parts[part]} coverage={view.coverage} />
               ))}
+              <CvVerificationSummary settings={view.cvVerification} />
             </>
           )}
         </CardContent>

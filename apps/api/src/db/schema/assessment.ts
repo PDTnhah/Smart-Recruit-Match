@@ -1,6 +1,13 @@
 import {
   ACTOR_KINDS,
   type ActorKind,
+  CV_EVALUATION_STATUSES,
+  CV_TRUST_LEVELS,
+  CV_VERIFICATION_STATUSES,
+  type CvClaimRef,
+  type CvEvaluationStatus,
+  type CvTrustLevel,
+  type CvVerificationStatus,
   ESSAY_GRADING_RUN_STATUSES,
   EXAM_GRADING_REASONS,
   EXAM_SESSION_STATES,
@@ -27,6 +34,7 @@ import {
   type QuestionStatus,
   type QuestionType,
   type QuestionValidation,
+  type StoredCvEvaluation,
   type StoredManualGrading,
   type StoredSkillScore,
 } from '@srm/shared';
@@ -40,6 +48,7 @@ import {
   jsonb,
   numeric,
   primaryKey,
+  smallint,
   text,
   unique,
   uniqueIndex,
@@ -48,7 +57,9 @@ import {
 import { campaigns } from './campaigns.js';
 import { id, inList, oneOf, ref, rowVersion, timestamptz, timestamps } from './columns.js';
 import { core } from './core.js';
+import { cvs } from './cvs.js';
 import { jobDescriptions } from './job-descriptions.js';
+import { preferences } from './matching.js';
 import { students } from './students.js';
 import { users } from './users.js';
 
@@ -58,6 +69,9 @@ import { users } from './users.js';
  * bank is locked (US-4.2, D50). `jd_version` is the JD version the bank was made for. Once LOCKED,
  * a trigger keeps the bank and its questions as they are (migration 0031): only `version` rises,
  * by one per question retired.
+ *
+ * Part D (US-4.8 AC-1, CONTEXT D57): `cv_verification_enabled` and `cv_verification_count`, outside
+ * the blueprint contract the Test Generator reads; the lock trigger keeps them too.
  */
 export const questionBanks = core.table(
   'question_banks',
@@ -77,6 +91,8 @@ export const questionBanks = core.table(
     version: integer('version').notNull().default(1),
     /** Set with LOCKED, in the same UPDATE (`transitionTo` `set`). */
     lockedAt: timestamptz('locked_at'),
+    cvVerificationEnabled: boolean('cv_verification_enabled').notNull().default(false),
+    cvVerificationCount: smallint('cv_verification_count').notNull().default(2),
     rowVersion: rowVersion(),
     ...timestamps(),
   },
@@ -85,6 +101,7 @@ export const questionBanks = core.table(
     check('question_banks_versions_check', sql`${t.jdVersion} > 0 and ${t.version} > 0`),
     oneOf('question_banks_status_check', t.status, QUESTION_BANK_STATES),
     check('question_banks_locked_check', sql`(${t.status} = 'LOCKED') = (${t.lockedAt} is not null)`),
+    check('question_banks_cv_verification_count_check', sql`${t.cvVerificationCount} between 2 and 3`),
   ],
 );
 
@@ -206,6 +223,14 @@ export const examSessions = core.table(
     /** Seed of the draw: the same bank version and seed give the same paper (BR-05, AC-2). */
     seed: integer('seed').notNull(),
     questionIds: bigint('question_ids', { mode: 'number' }).array().notNull(),
+    /**
+     * Part D (US-4.8, CONTEXT D57): `cv_verification_questions.id` in display order, after
+     * `question_ids`; empty without part D. Kept apart, so grading never sees them (AC-6).
+     */
+    verificationQuestionIds: bigint('verification_question_ids', { mode: 'number' })
+      .array()
+      .notNull()
+      .default(sql`'{}'::bigint[]`),
     optionLayout: jsonb('option_layout').$type<ExamOptionLayout>().notNull(),
     startedAt: timestamptz('started_at').notNull(),
     deadlineAt: timestamptz('deadline_at').notNull(),
@@ -351,6 +376,117 @@ export const essayGradingRuns = core.table(
     check('essay_grading_runs_session_count_check', sql`${t.sessionCount} > 0`),
     // Same pattern as ai.llm_calls.prompt_version: `<agent>/v<N>`.
     check('essay_grading_runs_prompt_version_check', sql`${t.promptVersion} ~ '^[a-z][a-z0-9_]*/v[1-9][0-9]*$'`),
+  ],
+);
+
+/**
+ * Part D of one preference (FR-25, US-4.8, CONTEXT D57). A technical log like
+ * `essay_grading_runs`, with no lifecycle: the drafting job (`status`, `job_id`), written before
+ * the job is sent (LESSONS §33), then, once the session it went into closed, the checking job
+ * (`evaluation_*`) and the trust index code computes from its verdicts. `session_id` is set when a
+ * session starts with the READY questions; a row READY only after that start stays unattached.
+ */
+export const cvVerifications = core.table(
+  'cv_verifications',
+  {
+    id: id(),
+    preferenceId: ref('preference_id')
+      .notNull()
+      .unique('cv_verifications_preference_id_key')
+      .references(() => preferences.id),
+    cvId: ref('cv_id')
+      .notNull()
+      .references(() => cvs.id),
+    cvVersion: integer('cv_version').notNull(),
+    jdId: ref('jd_id')
+      .notNull()
+      .references(() => jobDescriptions.id),
+    questionCount: smallint('question_count').notNull(),
+    sessionId: ref('session_id')
+      .unique('cv_verifications_session_id_key')
+      .references(() => examSessions.id),
+    status: text('status').$type<CvVerificationStatus>().notNull().default('RUNNING'),
+    jobId: uuid('job_id').notNull().unique('cv_verifications_job_id_key'),
+    /** When the broker took the drafting job; null until the API has handed it over. */
+    dispatchedAt: timestamptz('dispatched_at'),
+    model: text('model'),
+    promptVersion: text('prompt_version'),
+    errorCode: text('error_code'),
+    evaluationStatus: text('evaluation_status').$type<CvEvaluationStatus>(),
+    evaluationJobId: uuid('evaluation_job_id').unique('cv_verifications_evaluation_job_id_key'),
+    evaluationRequestedAt: timestamptz('evaluation_requested_at'),
+    evaluationDispatchedAt: timestamptz('evaluation_dispatched_at'),
+    /** Null when every answer was blank: no LLM was called. */
+    evaluationModel: text('evaluation_model'),
+    evaluationPromptVersion: text('evaluation_prompt_version'),
+    evaluationErrorCode: text('evaluation_error_code'),
+    /** 0–100: the mean of the verdict points, half-up (AC-5); with DONE. Never scored (AC-6). */
+    trustX100: integer('trust_x100'),
+    trustLevel: text('trust_level').$type<CvTrustLevel>(),
+    rowVersion: rowVersion(),
+    ...timestamps(),
+  },
+  (t) => [
+    oneOf('cv_verifications_status_check', t.status, CV_VERIFICATION_STATUSES),
+    oneOf('cv_verifications_evaluation_status_check', t.evaluationStatus, CV_EVALUATION_STATUSES),
+    oneOf('cv_verifications_trust_level_check', t.trustLevel, CV_TRUST_LEVELS),
+    check('cv_verifications_counts_check', sql`${t.questionCount} between 2 and 3 and ${t.cvVersion} > 0`),
+    check(
+      'cv_verifications_ready_check',
+      sql`${t.status} <> 'READY' or (${t.model} is not null and ${t.promptVersion} is not null)`,
+    ),
+    check('cv_verifications_failed_check', sql`${t.status} <> 'FAILED' or ${t.errorCode} is not null`),
+    // Only READY questions go into a session, and only a session's questions are checked.
+    check('cv_verifications_session_check', sql`${t.sessionId} is null or ${t.status} = 'READY'`),
+    check('cv_verifications_evaluation_session_check', sql`${t.evaluationStatus} is null or ${t.sessionId} is not null`),
+    check(
+      'cv_verifications_evaluation_job_check',
+      sql`(${t.evaluationStatus} is null) = (${t.evaluationJobId} is null) and (${t.evaluationJobId} is null) = (${t.evaluationRequestedAt} is null)`,
+    ),
+    check(
+      'cv_verifications_evaluation_failed_check',
+      sql`${t.evaluationStatus} is distinct from 'FAILED' or ${t.evaluationErrorCode} is not null`,
+    ),
+    check(
+      'cv_verifications_trust_check',
+      sql`(${t.evaluationStatus} is not distinct from 'DONE') = (${t.trustX100} is not null) and (${t.trustX100} is null) = (${t.trustLevel} is null) and ${t.trustX100} between 0 and 100`,
+    ),
+    // Same pattern as ai.llm_calls.prompt_version: `<agent>/v<N>`.
+    check('cv_verifications_prompt_version_check', sql`${t.promptVersion} ~ '^[a-z][a-z0-9_]*/v[1-9][0-9]*$'`),
+    check(
+      'cv_verifications_evaluation_prompt_version_check',
+      sql`${t.evaluationPromptVersion} ~ '^[a-z][a-z0-9_]*/v[1-9][0-9]*$'`,
+    ),
+  ],
+);
+
+/**
+ * The questions of part D (US-4.8 AC-2, AC-5). `id` comes from the sequence of `questions.id`, so a
+ * part D question never shares an id with a bank question: the exam room keys both kinds by
+ * question id (Redis, autosave). `claim_ref` points into `cvs.profile_masked` of the row's CV
+ * version; `claim_label` names the entry. `answer` is written once, when the session closes (null
+ * when blank); `evaluation` with the checking job's result.
+ */
+export const cvVerificationQuestions = core.table(
+  'cv_verification_questions',
+  {
+    id: bigint('id', { mode: 'number' })
+      .primaryKey()
+      .default(sql`nextval('core.questions_id_seq')`),
+    verificationId: ref('verification_id')
+      .notNull()
+      .references(() => cvVerifications.id),
+    no: smallint('no').notNull(),
+    stem: text('stem').notNull(),
+    claimRef: jsonb('claim_ref').$type<CvClaimRef>().notNull(),
+    claimLabel: text('claim_label').notNull(),
+    answer: text('answer'),
+    evaluation: jsonb('evaluation').$type<StoredCvEvaluation>(),
+    ...timestamps(),
+  },
+  (t) => [
+    unique('cv_verification_questions_verification_no_key').on(t.verificationId, t.no),
+    check('cv_verification_questions_no_check', sql`${t.no} between 1 and 3`),
   ],
 );
 

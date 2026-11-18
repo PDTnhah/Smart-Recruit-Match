@@ -7,12 +7,17 @@ import { CompanyModule } from '../company/index.js';
 import { IamModule } from '../iam/index.js';
 import { MatchingModule } from '../matching/index.js';
 import { NotificationModule } from '../notification/index.js';
+import { StudentModule } from '../student/index.js';
 import { BlueprintController } from './api/blueprint.controller.js';
+import { CvTrustController } from './api/cv-trust.controller.js';
 import { EssayGradingController } from './api/essay-grading.controller.js';
 import { ExamSessionController } from './api/exam-session.controller.js';
 import { ManualGradingController } from './api/manual-grading.controller.js';
 import { QuestionBankController } from './api/question-bank.controller.js';
 import { BlueprintService } from './application/blueprint.service.js';
+import { CvTrustService } from './application/cv-trust.service.js';
+import { CvVerificationResultsHandler } from './application/cv-verification-results.handler.js';
+import { CvVerificationScheduler } from './application/cv-verification.scheduler.js';
 import { DrawableBankCache } from './application/drawable-bank-cache.js';
 import { EssayGradingService } from './application/essay-grading.service.js';
 import { EssayResultsHandler } from './application/essay-results.handler.js';
@@ -27,6 +32,7 @@ import { QuestionBankService } from './application/question-bank.service.js';
 import { QuestionResultsHandler } from './application/question-results.handler.js';
 import { NO_THRESHOLD_HOLDS, THRESHOLD_HOLDS } from './application/threshold-holds.js';
 import { ThresholdScheduler } from './application/threshold.scheduler.js';
+import { CvVerificationsRepository } from './infrastructure/cv-verifications.repository.js';
 import { EssayGradingRunsRepository } from './infrastructure/essay-grading-runs.repository.js';
 import { ExamAnswerStore } from './infrastructure/exam-answer-store.js';
 import { ExamGradingRepository } from './infrastructure/exam-grading.repository.js';
@@ -40,8 +46,9 @@ import { QuestionGenerationRunsRepository } from './infrastructure/question-gene
  * each approved JD, its question bank, the generation runs of the Test Generator with the
  * Validator's verdicts, the lock, the exam room with its sweep, and grading (US-4.4): multiple
  * choice by code, essays by the Grader, S_test and S_final, the grading and threshold sweeps; and
- * manual grading of the essays the Grader handed over (US-4.5). Reads JDs, campaigns and
- * preferences through the services those modules export, finds students' accounts through
+ * manual grading of the essays the Grader handed over (US-4.5); part D, the CV verification
+ * questions and their trust index (US-4.8). Reads JDs, campaigns, preferences and CVs through the
+ * services those modules export, finds students' accounts through
  * IamModule and notifies through NotificationModule; sends jobs through AiGatewayModule. Relies on
  * the global DbModule, RedisModule, ClockModule and EventEmitterModule set up in AppModule.
  */
@@ -55,6 +62,7 @@ import { QuestionGenerationRunsRepository } from './infrastructure/question-gene
     MatchingModule,
     IamModule,
     NotificationModule,
+    StudentModule,
   ],
   controllers: [
     BlueprintController,
@@ -62,6 +70,7 @@ import { QuestionGenerationRunsRepository } from './infrastructure/question-gene
     ExamSessionController,
     EssayGradingController,
     ManualGradingController,
+    CvTrustController,
   ],
   providers: [
     QuestionBankService,
@@ -85,9 +94,13 @@ import { QuestionGenerationRunsRepository } from './infrastructure/question-gene
     EssayGradingRunsRepository,
     ManualGradingService,
     ManualGradingRepository,
+    CvVerificationsRepository,
+    CvVerificationScheduler,
+    CvVerificationResultsHandler,
+    CvTrustService,
     // US-4.6 replaces it to hold back sessions with an open appeal.
     { provide: THRESHOLD_HOLDS, useValue: NO_THRESHOLD_HOLDS },
   ],
-  exports: [QuestionBankService, GradingService],
+  exports: [QuestionBankService, GradingService, CvTrustService],
 })
 export class AssessmentModule {}

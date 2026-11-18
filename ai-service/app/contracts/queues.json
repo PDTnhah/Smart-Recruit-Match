@@ -5,7 +5,9 @@
     "SKILL_NORMALIZE": "ai.skills.normalize",
     "MATCH": "ai.match.run",
     "QUESTIONS_GENERATE": "ai.questions.generate",
-    "ESSAY_GRADE": "ai.essay.grade"
+    "ESSAY_GRADE": "ai.essay.grade",
+    "CV_VERIFY_GENERATE": "ai.cv_verification.generate",
+    "CV_VERIFY_EVALUATE": "ai.cv_verification.evaluate"
   },
   "results": "ai.results",
   "dlq_suffix": ".dlq",

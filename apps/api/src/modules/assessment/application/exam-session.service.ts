@@ -39,8 +39,15 @@ import { studentIdOf } from '../../student/index.js';
 import { ASSESSMENT_AUDIT_ACTIONS, EXAM_SESSION_ENTITY, QUESTION_BANK_ENTITY } from '../domain/audit-actions.js';
 import { drawExam, type ExamDraw, OPTION_CODE_SPACE } from '../domain/draw-exam.js';
 import { closingOf, EXAM_SAVE_GRACE_MS, examDeadline } from '../domain/exam-deadline.js';
-import { paperQuestionsOf, savedAnswersOf, storedAnswersOf } from '../domain/exam-paper.js';
+import {
+  paperQuestionsOf,
+  savedAnswersOf,
+  storedAnswersOf,
+  verificationAnswersOf,
+  verificationQuestionsOf,
+} from '../domain/exam-paper.js';
 import { EXAM_SESSION_CLOSED, type ExamSessionClosedEvent } from '../domain/events.js';
+import { CvVerificationsRepository } from '../infrastructure/cv-verifications.repository.js';
 import { ExamAnswerStore } from '../infrastructure/exam-answer-store.js';
 import { type ExamSessionRecord, ExamSessionsRepository } from '../infrastructure/exam-sessions.repository.js';
 import { QuestionBanksRepository } from '../infrastructure/question-banks.repository.js';
@@ -98,6 +105,7 @@ export class ExamSessionService {
     private readonly jds: JdService,
     private readonly banks: QuestionBanksRepository,
     private readonly sessions: ExamSessionsRepository,
+    private readonly verifications: CvVerificationsRepository,
     private readonly store: ExamAnswerStore,
     private readonly bankCache: DrawableBankCache,
     private readonly mcq: McqGrader,
@@ -294,6 +302,9 @@ export class ExamSessionService {
     if (locked.status !== 'IN_PROGRESS') return null;
     const rows = storedAnswersOf(locked.questionIds, locked.optionLayout, saved);
     await this.sessions.insertAnswers(tx, locked.id, rows);
+    // Part D (US-4.8 AC-6): its answers go to the CV check, never to `exam_answers` or grading.
+    const verificationRows = verificationAnswersOf(locked.verificationQuestionIds, saved);
+    await this.verifications.writeAnswers(tx, verificationRows);
     await this.mcq.gradeOnClose(tx, locked.id);
     const closing = closingOf(now, locked.deadlineAt, closer.kind);
     const actor: Actor = closer.kind === 'STUDENT' ? { kind: 'USER', userId: closer.userId } : SYSTEM_ACTOR;
@@ -309,7 +320,7 @@ export class ExamSessionService {
     });
     return {
       session: { ...locked, status: closing.status, submittedAt: closing.submittedAt, rowVersion: moved.rowVersion },
-      answered: rows.length,
+      answered: rows.length + verificationRows.filter((row) => row.answer !== null).length,
     };
   }
 
@@ -374,17 +385,23 @@ export class ExamSessionService {
         throw new CampaignPhaseMismatchError(campaign.id, campaign.status, ['TESTING'], testingEnd);
       }
       const deadlineAt = examDeadline(now, drawn.draw.durationMinutes, testingEnd === undefined ? null : new Date(testingEnd));
+      // US-4.8 AC-4: part D only if its questions are READY now; the start never waits for them.
+      const verification = await this.verifications.lockByPreference(tx, preferenceId);
+      const partD = verification?.status === 'READY' && verification.sessionId === null ? verification : undefined;
+      const verificationQuestionIds = partD ? (await this.verifications.questionsOf(partD.id, tx)).map((q) => q.id) : [];
       const session = await this.sessions.insert(tx, {
         studentId,
         bankId: bank.id,
         bankVersion: bank.version,
         seed: drawn.seed,
         questionIds: drawn.draw.questionIds,
+        verificationQuestionIds,
         optionLayout: drawn.draw.optionLayout,
         startedAt: now,
         deadlineAt,
       });
       if (!session) return this.raced(tx, studentId, bank.id);
+      if (partD && verificationQuestionIds.length > 0) await this.verifications.attachToSession(tx, partD.id, session.id);
       await this.audit.record(tx, {
         actor: { kind: 'USER', userId: user.userId },
         action: ASSESSMENT_AUDIT_ACTIONS.EXAM_SESSION_STARTED,
@@ -396,6 +413,7 @@ export class ExamSessionService {
           bankVersion: bank.version,
           seed: drawn.seed,
           deadlineAt: deadlineAt.toISOString(),
+          cvVerificationQuestions: verificationQuestionIds.length,
         },
       });
       return { kind: 'CREATED', session };
@@ -421,7 +439,10 @@ export class ExamSessionService {
     return session;
   }
 
-  /** AC-3, AC-7: whitelisted fields only; a closed session shows no questions. */
+  /**
+   * AC-3, AC-7: whitelisted fields only; a closed session shows no questions. Part D follows parts A
+   * and B as essays (US-4.8 AC-4).
+   */
   private async paperOf(session: ExamSessionRecord): Promise<ExamPaper> {
     const now = this.clock.now();
     const base = {
@@ -435,15 +456,22 @@ export class ExamSessionService {
     if (session.status !== 'IN_PROGRESS') return { ...base, questions: [], answers: [] };
     // Rebuilt first when Redis lost it, so the saves that follow find the session.
     await this.store.create(session, now, { closed: false });
-    const [questions, answers] = await Promise.all([this.sessions.displayOf(session.questionIds), this.store.read(session.id)]);
+    const [questions, stems, answers] = await Promise.all([
+      this.sessions.displayOf(session.questionIds),
+      this.verifications.stemsOf(session.verificationQuestionIds),
+      this.store.read(session.id),
+    ]);
     return {
       ...base,
-      questions: paperQuestionsOf(
-        session.questionIds,
-        session.optionLayout,
-        new Map(questions.map((question) => [question.id, question])),
-      ),
-      answers: savedAnswersOf(session.questionIds, answers),
+      questions: [
+        ...paperQuestionsOf(
+          session.questionIds,
+          session.optionLayout,
+          new Map(questions.map((question) => [question.id, question])),
+        ),
+        ...verificationQuestionsOf(session.verificationQuestionIds, stems, session.questionIds.length),
+      ],
+      answers: savedAnswersOf([...session.questionIds, ...session.verificationQuestionIds], answers),
     };
   }
 
@@ -456,6 +484,7 @@ export class ExamSessionService {
     return null;
   }
 
+  /** The counts take in part D, as the room's grid does: the student sees one total for the paper. */
   private async submissionOf(session: ExamSessionRecord, answered?: number): Promise<ExamSubmission> {
     if (session.status === 'IN_PROGRESS' || session.submittedAt === null) {
       throw new Error(`exam session ${session.id} is not closed`);
@@ -464,8 +493,11 @@ export class ExamSessionService {
       sessionId: session.id,
       status: session.status,
       submittedAt: session.submittedAt.toISOString(),
-      answeredCount: answered ?? (await this.sessions.countAnswers(session.id)),
-      questionCount: session.questionIds.length,
+      answeredCount:
+        answered ??
+        (await this.sessions.countAnswers(session.id)) +
+          (await this.verifications.countAnswered(session.verificationQuestionIds)),
+      questionCount: session.questionIds.length + session.verificationQuestionIds.length,
     };
   }
 }

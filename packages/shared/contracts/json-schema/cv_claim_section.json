@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./cv_claim_section.json",
+  "type": "string",
+  "enum": [
+    "PROJECT",
+    "EXPERIENCE",
+    "SKILLS_LIST"
+  ],
+  "title": "CvClaimSection",
+  "description": "CV list of the entry a question asks about: projects, experience or skills"
+}

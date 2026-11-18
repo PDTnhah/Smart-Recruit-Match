@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./cv_verification_draft.json",
+  "type": "object",
+  "properties": {
+    "questions": {
+      "minItems": 1,
+      "maxItems": 3,
+      "type": "array",
+      "items": {
+        "$ref": "./cv_verification_draft_question.json"
+      },
+      "description": "One question per entry, each about a different entry"
+    }
+  },
+  "required": [
+    "questions"
+  ],
+  "additionalProperties": false,
+  "title": "CvVerificationDraft",
+  "description": "Structured output of the CV verification drafting step"
+}

@@ -10,6 +10,10 @@ export { type FinalizeOutcome, GradingService } from './application/grading.serv
 export { EssayGradingService } from './application/essay-grading.service.js';
 export { EssayResultsHandler } from './application/essay-results.handler.js';
 export { GradingScheduler, type GradingSweepReport } from './application/grading.scheduler.js';
+// Part D (US-4.8): the trust index for US-5.3; the sweep and the listener for tests.
+export { CvTrustService } from './application/cv-trust.service.js';
+export { CvVerificationScheduler, type CvVerificationSweepReport } from './application/cv-verification.scheduler.js';
+export { CvVerificationResultsHandler } from './application/cv-verification-results.handler.js';
 export { ThresholdScheduler, type ThresholdSweepReport } from './application/threshold.scheduler.js';
 export { NO_THRESHOLD_HOLDS, THRESHOLD_HOLDS, type ThresholdHolds } from './application/threshold-holds.js';
 export type { DrawableBank, DrawableQuestion, RetiredQuestion } from './domain/drawable-bank.js';

@@ -26,6 +26,7 @@ goal: 'Sửa lỗi tìm kỹ năng khi ô tìm còn trống (US-2.8, v0.25.1); �
 | US-4.5  | Chấm tay câu tự luận được chuyển                   | EPIC-4 | P0  | 5      | 👀 review  | from W45 | [stories/US-4.5-manual-essay-grading.md](stories/US-4.5-manual-essay-grading.md)                             |
 | US-5.1  | Allocation Engine và property-based test           | EPIC-5 | P0  | 5      | 📋 backlog | from W42 | [stories/US-5.1-allocation-engine-property-tests.md](stories/US-5.1-allocation-engine-property-tests.md)     |
 | US-6.4  | Mô phỏng phân bổ so với baseline                   | EPIC-6 | P1  | 5      | 📋 backlog | from W44 | [stories/US-6.4-allocation-simulation-vs-baselines.md](stories/US-6.4-allocation-simulation-vs-baselines.md) |
+| US-4.8  | Câu hỏi xác minh CV và chỉ số tin cậy              | EPIC-4 | P1  | 8      | 👀 review  | new  | [stories/US-4.8-cv-verification-questions-trust-score.md](stories/US-4.8-cv-verification-questions-trust-score.md) |
 
 > **Convention**: AC + Tasks live inside each story file. This sprint file lists planned
 > stories at a glance only. Design + decision docs cross-linked at the bottom.
@@ -40,7 +41,8 @@ Ngày 2026-11-16, người dùng bắt đầu US-2.8 (1 điểm, sửa lỗi tá
 
 1. **US-2.8** (một phiên, vì 1 điểm): sửa `ORDER BY` của `SkillRepository.search`, thêm ca integration, VERSION 0.25.1, đóng W45 và W46, commit.
 2. **Người dùng**: kiểm tay, `db:migrate`, `smoke_llm` theo bảng carry-over, rồi chuyển các story sang `done`.
-3. **Story kế tiếp**: US-5.1 (mốc M1), khi người dùng chọn.
+3. **US-4.8** (bắt đầu 2026-11-16, người dùng chọn): phần D và chỉ số tin cậy CV ([CONTEXT D57](../CONTEXT.md)); xong 0.26.0 ngày 2026-11-18, `review`, chờ kiểm tay và `db:migrate` `0040`–`0041`.
+4. **Story kế tiếp**: US-5.1 (mốc M1), khi người dùng chọn.
 
 ## Parked / deferred from W45, W46
 

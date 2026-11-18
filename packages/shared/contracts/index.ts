@@ -7,6 +7,7 @@ export * from './matching.js';
 export * from './exam-blueprint.js';
 export * from './questions.js';
 export * from './essay-grade.js';
+export * from './cv-verification.js';
 export * from './cv.js';
 export * from './skills.js';
 export * from './envelope.js';

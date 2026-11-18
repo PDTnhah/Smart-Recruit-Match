@@ -9,6 +9,8 @@ const CORE_TABLES = [
   'campaigns',
   'companies',
   'consents',
+  'cv_verification_questions',
+  'cv_verifications',
   'cvs',
   'essay_grading_runs',
   'exam_answers',
@@ -93,6 +95,7 @@ describe('AD-9: migrations apply on empty DB and create core tables with constra
     expect(rows).toEqual(
       [
         'campaigns',
+        'cv_verifications',
         'cvs',
         'exam_answers',
         'exam_sessions',

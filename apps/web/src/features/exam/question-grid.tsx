@@ -1,8 +1,9 @@
-import { EXAM_PARTS, type ExamAnswerValue, type ExamQuestion } from '@srm/shared';
+import { CV_VERIFICATION_PART, EXAM_PAPER_PARTS, type ExamAnswerValue, type ExamQuestion } from '@srm/shared';
 import type { ReactNode } from 'react';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { PART_LABELS } from './labels';
+import { PART_LABELS, UNSCORED_LABEL } from './labels';
 import { isAnswered } from './use-exam-autosave';
 
 interface QuestionGridProps {
@@ -28,12 +29,15 @@ export function QuestionGrid({ questions, answers, current, onSelect, footer }: 
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        {EXAM_PARTS.map((part) => {
+        {EXAM_PAPER_PARTS.map((part) => {
           const items = questions.flatMap((question, index) => (question.part === part ? [{ question, index }] : []));
           if (items.length === 0) return null;
           return (
             <section key={part} aria-label={PART_LABELS[part]} className="flex flex-col gap-2">
-              <h3 className="text-sm font-medium">{PART_LABELS[part]}</h3>
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="text-sm font-medium">{PART_LABELS[part]}</h3>
+                {part === CV_VERIFICATION_PART && <Badge variant="outline">{UNSCORED_LABEL}</Badge>}
+              </div>
               <ol className="grid grid-cols-[repeat(auto-fill,minmax(2.75rem,1fr))] gap-2">
                 {items.map(({ question, index }) => {
                   const done = isAnswered(answers.get(question.questionId));

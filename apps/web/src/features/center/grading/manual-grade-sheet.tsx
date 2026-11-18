@@ -11,6 +11,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { formatDateTime, formatNumber } from '@/lib/format';
 import { apiErrorMessage } from '@/shared/api/errors';
 import { useManualGradingDetail } from './api';
+import { CvTrustSection } from './cv-trust-section';
 import { CONFIDENCE_LABELS, FLAG_LABELS, GRADING_REASON_DESCRIPTIONS, GRADING_REASON_LABELS } from './labels';
 import { ManualGradeForm } from './manual-grade-form';
 
@@ -207,6 +208,13 @@ function SheetBody({ answerId, onSaved }: { answerId: number; onSaved: (result: 
       </SheetDescription>
     </SheetHeader>
   );
+  // Part D is read after the grade, so it never sits between the grader and the answer (US-4.8 AC-7).
+  const cvTrust = (
+    <>
+      <Separator />
+      <CvTrustSection sessionId={data.sessionId} />
+    </>
+  );
   if (data.manualGrade) {
     return (
       <>
@@ -214,6 +222,7 @@ function SheetBody({ answerId, onSaved }: { answerId: number; onSaved: (result: 
         <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-4">
           <AnswerSections detail={data} />
           <GradedSummary detail={data} />
+          {cvTrust}
         </div>
         <CloseFooter />
       </>
@@ -223,7 +232,7 @@ function SheetBody({ answerId, onSaved }: { answerId: number; onSaved: (result: 
     <>
       {header}
       {/* A new row version (someone graded meanwhile) refills the form from the answer as it is now. */}
-      <ManualGradeForm key={`${data.answerId}:${data.rowVersion}`} detail={data} onSaved={onSaved}>
+      <ManualGradeForm key={`${data.answerId}:${data.rowVersion}`} detail={data} onSaved={onSaved} after={cvTrust}>
         <AnswerSections detail={data} />
       </ManualGradeForm>
     </>

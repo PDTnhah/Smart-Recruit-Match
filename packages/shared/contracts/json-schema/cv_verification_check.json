@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./cv_verification_check.json",
+  "type": "object",
+  "properties": {
+    "items": {
+      "minItems": 1,
+      "maxItems": 3,
+      "type": "array",
+      "items": {
+        "$ref": "./cv_verification_check_item.json"
+      }
+    }
+  },
+  "required": [
+    "items"
+  ],
+  "additionalProperties": false,
+  "title": "CvVerificationCheck",
+  "description": "Structured output of the CV verification checking step"
+}

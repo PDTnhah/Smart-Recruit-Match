@@ -1,4 +1,11 @@
-import type { ExamGradingReason, GradingConfidence, GradingFlag, ManualGradePublication } from '@srm/shared';
+import type {
+  CvClaimSection,
+  CvVerdict,
+  ExamGradingReason,
+  GradingConfidence,
+  GradingFlag,
+  ManualGradePublication,
+} from '@srm/shared';
 import { formatNumber } from '@/lib/format';
 
 // Vietnamese labels of "Chấm tay" (US-4.5, DESIGN.md §9).
@@ -43,3 +50,18 @@ export function publicationMessage(publication: ManualGradePublication, remainin
       return 'Đã lưu điểm. Chưa công bố được kết quả của bài; tác vụ chấm định kỳ sẽ thử công bố lại.';
   }
 }
+
+/** Part D (US-4.8): the CV list a question asks about. */
+export const CV_CLAIM_SECTION_LABELS: Record<CvClaimSection, string> = {
+  PROJECT: 'Dự án',
+  EXPERIENCE: 'Kinh nghiệm',
+  SKILLS_LIST: 'Kỹ năng',
+};
+
+/** Part D: how an answer compares with the CV entry it is about. */
+export const CV_VERDICT_LABELS: Record<CvVerdict, string> = {
+  CONSISTENT: 'Khớp CV',
+  PARTIAL: 'Khớp một phần',
+  INCONSISTENT: 'Không khớp',
+  NO_ANSWER: 'Bỏ trống',
+};

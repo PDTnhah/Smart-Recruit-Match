@@ -71,7 +71,7 @@ Ranh giới mà epic này giữ: chấm trắc nghiệm, tính S_test, S_final v
 | FR-22 | US-4.4 | 🚧 in-progress |
 | FR-23 | US-4.5 | 🚧 in-progress |
 | FR-24 | US-4.6 | 📋 backlog |
-| FR-25 | US-4.8 | 📋 backlog |
+| FR-25 | US-4.8 | 👀 review |
 
 ## AD Coverage
 
@@ -93,7 +93,7 @@ Ranh giới mà epic này giữ: chấm trắc nghiệm, tính S_test, S_final v
 | US-4.5 | Chấm tay câu tự luận được chuyển | Người chấm chấm các câu AI không chắc chắn | 👀 review | 0.24.0 |
 | US-4.6 | Phúc khảo và báo lỗi câu hỏi | SV phúc khảo trong 48 giờ; câu sai bị loại và bài liên quan được chấm lại | 📋 backlog | — |
 | US-4.7 | Tín hiệu gian lận | Trung tâm/HR thấy cảnh báo hành vi khi làm bài | 📋 backlog | — |
-| US-4.8 | Câu hỏi xác minh CV và chỉ số tin cậy | HR thấy chỉ số tin cậy CV để tham khảo | 📋 backlog | — |
+| US-4.8 | Câu hỏi xác minh CV và chỉ số tin cậy | HR thấy chỉ số tin cậy CV để tham khảo | 👀 review | 0.26.0 |
 | US-4.9 | Duyệt mẫu ngân hàng câu hỏi | HR/giảng viên duyệt một mẫu ngẫu nhiên của ngân hàng | 📋 backlog | — |
 
 ## Object map & user-story interactions
@@ -132,7 +132,7 @@ Ranh giới mà epic này giữ: chấm trắc nghiệm, tính S_test, S_final v
 | **Đồng hồ giả lập cho phiên thi** | US-4.3, US-4.4, US-4.6, US-5.5 | clock injectable + helper (US-4.3) |
 | **Fixture Grader 2 lần chấm** | US-4.4, US-4.6, US-6.3 | `ai-service/tests/fixtures/llm/grader/` (US-4.4) |
 | **Seed ngân hàng câu hỏi đã khóa** | US-4.3 trở đi, US-6.6 | seed script (US-4.2) |
-| **Test agent có công cụ với LLM giả** | US-4.1, US-4.8 | fixture nhiều lượt cho vòng lặp tool-use (US-4.1) |
+| **Test agent có công cụ với LLM giả** | US-4.1 | fixture nhiều lượt cho vòng lặp tool-use (US-4.1); US-4.8 là workflow, dùng fixture thường ([CONTEXT D57](../../CONTEXT.md)) |
 
 ## Performance budgets & invariants
 

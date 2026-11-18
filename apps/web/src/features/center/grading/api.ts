@@ -1,4 +1,5 @@
 import {
+  CvTrustViewSchema,
   type ExamGradingReason,
   type GradingQueue,
   GradingQueueSchema,
@@ -25,6 +26,7 @@ export const gradingKeys = {
   queues: ['grading', 'queue'] as const,
   queue: (campaignId: number, filter: GradingQueueFilter) => ['grading', 'queue', campaignId, filter] as const,
   detail: (answerId: number) => ['grading', 'answer', answerId] as const,
+  cvTrust: (sessionId: number) => ['grading', 'cv-trust', sessionId] as const,
 };
 
 /** A page of the queue with the offset it was loaded at, which may lag the URL while the next loads. */
@@ -69,6 +71,17 @@ export function useManualGradingDetail(answerId: number) {
     queryFn: async () =>
       ManualGradingDetailSchema.parse(
         unwrap(await api.GET('/api/exam-answers/{id}/manual-grading', { params: { path: { id: answerId } } })),
+      ),
+  });
+}
+
+/** Part D of a session and its CV trust index (US-4.8 AC-7): CENTER only, never scored. */
+export function useCvTrust(sessionId: number) {
+  return useQuery({
+    queryKey: gradingKeys.cvTrust(sessionId),
+    queryFn: async () =>
+      CvTrustViewSchema.parse(
+        unwrap(await api.GET('/api/exam-sessions/{id}/cv-trust', { params: { path: { id: sessionId } } })),
       ),
   });
 }

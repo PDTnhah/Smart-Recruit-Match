@@ -18,6 +18,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel, FieldLegend, FieldSet } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
 import { Table, TableBody, TableCaption, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatNumber } from '@/lib/format';
@@ -27,12 +28,21 @@ import { useUpdateExamBlueprint } from './api';
 import {
   type BlueprintFormValues,
   blueprintResolver,
+  CV_VERIFICATION_COUNTS,
+  CV_VERIFICATION_OFF,
+  cvVerificationOf,
   formValuesOf,
   type MatrixRow,
   matrixRows,
   serverBlueprintIssues,
 } from './blueprint-form-values';
-import { cellLabel, DIFFICULTY_LABELS, EXAM_PART_TITLES } from './labels';
+import {
+  CV_VERIFICATION_DESCRIPTION,
+  CV_VERIFICATION_TITLE,
+  cellLabel,
+  DIFFICULTY_LABELS,
+  EXAM_PART_TITLES,
+} from './labels';
 
 type FormPath = Path<BlueprintFormValues>;
 type FormControl = Control<BlueprintFormValues, unknown, ExamBlueprint>;
@@ -66,8 +76,9 @@ export function BlueprintForm({ view, onDone, onReload, onRefresh }: BlueprintFo
     const rows = matrixRows(view.blueprint, view.requirements);
     return {
       rowVersion: view.rowVersion,
+      cvVerification: view.cvVerification,
       rows,
-      defaults: formValuesOf(view.blueprint, rows),
+      defaults: formValuesOf(view.blueprint, view.cvVerification, rows),
       resolver: blueprintResolver(examBlueprintRequestSchema(view.requirements), rows),
     };
   });
@@ -85,7 +96,12 @@ export function BlueprintForm({ view, onDone, onReload, onRefresh }: BlueprintFo
   async function onSave(blueprint: ExamBlueprint) {
     setFormError(null);
     try {
-      await update.mutateAsync({ rowVersion: loaded.rowVersion, blueprint });
+      await update.mutateAsync({
+        rowVersion: loaded.rowVersion,
+        blueprint,
+        // The resolver checks the matrix only: the Select offers no invalid part D.
+        cvVerification: cvVerificationOf(form.getValues('cvVerification'), loaded.cvVerification),
+      });
       toast.success('Đã lưu ma trận đề. Bấm "Sinh câu còn thiếu" nếu còn ô chưa đủ câu nháp.');
       onDone();
     } catch (error) {
@@ -163,6 +179,8 @@ export function BlueprintForm({ view, onDone, onReload, onRefresh }: BlueprintFo
         <PartFields key={part} control={form.control} part={part} rows={loaded.rows} />
       ))}
 
+      <CvVerificationField control={form.control} />
+
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
         <Button type="button" variant="outline" onClick={onDone} disabled={update.isPending}>
           Hủy
@@ -204,6 +222,38 @@ function PartFields({ control, part, rows }: { control: FormControl; part: ExamP
         />
       </div>
       <MatrixInputs control={control} part={part} rows={rows} />
+    </FieldSet>
+  );
+}
+
+/** Part D (US-4.8 AC-1): off, or 2–3 questions about the student's own CV; never scored. */
+function CvVerificationField({ control }: { control: FormControl }) {
+  return (
+    <FieldSet>
+      <FieldLegend>{CV_VERIFICATION_TITLE}</FieldLegend>
+      <FieldDescription>{CV_VERIFICATION_DESCRIPTION}</FieldDescription>
+      <Controller
+        name="cvVerification"
+        control={control}
+        render={({ field }) => (
+          <Field className="sm:max-w-xs">
+            <FieldLabel htmlFor="blueprint-cv-verification">Số câu phần D mỗi bài</FieldLabel>
+            <Select value={field.value} onValueChange={field.onChange}>
+              <SelectTrigger id="blueprint-cv-verification" ref={field.ref} className="w-full" onBlur={field.onBlur}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={CV_VERIFICATION_OFF}>Không dùng</SelectItem>
+                {CV_VERIFICATION_COUNTS.map((count) => (
+                  <SelectItem key={count} value={String(count)}>
+                    {formatNumber(count)} câu
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+        )}
+      />
     </FieldSet>
   );
 }
