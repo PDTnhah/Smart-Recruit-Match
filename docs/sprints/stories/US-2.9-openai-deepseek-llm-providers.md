@@ -11,7 +11,7 @@ prd_ref: [NFR-11, NFR-12]
 arch_ref: [AD-10, AD-12]
 depends_on: [US-2.2, US-3.2]
 assignee: PDTnhah
-commit:
+commit: ce090c0
 created: 2026-11-19
 updated: 2026-11-19
 ---
@@ -121,7 +121,7 @@ Plan đã duyệt (máy này): `C:\Users\PHAM TIEN BINH\.claude\plans\noble-frol
 ### Changed
 - Bộ poll batch không đọc batch của nhà cung cấp hay model khác cấu hình hiện tại.
 
-**Commit**: —
+**Commit**: `ce090c0`
 
 ## Implementation notes
 
