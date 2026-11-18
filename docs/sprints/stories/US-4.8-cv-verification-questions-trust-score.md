@@ -11,7 +11,7 @@ prd_ref: [FR-25]
 arch_ref: [AD-2, AD-4, AD-5, AD-6, AD-10]
 depends_on: [US-4.1, US-4.3, US-4.4, US-2.4]
 assignee:
-commit:
+commit: cfbb63c
 created: 2026-10-07
 updated: 2026-11-18
 ---
@@ -106,7 +106,7 @@ Cột và CHECK: ARCH › *Các bảng chính*. ID câu D lấy `core.questions_
 - Phần D của bài test (tùy chọn theo JD): 2–3 câu hỏi về dự án và kỹ năng sinh viên đã khai, sinh từ hồ sơ đã che PII khi đợt sang giai đoạn làm test.
 - Chỉ số tin cậy CV do code tính từ nhận định từng câu có trích dẫn; Trung tâm xem trong màn chấm tay; không tính vào S_test hay S_final.
 
-**Commit**:
+**Commit**: `cfbb63c`
 
 ## Implementation notes
 
