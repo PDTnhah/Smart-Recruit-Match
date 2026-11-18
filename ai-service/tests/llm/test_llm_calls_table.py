@@ -1,8 +1,8 @@
 """US-2.2 AC-5: what the AI Service writes matches the ai.llm_calls migration (Invariant 11).
 
 The table is created by a Drizzle migration in apps/api, and later migrations add columns to it
-(`batch_id`, US-3.2). This test reads that SQL, so a column or CHECK value changed on one side only
-fails here, without a database.
+(`batch_id`, US-3.2) or redefine a CHECK (`provider`, US-2.9). This test reads that SQL, so a
+column or CHECK value changed on one side only fails here, without a database.
 """
 
 import re
@@ -43,6 +43,13 @@ def check_values(sql: str, constraint: str) -> list[str]:
     return re.findall(r"'([A-Z_]+)'", match.group(1))
 
 
+def latest_check_values(constraint: str) -> list[str]:
+    """The values of the last migration that defines the CHECK, as a migration that adds a value
+    drops and recreates it."""
+    sqls = [path.read_text(encoding="utf-8") for path in sorted(MIGRATIONS.glob("*.sql"))]
+    return check_values([sql for sql in sqls if f'"{constraint}" CHECK' in sql][-1], constraint)
+
+
 def test_nfr11_written_columns_exist_in_the_migration():
     columns = table_columns(migration_sql())
     assert columns[0] == "id" and columns[-1] == "created_at"
@@ -52,8 +59,8 @@ def test_nfr11_written_columns_exist_in_the_migration():
 
 
 def test_nfr11_enumerations_match_the_check_constraints():
-    sql = migration_sql()
-    assert check_values(sql, "llm_calls_provider_check") == [p.value for p in Provider]
-    assert check_values(sql, "llm_calls_effort_check") == [e.upper() for e in EFFORTS]
-    assert check_values(sql, "llm_calls_outcome_check") == [o.value for o in Outcome]
-    assert check_values(sql, "llm_calls_stop_reason_check") == [s.value for s in StopReason]
+    assert latest_check_values("llm_calls_provider_check") == [p.value for p in Provider]
+    assert latest_check_values("llm_batches_provider_check") == [p.value for p in Provider]
+    assert latest_check_values("llm_calls_effort_check") == [e.upper() for e in EFFORTS]
+    assert latest_check_values("llm_calls_outcome_check") == [o.value for o in Outcome]
+    assert latest_check_values("llm_calls_stop_reason_check") == [s.value for s in StopReason]

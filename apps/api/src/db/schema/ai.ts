@@ -49,7 +49,7 @@ export const aiJobs = ai.table(
 
 // Written only by the AI Service; the values mirror ai-service/app/llm/types.py, and
 // ai-service/tests/llm/test_llm_calls_table.py checks both sides against this table's migration.
-export const LLM_PROVIDERS = ['GEMINI', 'ANTHROPIC', 'FIXTURE'] as const;
+export const LLM_PROVIDERS = ['GEMINI', 'ANTHROPIC', 'OPENAI', 'DEEPSEEK', 'FIXTURE'] as const;
 export const LLM_EFFORTS = ['LOW', 'MEDIUM', 'HIGH'] as const;
 export const LLM_CALL_OUTCOMES = ['SUCCEEDED', 'INVALID_OUTPUT', 'TRUNCATED', 'REFUSED', 'API_ERROR'] as const;
 export const LLM_STOP_REASONS = ['END_TURN', 'MAX_TOKENS', 'REFUSAL', 'OTHER'] as const;

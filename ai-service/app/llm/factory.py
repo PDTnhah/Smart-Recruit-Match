@@ -14,9 +14,17 @@ from app.llm.providers.fixture_batch import FixtureBatchProvider
 from app.llm.providers.fixture_provider import FixtureProvider
 from app.llm.providers.gemini_batch import GeminiBatchProvider
 from app.llm.providers.gemini_provider import GeminiProvider, build_gemini_client
+from app.llm.providers.inline_batch import InlineBatchProvider
+from app.llm.providers.openai_batch import OpenAIBatchProvider
+from app.llm.providers.openai_provider import (
+    ChatCompletionsProvider,
+    build_deepseek_client,
+    build_openai_client,
+)
 from app.llm.recorder import CallRecorder, LlmCallStore, MinioObjectStore, ObjectStore
 from app.llm.settings import LlmSettings
 from app.llm.structured import StructuredLLMClient
+from app.llm.types import Provider
 from app.prompts.files import load_active, load_manifest
 from app.prompts.registry import PromptRegistry
 from app.storage import MinioObjectReader, minio_client
@@ -31,12 +39,22 @@ def build_provider(settings: LlmSettings) -> LLMProvider:
         assert settings.anthropic_api_key is not None
         client = build_anthropic_client(settings.anthropic_api_key.get_secret_value())
         return AnthropicProvider(client, settings.model)
+    if settings.provider == "openai":
+        assert settings.openai_api_key is not None
+        client = build_openai_client(settings.openai_api_key.get_secret_value())
+        return ChatCompletionsProvider(client, settings.model, Provider.OPENAI)
+    if settings.provider == "deepseek":
+        assert settings.deepseek_api_key is not None
+        client = build_deepseek_client(settings.deepseek_api_key.get_secret_value())
+        return ChatCompletionsProvider(client, settings.model, Provider.DEEPSEEK)
     assert settings.fixtures_dir is not None
     return FixtureProvider(settings.fixtures_dir, settings.model)
 
 
-def build_batch_provider(settings: LlmSettings) -> BatchProvider:
-    """The batch adapter of the provider LLM_PROVIDER selects, with the same model."""
+def build_batch_provider(settings: LlmSettings, objects: ObjectStore) -> BatchProvider:
+    """The batch adapter of the provider LLM_PROVIDER selects, with the same model. DeepSeek has
+    no batch API: its requests run one by one when the poller reads the batch, and their answers
+    are kept in `objects` (CONTEXT D58)."""
     if settings.provider == "gemini":
         assert settings.gemini_api_key is not None
         client = build_gemini_client(settings.gemini_api_key.get_secret_value())
@@ -45,6 +63,14 @@ def build_batch_provider(settings: LlmSettings) -> BatchProvider:
         assert settings.anthropic_api_key is not None
         client = build_anthropic_client(settings.anthropic_api_key.get_secret_value())
         return AnthropicBatchProvider(client, settings.model)
+    if settings.provider == "openai":
+        assert settings.openai_api_key is not None
+        client = build_openai_client(settings.openai_api_key.get_secret_value())
+        return OpenAIBatchProvider(client, settings.model)
+    if settings.provider == "deepseek":
+        return InlineBatchProvider(
+            build_provider(settings), objects, concurrency=settings.inline_batch_concurrency
+        )
     assert settings.fixtures_dir is not None
     return FixtureBatchProvider(settings.fixtures_dir, settings.model)
 
@@ -52,11 +78,14 @@ def build_batch_provider(settings: LlmSettings) -> BatchProvider:
 def build_batch_client(
     settings: LlmSettings, *, objects: ObjectStore, calls: LlmCallStore
 ) -> StructuredBatchClient:
+    provider = build_batch_provider(settings, objects)
+    # Without a batch API every request is a normal call, billed at the normal price.
+    inline = isinstance(provider, InlineBatchProvider)
     return StructuredBatchClient(
-        build_batch_provider(settings),
+        provider,
         CallRecorder(objects, calls),
         objects,
-        pricing=settings.batch_pricing,
+        pricing=settings.pricing if inline else settings.batch_pricing,
         max_output_tokens=settings.max_output_tokens,
     )
 

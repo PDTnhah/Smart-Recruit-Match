@@ -430,6 +430,7 @@ def _failure_code(error: str | None) -> str:
     head = error.split(":", 1)[0].strip().upper()
     return {
         "EXPIRED": "EXPIRED",
+        "BATCH_EXPIRED": "EXPIRED",
         "CANCELED": "EXPIRED",
         "NO_RESULT": "NO_RESULT",
         "FIXTURE_MISSING": "LLM_FIXTURE_MISSING",

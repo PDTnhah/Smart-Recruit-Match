@@ -19,7 +19,7 @@ arch_ref:
   - AD-12
   - AD-15
 created: 2026-10-07
-updated: 2026-11-02
+updated: 2026-11-19
 ---
 
 ## Goal
@@ -39,7 +39,7 @@ Ranh giới kiến trúc mà epic này giữ (AD-1, AD-4): AI Service không chu
 | # | Pillar | Stories | Purpose |
 |---|---|---|---|
 | 1 | **Đường ống job AI** | US-2.1 | Hợp đồng Zod → JSON Schema → Pydantic, `aigateway`, worker FastStream, idempotent theo `job_id`, DLQ, view che PII |
-| 2 | **Lớp gọi LLM** | US-2.2 | `LLMClient`: effort, structured outputs, refusal, retry, ghi usage/chi phí, prompt có phiên bản, fixture |
+| 2 | **Lớp gọi LLM** | US-2.2, US-2.9 | `LLMClient` (Gemini, Claude, OpenAI, DeepSeek): effort, structured outputs, refusal, retry, ghi usage/chi phí, prompt có phiên bản, fixture |
 | 3 | **Trích xuất JD** | US-2.3 | JD Analyzer + màn HR sửa và xác nhận yêu cầu chuẩn hóa, phiên bản yêu cầu |
 | 4 | **Trích xuất CV** | US-2.4, US-2.6 | CV Parser có phát hiện chữ ẩn và tách PII; màn SV sửa và xác nhận hồ sơ |
 | 5 | **Embedding và danh mục kỹ năng** | US-2.5, US-2.8 | bge-m3, `ai.embeddings`, chuẩn hóa tên kỹ năng, quản trị duyệt kỹ năng mới |
@@ -57,6 +57,7 @@ Ranh giới kiến trúc mà epic này giữ (AD-1, AD-4): AI Service không chu
 | US-2.6 | 5 | T6 (W46) | A | US-2.4 |
 | US-2.7 | 8 | T5 (W45) | A | US-2.5 |
 | US-2.8 | 1 | W47 (sửa lỗi, [CONTEXT D55](../../CONTEXT.md)) | – | US-2.5 |
+| US-2.9 | 5 | W47 ([CONTEXT D58](../../CONTEXT.md)) | – | US-2.2, US-3.2 |
 
 ### Out of scope
 
@@ -64,7 +65,7 @@ Ranh giới kiến trúc mà epic này giữ (AD-1, AD-4): AI Service không chu
 - **Sinh ngân hàng câu hỏi** — thuộc [EPIC-4](EPIC-4.md) (US-4.1), dù job này chạy ngay sau khi JD được duyệt.
 - **Dashboard chi phí LLM** — thuộc [EPIC-6](EPIC-6.md) (US-6.2). EPIC-2 chỉ ghi `ai.llm_calls`.
 - **Bộ đánh giá chất lượng trích xuất (P/R/F1)** — thuộc [EPIC-6](EPIC-6.md) (US-6.3).
-- **Mô hình mở tự host (PRD Q8, phần còn mở)** — `LLMClient` có hai nhà cung cấp thương mại (Gemini mặc định, Claude thay thế, [CONTEXT D34](../../CONTEXT.md)); mô hình tự host chỉ cần thêm một adapter, chưa cài đặt.
+- **Mô hình mở tự host (PRD Q8, phần còn mở)** — `LLMClient` có bốn nhà cung cấp thương mại (Gemini mặc định; Claude, OpenAI, DeepSeek thay thế, [CONTEXT D34, D58](../../CONTEXT.md)); mô hình tự host chỉ cần thêm một adapter, chưa cài đặt.
 
 ## FR Coverage
 
@@ -104,6 +105,7 @@ Ranh giới kiến trúc mà epic này giữ (AD-1, AD-4): AI Service không chu
 | US-2.6 | SV xác nhận hồ sơ năng lực | SV xem CV bên cạnh hồ sơ, sửa và xác nhận | ✅ done | 0.12.0 |
 | US-2.7 | Vùng, họ và quan hệ kéo theo của kỹ năng | ADMIN gán vùng, họ, kéo theo; `matching` đọc taxonomy | 👀 review | — |
 | US-2.8 | Tìm kỹ năng trong danh mục khi ô tìm còn trống | `GET /api/skills` không có `query` trả kỹ năng theo tên, không `500` | 👀 review | 0.25.1 |
+| US-2.9 | Thêm nhà cung cấp LLM OpenAI và DeepSeek | AI Service chạy được với OpenAI hoặc DeepSeek khi không có key Gemini, Claude | 👀 review | 0.27.0 |
 
 ## Object map & user-story interactions
 

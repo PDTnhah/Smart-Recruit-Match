@@ -4,7 +4,7 @@ import ast
 from pathlib import Path
 
 APP = Path(__file__).resolve().parents[2] / "app"
-SDK_PACKAGES = ("anthropic", "google.genai", "google.generativeai")
+SDK_PACKAGES = ("anthropic", "google.genai", "google.generativeai", "openai")
 
 
 def sdk_imports(path: Path) -> list[str]:
@@ -45,10 +45,12 @@ def test_the_scan_catches_every_import_form(tmp_path: Path):
     (agents / "b.py").write_text("from google import genai\n")
     (agents / "c.py").write_text("from google.genai import types\n")
     (agents / "d.py").write_text("from app.llm.client import LLMClient\n")
+    (agents / "e.py").write_text("from openai.types.chat import ChatCompletion\n")
     (tmp_path / "llm").mkdir()
     (tmp_path / "llm" / "ok.py").write_text("import anthropic\n")
     assert set(violations(tmp_path)) == {
         str(Path("agents/a.py")),
         str(Path("agents/b.py")),
         str(Path("agents/c.py")),
+        str(Path("agents/e.py")),
     }

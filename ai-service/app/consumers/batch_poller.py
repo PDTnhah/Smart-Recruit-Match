@@ -178,6 +178,21 @@ class BatchCoordinator:
         await self._store.later(row.id, owner=self._owner, poll_seconds=self._poll_seconds)
 
     async def _step(self, row: BatchRow) -> None:
+        if (row.provider, row.model) != (self._client.provider.value, self._client.model):
+            # LLM_PROVIDER or LLM_MODEL changed while the batch was open (CONTEXT D46, D58). This
+            # provider cannot read another's batch id, and would answer an inline batch with
+            # another model; the row waits until the setting is put back.
+            logger.error(
+                "batch %s (job %s) belongs to %s %s, not %s %s; it waits",
+                row.id,
+                row.job_id,
+                row.provider,
+                row.model,
+                self._client.provider.value,
+                self._client.model,
+            )
+            await self._later(row)
+            return
         if row.status == "PREPARING":
             await self._submit(row)
             return

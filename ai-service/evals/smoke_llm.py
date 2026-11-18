@@ -1,24 +1,28 @@
 """Manual smoke check of LLMClient against a real provider (US-2.2, CONTEXT D34).
 
-Not run in CI and not shipped in the image. It is the only check that the Gemini and Claude
-adapters match the live APIs, so run it after changing an adapter or upgrading an SDK:
+Not run in CI and not shipped in the image. It is the only check that the Gemini, Claude, OpenAI
+and DeepSeek adapters match the live APIs, so run it after changing an adapter or upgrading an
+SDK:
 
     cd ai-service
     LLM_PROVIDER=gemini GEMINI_API_KEY=... .venv/Scripts/python evals/smoke_llm.py
     LLM_PROVIDER=anthropic ANTHROPIC_API_KEY=... .venv/Scripts/python evals/smoke_llm.py
+    LLM_PROVIDER=openai OPENAI_API_KEY=... .venv/Scripts/python evals/smoke_llm.py
+    LLM_PROVIDER=deepseek DEEPSEEK_API_KEY=... .venv/Scripts/python evals/smoke_llm.py
 
 `--record local` (default) writes the ai.llm_calls rows and the log files under evals/.out/.
 `--record db` writes them to PostgreSQL (AI_DATABASE_URL) and MinIO (MINIO_*), as the worker will.
 `--cv FILE` runs the CV Parser on a sample CV instead (US-2.4); a scan checks that the adapter
-sends a document: `--cv tests/fixtures/cv/cv_scanned.pdf`. Its skills all come back NEW: the run
-has an empty catalogue and keeps no embedding (US-2.5).
+sends a document: `--cv tests/fixtures/cv/cv_scanned.pdf` (DeepSeek refuses it by design). Its
+skills all come back NEW: the run has an empty catalogue and keeps no embedding (US-2.5).
 `--bank` runs the Test Generator with its Validator on the Backend Java blueprint of PRD GĐ5
 (US-4.1, US-4.2), drafts and verdicts kept in memory, and prints the cost of one bank and the share
 of drafts the Validator rejected: the numbers the stories' performance budgets ask for.
 `--grader` grades three synthetic essay answers with grader/v1, each pass sent on its own instead
 of through a batch (US-4.4): a sound answer, a weak one and one that asks for full marks.
 It prints the points per criterion, the confidence, the flags and whether the grade fits the rubric.
-Use synthetic data only: the free tier of Gemini may use requests to improve Google's products.
+Use synthetic data only: the free tier of Gemini may use requests to improve Google's products,
+and the data-processing terms do not name OpenAI or DeepSeek (CONTEXT D58).
 """
 
 import argparse

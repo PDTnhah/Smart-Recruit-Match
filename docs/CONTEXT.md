@@ -40,7 +40,7 @@
 - D31 · Thông báo, SSE, email outbox, nhắc hạn (US-1.7) → sửa bởi D32
 - D32 · Link mời HR ký lúc gửi, stream đóng theo hạn token, email quá hạn bị hủy
 - D33 · Đường ống job AI, hợp đồng message, role DB (US-2.1)
-- D34 · Nhà cung cấp LLM: Gemini mặc định, Claude thay thế qua `LLMClient` (US-2.2) → sửa một phần bởi D49 (Test Generator không dùng tool-use)
+- D34 · Nhà cung cấp LLM: Gemini mặc định, Claude thay thế qua `LLMClient` (US-2.2) → sửa một phần bởi D49 (Test Generator không dùng tool-use), D58 (thêm OpenAI, DeepSeek)
 - D35 · Phân tích JD, xác nhận yêu cầu chuẩn hóa, phiên bản yêu cầu (US-2.3)
 - D36 · Ma trận S_cv đọc hai chiều: JD gợi ý cho sinh viên, CV phù hợp theo JD cho Trung tâm
 - D37 · Phân tích CV: lỗi phân tích, `pii` mã hóa, che PII bằng code, PDF scan, `TERMS_V2` (US-2.4)
@@ -52,7 +52,7 @@
 - D43 · Taxonomy kỹ năng: 15 vùng, 70 họ, họ `FOREIGN_LANGUAGE`, bỏ chuyển cạnh khi gộp, mã lỗi và giới hạn kéo theo (US-2.7)
 - D44 · Khung bậc `matching-rules/v1`: thời gian chỉ đọc ở mục kinh nghiệm, luật khớp, quét văn bản tự do (US-3.5)
 - D45 · Bảng `language-cefr/v1`, hai thang TOEFL iBT, điểm tiêu chí ngoại ngữ, 7 nhóm ngành, bộ đọc ngôn ngữ ở `packages/shared` (US-3.6)
-- D46 · Matching hàng loạt: batch Gemini + Claude, ack sớm và bộ poll, ghim prompt theo đợt, tạm không hạ điểm dự án, năm học đọc từ hồ sơ (US-3.2)
+- D46 · Matching hàng loạt: batch Gemini + Claude, ack sớm và bộ poll, ghim prompt theo đợt, tạm không hạ điểm dự án, năm học đọc từ hồ sơ (US-3.2) → sửa một phần bởi D58 (DeepSeek không có batch: gửi từng request lúc poll)
 - D47 · Chốt Q1, Q6; vòng đời hồ sơ ứng tuyển, bảng `preferences`, shortlist của SV, màn chọn nguyện vọng (US-3.3)
 - D48 · Mức cạnh tranh: ngưỡng trong cấu hình đợt, đếm lại dưới khóa theo JD, kênh SSE theo đợt, báo Trung tâm JD thiếu NV sau Q6 (US-3.4)
 - D49 · Test Generator: vòng lặp do code điều khiển, mỗi JD một ngân hàng (Q2 một phần, Q7), ma trận ở `question_banks`, tham số mặc định, làm tròn hai chiều (US-4.1)
@@ -64,6 +64,7 @@
 - D55 · Màn Hồ sơ chọn đợt mặc định theo CV của SV; tách US-1.9 (phiên giữa các tab), US-2.8 (tìm kỹ năng khi query rỗng) (US-1.8)
 - D56 · Sửa đợt sau khi mở theo pha dùng tham số, đối tượng chỉ thêm, dời mốc sớm có báo trước 24 giờ; hủy đợt có dữ liệu (`CANCELLED`), xóa đợt trống theo khóa ngoại (US-1.10)
 - D57 · Phần D (xác minh CV): sinh câu khi đợt sang `TESTING`, chỉ số theo ngưỡng hằng số, hai job AI, ID câu dùng chung sequence, CENTER xem trong Sheet chấm tay (US-4.8)
+- D58 · Thêm OpenAI và DeepSeek: chọn thủ công, chỉ dữ liệu giả, Chat Completions, batch inline cho DeepSeek (US-2.9)
 
 ---
 
@@ -2549,3 +2550,26 @@ Lúc điều tra còn thấy hai lỗi khác, không gây ra sự cố này:
 
 **Date**: 2026-11-16
 **Version**: 0.26.0 (dự kiến)
+
+### D58. Thêm nhà cung cấp LLM OpenAI và DeepSeek: chọn thủ công, chỉ dữ liệu giả, Chat Completions, batch inline cho DeepSeek (US-2.9) (revision of D34, D46)
+
+**Context**: Người dùng không có key Gemini hay Claude; ngày 2026-11-18 Gemini còn trả `503` quá tải. D34 chỉ có `gemini | anthropic | fixture`; D46 giả định nhà cung cấp nào cũng có Batch API. Tài liệu đọc ngày 2026-11-19: DeepSeek chỉ có JSON mode (`json_object`), không có Batch API, và chỉ đọc PDF qua Files API (`file_id`), không nhận nội dung file gửi kèm request. TERMS_V2 chỉ ghi tên Google và Anthropic.
+
+**Decision** (người dùng chốt ba điểm đầu ngày 2026-11-19):
+
+- **Chọn thủ công** bằng `LLM_PROVIDER=openai|deepseek`. Không tự chuyển nhà cung cấp khi lỗi, để cả đợt được chấm bởi một model (D46).
+- **Chỉ dữ liệu giả** với hai nhà cung cấp mới; chưa làm TERMS_V3. DeepSeek xử lý dữ liệu ở Trung Quốc.
+- **Batch:** OpenAI dùng Batch API thật. File input xóa sau khi đọc; file output/error đặt hạn 2 ngày thay vì 30 ngày, không xóa ngay, vì bộ poll lỗi trước khi commit sẽ đọc lại (file đã mất thì gửi lại request). DeepSeek dùng `InlineBatchProvider`: `submit` không gọi mạng, `results` gửi từng request lúc bộ poll chạy, song song tối đa `LLM_INLINE_BATCH_CONCURRENCY`, giá thường. Câu trả lời lưu vào `llm-logs` ngay khi về, nên lần đọc lại (bước sau lỗi, worker chết) chỉ gửi request chưa có câu trả lời. Bộ poll để dòng `ai.llm_batches` của nhà cung cấp hay model khác cấu hình hiện tại chờ, không đọc hay gửi lại (sau review).
+- **Một thư viện `openai`, gọi Chat Completions** cho cả hai; DeepSeek đổi `base_url`. Không dùng Responses API, vì DeepSeek chỉ tương thích đầy đủ với Chat Completions; Chat Completions của OpenAI mặc định `store=false`.
+- **JSON:** OpenAI dùng `json_schema`, bật `strict` chỉ khi mọi object có đủ thuộc tính trong `required`. Lý do: strict mode bắt buộc vậy, còn `strict_json_schema` giữ `required` của Pydantic. DeepSeek dùng `json_object`; adapter thêm một system message cố định chứa JSON Schema của agent, và gửi `shared` + `user` thành một chuỗi. Pydantic vẫn kiểm mọi câu trả lời.
+- **Effort và model:** OpenAI giữ low/medium/high; DeepSeek gửi low/high/high, vì DeepSeek không có `medium`. Model mặc định `gpt-6.2-sol`, `deepseek-flash`. Giá DeepSeek lấy giờ cao điểm làm cận trên.
+- **CV bản scan:** OpenAI nhận part `file` (data URL). DeepSeek từ chối trước khi gửi (lỗi không thử lại), vì tải file lên Files API của DeepSeek là một luồng khác và chưa kiểm được khi chưa có key; CV có chữ không bị ảnh hưởng.
+
+**Rationale**: Thêm adapter sau `LLMProvider` / `BatchProvider` giữ logic quyết định ở lõi chung (D34). Strict có điều kiện thì không phải biến đổi schema rồi bỏ `null` ngược lại khi nhận.
+
+**Alternatives considered**: tự chuyển khi lỗi; làm TERMS_V3 ngay; OpenAI cũng gửi từng request (người dùng không chọn cả ba; cách cuối làm matching tốn gấp đôi). Tải CV scan lên Files API của DeepSeek (để sau, khi có key để kiểm). Responses API (loại vì lý do trên). Biến đổi schema để luôn bật strict (loại: phải nhớ trường nào vốn tùy chọn để bỏ `null`).
+
+**Impact**: ARCH › *Tech stack*, *Chọn model*; AGENTS › *Stack*, *Gọi LLM*; DEPLOY.md; `ai-service/app/llm/`; migration `0042` (CHECK `provider` của `ai.llm_calls`, `ai.llm_batches`). Muốn gửi CV thật cho OpenAI hay DeepSeek thì phải có TERMS_V3 (D30, D37).
+
+**Date**: 2026-11-19
+**Version**: 0.27.0

@@ -14,14 +14,17 @@ from pydantic import BaseModel, ConfigDict, Field, SecretStr, ValidationError, m
 
 from app.llm.usage import DEFAULT_BATCH_PRICES, DEFAULT_PRICES, ModelPrice
 
-ProviderName = Literal["gemini", "anthropic", "fixture"]
+ProviderName = Literal["gemini", "anthropic", "openai", "deepseek", "fixture"]
 
 DEFAULT_MODELS: Mapping[str, str] = {
     "gemini": "gemini-3.8-flash",
     "anthropic": "claude-opus-5-5",
+    "openai": "gpt-6.2-sol",
+    "deepseek": "deepseek-flash",
     "fixture": "fixture",
 }
 DEFAULT_LOG_BUCKET = "llm-logs"
+DEFAULT_INLINE_BATCH_CONCURRENCY = 16
 
 
 class LlmSettings(BaseModel):
@@ -31,10 +34,15 @@ class LlmSettings(BaseModel):
     model: str = Field(min_length=1)
     gemini_api_key: SecretStr | None = None
     anthropic_api_key: SecretStr | None = None
+    openai_api_key: SecretStr | None = None
+    deepseek_api_key: SecretStr | None = None
     max_output_tokens: int = Field(default=16_000, ge=1)
     pricing: dict[str, ModelPrice]
     batch_pricing: dict[str, ModelPrice]
     """Prices of batch requests (US-3.2), see usage.py."""
+    inline_batch_concurrency: int = Field(default=DEFAULT_INLINE_BATCH_CONCURRENCY, ge=1)
+    """Requests sent at once when a provider without a batch API (DeepSeek) runs a batch
+    (CONTEXT D58)."""
     prompt_versions: dict[str, str] = {}
     """Overrides of app/prompts/active.json, e.g. {"cv_parser": "cv_parser/v2"}."""
     fixtures_dir: Path | None = None
@@ -49,13 +57,18 @@ class LlmSettings(BaseModel):
             raise ValueError("GEMINI_API_KEY is required when LLM_PROVIDER=gemini")
         if self.provider == "anthropic" and self.anthropic_api_key is None:
             raise ValueError("ANTHROPIC_API_KEY is required when LLM_PROVIDER=anthropic")
+        if self.provider == "openai" and self.openai_api_key is None:
+            raise ValueError("OPENAI_API_KEY is required when LLM_PROVIDER=openai")
+        if self.provider == "deepseek" and self.deepseek_api_key is None:
+            raise ValueError("DEEPSEEK_API_KEY is required when LLM_PROVIDER=deepseek")
         if self.provider == "fixture" and self.fixtures_dir is None:
             raise ValueError("LLM_FIXTURES_DIR is required when LLM_PROVIDER=fixture")
         return self
 
 
 def load_llm_settings(environ: Mapping[str, str] = os.environ) -> LlmSettings:
-    """Reads the LLM_*, GEMINI_API_KEY, ANTHROPIC_API_KEY and MINIO_* variables (DEPLOY.md).
+    """Reads the LLM_*, GEMINI_API_KEY, ANTHROPIC_API_KEY, OPENAI_API_KEY, DEEPSEEK_API_KEY and
+    MINIO_* variables (DEPLOY.md).
 
     An empty value counts as unset, because compose passes unset optional variables as "".
     """
@@ -70,12 +83,15 @@ def load_llm_settings(environ: Mapping[str, str] = os.environ) -> LlmSettings:
             "model": get("LLM_MODEL") or DEFAULT_MODELS.get(provider, ""),
             "gemini_api_key": get("GEMINI_API_KEY"),
             "anthropic_api_key": get("ANTHROPIC_API_KEY"),
+            "openai_api_key": get("OPENAI_API_KEY"),
+            "deepseek_api_key": get("DEEPSEEK_API_KEY"),
             "max_output_tokens": get("LLM_MAX_OUTPUT_TOKENS"),
             "pricing": {**DEFAULT_PRICES, **_json_object(get("LLM_PRICING"), "LLM_PRICING")},
             "batch_pricing": {
                 **DEFAULT_BATCH_PRICES,
                 **_json_object(get("LLM_BATCH_PRICING"), "LLM_BATCH_PRICING"),
             },
+            "inline_batch_concurrency": get("LLM_INLINE_BATCH_CONCURRENCY"),
             "prompt_versions": _json_object(get("LLM_PROMPT_VERSIONS"), "LLM_PROMPT_VERSIONS"),
             "fixtures_dir": get("LLM_FIXTURES_DIR"),
             "log_bucket": get("LLM_LOG_BUCKET"),
