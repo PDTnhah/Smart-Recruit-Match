@@ -174,11 +174,20 @@ export const QUESTION_GENERATION_RUN_STATUSES = ['RUNNING', 'SUCCEEDED', 'PARTIA
 
 export type QuestionGenerationRunStatus = (typeof QUESTION_GENERATION_RUN_STATUSES)[number];
 
+/**
+ * What a run of the bank does (US-4.10 AC-2, CONTEXT D60): GENERATE writes the missing questions
+ * (`ai.questions.generate`), VALIDATE has the Validator check the unchecked ones
+ * (`ai.questions.validate`). A bank has at most one RUNNING run of either kind.
+ */
+export const QUESTION_BANK_RUN_KINDS = ['GENERATE', 'VALIDATE'] as const;
+
+export type QuestionBankRunKind = (typeof QUESTION_BANK_RUN_KINDS)[number];
+
 const count = () => z.int().min(0);
 
 /**
- * Questions of one blueprint cell against what it needs: `min` VALIDATED ones and `max` drafts are
- * the BR-05 bounds (US-4.2 AC-4, AC-10).
+ * Questions of one blueprint cell against what it needs: `min` usable ones and `max` drafts are the
+ * BR-05 bounds (US-4.2 AC-4, AC-10, US-4.10 AC-1).
  */
 export const CellCoverageSchema = z.object({
   part: z.enum(EXAM_PARTS),
@@ -189,11 +198,13 @@ export const CellCoverageSchema = z.object({
   needed: z.int().positive(),
   /** Every question of the cell, whatever its status. */
   drafted: count(),
-  /** Passed by the Validator: the questions an exam is drawn from. */
+  /** Passed by the Validator. */
   validated: count(),
   rejected: count(),
-  /** Drafts still waiting for the Validator. */
+  /** Drafts nobody has checked yet: usable, and what "Kiểm câu bằng AI" sends. */
   pending: count(),
+  /** DRAFT and VALIDATED: the questions an exam is drawn from (US-4.10 AC-1). */
+  usable: count(),
   /** Rejected questions per reason; a question rejected for two reasons counts under both. */
   rejectReasons: z.partialRecord(z.enum(QUESTION_REJECT_REASONS), z.int().positive()),
   min: z.int().positive(),
@@ -204,10 +215,11 @@ export type CellCoverage = z.output<typeof CellCoverageSchema>;
 
 export const QuestionGenerationRunSchema = z.object({
   runId: z.int().positive(),
+  kind: z.enum(QUESTION_BANK_RUN_KINDS),
   status: z.enum(QUESTION_GENERATION_RUN_STATUSES),
   /** Cells still short of drafts when the job ended; null while it runs or when it failed whole. */
   missingCells: z.array(MissingCellSchema).nullable(),
-  /** Drafts the result carried that the bank did not hold yet. */
+  /** GENERATE: drafts the result carried that the bank did not hold yet. VALIDATE: questions it gave a verdict. */
   questionsReceived: count(),
   errorCode: z.string().nullable(),
   createdAt: z.iso.datetime(),
@@ -218,8 +230,8 @@ export type QuestionGenerationRun = z.output<typeof QuestionGenerationRunSchema>
 
 /**
  * Why the bank cannot be locked now (US-4.2 AC-6, AC-11), in the order the API checks them:
- * already locked, a generation runs, the JD has newer requirements than the blueprint, a cell is
- * short of VALIDATED questions.
+ * already locked, a run (generation or AI check) is RUNNING, the JD has newer requirements than the
+ * blueprint, a cell is short of usable questions (US-4.10 AC-4).
  */
 export const QUESTION_BANK_LOCK_BLOCKERS = ['LOCKED', 'GENERATION_RUNNING', 'JD_OUTDATED', 'INCOMPLETE'] as const;
 
@@ -248,15 +260,17 @@ export const ExamBlueprintViewSchema = z.object({
     allowed: z.boolean(),
     blockers: z.array(z.enum(QUESTION_BANK_LOCK_BLOCKERS)),
   }),
-  /** Not locked and no generation running: CENTER may change the blueprint. */
+  /** Not locked and no run RUNNING: CENTER may change the blueprint. */
   editable: z.boolean(),
   blueprint: ExamBlueprintSchema,
   cvVerification: CvVerificationSettingsSchema,
   /** The JD's current requirements: the skills a cell may name. */
   requirements: JdRequirementsSchema,
   coverage: z.array(CellCoverageSchema),
-  /** The latest generation run; null before the first one. */
+  /** The latest GENERATE run; null before the first one. */
   run: QuestionGenerationRunSchema.nullable(),
+  /** The latest VALIDATE run ("Kiểm câu bằng AI", US-4.10 AC-5); null before the first one. */
+  validationRun: QuestionGenerationRunSchema.nullable(),
 });
 
 export type ExamBlueprintView = z.output<typeof ExamBlueprintViewSchema>;

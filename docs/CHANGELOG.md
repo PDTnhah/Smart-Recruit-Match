@@ -15,6 +15,29 @@ Lịch sử phát hành của Smart Recruit Match. Mỗi commit ship code tăng 
 
 ---
 
+## [0.28.0] — 2026-11-19 — Kiểm câu bằng AI khi Trung tâm yêu cầu — v0.28.0
+
+US-4.10. Sinh ngân hàng câu hỏi tốn ít lượt gọi LLM hơn: job sinh câu không còn gọi Validator ở mỗi vòng, và Trung tâm chạy kiểm bằng AI khi cần (FR-18, [CONTEXT D60](CONTEXT.md)).
+
+### Changed
+- Job sinh câu hỏi (`QUESTIONS_GENERATE`) chỉ sinh câu và kiểm bằng code (định dạng, một đáp án đúng, rubric, trùng lặp). Mỗi vòng là một lượt gọi LLM; ngân hàng nhắm 3× số câu mỗi ô (trước là 4×), ngân sách token của job sinh trở lại 400K. Prompt mới `test_generator/v3`: không còn hứa với mô hình rằng mọi câu sẽ được kiểm lại.
+- Câu qua kiểm bằng code dùng được ngay: một ô đủ khi có ít nhất 3 lần số câu mỗi đề chưa kiểm hoặc đã kiểm đạt. Khóa ngân hàng không chờ AI kiểm; phòng thi rút cả câu chưa kiểm của ngân hàng đã khóa.
+- Câu chưa kiểm của ngân hàng đã khóa loại được như câu đã kiểm đạt (`DRAFT → RETIRED`, tăng phiên bản ngân hàng); trigger của ngân hàng đã khóa cho phép bước này.
+- Tab "Ngân hàng câu hỏi": mô tả mới, ô ma trận đếm câu dùng được và ghi "Chưa kiểm n" thay cho "Chờ kiểm n"; hộp thoại khóa nêu số câu chưa được AI hay người kiểm; lý do không khóa được khi AI đang chạy ghi "AI đang sinh hoặc kiểm câu".
+
+### Added
+- Nút "Kiểm câu bằng AI" (thẻ riêng, có hộp thoại xác nhận): Trung tâm chạy Validator trên các câu chưa kiểm của ma trận đề như một job riêng (`POST /api/jds/{id}/question-bank/validate`, job `QUESTIONS_VALIDATE`, hàng đợi `ai.questions.validate`). Validator giữ cách kiểm của US-4.2: không kèm đáp án, mỗi lượt tối đa 15 câu trắc nghiệm hoặc 5 câu tự luận, code quyết định. Job không sinh bù; ô thiếu sau khi kiểm thì bấm "Sinh câu còn thiếu". Trạng thái lượt kiểm gần nhất hiện như lượt sinh.
+- `409 NOTHING_TO_VALIDATE` khi không còn câu chưa kiểm; một ngân hàng chỉ có một lượt chạy (sinh hoặc kiểm) tại một thời điểm.
+
+### Migration
+- `0043_question_validate_job`: cột `question_generation_runs.kind` (`GENERATE` / `VALIDATE`); CHECK `ai.jobs.type`, `ai.llm_batches.job_type` thêm `QUESTIONS_VALIDATE`; `questions_validation_check` cho phép câu `RETIRED` không có kết quả kiểm; trigger của ngân hàng đã khóa cho phép `DRAFT → RETIRED`; `missing_cells` cũ thêm `usable`.
+
+### Not done
+- Chưa đo lại số lượt gọi và token bằng `evals/smoke_llm.py --bank` với key thật (AC-6, người dùng chạy).
+- Chưa kiểm tay tab "Ngân hàng câu hỏi" ở 360 / 768 / 1024 px.
+
+---
+
 ## [0.27.1] — 2026-11-19 — Ô độ phủ dễ đọc, phần xác minh CV thành phần C — v0.27.1
 
 US-4.12. Sửa hai lỗi hiển thị mà người dùng báo khi xem ngân hàng câu hỏi của JD 5 (FR-18, FR-25, [CONTEXT D60](CONTEXT.md)). Cách tính độ phủ không đổi.

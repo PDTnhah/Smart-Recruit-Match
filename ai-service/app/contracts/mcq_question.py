@@ -44,7 +44,7 @@ class McqQuestion(BaseModel):
     """
     validation: question_validation.QuestionValidation | None
     """
-    Verdict of the Validator; null while the draft waits for it
+    Verdict of the Validator; null while nobody has run it on the draft
     """
     type: Literal['MCQ']
     options: Annotated[list[mcq_option.McqOption], Field(max_length=4, min_length=4)]

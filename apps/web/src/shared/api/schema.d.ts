@@ -708,6 +708,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/jds/{id}/question-bank/validate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["BlueprintController_validate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/question-banks/{id}/lock": {
         parameters: {
             query?: never;
@@ -2550,6 +2566,7 @@ export interface components {
                 validated: number;
                 rejected: number;
                 pending: number;
+                usable: number;
                 rejectReasons: {
                     [key: string]: number;
                 };
@@ -2558,6 +2575,8 @@ export interface components {
             }[];
             run: {
                 runId: number;
+                /** @enum {string} */
+                kind: "GENERATE" | "VALIDATE";
                 /** @enum {string} */
                 status: "RUNNING" | "SUCCEEDED" | "PARTIAL" | "FAILED";
                 missingCells: {
@@ -2579,7 +2598,46 @@ export interface components {
                     drafted: number;
                     /** @description Drafts of the cell the Validator passed */
                     validated: number;
-                    /** @description VALIDATED drafts the cell needs: 3 × its count */
+                    /** @description Drafts of the cell not rejected: those not checked yet and the VALIDATED ones */
+                    usable: number;
+                    /** @description Usable drafts the cell needs: 3 × its count */
+                    required: number;
+                }[] | null;
+                questionsReceived: number;
+                errorCode: string | null;
+                /** Format: date-time */
+                createdAt: string;
+                /** Format: date-time */
+                finishedAt: string | null;
+            } | null;
+            validationRun: {
+                runId: number;
+                /** @enum {string} */
+                kind: "GENERATE" | "VALIDATE";
+                /** @enum {string} */
+                status: "RUNNING" | "SUCCEEDED" | "PARTIAL" | "FAILED";
+                missingCells: {
+                    /**
+                     * QuestionType
+                     * @description MCQ: 4 options, one correct; ESSAY: graded by rubric
+                     * @enum {string}
+                     */
+                    type: "MCQ" | "ESSAY";
+                    /** @description Skill of the blueprint cell */
+                    skill: string;
+                    /**
+                     * QuestionDifficulty
+                     * @description EASY, MEDIUM or HARD (PRD GĐ5)
+                     * @enum {string}
+                     */
+                    difficulty: "EASY" | "MEDIUM" | "HARD";
+                    /** @description Drafts the bank holds for the cell, rejected ones too */
+                    drafted: number;
+                    /** @description Drafts of the cell the Validator passed */
+                    validated: number;
+                    /** @description Drafts of the cell not rejected: those not checked yet and the VALIDATED ones */
+                    usable: number;
+                    /** @description Usable drafts the cell needs: 3 × its count */
                     required: number;
                 }[] | null;
                 questionsReceived: number;
@@ -2657,6 +2715,8 @@ export interface components {
         QuestionGenerationRunDto_Output: {
             runId: number;
             /** @enum {string} */
+            kind: "GENERATE" | "VALIDATE";
+            /** @enum {string} */
             status: "RUNNING" | "SUCCEEDED" | "PARTIAL" | "FAILED";
             missingCells: {
                 /**
@@ -2677,7 +2737,9 @@ export interface components {
                 drafted: number;
                 /** @description Drafts of the cell the Validator passed */
                 validated: number;
-                /** @description VALIDATED drafts the cell needs: 3 × its count */
+                /** @description Drafts of the cell not rejected: those not checked yet and the VALIDATED ones */
+                usable: number;
+                /** @description Usable drafts the cell needs: 3 × its count */
                 required: number;
             }[] | null;
             questionsReceived: number;
@@ -4328,6 +4390,27 @@ export interface operations {
         };
     };
     BlueprintController_generate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuestionGenerationRunDto_Output"];
+                };
+            };
+        };
+    };
+    BlueprintController_validate: {
         parameters: {
             query?: never;
             header?: never;

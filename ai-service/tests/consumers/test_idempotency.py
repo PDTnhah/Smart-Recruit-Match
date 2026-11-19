@@ -27,6 +27,8 @@ from app.contracts.match_run_output import MatchRunOutput
 from app.contracts.missing_cell import MissingCell
 from app.contracts.questions_generate_job import QuestionsGenerateJob
 from app.contracts.questions_generate_output import QuestionsGenerateOutput
+from app.contracts.questions_validate_job import QuestionsValidateJob
+from app.contracts.questions_validate_output import QuestionsValidateOutput
 from app.contracts.skill_normalize_job import SkillNormalizeJob
 from app.contracts.skill_normalize_output import SkillNormalizeOutput
 from app.handlers import build_handlers
@@ -94,11 +96,28 @@ async def stub_match(job: MatchRunJob) -> MatchRunOutput | Deferred:
 async def stub_questions_generate(job: QuestionsGenerateJob) -> QuestionsGenerateOutput:
     """Stands in for the Test Generator (tests/agents): bank 404 is left with a cell short."""
     missing = [
-        MissingCell(type="MCQ", skill="Java", difficulty="EASY", drafted=1, validated=0, required=3)
+        MissingCell(
+            type="MCQ",
+            skill="Java",
+            difficulty="EASY",
+            drafted=1,
+            validated=0,
+            usable=1,
+            required=3,
+        )
         for _ in range(job.bank_id == 404)
     ]
     return QuestionsGenerateOutput(
         bank_id=job.bank_id, questions=[], missing_cells=missing, rounds=12
+    )
+
+
+async def stub_questions_validate(job: QuestionsValidateJob) -> QuestionsValidateOutput:
+    """Stands in for the Validator job (tests/agents/test_validator.py): no draft gets a verdict
+    in bank 404."""
+    unchecked = [draft_id.root for draft_id in job.draft_ids] if job.bank_id == 404 else []
+    return QuestionsValidateOutput.model_validate(
+        {"bank_id": job.bank_id, "verdicts": [], "unchecked": unchecked}
     )
 
 
@@ -145,6 +164,7 @@ STUBS = {
     "skill_normalizer": stub_skill_normalize,
     "matching": stub_match,
     "test_generator": stub_questions_generate,
+    "question_validator": stub_questions_validate,
     "grader": stub_essay_grade,
     "cv_verify_generate": stub_cv_verify_generate,
     "cv_verify_evaluate": stub_cv_verify_evaluate,
@@ -255,6 +275,20 @@ async def test_gd5_questions_job_with_missing_cells_finishes_partial(store, bank
 
     [result] = results
     assert (result["type"], result["status"]) == ("QUESTIONS_GENERATE", status)
+    [row] = store.rows.values()
+    assert row["status"] == status
+
+
+@pytest.mark.parametrize(("bank_id", "status"), [(7, "SUCCEEDED"), (404, "PARTIAL")])
+async def test_gd5_validate_job_with_unchecked_drafts_finishes_partial(store, bank_id, status):
+    """US-4.10 AC-3: a QUESTIONS_VALIDATE result that lists drafts without a verdict is PARTIAL."""
+    broker, results, _ = wired_broker(store, HANDLERS)
+    job = {"job_id": str(uuid4()), "bank_id": bank_id, "draft_ids": [11, 12]}
+    async with TestRabbitBroker(broker) as test_broker:
+        await test_broker.publish(json.dumps(job), queue=QUEUES.jobs["QUESTIONS_VALIDATE"])
+
+    [result] = results
+    assert (result["type"], result["status"]) == ("QUESTIONS_VALIDATE", status)
     [row] = store.rows.values()
     assert row["status"] == status
 

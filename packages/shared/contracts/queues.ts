@@ -7,6 +7,7 @@ export const AI_JOB_QUEUES = {
   SKILL_NORMALIZE: 'ai.skills.normalize',
   MATCH: 'ai.match.run',
   QUESTIONS_GENERATE: 'ai.questions.generate',
+  QUESTIONS_VALIDATE: 'ai.questions.validate',
   ESSAY_GRADE: 'ai.essay.grade',
   CV_VERIFY_GENERATE: 'ai.cv_verification.generate',
   CV_VERIFY_EVALUATE: 'ai.cv_verification.evaluate',

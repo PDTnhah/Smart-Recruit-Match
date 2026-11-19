@@ -46,9 +46,9 @@ const COVERAGE_STYLE: Readonly<Record<'FULL' | 'SHORT', IconBadgeStyle>> = {
 };
 
 /**
- * A cell (US-4.2 AC-10, US-4.12 AC-1): its questions per exam; the bank's VALIDATED ones next to
- * the minimum of 3× (`min` is a floor, never a total, so no fraction); Đủ or Thiếu n; the rejected
- * and still unchecked ones, and why questions were rejected.
+ * A cell (US-4.2 AC-10, US-4.12 AC-1, US-4.10 AC-5): its questions per exam; the bank's usable ones
+ * (unchecked or VALIDATED) next to the minimum of 3× (`min` is a floor, never a total, so no
+ * fraction); Đủ or Thiếu n; the rejected and the unchecked ones, and why questions were rejected.
  */
 function CoverageCell({ cell }: { cell: CellCoverage | undefined }) {
   if (!cell) {
@@ -58,7 +58,7 @@ function CoverageCell({ cell }: { cell: CellCoverage | undefined }) {
       </span>
     );
   }
-  const short = Math.max(cell.min - cell.validated, 0);
+  const short = Math.max(cell.min - cell.usable, 0);
   const reasons = QUESTION_REJECT_REASONS.flatMap((reason) => {
     const count = cell.rejectReasons[reason];
     return count ? [{ reason, count }] : [];
@@ -67,7 +67,7 @@ function CoverageCell({ cell }: { cell: CellCoverage | undefined }) {
     <div className="flex flex-col items-start gap-1">
       <span className="font-medium tabular-nums">{formatNumber(cell.needed)} câu mỗi đề</span>
       <span className="tabular-nums">
-        Ngân hàng: {formatNumber(cell.validated)} câu
+        Ngân hàng: {formatNumber(cell.usable)} câu
         <span aria-hidden="true"> · cần ≥ </span>
         <span className="sr-only">, cần tối thiểu </span>
         {formatNumber(cell.min)}
@@ -77,7 +77,7 @@ function CoverageCell({ cell }: { cell: CellCoverage | undefined }) {
         <span className="text-muted-foreground tabular-nums">
           {[
             cell.rejected > 0 && `Bị loại ${formatNumber(cell.rejected)}`,
-            cell.pending > 0 && `Chờ kiểm ${formatNumber(cell.pending)}`,
+            cell.pending > 0 && `Chưa kiểm ${formatNumber(cell.pending)}`,
           ]
             .filter(Boolean)
             .join(' · ')}

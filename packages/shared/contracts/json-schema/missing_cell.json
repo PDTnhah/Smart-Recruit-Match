@@ -27,11 +27,17 @@
       "maximum": 9007199254740991,
       "description": "Drafts of the cell the Validator passed"
     },
+    "usable": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991,
+      "description": "Drafts of the cell not rejected: those not checked yet and the VALIDATED ones"
+    },
     "required": {
       "type": "integer",
       "exclusiveMinimum": 0,
       "maximum": 9007199254740991,
-      "description": "VALIDATED drafts the cell needs: 3 × its count"
+      "description": "Usable drafts the cell needs: 3 × its count"
     }
   },
   "required": [
@@ -40,9 +46,10 @@
     "difficulty",
     "drafted",
     "validated",
+    "usable",
     "required"
   ],
   "additionalProperties": false,
   "title": "MissingCell",
-  "description": "A blueprint cell with fewer validated drafts than it needs"
+  "description": "A blueprint cell with fewer usable drafts than it needs"
 }

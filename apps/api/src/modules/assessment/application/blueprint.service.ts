@@ -28,10 +28,10 @@ import { type BankJd, QuestionBankService } from './question-bank.service.js';
 import { runView } from './views.js';
 
 /**
- * The exam blueprint of a JD as CENTER sees and edits it (BR-05, US-4.1 AC-2, AC-3, CONTEXT D49):
- * the blueprint, the drafts of each cell against its 3×–5× bounds, and the latest generation run.
- * The blueprint changes only while the bank is not locked and no generation runs, so a job never
- * fills cells the blueprint no longer has.
+ * The exam blueprint of a JD as CENTER sees and edits it (BR-05, US-4.1 AC-2, AC-3, US-4.10 AC-5,
+ * CONTEXT D49, D60): the blueprint, the drafts of each cell against its 3×–5× bounds, and the
+ * latest run of each kind (generation, AI check). The blueprint changes only while the bank is not
+ * locked and no run is RUNNING, so a job never fills cells the blueprint no longer has.
  */
 @Injectable()
 export class BlueprintService {
@@ -46,22 +46,24 @@ export class BlueprintService {
   /**
    * AC-3. A JD approved without a bank (its `jd.approved` missed or not handled yet) gets it here,
    * without a job; the listener still sends the first one while the bank has no run. A RUNNING run
-   * whose result can no longer come is closed as STALE here too: the screen keeps editing and
-   * "Sinh câu còn thiếu" off while the run shows RUNNING, so only this read can free them.
+   * whose result can no longer come is closed as STALE here too: the screen keeps editing, "Sinh
+   * câu còn thiếu" and "Kiểm câu bằng AI" off while a run shows RUNNING, so only this read can free
+   * them (LESSONS §34).
    */
   async get(jdId: number): Promise<ExamBlueprintView> {
     const jd = await this.questionBanks.requireBankJd(jdId);
     let bank = await this.banks.findByJd(jdId);
-    let run = bank && (await this.runs.latest(bank.id));
-    if (!bank || (run && this.questionBanks.isOverdue(run))) {
+    let runs = bank && (await this.latestRuns(bank.id));
+    const overdue = runs && [runs.generation, runs.validation].some((run) => run && this.questionBanks.isOverdue(run));
+    if (!bank || !runs || overdue) {
       bank = await this.db.transaction(async (tx) => {
         const locked = await this.questionBanks.lockBank(tx, jd, SYSTEM_ACTOR);
         await this.questionBanks.runningRun(tx, locked.id);
         return locked;
       });
-      run = await this.runs.latest(bank.id);
+      runs = await this.latestRuns(bank.id);
     }
-    return this.viewOf(jd, bank, run);
+    return this.viewOf(jd, bank, runs);
   }
 
   /**
@@ -102,18 +104,23 @@ export class BlueprintService {
     return this.get(jdId);
   }
 
-  private async viewOf(
-    jd: BankJd,
-    bank: QuestionBankRecord,
-    run: QuestionGenerationRunRecord | undefined,
-  ): Promise<ExamBlueprintView> {
+  private async latestRuns(bankId: number): Promise<LatestRuns> {
+    const [generation, validation] = await Promise.all([
+      this.runs.latest(bankId, 'GENERATE'),
+      this.runs.latest(bankId, 'VALIDATE'),
+    ]);
+    return { generation, validation };
+  }
+
+  private async viewOf(jd: BankJd, bank: QuestionBankRecord, runs: LatestRuns): Promise<ExamBlueprintView> {
     const [counts, reasons] = await Promise.all([
       this.banks.countQuestions(bank.id),
       this.banks.countRejectReasons(bank.id),
     ]);
     const coverage = coverageOf(bank.blueprint, counts, reasons);
     const locked = bank.status === 'LOCKED';
-    const generationRunning = run?.status === 'RUNNING';
+    const { generation, validation } = runs;
+    const generationRunning = generation?.status === 'RUNNING' || validation?.status === 'RUNNING';
     // A locked bank keeps the requirements it was locked with (US-4.2 AC-11).
     const jdOutdated = !locked && bank.jdVersion < jd.jdVersion;
     const blockers = lockBlockers({ status: bank.status, generationRunning, jdOutdated, coverage });
@@ -133,9 +140,16 @@ export class BlueprintService {
       cvVerification: cvVerificationOf(bank),
       requirements: jd.requirements,
       coverage,
-      run: run ? runView(run) : null,
+      run: generation ? runView(generation) : null,
+      validationRun: validation ? runView(validation) : null,
     };
   }
+}
+
+/** The latest run of each kind of a bank. */
+interface LatestRuns {
+  generation: QuestionGenerationRunRecord | undefined;
+  validation: QuestionGenerationRunRecord | undefined;
 }
 
 /** Part C of the bank (US-4.8 AC-1). */

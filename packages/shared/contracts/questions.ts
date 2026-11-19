@@ -2,17 +2,18 @@ import { z } from 'zod';
 import { EXAM_PART_MAX_CELLS, EXAM_PART_TYPES, QuestionDifficultySchema, QuestionTypeSchema } from './exam-blueprint.js';
 
 // Draft questions of a JD's question bank, as the Test Generator sends them back (US-4.1 AC-9,
-// CONTEXT D49), with the Validator's verdict (US-4.2, D50). Shape and limits only (LESSONS §32): the
-// AI Service checks each question before it keeps it (one correct option, rubric, duplicates), so a
-// message never fails on a business rule.
+// CONTEXT D49), with the Validator's verdict once CENTER has run it (US-4.2, US-4.10, D50, D60).
+// Shape and limits only (LESSONS §32): the AI Service checks each question before it keeps it (one
+// correct option, rubric, duplicates), so a message never fails on a business rule.
 
 /**
  * How many drafts each cell of the blueprint needs, as multiples of the questions it draws (BR-05,
- * PRD GĐ5): at least `min` VALIDATED ones for the bank to be complete (US-4.2), `target` not
- * rejected per round of generation, and no more than `max`. Written to
- * `ai-service/app/contracts/question_bank.json` for the AI Service.
+ * PRD GĐ5): at least `min` usable ones (DRAFT or VALIDATED: not rejected, not retired) for the bank
+ * to be complete, `target` usable ones a round of generation aims at, and no more than `max` not
+ * rejected (US-4.10, CONTEXT D60). Written to `ai-service/app/contracts/question_bank.json` for the
+ * AI Service.
  */
-export const QUESTION_BANK_FACTORS = { min: 3, target: 4, max: 5 } as const;
+export const QUESTION_BANK_FACTORS = { min: 3, target: 3, max: 5 } as const;
 
 /** Options of a multiple-choice question (PRD GĐ5). */
 export const MCQ_OPTION_COUNT = 4;
@@ -81,6 +82,16 @@ export const QuestionValidationSchema = z
 
 export type QuestionValidation = z.output<typeof QuestionValidationSchema>;
 
+/** A verdict of a QUESTIONS_VALIDATE job, by the draft it is about (US-4.10 AC-3). */
+export const QuestionVerdictSchema = z
+  .strictObject({
+    draft_id: z.int().positive().describe('ai.question_drafts.id the verdict is about'),
+    validation: QuestionValidationSchema,
+  })
+  .meta({ title: 'QuestionVerdict', description: 'The Validator verdict on one draft of the job' });
+
+export type QuestionVerdict = z.output<typeof QuestionVerdictSchema>;
+
 const questionBase = {
   draft_id: z.int().positive().describe('ai.question_drafts.id; the backend stores each draft once by it'),
   skill: text(100).describe('Skill of the blueprint cell, as the blueprint writes it'),
@@ -89,7 +100,7 @@ const questionBase = {
   explanation: text(QUESTION_TEXT_MAX).describe('Why the answer is right; for staff, never sent to students'),
   model: z.string().min(1).describe('Model id that wrote the question'),
   prompt_version: z.string().min(1).describe('Versioned prompt the question was written with, e.g. test_generator/v1'),
-  validation: QuestionValidationSchema.nullable().describe('Verdict of the Validator; null while the draft waits for it'),
+  validation: QuestionValidationSchema.nullable().describe('Verdict of the Validator; null while nobody has run it on the draft'),
 };
 
 export const McqOptionSchema = z
@@ -138,9 +149,10 @@ export const MissingCellSchema = z
     difficulty: QuestionDifficultySchema,
     drafted: z.int().min(0).describe('Drafts the bank holds for the cell, rejected ones too'),
     validated: z.int().min(0).describe('Drafts of the cell the Validator passed'),
-    required: z.int().positive().describe(`VALIDATED drafts the cell needs: ${QUESTION_BANK_FACTORS.min} × its count`),
+    usable: z.int().min(0).describe('Drafts of the cell not rejected: those not checked yet and the VALIDATED ones'),
+    required: z.int().positive().describe(`Usable drafts the cell needs: ${QUESTION_BANK_FACTORS.min} × its count`),
   })
-  .meta({ title: 'MissingCell', description: 'A blueprint cell with fewer validated drafts than it needs' });
+  .meta({ title: 'MissingCell', description: 'A blueprint cell with fewer usable drafts than it needs' });
 
 export type MissingCell = z.output<typeof MissingCellSchema>;
 

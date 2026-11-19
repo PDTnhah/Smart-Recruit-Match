@@ -1,4 +1,4 @@
-"""Stand-ins for the Test Generator and Validator tests (US-4.1, US-4.2): the bank view,
+"""Stand-ins for the Test Generator and Validator tests (US-4.1, US-4.2, US-4.10): the bank view,
 ai.question_drafts with its vectors, ai.question_validations, and the LLM providers behind the real
 StructuredLLMClient.
 
@@ -24,6 +24,7 @@ from app.agents.test_generator import (
 )
 from app.agents.validator import (
     OPTION_LABELS,
+    BankValidator,
     QuestionCheck,
     Validator,
     Verdict,
@@ -35,6 +36,8 @@ from app.contracts.exam_blueprint import ExamBlueprint
 from app.contracts.question_validation import QuestionValidation
 from app.contracts.questions_generate_job import QuestionsGenerateJob
 from app.contracts.questions_generate_output import QuestionsGenerateOutput
+from app.contracts.questions_validate_job import QuestionsValidateJob
+from app.contracts.questions_validate_output import QuestionsValidateOutput
 from app.embedding import Embedder, EmbeddingRow, HashingEmbedder, skill_match_key
 from app.llm.providers.fixture_provider import FixtureProvider, fixture_params
 from app.llm.recorder import CallRecord, CallRecorder
@@ -47,6 +50,8 @@ from app.prompts.registry import PromptRegistry
 LLM_FIXTURES = Path(__file__).parents[1] / "fixtures" / "llm"
 MODEL = "gemini-3.8-flash"
 JOB_ID = UUID("4a1f0c2e-3b5d-4e7f-9a1b-2c3d4e5f6a7b")
+CHECK_JOB = UUID("7c2e9a1b-5d4f-4e3a-8b6c-1d2e3f4a5b6c")
+"""Job id of the QUESTIONS_VALIDATE runs of the tests."""
 EARLIER_JOB = UUID("0e9d8c7b-6a5f-4e3d-8c1b-0a9f8e7d6c5b")
 
 REQUIREMENTS: dict[str, Any] = {
@@ -346,9 +351,19 @@ class MemoryValidations:
 
     def pass_draft(self, draft: Draft) -> None:
         """A verdict an earlier job stored: the draft passed, as `decide` itself decides it."""
+        self.judge(draft)
+
+    def judge(self, draft: Draft, **found: Any) -> None:
+        """A verdict an earlier job stored, `decide` deciding it on a check with `found` changed:
+        `clear=False` rejects the draft as UNCLEAR, say."""
         correct = [OPTION_LABELS[answer_key(draft)]] if draft.type == "MCQ" else []
-        passed = QuestionCheck.model_validate(check(1, correct, difficulty=draft.difficulty))
-        [verdict] = decide([draft], [passed], model=MODEL, prompt_version="validator/v1")
+        result = {**check(1, correct, difficulty=draft.difficulty), **found}
+        [verdict] = decide(
+            [draft],
+            [QuestionCheck.model_validate(result)],
+            model=MODEL,
+            prompt_version="validator/v1",
+        )
         self.rows[draft.draft_id] = (EARLIER_JOB, verdict)
 
 
@@ -423,15 +438,28 @@ class Harness:
         self.agent = TestGenerator(
             sources=self.banks,
             drafts=self.drafts,
-            validator=self.validator,
+            validations=self.validations,
             embedder=self.embedder,
             llm=llm,
             prompts=prompts,
             spend=self.calls,
         )
+        self.checker = BankValidator(drafts=self.drafts, validator=self.validator, spend=self.calls)
 
     async def run(self, bank_id: int = BANK.bank_id) -> QuestionsGenerateOutput:
         return await self.agent(QuestionsGenerateJob(job_id=JOB_ID, bank_id=bank_id))
+
+    async def validate(
+        self, draft_ids: Sequence[int] | None = None, bank_id: int = BANK.bank_id
+    ) -> QuestionsValidateOutput:
+        """A QUESTIONS_VALIDATE job, by default on every draft of the bank."""
+        ids = (
+            [d.draft_id for d in await self.drafts.drafts(bank_id)]
+            if draft_ids is None
+            else list(draft_ids)
+        )
+        job = QuestionsValidateJob(job_id=CHECK_JOB, bank_id=bank_id, draft_ids=ids)
+        return await self.checker(job)
 
     def seed_checked(
         self, bank_id: int, question: dict[str, Any], *, vector: Sequence[float] | None = None

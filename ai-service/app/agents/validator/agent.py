@@ -1,9 +1,9 @@
 """Validator: checks draft questions in a context of their own, without their answers (US-4.2 AC-1
-to AC-3, PRD GĐ5 step 2, ARCHITECTURE › Pipeline › Validator, CONTEXT D50).
+to AC-3, US-4.10 AC-3, PRD GĐ5 step 2, ARCHITECTURE › Pipeline › Validator, CONTEXT D50, D60).
 
-The Test Generator calls it within the QUESTIONS_GENERATE job: the drafts each round stores, and
-before the first round the drafts of earlier runs that wait for a verdict. `batches` groups them by
-type, at most MAX_MCQ_PER_CALL multiple-choice questions or MAX_ESSAYS_PER_CALL essays a call.
+The QUESTIONS_VALIDATE job calls it when CENTER presses "Kiểm câu bằng AI" (job.py), on the drafts
+nobody has checked yet. `batches` groups them by type, at most MAX_MCQ_PER_CALL multiple-choice
+questions or MAX_ESSAYS_PER_CALL essays a call.
 `check` sends one group in one `LLMClient.generate` call, effort high, with prompt validator/vN:
 a call of its own, so it carries nothing the Generator wrote but the questions. Code then decides
 each verdict (`verdict.py`) and stores it in ai.question_validations.
@@ -35,7 +35,7 @@ from .verdict import Verdict, decide, refused
 logger = logging.getLogger(__name__)
 
 Budget = Callable[[], Awaitable[bool]]
-"""Whether one more call may start: the Test Generator passes one that reads MAX_TOKENS_PER_JOB."""
+"""Whether one more call may start: the job passes one that reads MAX_TOKENS_PER_JOB."""
 
 
 async def _unlimited() -> bool:

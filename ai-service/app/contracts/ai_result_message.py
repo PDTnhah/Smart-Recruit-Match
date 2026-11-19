@@ -14,6 +14,7 @@ from . import (
     jd_analyze_result,
     match_run_result,
     questions_generate_result,
+    questions_validate_result,
     skill_normalize_result,
 )
 
@@ -25,13 +26,14 @@ class AiResultMessage(
         | skill_normalize_result.SkillNormalizeResult
         | match_run_result.MatchRunResult
         | questions_generate_result.QuestionsGenerateResult
+        | questions_validate_result.QuestionsValidateResult
         | essay_grade_result.EssayGradeResult
         | cv_verify_generate_result.CvVerifyGenerateResult
         | cv_verify_evaluate_result.CvVerifyEvaluateResult
     ]
 ):
     root: Annotated[
-        cv_parse_result.CvParseResult | jd_analyze_result.JdAnalyzeResult | skill_normalize_result.SkillNormalizeResult | match_run_result.MatchRunResult | questions_generate_result.QuestionsGenerateResult | essay_grade_result.EssayGradeResult | cv_verify_generate_result.CvVerifyGenerateResult | cv_verify_evaluate_result.CvVerifyEvaluateResult,
+        cv_parse_result.CvParseResult | jd_analyze_result.JdAnalyzeResult | skill_normalize_result.SkillNormalizeResult | match_run_result.MatchRunResult | questions_generate_result.QuestionsGenerateResult | questions_validate_result.QuestionsValidateResult | essay_grade_result.EssayGradeResult | cv_verify_generate_result.CvVerifyGenerateResult | cv_verify_evaluate_result.CvVerifyEvaluateResult,
         Field(title='AiResultMessage'),
     ]
     """

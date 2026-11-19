@@ -1,9 +1,10 @@
 import { defineMachine } from './machine.js';
 
 /**
- * Lifecycle of a JD's question bank (PRD GĐ5 bước 4, US-4.2 AC-6, CONTEXT D50). CENTER locks an OPEN
- * bank once every cell holds enough VALIDATED questions; a locked bank is never opened again. After
- * locking, a retired question raises the bank's `version` instead.
+ * Lifecycle of a JD's question bank (PRD GĐ5 bước 4, US-4.2 AC-6, US-4.10 AC-4, CONTEXT D50, D60).
+ * CENTER locks an OPEN bank once every cell holds enough usable questions (DRAFT or VALIDATED); a
+ * locked bank is never opened again. After locking, a retired question raises the bank's `version`
+ * instead.
  */
 export const QUESTION_BANK_STATES = ['OPEN', 'LOCKED'] as const;
 

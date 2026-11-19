@@ -1,5 +1,13 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type { CvVerificationSettings, ExamBlueprint, QuestionRejectReason, QuestionStatus } from '@srm/shared';
+import {
+  type CvVerificationSettings,
+  type ExamBlueprint,
+  type QuestionDifficulty,
+  type QuestionRejectReason,
+  type QuestionStatus,
+  type QuestionType,
+  USABLE_QUESTION_STATES,
+} from '@srm/shared';
 import { and, asc, count, eq, inArray, sql } from 'drizzle-orm';
 import { RowVersionConflictError } from '../../../common/errors/index.js';
 import { questionBanks, questions } from '../../../db/schema/index.js';
@@ -20,6 +28,14 @@ export interface QuestionState {
   draftId: number;
   status: QuestionStatus;
   rowVersion: number;
+}
+
+/** A DRAFT question as "Kiểm câu bằng AI" picks it: its draft and its cell. */
+export interface UncheckedQuestion {
+  draftId: number;
+  type: QuestionType;
+  skill: string;
+  difficulty: QuestionDifficulty;
 }
 
 export interface NewQuestionBank {
@@ -166,13 +182,22 @@ export class QuestionBanksRepository {
     return row;
   }
 
-  /** VALIDATED questions of the bank, by id: what an exam is drawn from (US-4.2 AC-8). */
-  async validatedQuestions(bankId: number, tx?: DbTx): Promise<QuestionRecord[]> {
+  /** DRAFT and VALIDATED questions of the bank, by id: what an exam is drawn from (US-4.2 AC-8, US-4.10 AC-4). */
+  async usableQuestions(bankId: number, tx?: DbTx): Promise<QuestionRecord[]> {
     return (tx ?? this.db)
       .select()
       .from(questions)
-      .where(and(eq(questions.bankId, bankId), eq(questions.status, 'VALIDATED')))
+      .where(and(eq(questions.bankId, bankId), inArray(questions.status, [...USABLE_QUESTION_STATES])))
       .orderBy(asc(questions.id));
+  }
+
+  /** DRAFT questions of the bank, oldest draft first: those nobody has checked (US-4.10 AC-2). */
+  async uncheckedQuestions(tx: DbTx, bankId: number): Promise<UncheckedQuestion[]> {
+    return tx
+      .select({ draftId: questions.draftId, type: questions.type, skill: questions.skill, difficulty: questions.difficulty })
+      .from(questions)
+      .where(and(eq(questions.bankId, bankId), eq(questions.status, 'DRAFT')))
+      .orderBy(asc(questions.draftId));
   }
 
   /** One more version of a locked bank (US-4.2 AC-7), under the bank's row lock. */

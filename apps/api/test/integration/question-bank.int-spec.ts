@@ -164,6 +164,7 @@ describe('GĐ5 question bank and exam blueprint (US-4.1)', () => {
       validated: 0,
       rejected: 0,
       pending: 0,
+      usable: 0,
       rejectReasons: {},
       min: DEFAULT_BLUEPRINT.parts.A.cells[0]!.count * 3,
       max: DEFAULT_BLUEPRINT.parts.A.cells[0]!.count * 5,
@@ -265,7 +266,9 @@ describe('GĐ5 question bank and exam blueprint (US-4.1)', () => {
     const bank = (await bankOf(jd.id))!;
     const [{ job }] = jobsOf(bank.id) as [AiJobDispatchedEvent<'QUESTIONS_GENERATE'>];
     const drafts = [mcq('Java'), mcq('java'), essay('Java')];
-    const missing = [{ type: 'MCQ' as const, skill: 'SQL', difficulty: 'HARD' as const, drafted: 0, validated: 0, required: 3 }];
+    const missing = [
+      { type: 'MCQ' as const, skill: 'SQL', difficulty: 'HARD' as const, drafted: 0, validated: 0, usable: 0, required: 3 },
+    ];
     const result = message(job, { questions: drafts, missing_cells: missing }, 'PARTIAL');
     await deliver(result);
     await deliver(result);

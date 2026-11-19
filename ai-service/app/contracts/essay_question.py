@@ -44,7 +44,7 @@ class EssayQuestion(BaseModel):
     """
     validation: question_validation.QuestionValidation | None
     """
-    Verdict of the Validator; null while the draft waits for it
+    Verdict of the Validator; null while nobody has run it on the draft
     """
     type: Literal['ESSAY']
     rubric: Annotated[list[rubric_criterion.RubricCriterion], Field(max_length=10, min_length=1)]

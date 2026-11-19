@@ -1,7 +1,7 @@
-// US-4.2 AC-6, AC-7, AC-8, AC-11 (FR-18, GĐ5 bước 4, BR-18, AGENTS › Invariants 8, 10, 11, CONTEXT
-// D50): CENTER locks a question bank once every cell holds 3× VALIDATED questions; after that the
-// database keeps the bank and its questions as they are, a retired question raises the bank's
-// version, and exams are drawn from the locked bank only.
+// US-4.2 AC-6, AC-7, AC-8, AC-11, US-4.10 AC-4 (FR-18, GĐ5 bước 4, BR-18, AGENTS › Invariants 8, 10,
+// 11, CONTEXT D50, D60): CENTER locks a question bank once every cell holds 3× usable questions
+// (DRAFT or VALIDATED); after that the database keeps the bank and its questions as they are, a
+// retired question raises the bank's version, and exams are drawn from the locked bank only.
 import { ApiErrorSchema, type ExamBlueprint, ExamBlueprintViewSchema, type GeneratedQuestion, type JdRequirements } from '@srm/shared';
 import { and, eq, sql } from 'drizzle-orm';
 import { BankNotLockedError, InvalidTransitionError } from '../../src/common/errors/index.js';
@@ -22,6 +22,7 @@ import {
   SMALL_BLUEPRINT,
   smallBankDrafts,
   verdict,
+  withVerdict,
 } from '../helpers/question-bank.js';
 
 /** What a hand-written statement on a locked bank meets: the trigger of migration 0031. */
@@ -125,7 +126,7 @@ describe('GĐ5 question bank lock (US-4.2)', () => {
     expect(errorCode((await lock(bankId, view.rowVersion).expect(409)).body)).toBe('ROW_VERSION_CONFLICT');
   });
 
-  it('GĐ5 AC-6 a cell short of VALIDATED questions: 409 QUESTION_BANK_INCOMPLETE with the cells', async () => {
+  it('GĐ5 AC-6 a cell short of usable questions: 409 QUESTION_BANK_INCOMPLETE with the cells', async () => {
     const drafts = [
       ...Array.from({ length: 3 }, () => mcq('Java', 'EASY', verdict())),
       ...Array.from({ length: 4 }, () => essay('SQL', verdict())),
@@ -138,9 +139,9 @@ describe('GĐ5 question bank lock (US-4.2)', () => {
     const res = await lock(bankId, view.rowVersion).expect(409);
     const body = ApiErrorSchema.parse(res.body);
     expect(body.code).toBe('QUESTION_BANK_INCOMPLETE');
-    // Rejected and unchecked drafts count as drafted, not as validated.
+    // A rejected draft counts as drafted, not as usable; one nobody checked is usable (US-4.10).
     expect(body.details?.missingCells).toEqual([
-      { type: 'ESSAY', skill: 'SQL', difficulty: 'MEDIUM', drafted: 6, validated: 4, required: 6 },
+      { type: 'ESSAY', skill: 'SQL', difficulty: 'MEDIUM', drafted: 6, validated: 4, usable: 5, required: 6 },
     ]);
     expect(await bankRow(bankId)).toMatchObject({ status: 'OPEN', lockedAt: null, rowVersion: view.rowVersion });
   });
@@ -321,7 +322,37 @@ describe('GĐ5 question bank lock (US-4.2)', () => {
     );
   });
 
-  it('GĐ5 AC-8 exams are drawn from the VALIDATED questions of a locked bank only; answer keys stay on the server', async () => {
+  it('GĐ5 US-4.10 AC-4 a bank nobody checked locks; after locking a DRAFT question is retired, not checked', async () => {
+    const unchecked = smallBankDrafts().map((draft) => withVerdict(draft, null));
+    const { jdId, bankId, view } = await bankWith(unchecked);
+    expect(view.lock).toEqual({ allowed: true, blockers: [] });
+    expect(view.coverage.map((cell) => [cell.validated, cell.pending, cell.usable])).toEqual([
+      [0, 3, 3],
+      [0, 6, 6],
+    ]);
+    await lock(bankId, view.rowVersion).expect(200);
+
+    const target = await questionByDraft(unchecked[0]!.draft_id);
+    expect(target).toMatchObject({ status: 'DRAFT', validation: null });
+    const retired = await service.retireQuestion({
+      questionId: target.id,
+      actor: centerActor,
+      reason: 'Trung tâm: đề sai',
+      expectedRowVersion: target.rowVersion,
+    });
+    expect(retired).toMatchObject({ questionId: target.id, bankId, bankVersion: 2 });
+    expect(await questionByDraft(unchecked[0]!.draft_id)).toMatchObject({ status: 'RETIRED', validation: null });
+    // The trigger lets DRAFT → RETIRED through, and nothing else: no verdict comes after locking.
+    const other = await questionByDraft(unchecked[1]!.draft_id);
+    await expect(testDb.pool.query(`UPDATE core.questions SET status = 'REJECTED' WHERE id = $1`, [other.id])).rejects.toMatchObject(
+      LOCKED_REFUSAL,
+    );
+    const res = await center.agent.post(api(`jds/${jdId}/question-bank/validate`)).send().expect(409);
+    expect(errorCode(res.body)).toBe('QUESTION_BANK_LOCKED');
+    expect((await service.getDrawableQuestions(bankId)).questions).toHaveLength(unchecked.length - 1);
+  });
+
+  it('GĐ5 AC-8 exams are drawn from the usable questions of a locked bank only; answer keys stay on the server', async () => {
     const rejected = mcq('Java', 'EASY', verdict(['MULTIPLE_CORRECT'], { correct_options: [0, 1] }));
     const waiting = essay('SQL');
     const drafts = smallBankDrafts();
@@ -332,8 +363,9 @@ describe('GĐ5 question bank lock (US-4.2)', () => {
     await lock(bankId, view.rowVersion).expect(200);
     const drawable = await service.getDrawableQuestions(bankId);
     expect(drawable).toMatchObject({ bankId, version: 1, blueprint: SMALL_BLUEPRINT });
-    const validatedIds = await Promise.all(drafts.map(async (draft) => (await questionByDraft(draft.draft_id)).id));
-    expect(drawable.questions.map((question) => question.id)).toEqual([...validatedIds].sort((a, b) => a - b));
+    // DRAFT and VALIDATED (US-4.10 AC-4); the rejected one stays out.
+    const usableIds = await Promise.all([...drafts, waiting].map(async (draft) => (await questionByDraft(draft.draft_id)).id));
+    expect(drawable.questions.map((question) => question.id)).toEqual([...usableIds].sort((a, b) => a - b));
     expect(drawable.questions[0]).toMatchObject({
       type: 'MCQ',
       skill: 'Java',

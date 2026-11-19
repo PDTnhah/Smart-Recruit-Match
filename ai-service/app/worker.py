@@ -34,7 +34,7 @@ from app.agents.test_generator import (
     PostgresQuestionDraftRepo,
     TestGenerator,
 )
-from app.agents.validator import PostgresQuestionValidationRepo, Validator
+from app.agents.validator import BankValidator, PostgresQuestionValidationRepo, Validator
 from app.config import load_settings
 from app.consumers.base import Handler, JobRunner
 from app.consumers.batch_poller import BatchCoordinator
@@ -133,6 +133,8 @@ def create_app() -> FastStream:
         embedder=embedder,
         threshold=settings.skill_match_threshold,
     )
+    question_drafts = PostgresQuestionDraftRepo(pool)
+    question_validations = PostgresQuestionValidationRepo(pool)
     handlers = build_handlers(
         cv_parser=CvParser(
             files=files,
@@ -149,13 +151,16 @@ def create_app() -> FastStream:
         matching=MatchingAgent(sources=match_sources, prompts=prompts, batches=batches),
         test_generator=TestGenerator(
             sources=PostgresBankSourceRepo(pool),
-            drafts=PostgresQuestionDraftRepo(pool),
-            validator=Validator(
-                llm=llm, prompts=prompts, repo=PostgresQuestionValidationRepo(pool)
-            ),
+            drafts=question_drafts,
+            validations=question_validations,
             embedder=embedder,
             llm=llm,
             prompts=prompts,
+            spend=calls,
+        ),
+        question_validator=BankValidator(
+            drafts=question_drafts,
+            validator=Validator(llm=llm, prompts=prompts, repo=question_validations),
             spend=calls,
         ),
         grader=EssayGrader(sources=essay_answers, prompts=prompts, batches=batches),

@@ -1,7 +1,7 @@
 {
   "factors": {
     "min": 3,
-    "target": 4,
+    "target": 3,
     "max": 5
   },
   "mcq_option_count": 4,

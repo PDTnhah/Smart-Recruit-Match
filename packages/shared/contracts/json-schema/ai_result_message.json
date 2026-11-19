@@ -18,6 +18,9 @@
       "$ref": "./questions_generate_result.json"
     },
     {
+      "$ref": "./questions_validate_result.json"
+    },
+    {
       "$ref": "./essay_grade_result.json"
     },
     {

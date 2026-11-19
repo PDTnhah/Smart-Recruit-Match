@@ -98,7 +98,7 @@ Ranh giới mà epic này giữ: chấm trắc nghiệm, tính S_test, S_final v
 | US-4.7 | Tín hiệu gian lận | Trung tâm/HR thấy cảnh báo hành vi khi làm bài | 📋 backlog | — |
 | US-4.8 | Câu hỏi xác minh CV và chỉ số tin cậy | HR thấy chỉ số tin cậy CV để tham khảo | 👀 review | 0.26.0 |
 | US-4.9 | Duyệt mẫu ngân hàng câu hỏi | HR/giảng viên duyệt một mẫu ngẫu nhiên của ngân hàng | 📋 backlog | — |
-| US-4.10 | Tách Validator khỏi job sinh câu: AI kiểm câu khi Trung tâm yêu cầu | Sinh ngân hàng ít request hơn; AI kiểm câu khi Trung tâm bấm | 📋 backlog | — |
+| US-4.10 | Tách Validator khỏi job sinh câu: AI kiểm câu khi Trung tâm yêu cầu | Sinh ngân hàng ít request hơn; AI kiểm câu khi Trung tâm bấm | 👀 review | 0.28.0 |
 | US-4.11 | Tab Ngân hàng câu hỏi: xem toàn bộ câu và loại câu sai | Trung tâm xem mọi câu đã sinh và loại câu sai | 📋 backlog | — |
 | US-4.12 | Sửa giao diện ngân hàng câu hỏi: ô độ phủ và đổi phần D thành C | Ô độ phủ dễ đọc; các phần đánh chữ A, B, C | 👀 review | 0.27.1 |
 
@@ -157,7 +157,7 @@ Ranh giới mà epic này giữ: chấm trắc nghiệm, tính S_test, S_final v
 
 - [ ] JD được duyệt có ngân hàng câu hỏi nháp phủ đủ ma trận đề, không câu trùng (US-4.1)
 - [ ] Câu không đạt Validator bị loại hoặc sinh lại; ngân hàng khóa và có phiên bản (US-4.2)
-- [ ] Job sinh câu không gọi Validator; Trung tâm bấm "Kiểm câu bằng AI" khi cần (US-4.10)
+- [x] Job sinh câu không gọi Validator; Trung tâm bấm "Kiểm câu bằng AI" khi cần (US-4.10, 0.28.0)
 - [ ] Trung tâm xem mọi câu của ngân hàng và loại câu sai (US-4.11)
 - [ ] Ô độ phủ không còn dạng "Đạt 4/3"; các phần đánh chữ A, B, C (US-4.12)
 - [ ] SV làm bài 1 lần, giờ do server tính, tự lưu, làm tiếp được khi mất kết nối; response không chứa đáp án (US-4.3)

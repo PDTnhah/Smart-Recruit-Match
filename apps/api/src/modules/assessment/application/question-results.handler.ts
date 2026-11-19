@@ -1,6 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
-import type { GeneratedQuestion, QuestionStatus, QuestionValidation } from '@srm/shared';
+import type { QuestionStatus, QuestionVerdict } from '@srm/shared';
 import { StateTransitionService } from '../../../common/state/index.js';
 import { questionLifecycle } from '../../../db/lifecycles.js';
 import { DRIZZLE } from '../../../db/tokens.js';
@@ -16,6 +16,8 @@ interface Verdicts {
   rejected: number;
 }
 
+type Skipped = 'LOCKED' | 'OTHER_BANK' | null;
+
 type Applied =
   | { kind: 'UNKNOWN_JOB' }
   | {
@@ -24,18 +26,18 @@ type Applied =
       received: number;
       refused: number;
       verdicts: Verdicts;
-      skipped: 'LOCKED' | 'OTHER_BANK' | null;
+      skipped: Skipped;
     };
 
-type CheckedQuestion = GeneratedQuestion & { validation: QuestionValidation };
-
 /**
- * Results of the Test Generator (US-4.1 AC-9, CONTEXT D49). A QUESTIONS_GENERATE result carries
- * every draft of the bank, those of earlier jobs too; each is stored once by `draft_id`, status
- * DRAFT, with the model and prompt that wrote it (Invariant 12), and the run is closed with the
- * cells still missing drafts. A draft the Validator has checked then moves to VALIDATED or
- * REJECTED through `transitionTo`, its verdict written by the same UPDATE (US-4.2 AC-5, D50); a
- * question no longer DRAFT keeps its state, so a later result does not move it again.
+ * Results of the Test Generator and of the Validator (US-4.1 AC-9, US-4.10 AC-3, CONTEXT D49, D60).
+ * A QUESTIONS_GENERATE result carries every draft of the bank, those of earlier jobs too; each is
+ * stored once by `draft_id`, status DRAFT, with the model and prompt that wrote it (Invariant 12),
+ * and the run is closed with the cells still missing drafts. A QUESTIONS_VALIDATE result carries
+ * the verdicts of the drafts CENTER sent to the Validator, and closes its run with how many it
+ * applied. Either way a draft with a verdict then moves to VALIDATED or REJECTED through
+ * `transitionTo`, its verdict written by the same UPDATE (US-4.2 AC-5, D50); a question no longer
+ * DRAFT keeps its state, so a later result does not move it again.
  *
  * Listener convention of aigateway/domain/events.ts: the consumer has checked the message with Zod
  * and awaits this listener, so a database failure is retried once and then dead-lettered. A
@@ -63,19 +65,16 @@ export class QuestionResultsHandler {
       // The row lock orders this write with the lock of the bank (US-4.2).
       const bank = await this.banks.lock(tx, run.bankId);
       let stored: StoredQuestion[] = [];
-      let checked: CheckedQuestion[] = [];
+      let checked: QuestionVerdict[] = [];
       let refused = 0;
-      let skipped: 'LOCKED' | 'OTHER_BANK' | null = null;
-      if (output !== null) {
-        if (output.bank_id !== run.bankId) skipped = 'OTHER_BANK';
-        // A locked bank is final: drafts and verdicts that come after are not added to it.
-        else if (!bank || bank.status === 'LOCKED') skipped = 'LOCKED';
-        else {
-          const all = output.questions.map(toStoredQuestion);
-          stored = all.filter((question): question is StoredQuestion => question !== null);
-          refused = all.length - stored.length;
-          checked = output.questions.filter((question): question is CheckedQuestion => question.validation !== null);
-        }
+      const skipped = output === null ? null : skippedOf(output.bank_id, run.bankId, bank?.status);
+      if (output !== null && skipped === null) {
+        const all = output.questions.map(toStoredQuestion);
+        stored = all.filter((question): question is StoredQuestion => question !== null);
+        refused = all.length - stored.length;
+        checked = output.questions.flatMap((question) =>
+          question.validation === null ? [] : [{ draft_id: question.draft_id, validation: question.validation }],
+        );
       }
       const received = await this.banks.insertQuestions(tx, run.bankId, stored);
       const verdicts = await this.applyVerdicts(tx, run.bankId, checked);
@@ -101,10 +100,45 @@ export class QuestionResultsHandler {
   }
 
   /**
-   * AC-5: each stored question still DRAFT takes the Validator's verdict, actor SYSTEM, in the
-   * transaction of the result. A draft refused by `toStoredQuestion` has no row and is skipped.
+   * US-4.10 AC-3: the verdicts of an AI check move the questions still DRAFT, and close the run
+   * with how many they moved. A verdict of a locked bank, or of another bank, moves nothing.
    */
-  private async applyVerdicts(tx: DbTx, bankId: number, checked: readonly CheckedQuestion[]): Promise<Verdicts> {
+  @OnEvent(AI_RESULT_EVENTS.QUESTIONS_VALIDATE, { suppressErrors: false })
+  async applyValidation(result: AiResultEvent<'QUESTIONS_VALIDATE'>): Promise<void> {
+    const { job } = result;
+    const output = result.result;
+    const applied = await this.db.transaction(async (tx): Promise<Applied> => {
+      const run = await this.runs.findByJob(tx, job.job_id);
+      if (!run) return { kind: 'UNKNOWN_JOB' };
+      // The row lock orders this write with the lock of the bank, as for a generation result.
+      const bank = await this.banks.lock(tx, run.bankId);
+      const skipped = output === null ? null : skippedOf(output.bank_id, run.bankId, bank?.status);
+      const checked = output !== null && skipped === null ? output.verdicts : [];
+      const verdicts = await this.applyVerdicts(tx, run.bankId, checked);
+      await this.runs.finishJob(tx, job.job_id, verdicts.validated + verdicts.rejected, endOf(result));
+      return { kind: 'APPLIED', bankId: run.bankId, received: 0, refused: 0, verdicts, skipped };
+    });
+
+    if (applied.kind === 'UNKNOWN_JOB') {
+      this.logger.warn(`job ${job.job_id}: no AI check run has it; verdicts of bank ${job.bank_id} dropped`);
+      return;
+    }
+    if (applied.skipped !== null) {
+      this.logger.warn(`job ${job.job_id}: verdicts not applied, bank ${applied.bankId} ${applied.skipped}`);
+    }
+    this.logger.log(
+      `job ${job.job_id}: AI check of bank ${applied.bankId} ${result.status}, ` +
+        `${applied.verdicts.validated} validated, ${applied.verdicts.rejected} rejected, ` +
+        `${output?.unchecked.length ?? 0} left unchecked`,
+    );
+  }
+
+  /**
+   * AC-5: each stored question still DRAFT takes the Validator's verdict, actor SYSTEM, in the
+   * transaction of the result. A draft without a question (refused by `toStoredQuestion`, or of no
+   * result stored yet) is skipped.
+   */
+  private async applyVerdicts(tx: DbTx, bankId: number, checked: readonly QuestionVerdict[]): Promise<Verdicts> {
     const verdicts: Verdicts = { validated: 0, rejected: 0 };
     const states = await this.banks.statesByDraft(
       tx,
@@ -132,10 +166,18 @@ export class QuestionResultsHandler {
   }
 }
 
+/** Why a result's drafts and verdicts are not applied: another bank's, or a locked bank's, which is final. */
+function skippedOf(outputBankId: number, runBankId: number, status: string | undefined): Skipped {
+  if (outputBankId !== runBankId) return 'OTHER_BANK';
+  if (status === undefined || status === 'LOCKED') return 'LOCKED';
+  return null;
+}
+
 /** The run takes the status of the job; a job that failed as a whole names its error. */
-function endOf(result: AiResultEvent<'QUESTIONS_GENERATE'>): QuestionRunEnd {
+function endOf(result: AiResultEvent<'QUESTIONS_GENERATE' | 'QUESTIONS_VALIDATE'>): QuestionRunEnd {
   if (result.status === 'FAILED' || result.result === null) {
     return { status: 'FAILED', missingCells: null, errorCode: result.error?.code ?? 'AI_JOB_FAILED' };
   }
-  return { status: result.status, missingCells: result.result.missing_cells, errorCode: null };
+  const missingCells = 'missing_cells' in result.result ? result.result.missing_cells : null;
+  return { status: result.status, missingCells, errorCode: null };
 }

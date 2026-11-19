@@ -15,11 +15,18 @@ import {
   MatchPairRefSchema,
   MatchRunJobSchema,
   QuestionsGenerateJobSchema,
+  QuestionsValidateJobSchema,
   SkillNormalizeJobSchema,
   type AiJobType,
 } from './jobs.js';
 import { EvidenceCheckSchema, MatchAssessmentSchema, PROJECT_EVIDENCE_MAX } from './matching.js';
-import { GeneratedQuestionSchema, MISSING_CELLS_MAX, MissingCellSchema, QUESTION_BANK_MAX_DRAFTS } from './questions.js';
+import {
+  GeneratedQuestionSchema,
+  MISSING_CELLS_MAX,
+  MissingCellSchema,
+  QUESTION_BANK_MAX_DRAFTS,
+  QuestionVerdictSchema,
+} from './questions.js';
 import { SKILL_NORMALIZE_BATCH, SkillSuggestionSchema } from './skills.js';
 
 /** Outcome of a job as reported on `ai.results` (ARCHITECTURE › Hàng đợi). */
@@ -198,6 +205,24 @@ export const QuestionsGenerateOutputSchema = z
 export type QuestionsGenerateOutput = z.output<typeof QuestionsGenerateOutputSchema>;
 
 /**
+ * Output of QUESTIONS_VALIDATE (US-4.10 AC-3, CONTEXT D60): the verdict of each draft of the job
+ * that has one, those an earlier job stored included, so a verdict whose result was lost still
+ * reaches the backend. PARTIAL when some drafts are left without a verdict. No draft is written.
+ */
+export const QuestionsValidateOutputSchema = z
+  .strictObject({
+    bank_id: z.int().positive().describe('core.question_banks.id of the job'),
+    verdicts: z.array(QuestionVerdictSchema).max(QUESTION_BANK_MAX_DRAFTS).describe('One verdict per draft that has one'),
+    unchecked: z
+      .array(z.int().positive())
+      .max(QUESTION_BANK_MAX_DRAFTS)
+      .describe('Draft ids of the job left without a verdict; empty when every draft has one'),
+  })
+  .meta({ title: 'QuestionsValidateOutput', description: 'Result of QUESTIONS_VALIDATE' });
+
+export type QuestionsValidateOutput = z.output<typeof QuestionsValidateOutputSchema>;
+
+/**
  * One result message per job type. `job` echoes the job payload so a FAILED result still tells the
  * backend which CV or JD it is about (CONTEXT D33).
  */
@@ -245,6 +270,15 @@ export const QuestionsGenerateResultSchema = resultMessage(
   description: 'Message on ai.results for a QUESTIONS_GENERATE job',
 });
 
+export const QuestionsValidateResultSchema = resultMessage(
+  'QUESTIONS_VALIDATE',
+  QuestionsValidateJobSchema,
+  QuestionsValidateOutputSchema,
+).meta({
+  title: 'QuestionsValidateResult',
+  description: 'Message on ai.results for a QUESTIONS_VALIDATE job',
+});
+
 export const EssayGradeResultSchema = resultMessage('ESSAY_GRADE', EssayGradeJobSchema, EssayGradeOutputSchema).meta({
   title: 'EssayGradeResult',
   description: 'Message on ai.results for an ESSAY_GRADE job',
@@ -279,6 +313,7 @@ export const AiResultMessageSchema = z
     SkillNormalizeResultSchema,
     MatchRunResultSchema,
     QuestionsGenerateResultSchema,
+    QuestionsValidateResultSchema,
     EssayGradeResultSchema,
     CvVerifyGenerateResultSchema,
     CvVerifyEvaluateResultSchema,
