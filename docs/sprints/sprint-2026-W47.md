@@ -45,6 +45,7 @@ Ngày 2026-11-16, người dùng bắt đầu US-2.8 (1 điểm, sửa lỗi tá
 3. **US-4.8** (bắt đầu 2026-11-16, người dùng chọn): phần D và chỉ số tin cậy CV ([CONTEXT D57](../CONTEXT.md)); xong 0.26.0 ngày 2026-11-18, `review`, chờ kiểm tay và `db:migrate` `0040`–`0041`.
 4. **US-2.9** (bắt đầu 2026-11-19, người dùng chọn): người dùng không có key Gemini hay Claude, nên thêm nhà cung cấp OpenAI và DeepSeek ([CONTEXT D58](../CONTEXT.md)). v0.27.0, `review`; chờ người dùng chạy với key thật (TASK-2.9.9).
 5. **Story kế tiếp**: US-5.1 (mốc M1), khi người dùng chọn.
+6. **Ngân hàng câu hỏi** (lập ngày 2026-11-19 từ phản hồi của người dùng về ngân hàng JD 5, [CONTEXT D60](../CONTEXT.md)): ba story mới ở `backlog`, thứ tự đề xuất [US-4.12](stories/US-4.12-question-bank-ui-fixes-part-c.md) (ô độ phủ, phần D → C; 3 điểm) → [US-4.10](stories/US-4.10-on-demand-question-validation.md) (Validator chạy khi Trung tâm yêu cầu; 8 điểm) → [US-4.11](stories/US-4.11-question-bank-browser-and-rejection.md) (xem toàn bộ câu, loại câu; 5 điểm). Chờ người dùng chọn lúc bắt đầu.
 
 ## Parked / deferred from W45, W46
 
@@ -78,5 +79,6 @@ Ngày 2026-11-16, người dùng bắt đầu US-2.8 (1 điểm, sửa lỗi tá
 - [Story US-2.8](stories/US-2.8-skill-search-empty-query.md): story mới của sprint
 - [Sprint W45](sprint-2026-W45.md), [Sprint W46](sprint-2026-W46.md): đã đóng, bảng *Carry-overs to W47*
 - [CONTEXT D55](../CONTEXT.md): tách US-2.8 khi điều tra US-1.8
+- [CONTEXT D60](../CONTEXT.md): thêm US-4.10, US-4.11, US-4.12
 - [README.md](README.md): quy ước sprint
 - [STATUS.md](STATUS.md): bảng kanban tự sinh

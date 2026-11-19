@@ -41,7 +41,7 @@ Lessons: none new — các lỗi review tìm ra (batch inline gửi lại khi đ
 
 ## Acceptance criteria
 
-- [x] **AC-1** — **Given** `LLM_PROVIDER=openai`, `OPENAI_API_KEY`, **When** một agent gọi `LLMClient.generate`, **Then** request đi qua Chat Completions với `response_format` `json_schema` (`strict: true` khi mọi object có đủ thuộc tính trong `required`, không thì `false`), `reasoning_effort` theo `EFFORT_BY_AGENT`, `max_completion_tokens`, `store: false`, không có `temperature`. Dòng `ai.llm_calls` có `provider = OPENAI`, `model` lấy từ phản hồi, `cost_usd` theo bảng giá.
+- [x] **AC-1** — **Given** `LLM_PROVIDER=openai`, `OPENAI_API_KEY`, **When** một agent gọi `LLMClient.generate`, **Then** request đi qua Chat Completions với `response_format` `json_schema` (`strict: true` khi mọi object có đủ thuộc tính trong `required`, không thì `false`), `reasoning_effort` luôn `medium` (D59), `max_completion_tokens`, `store: false`, không có `temperature`. Dòng `ai.llm_calls` có `provider = OPENAI`, `model` lấy từ phản hồi, `cost_usd` theo bảng giá.
 - [x] **AC-2** — **Given** `LLM_PROVIDER=deepseek`, `DEEPSEEK_API_KEY`, **When** một agent gọi `generate`, **Then** request đi tới `https://api.deepseek.com` với `response_format` `json_object` và một system message cố định chứa JSON Schema của agent, đặt sau system của prompt. Effort low/medium/high gửi `low`/`high`/`high`. Câu trả lời sai schema hoặc trống được thử lại như mọi nhà cung cấp.
 - [x] **AC-3** — Phản hồi được kiểm từ chối trước khi đọc nội dung: OpenAI `message.refusal` khác null hoặc `content_filter` → `REFUSAL`. `length` → `MAX_TOKENS`. DeepSeek `insufficient_system_resource` / `aborted` → lỗi thử lại được.
 - [x] **AC-4** — Usage: OpenAI `input = prompt_tokens − cached_tokens − cache_write_tokens`, `cache_read = cached_tokens`, `cache_write = cache_write_tokens`; DeepSeek `input = prompt_cache_miss_tokens`, `cache_read = prompt_cache_hit_tokens`; `output = completion_tokens` ở cả hai.
@@ -79,7 +79,7 @@ Lessons: none new — các lỗi review tìm ra (batch inline gửi lại khi đ
 |---|---|---|
 | `messages` | system → user (`shared` có `prompt_cache_breakpoint` → file → `user`) | system → system phụ có JSON Schema (`json.dumps(schema, sort_keys=True)`) → user là một chuỗi (`shared` + `user`) |
 | `response_format` | `json_schema`, `name=agent`, `strict` theo `required` | `json_object` |
-| Effort low/medium/high | low/medium/high | low/high/high |
+| Effort low/medium/high | medium/medium/medium (D59) | low/high/high |
 | Giới hạn token | `max_completion_tokens` | `max_tokens` |
 | Khác | `store: False` | không gửi `store` |
 

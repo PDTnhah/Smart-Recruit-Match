@@ -67,7 +67,7 @@ Cách đo chi tiết: [PRD.md › Success Criteria](PRD.md#success-criteria).
 ### In Scope (MVP)
 - Quản lý đợt, JD, CV; phân tích CV/JD bằng LLM kèm bước xác nhận.
 - Chấm phù hợp có giải thích; chọn nguyện vọng.
-- Sinh ngân hàng câu hỏi (trắc nghiệm + tự luận) có Validator; làm và chấm test.
+- Sinh ngân hàng câu hỏi (trắc nghiệm + tự luận); code kiểm định dạng và trùng lặp, Trung tâm xem và loại câu sai, Validator kiểm khi Trung tâm yêu cầu; làm và chấm test.
 - Thuật toán Deferred Acceptance; HR duyệt; nhập kết quả phỏng vấn; 1 vòng bổ sung; dashboard cơ bản.
 
 ### Out of Scope (v1.0)

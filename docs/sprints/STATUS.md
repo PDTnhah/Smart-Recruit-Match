@@ -1,14 +1,14 @@
 # Sprint Status
 
 > **AUTO-GENERATED** by `koni-docs status`. Do not hand-edit (RULE-5).
-> Last generated: 2026-11-18 18:20:28 UTC
-> Total stories: 45
+> Last generated: 2026-11-19 04:10:22 UTC
+> Total stories: 48
 
 ## ⏰ Deadlines (0)
 
 _No stories carry an explicit deadline._
 
-## 📋 Backlog (15)
+## 📋 Backlog (18)
 
 | ID | Title | Epic | Pri | Points | Sprint | Assignee |
 |---|---|---|---|---|---|---|
@@ -16,6 +16,9 @@ _No stories carry an explicit deadline._
 | US-4.6 | Phúc khảo và báo lỗi câu hỏi | EPIC-4 | P1 | 5 | — | — |
 | US-4.7 | Tín hiệu gian lận | EPIC-4 | P1 | 3 | — | — |
 | US-4.9 | Duyệt mẫu ngân hàng câu hỏi | EPIC-4 | P2 | 2 | — | — |
+| US-4.10 | Tách Validator khỏi job sinh câu: AI kiểm câu khi Trung tâm yêu cầu | EPIC-4 | P0 | 8 | — | — |
+| US-4.11 | Tab Ngân hàng câu hỏi: xem toàn bộ câu và loại câu sai | EPIC-4 | P1 | 5 | — | — |
+| US-4.12 | Sửa giao diện ngân hàng câu hỏi: ô độ phủ và đổi phần D thành C | EPIC-4 | P1 | 3 | — | — |
 | US-5.1 | Allocation Engine và property-based test | EPIC-5 | P0 | 5 | sprint-2026-W44 | — |
 | US-5.2 | Vòng phân bổ: dự thảo, điều chỉnh, công bố | EPIC-5 | P0 | 8 | — | — |
 | US-5.3 | HR duyệt danh sách đề cử | EPIC-5 | P0 | 8 | — | — |
@@ -88,7 +91,7 @@ _No stories_
 
 ## Summary
 
-- 📋 **Backlog**: 15
+- 📋 **Backlog**: 18
 - 🟢 **Ready**: 0
 - 🟡 **In Progress**: 0
 - 👀 **Review**: 17

@@ -119,7 +119,7 @@ Nếu thiếu dữ liệu thật: sinh dữ liệu giả lập (CV/JD tổng h�
 
 | Mức | Chức năng |
 |---|---|
-| **MVP (bắt buộc)** | Quản lý đợt, JD, CV; phân tích CV/JD bằng LLM + bước xác nhận; chấm phù hợp có giải thích; chọn NV; sinh ngân hàng câu hỏi (trắc nghiệm + tự luận) có Validator; làm và chấm test; thuật toán Deferred Acceptance; HR duyệt; nhập kết quả phỏng vấn; 1 vòng bổ sung; dashboard cơ bản |
+| **MVP (bắt buộc)** | Quản lý đợt, JD, CV; phân tích CV/JD bằng LLM + bước xác nhận; chấm phù hợp có giải thích; chọn NV; sinh ngân hàng câu hỏi (trắc nghiệm + tự luận) có kiểm định (code; Validator khi Trung tâm yêu cầu; Trung tâm loại câu); làm và chấm test; thuật toán Deferred Acceptance; HR duyệt; nhập kết quả phỏng vấn; 1 vòng bổ sung; dashboard cơ bản |
 | **Nên có** | Mức cạnh tranh và gợi ý NV; phúc khảo; chỉ số tin cậy CV; thông báo email; thực nghiệm so sánh với các baseline |
 | **Mở rộng** | Bài lập trình chấm trong sandbox; tối ưu ILP; chatbot tư vấn cho sinh viên; học trọng số từ phản hồi HR; tích hợp lịch/email doanh nghiệp; tích hợp hệ thống đào tạo |
 
@@ -361,8 +361,9 @@ Quy tắc: mỗi sinh viên có 1 CV hiệu lực trong một đợt. Thông tin
 |---|---|---|
 | A. Trắc nghiệm | 20 câu, 4 phương án, 1 đáp án đúng, phủ các kỹ năng của JD | 60% |
 | B. Tự luận ngắn / tình huống | 2–3 câu: giải thích khái niệm, xử lý tình huống, thiết kế đơn giản | 40% |
-| C. Lập trình (mở rộng) | 1 bài, chấm bằng test case trong sandbox | Thay một phần B nếu bật |
-| D. Xác minh CV (tùy chọn) | 2–3 câu hỏi về dự án/kỹ năng sinh viên khai trong CV, sinh khi đợt sang *Làm test*; thời gian làm tính chung trong T_test ([CONTEXT D57](CONTEXT.md)) | Không — chỉ tạo "chỉ số tin cậy CV" để HR tham khảo |
+| C. Xác minh CV (tùy chọn) | 2–3 câu hỏi về dự án/kỹ năng sinh viên khai trong CV, sinh khi đợt sang *Làm test*; thời gian làm tính chung trong T_test ([CONTEXT D57, D60](CONTEXT.md)) | Không — chỉ tạo "chỉ số tin cậy CV" để HR tham khảo |
+
+Bài lập trình chấm bằng test case trong sandbox là phần mở rộng, ngoài MVP (Q7), nên không có chữ cái riêng. Nếu bật, bài này thay một câu phần B.
 
 Ví dụ ma trận đề phần A — JD "Thực tập sinh Backend Java":
 
@@ -376,9 +377,9 @@ Ví dụ ma trận đề phần A — JD "Thực tập sinh Backend Java":
 
 **Quy trình sinh đề** — thực hiện một lần khi JD được duyệt, **trước** khi sinh viên làm bài:
 
-1. Test Generator Agent nhận yêu cầu chuẩn hóa + ma trận đề, sinh ngân hàng câu hỏi gấp 3–5 lần số câu cần cho mỗi ô của ma trận. Mỗi câu có: kỹ năng, độ khó, đáp án, giải thích; câu tự luận kèm **rubric chấm** và đáp án mẫu.
-2. **Validator Agent** kiểm tra từng câu: đúng chủ đề, chỉ một đáp án đúng, phương án nhiễu hợp lý, không trùng lặp, không lộ đáp án trong đề, độ khó khớp nhãn. Câu không đạt bị loại hoặc sinh lại.
-3. (Tùy chọn) HR hoặc giảng viên duyệt một mẫu ngẫu nhiên của ngân hàng.
+1. Test Generator Agent nhận yêu cầu chuẩn hóa + ma trận đề, sinh ngân hàng câu hỏi gấp 3–5 lần số câu cần cho mỗi ô của ma trận (khi sinh nhắm 3 lần). Mỗi câu có: kỹ năng, độ khó, đáp án, giải thích; câu tự luận kèm **rubric chấm** và đáp án mẫu. Code kiểm định dạng (đủ phương án, đúng một đáp án, có rubric) và loại câu trùng; câu qua bước này dùng được ngay ([CONTEXT D60](CONTEXT.md)).
+2. (Tùy chọn) Cán bộ Trung tâm bấm **"Kiểm câu bằng AI"**: Validator Agent kiểm các câu chưa kiểm: đúng chủ đề, chỉ một đáp án đúng, phương án nhiễu hợp lý, không trùng lặp, không lộ đáp án trong đề, độ khó khớp nhãn. Câu không đạt bị loại.
+3. Cán bộ Trung tâm xem toàn bộ câu của ngân hàng và loại câu sai kèm lý do. (Tùy chọn) HR hoặc giảng viên duyệt một mẫu ngẫu nhiên của ngân hàng. Ô thiếu câu sau khi loại thì Trung tâm cho sinh bù.
 4. Khóa ngân hàng câu hỏi; mọi thay đổi sau đó đều được ghi phiên bản.
 
 **Tổ chức thi:**
@@ -761,8 +762,9 @@ flowchart LR
     REQ --> M
     SKM --> SC
     REQ --> G[Test Generator Agent]
-    G --> V[Validator Agent]
-    V --> BANK[(Ngân hàng câu hỏi)]
+    G --> BANK[(Ngân hàng câu hỏi)]
+    BANK -. Trung tâm yêu cầu .-> V[Validator Agent]
+    V -. loại câu sai .-> BANK
     BANK --> EXAM[Phòng thi]
     EXAM --> GR[Grader Agent]
     M --> SC[Bộ tính điểm]
@@ -780,8 +782,8 @@ flowchart LR
 | JD Analyzer Agent | LLM | JD → yêu cầu chuẩn hóa JSON | JSON schema; HR xác nhận |
 | Bộ khớp kỹ năng | Code (không dùng LLM) | Hồ sơ đã che PII + yêu cầu + danh mục kỹ năng → verdict kỹ năng (cả kỹ năng mềm), ngoại ngữ, mức khớp ngành, độ phủ theo vùng, `skill_fit` | Unit test và property test; bộ luật có phiên bản (`matching-rules/v1`, `language-cefr/v1`); bằng chứng là trường của CV |
 | Matching Agent | LLM | Hồ sơ + yêu cầu + verdict của bộ khớp kỹ năng → điểm dự án/kinh nghiệm kèm trích dẫn, điểm mạnh, gợi ý, nhận xét | Kiểm tra trích dẫn; cố định model và phiên bản prompt; cache |
-| Test Generator Agent | LLM | Yêu cầu + ma trận đề → ngân hàng câu hỏi | Validator Agent; HR/giảng viên duyệt mẫu |
-| Validator Agent | LLM (prompt độc lập) | Câu hỏi → hợp lệ / lý do loại | Tự giải lại câu hỏi và so với đáp án |
+| Test Generator Agent | LLM | Yêu cầu + ma trận đề → ngân hàng câu hỏi | Code kiểm định dạng và trùng lặp; Trung tâm xem và loại câu; Validator Agent khi Trung tâm yêu cầu; HR/giảng viên duyệt mẫu |
+| Validator Agent | LLM (prompt độc lập), chạy khi Trung tâm yêu cầu | Câu hỏi → hợp lệ / lý do loại | Tự giải lại câu hỏi và so với đáp án |
 | Grader Agent | LLM | Bài tự luận + rubric → điểm, lý do, độ tự tin | Chấm 2 lần; độ tự tin thấp → chuyển người chấm |
 | Bộ tính điểm | Code | Điểm thành phần → S_cv, S_test, S_final | Unit test công thức |
 | Allocation Engine | Thuật toán (không dùng LLM) | NV, điểm, sức chứa → danh sách đề cử | Kiểm tra tính ổn định sau mỗi lần chạy |
@@ -876,7 +878,7 @@ Mọi thông báo đều hiện trong ứng dụng (chuông ở ba cổng, cập
 | LLM trích xuất/chấm sai ("ảo giác") | Bắt buộc bằng chứng và kiểm tra trích dẫn; sinh viên/HR xác nhận dữ liệu trích xuất; con người quyết định ở các điểm then chốt |
 | Thiên lệch, phân biệt đối xử | Ẩn danh hóa; không dùng thuộc tính nhạy cảm; kiểm tra phân bố điểm theo nhóm |
 | Prompt injection trong CV | Phát hiện chữ ẩn; tách chỉ dẫn/dữ liệu; schema đầu ra; cảnh báo điểm bất thường |
-| Câu hỏi test sai đáp án | Validator Agent tự giải lại; duyệt mẫu; sinh viên báo lỗi → loại câu và chấm lại |
+| Câu hỏi test sai đáp án | Trung tâm xem toàn bộ ngân hàng và loại câu sai; Validator Agent tự giải lại khi Trung tâm yêu cầu; duyệt mẫu; sinh viên báo lỗi → loại câu và chấm lại |
 | Gian lận khi làm test (tra cứu, nhờ người, dùng AI) | Giới hạn thời gian, rút đề ngẫu nhiên, ghi nhận hành vi; HR kiểm chứng lại qua phỏng vấn; điểm test chỉ là một phần của S_final |
 | Một số JD vẫn ít hồ sơ | Các biện pháp ở mục *Cơ chế hỗ trợ JD ít hồ sơ* |
 | HR chậm phản hồi | SLA, nhắc tự động, Cán bộ Trung tâm can thiệp |
@@ -907,14 +909,14 @@ Mọi thông báo đều hiện trong ứng dụng (chuông ở ba cổng, cập
 | FR-15 | Sinh viên xem shortlist kèm S_cv, kỹ năng còn thiếu và gợi ý cải thiện (UC-12) | P0 | 🚧 in-progress | EPIC-3 |
 | FR-16 | Sinh viên chọn và sắp thứ tự tối đa N_NV nguyện vọng từ shortlist; danh sách khóa khi hết hạn (UC-13, BR-04, GĐ4) | P0 | 🚧 in-progress | EPIC-3 |
 | FR-17 | Hiển thị mức cạnh tranh theo thời gian thực, gợi ý "phù hợp – ít cạnh tranh"; báo Trung tâm các JD có tỷ lệ NV/chỉ tiêu < 1 | P1 | 📋 backlog | EPIC-3 |
-| FR-18 | AI sinh ngân hàng câu hỏi theo ma trận đề (trắc nghiệm, tự luận kèm rubric); Validator kiểm định; khóa và ghi phiên bản ngân hàng (UC-32, BR-05, GĐ5) | P0 | 🚧 in-progress | EPIC-4 |
+| FR-18 | AI sinh ngân hàng câu hỏi theo ma trận đề (trắc nghiệm, tự luận kèm rubric); code kiểm định dạng, trùng lặp; Validator kiểm định khi Trung tâm yêu cầu; Trung tâm xem toàn bộ câu và loại câu sai; khóa và ghi phiên bản ngân hàng (UC-32, BR-05, GĐ5) | P0 | 🚧 in-progress | EPIC-4 |
 | FR-19 | HR hoặc giảng viên duyệt một mẫu ngẫu nhiên của ngân hàng câu hỏi (UC-22) | P2 | 📋 backlog | EPIC-4 |
 | FR-20 | Sinh viên làm bài test: rút đề ngẫu nhiên theo ma trận, giới hạn T_test, tự lưu, làm tiếp khi mất kết nối, chỉ làm 1 lần (UC-14, BR-06) | P0 | 🚧 in-progress | EPIC-4 |
 | FR-21 | Ghi nhận tín hiệu gian lận (chuyển tab, thoát toàn màn hình, copy/paste, bài tự luận tương đồng), chỉ dùng để cảnh báo | P1 | 📋 backlog | EPIC-4 |
 | FR-22 | Chấm trắc nghiệm tự động; AI chấm tự luận theo rubric 2 lần độc lập và chuyển người chấm khi cần; tính S_test, bản đồ năng lực và S_final (UC-33, GĐ6) | P0 | 🚧 in-progress | EPIC-4 |
 | FR-23 | Cán bộ Trung tâm hoặc giảng viên chấm tay các câu tự luận được chuyển (UC-06); giảng viên dùng tài khoản `CENTER` do Trung tâm cấp ([CONTEXT D54](CONTEXT.md)) | P0 | 🚧 in-progress | EPIC-4 |
 | FR-24 | Sinh viên xem điểm, phúc khảo phần tự luận trong 48 giờ và báo lỗi câu hỏi; câu sai bị loại và các bài liên quan được chấm lại (UC-15, UC-06) | P1 | 📋 backlog | EPIC-4 |
-| FR-25 | Câu hỏi xác minh CV (phần D) và chỉ số tin cậy CV cho HR tham khảo | P1 | 🚧 in-progress | EPIC-4 |
+| FR-25 | Câu hỏi xác minh CV (phần C) và chỉ số tin cậy CV cho HR tham khảo | P1 | 🚧 in-progress | EPIC-4 |
 | FR-26 | Chạy phân bổ Deferred Acceptance có sức chứa, kết quả ở trạng thái dự thảo; kiểm tra tính ổn định; lưu snapshot đầu vào và cấu hình (UC-34, BR-07, BR-09, BR-17, GĐ7) | P0 | 📋 backlog | EPIC-5 |
 | FR-27 | Cán bộ Trung tâm xem dự thảo, điều chỉnh thủ công có ghi lý do và công bố danh sách đề cử (UC-05, BR-10) | P0 | 📋 backlog | EPIC-5 |
 | FR-28 | HR xem danh sách đề cử và hồ sơ chi tiết: CV gốc, hồ sơ năng lực, S_cv kèm bằng chứng, S_test và bản đồ năng lực (UC-23, BR-11, GĐ8) | P0 | 📋 backlog | EPIC-5 |
@@ -1066,6 +1068,9 @@ Mỗi epic tương ứng một giai đoạn trong [ARCHITECTURE.md › Implement
 | US-4.7 | Tín hiệu gian lận | 📋 backlog | — |
 | US-4.8 | Câu hỏi xác minh CV và chỉ số tin cậy | 👀 review | 0.26.0 |
 | US-4.9 | Duyệt mẫu ngân hàng câu hỏi | 📋 backlog | — |
+| US-4.10 | Tách Validator khỏi job sinh câu: AI kiểm câu khi Trung tâm yêu cầu | 📋 backlog | — |
+| US-4.11 | Tab Ngân hàng câu hỏi: xem toàn bộ câu và loại câu sai | 📋 backlog | — |
+| US-4.12 | Sửa giao diện ngân hàng câu hỏi: ô độ phủ và đổi phần D thành C | 📋 backlog | — |
 
 ### EPIC-5: Phân bổ, HR duyệt và phỏng vấn
 

@@ -56,15 +56,17 @@
 - D47 · Chốt Q1, Q6; vòng đời hồ sơ ứng tuyển, bảng `preferences`, shortlist của SV, màn chọn nguyện vọng (US-3.3)
 - D48 · Mức cạnh tranh: ngưỡng trong cấu hình đợt, đếm lại dưới khóa theo JD, kênh SSE theo đợt, báo Trung tâm JD thiếu NV sau Q6 (US-3.4)
 - D49 · Test Generator: vòng lặp do code điều khiển, mỗi JD một ngân hàng (Q2 một phần, Q7), ma trận ở `question_banks`, tham số mặc định, làm tròn hai chiều (US-4.1)
-- D50 · Validator trong job sinh câu (đầu vào không kèm đáp án, code quyết định, độ khó lệch 2 bậc), khóa ngân hàng `OPEN → LOCKED` bằng tay, trigger chặn sửa, JD có phiên bản mới thì lưu lại ma trận (US-4.2)
+- D50 · Validator trong job sinh câu (đầu vào không kèm đáp án, code quyết định, độ khó lệch 2 bậc), khóa ngân hàng `OPEN → LOCKED` bằng tay, trigger chặn sửa, JD có phiên bản mới thì lưu lại ma trận (US-4.2) → sửa bởi D60 (Validator thành job riêng, chạy khi Trung tâm yêu cầu)
 - D51 · Phòng thi: hạn phiên cắt theo `testing_end`, ân hạn 10 giây, liên kết NV ↔ phiên suy ra, bố cục đề ở PostgreSQL, hash Redis + Lua, giới hạn tần suất; chưa dùng chung bài theo nhóm vị trí (US-4.3) → sửa một phần bởi D52 (mã phương án, đóng phiên lỗi)
 - D52 · Phòng thi: mã phương án từ nguồn ngẫu nhiên mật mã, không từ seed; đóng phiên lỗi thì Redis nhận lưu lại (US-4.3)
 - D53 · Chấm bài: trắc nghiệm trong giao dịch đóng phiên, Grader hai lượt qua batch có đáp án mẫu, câu ngang nhau trong phần, chuyển người chấm, S_final theo NV, dưới ngưỡng sau hạn phúc khảo (US-4.4)
 - D54 · Chấm tay câu tự luận: cột `exam_answers.id`, người chấm thấy hai lượt AI, giảng viên dùng tài khoản CENTER, điểm tiêu chí số nguyên, công bố qua `finalizeIfReady` sau commit (US-4.5)
 - D55 · Màn Hồ sơ chọn đợt mặc định theo CV của SV; tách US-1.9 (phiên giữa các tab), US-2.8 (tìm kỹ năng khi query rỗng) (US-1.8)
 - D56 · Sửa đợt sau khi mở theo pha dùng tham số, đối tượng chỉ thêm, dời mốc sớm có báo trước 24 giờ; hủy đợt có dữ liệu (`CANCELLED`), xóa đợt trống theo khóa ngoại (US-1.10)
-- D57 · Phần D (xác minh CV): sinh câu khi đợt sang `TESTING`, chỉ số theo ngưỡng hằng số, hai job AI, ID câu dùng chung sequence, CENTER xem trong Sheet chấm tay (US-4.8)
-- D58 · Thêm OpenAI và DeepSeek: chọn thủ công, chỉ dữ liệu giả, Chat Completions, batch inline cho DeepSeek (US-2.9)
+- D57 · Phần D (xác minh CV): sinh câu khi đợt sang `TESTING`, chỉ số theo ngưỡng hằng số, hai job AI, ID câu dùng chung sequence, CENTER xem trong Sheet chấm tay (US-4.8) → sửa bởi D60 (phần D đổi thành phần C)
+- D58 · Thêm OpenAI và DeepSeek: chọn thủ công, chỉ dữ liệu giả, Chat Completions, batch inline cho DeepSeek (US-2.9) → sửa một phần bởi D59 (OpenAI luôn `medium`)
+- D59 · OpenAI chạy mọi agent ở effort `medium` (US-2.9)
+- D60 · Validator chạy khi Trung tâm yêu cầu (job `QUESTIONS_VALIDATE`, nhắm 3×, câu `DRAFT` dùng được), Trung tâm xem và loại câu, phần xác minh CV đổi `D` → `C`; thêm US-4.10, US-4.11, US-4.12
 
 ---
 
@@ -2573,3 +2575,36 @@ Lúc điều tra còn thấy hai lỗi khác, không gây ra sự cố này:
 
 **Date**: 2026-11-19
 **Version**: 0.27.0
+
+### D59. OpenAI chạy mọi agent ở effort `medium` (US-2.9) (revision of D58)
+
+**Context**: D58 cho OpenAI gửi thẳng effort của agent (low/medium/high theo `EFFORT_BY_AGENT`, ARCH › *Bản đồ sử dụng LLM theo giai đoạn*).
+
+**Decision** (người dùng chốt ngày 2026-11-19): với `LLM_PROVIDER=openai`, adapter luôn gửi `reasoning_effort: medium`, kể cả với lượt gọi batch. Agent vẫn truyền effort riêng, và `ai.llm_calls.effort` vẫn ghi mức của agent; còn mức thật sự được gửi thì nằm trong params của `llm-logs`. Gemini, Claude và DeepSeek không đổi.
+
+**Rationale**: người dùng chỉ muốn một mức effort khi chạy với OpenAI. Ánh xạ trong adapter (giống `DEEPSEEK_EFFORT`) thì không phải sửa agent hay bảng effort chung.
+
+**Impact**: `OPENAI_EFFORT` trong `ai-service/app/llm/providers/openai_provider.py`; ARCH › đặc điểm API của OpenAI.
+
+**Date**: 2026-11-19
+**Version**: 0.27.0
+
+### D60. Validator chạy khi Trung tâm yêu cầu, Trung tâm xem và loại câu, phần xác minh CV đổi thành C; thêm US-4.10, US-4.11, US-4.12 (revision of D50, D57; bổ sung D49)
+
+**Context**: Ngày 2026-11-19 người dùng xem ngân hàng của JD 5 (96 câu) và nêu bốn vấn đề. Thứ nhất, job sinh câu tốn khoảng 20 request, vì mỗi vòng gồm một lượt sinh và một lượt Validator, nhắm 4× và tự sinh bù (D50). Thứ hai, tab ngân hàng chỉ cho thấy ma trận một đề, không cho xem câu nào. Thứ ba, ô độ phủ in "Đạt 4/3". Thứ tư, các phần hiện A, B, D, vì chữ C từng dành cho bài lập trình đã bỏ (Q7, D49).
+
+**Decision** (người dùng chốt ngày 2026-11-19):
+
+- **Validator tách khỏi job sinh câu.** `QUESTIONS_GENERATE` chỉ sinh câu và kiểm bằng code. Câu qua kiểm được lưu `DRAFT`: chưa ai kiểm, nhưng dùng được. Một ô đủ khi có ≥ 3× câu `DRAFT` + `VALIDATED`. Hệ số nhắm khi sinh giảm 4× → 3×, ngân sách token của job sinh trở lại 400K. Validator chạy khi CENTER bấm "Kiểm câu bằng AI", qua job `QUESTIONS_VALIDATE` riêng; job này không sinh bù. Khóa ngân hàng không chờ AI kiểm; phòng thi rút cả câu `DRAFT`. Thêm bước `DRAFT → RETIRED` (US-4.10).
+- **Trung tâm là người kiểm.** Trung tâm xem mọi câu của ngân hàng, có đáp án và kết quả kiểm, và loại câu kèm lý do: trước khi khóa thì `REJECTED` (Generator sinh bù, prompt nhận lý do), sau khi khóa thì `retireQuestion()` (US-4.11). US-4.9 và US-4.6 giữ nguyên.
+- **Phần xác minh CV đổi mã `D` → `C`**, cả trong code (`CV_VERIFICATION_PART`). Bài lập trình ghi là phần mở rộng, không đánh chữ (US-4.12).
+- Ba story mới, 16 điểm, thứ tự đề xuất US-4.12 → US-4.10 → US-4.11.
+
+**Rationale**: Bỏ lượt kiểm ở mỗi vòng và nhắm 3× giảm số request của JD 5 từ khoảng 20 xuống khoảng 6. D50 loại phương án "job kiểm riêng" vì vòng sinh bù phải đi qua backend; nay Trung tâm bấm "Sinh câu còn thiếu" khi ô thiếu, nên lý do đó không còn. Người kiểm thấy cả đáp án và rubric, bắt được lỗi Validator không thấy. Giữ tên `VALIDATED` (nghĩa: AI đã kiểm đạt) thì không phải chuyển dữ liệu. Câu của phần xác minh CV không lưu kèm chữ phần (D57), nên đổi mã không cần migration dữ liệu.
+
+**Alternatives considered**: xóa hẳn Validator; giữ Validator trong job nhưng tắt bằng cờ cấu hình; chỉ xem câu mà không loại được; đổi chữ trên giao diện mà giữ mã `D`; bỏ chữ cái của phần xác minh CV. Người dùng không chọn các phương án này.
+
+**Impact**: PRD GĐ5 (*Cấu trúc đề*, *Quy trình sinh đề*), FR-18, FR-25, *Kiến trúc AI*, *Risks*, bảng EPIC-4; ARCH › *Agent*, *Pipeline › Test Generator*, *Xác minh CV*, bản đồ LLM, *Các bảng chính*, *Hàng đợi*, *API architecture*; EPIC-4; `sprints/README.md` (48 story). US-6.3 chỉ đo được tỷ lệ câu hợp lệ của Validator khi Trung tâm có chạy kiểm bằng AI.
+
+**Date**: 2026-11-19
+**Version**: 0.27.0 (chưa có code)

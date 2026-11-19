@@ -29,7 +29,7 @@ backlog → ready → in-progress → review → done
 
 ## Lộ trình
 
-Theo [CONTEXT D20](../CONTEXT.md): 1 người code, có agent chạy song song; xong trong tháng 12/2026; đủ 37 story phủ FR-1 – FR-37, không cắt. Tổng khoảng 212 điểm, tức khoảng 18 điểm/tuần. [CONTEXT D42](../CONTEXT.md) thêm US-2.7, US-3.5, US-3.6 (FR-39, FR-40, 21 điểm), thành 40 story, khoảng 233 điểm. Ba story này xếp vào T5–T6, vì dự án đang đi trước lộ trình. [CONTEXT D55](../CONTEXT.md) thêm ba story sửa lỗi US-1.8, US-1.9, US-2.8 (7 điểm), thành 43 story, khoảng 240 điểm. [CONTEXT D56](../CONTEXT.md) thêm US-1.10 (FR-41, 8 điểm), thành 44 story, khoảng 248 điểm. [CONTEXT D58](../CONTEXT.md) thêm US-2.9 (nhà cung cấp LLM OpenAI, DeepSeek; 5 điểm), thành 45 story, khoảng 253 điểm. Sprint dài 1 tuần (`sprint-YYYY-WNN`).
+Theo [CONTEXT D20](../CONTEXT.md): 1 người code, có agent chạy song song; xong trong tháng 12/2026; đủ 37 story phủ FR-1 – FR-37, không cắt. Tổng khoảng 212 điểm, tức khoảng 18 điểm/tuần. [CONTEXT D42](../CONTEXT.md) thêm US-2.7, US-3.5, US-3.6 (FR-39, FR-40, 21 điểm), thành 40 story, khoảng 233 điểm. Ba story này xếp vào T5–T6, vì dự án đang đi trước lộ trình. [CONTEXT D55](../CONTEXT.md) thêm ba story sửa lỗi US-1.8, US-1.9, US-2.8 (7 điểm), thành 43 story, khoảng 240 điểm. [CONTEXT D56](../CONTEXT.md) thêm US-1.10 (FR-41, 8 điểm), thành 44 story, khoảng 248 điểm. [CONTEXT D58](../CONTEXT.md) thêm US-2.9 (nhà cung cấp LLM OpenAI, DeepSeek; 5 điểm), thành 45 story, khoảng 253 điểm. [CONTEXT D60](../CONTEXT.md) thêm US-4.10, US-4.11, US-4.12 (ngân hàng câu hỏi; 16 điểm), thành 48 story, khoảng 269 điểm. Sprint dài 1 tuần (`sprint-YYYY-WNN`).
 
 ### Giai đoạn và mốc
 
@@ -88,8 +88,8 @@ Theo koni-harness `parallel-orchestration.md` (Tier A):
 - Kiểm tra ở cuối T4 (M1), cuối T8 (M3), cuối T10 (M4): so số điểm đã xong với lịch.
 - Trễ dưới 1 tuần: dùng T6 và T13 làm đệm, mở thêm worktree cho story độc lập ở làn đang rảnh.
 - Trễ từ 1 tuần trở lên: báo người dùng để chọn giữa giãn sang tháng 1 hoặc đổi thứ tự. Không tự cắt story.
-- Ngoài phạm vi (spec ghi là tùy chọn hoặc mở rộng): phần C lập trình chấm trong sandbox, chatbot tư vấn SV, học trọng số từ phản hồi HR, SSO OIDC, ClamAV, Prometheus/Grafana.
+- Ngoài phạm vi (spec ghi là tùy chọn hoặc mở rộng): bài lập trình chấm trong sandbox, chatbot tư vấn SV, học trọng số từ phản hồi HR, SSO OIDC, ClamAV, Prometheus/Grafana.
 
 ## Trạng thái hiện tại
 
-Đã tách 45 story cho 6 epic (`epics/EPIC-1.md` … `EPIC-6.md`). Cả 45 file story đã có trong `stories/` ([CONTEXT D21](../CONTEXT.md); US-2.7, US-3.5, US-3.6 thêm theo [CONTEXT D42](../CONTEXT.md); US-1.8, US-1.9, US-2.8 thêm theo [CONTEXT D55](../CONTEXT.md); US-1.10 theo [CONTEXT D56](../CONTEXT.md); US-2.9 theo [CONTEXT D58](../CONTEXT.md)). Khi bắt đầu một story, đọc lại file của nó và thêm khối *Story refresh* nếu spec đã đổi. `sprint-2026-W41` … `sprint-2026-W46` đã đóng. Sprint đang mở: [`sprint-2026-W47`](sprint-2026-W47.md), gồm US-2.8 và các story đang `review` chuyển từ W45, W46.
+Đã tách 48 story cho 6 epic (`epics/EPIC-1.md` … `EPIC-6.md`). Cả 48 file story đã có trong `stories/` ([CONTEXT D21](../CONTEXT.md); US-2.7, US-3.5, US-3.6 thêm theo [CONTEXT D42](../CONTEXT.md); US-1.8, US-1.9, US-2.8 thêm theo [CONTEXT D55](../CONTEXT.md); US-1.10 theo [CONTEXT D56](../CONTEXT.md); US-2.9 theo [CONTEXT D58](../CONTEXT.md); US-4.10, US-4.11, US-4.12 theo [CONTEXT D60](../CONTEXT.md)). Khi bắt đầu một story, đọc lại file của nó và thêm khối *Story refresh* nếu spec đã đổi. `sprint-2026-W41` … `sprint-2026-W46` đã đóng. Sprint đang mở: [`sprint-2026-W47`](sprint-2026-W47.md), gồm US-2.8 và các story đang `review` chuyển từ W45, W46.

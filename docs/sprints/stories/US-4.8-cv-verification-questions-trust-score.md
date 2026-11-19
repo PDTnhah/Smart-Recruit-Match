@@ -138,3 +138,4 @@ Cột và CHECK: ARCH › *Các bảng chính*. ID câu D lấy `core.questions_
 ## Cross-references
 
 - [PRD › GĐ5, FR-25](../../PRD.md#functional-requirements) · [ARCH](../../ARCHITECTURE.md) · [Epic EPIC-4](../epics/EPIC-4.md) · [CHANGELOG](../../CHANGELOG.md) · [CONTEXT D49, D51, D53, D57](../../CONTEXT.md)
+- [US-4.12 Sửa giao diện ngân hàng, phần C](US-4.12-question-bank-ui-fixes-part-c.md): phần D của story này đổi thành phần C ([CONTEXT D60](../../CONTEXT.md))

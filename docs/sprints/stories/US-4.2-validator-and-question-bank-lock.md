@@ -146,3 +146,4 @@ PRD › GĐ5, FR-18, *Risks*, BR-18 · ARCHITECTURE › *Pipeline › Test Gener
 - [CONTEXT D50](../../CONTEXT.md)
 - [US-4.1 Ma trận đề và Test Generator](US-4.1-exam-blueprint-test-generator.md)
 - [US-4.3 Phòng thi](US-4.3-exam-room.md)
+- [US-4.10 Tách Validator khỏi job sinh câu](US-4.10-on-demand-question-validation.md): từ [CONTEXT D60](../../CONTEXT.md), Validator chạy trong job riêng khi Trung tâm yêu cầu; câu `DRAFT` dùng được

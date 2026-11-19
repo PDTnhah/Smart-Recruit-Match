@@ -5,7 +5,8 @@ parameters that differ. Checked on 2026-11-19 against openai 3.46.0 and both pro
 
 - OpenAI: `response_format` `json_schema`, strict only when every object lists all its properties in
   `required` (a rule of strict mode; Pydantic validates every answer either way). `reasoning_effort`
-  low/medium/high, `max_completion_tokens`, `store: false` so OpenAI keeps no copy for distillation
+  is always `medium`, whatever the agent asks (CONTEXT D59), `max_completion_tokens`,
+  `store: false` so OpenAI keeps no copy for distillation
   or evals. A `shared` block ends with an explicit `prompt_cache_breakpoint`, so requests that
   repeat it read `system` + `shared` from the cache (CONTEXT D46). A document is a `file` part whose
   `file_data` is a `data:application/pdf;base64,` URL.
@@ -59,6 +60,9 @@ BILLING_ERROR_CODES = frozenset(
 INTERRUPTED = frozenset({"insufficient_system_resource", "aborted"})
 """DeepSeek finish reasons for a generation its servers cut short."""
 DEEPSEEK_EFFORT: dict[Effort, str] = {"low": "low", "medium": "high", "high": "high"}
+OPENAI_EFFORT: dict[Effort, str] = {"low": "medium", "medium": "medium", "high": "medium"}
+"""Every agent runs at `medium` on OpenAI (CONTEXT D59); `ai.llm_calls.effort` keeps the agent's
+own level, the logged params what was sent."""
 SCHEMA_INSTRUCTION = (
     "Reply with a single json object and no other text. The object must follow this JSON Schema:\n"
 )
@@ -112,7 +116,7 @@ class ChatCompletionsProvider:
                     "strict": lists_every_property(request.output_schema),
                 },
             },
-            "reasoning_effort": request.effort,
+            "reasoning_effort": OPENAI_EFFORT[request.effort],
             "max_completion_tokens": request.max_output_tokens,
             "store": False,
         }

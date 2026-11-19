@@ -49,6 +49,7 @@ DEFAULT_PRICES: Mapping[str, ModelPrice] = {
     "claude-opus-5-5": ModelPrice(input=4, output=20, cache_read=0.20, cache_write=5),
     # Up to 272K input tokens; longer prompts cost twice as much.
     "gpt-6.2-sol": ModelPrice(input=2, output=10, cache_read=0.10, cache_write=2.5),
+    "gpt-6.1-terra": ModelPrice(input=1, output=5, cache_read=0.05, cache_write=1.25),
     "deepseek-flash": ModelPrice(input=0.3, output=1.2, cache_read=0.006),
     "deepseek-v4-pro": ModelPrice(input=1.32, output=3.96, cache_read=0.044),
 }
@@ -58,6 +59,7 @@ DEFAULT_BATCH_PRICES: Mapping[str, ModelPrice] = {
     "gemini-3.8-flash": ModelPrice(input=0.375, output=1.875, cache_read=0.075),
     "claude-opus-5-5": ModelPrice(input=2, output=10, cache_read=0.10, cache_write=4),
     "gpt-6.2-sol": ModelPrice(input=1, output=5, cache_read=0.05, cache_write=1.25),
+    "gpt-6.1-terra": ModelPrice(input=0.5, output=2.5, cache_read=0.025, cache_write=0.625),
 }
 
 

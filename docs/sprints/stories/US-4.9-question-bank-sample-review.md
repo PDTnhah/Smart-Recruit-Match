@@ -120,3 +120,4 @@ _Chưa bắt đầu._
 - [CHANGELOG](../../CHANGELOG.md)
 - [US-4.2 Validator và khóa ngân hàng](US-4.2-validator-and-question-bank-lock.md)
 - [US-4.6 Phúc khảo và báo lỗi câu hỏi](US-4.6-appeals-and-question-error-reports.md)
+- [US-4.11 Xem toàn bộ câu và loại câu sai](US-4.11-question-bank-browser-and-rejection.md): Trung tâm loại câu bằng tay; Validator chỉ chạy khi Trung tâm yêu cầu ([CONTEXT D60](../../CONTEXT.md)). Màn danh sách câu dùng lại được cho màn duyệt mẫu

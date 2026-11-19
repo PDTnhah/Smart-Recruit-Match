@@ -121,8 +121,9 @@ def status_error(status: int, body: dict[str, Any] | None = None) -> openai.APIS
 FORBIDDEN = ("temperature", "top_p", "tool_choice", "tools", "thinking")
 
 
-def test_ac1_openai_request_is_strict_json_schema_with_effort_and_no_storage():
-    params = provider().build_params(request("medium"))
+@pytest.mark.parametrize("effort", ["low", "medium", "high"])
+def test_ac1_openai_request_is_strict_json_schema_with_medium_effort_and_no_storage(effort):
+    params = provider().build_params(request(effort))
     assert params["model"] == OPENAI_MODEL
     assert params["response_format"] == {
         "type": "json_schema",
