@@ -10,7 +10,7 @@ version_shipped: 0.29.0
 prd_ref: [FR-19]
 depends_on: [US-4.2]
 assignee: PDTnhah
-commit:
+commit: a00ea51
 created: 2026-10-07
 updated: 2026-11-19
 external_deps: [hr_lecturer_reviewers]
@@ -110,7 +110,7 @@ Integration: `pnpm --filter @srm/api exec jest --testPathPatterns 'test/integrat
 ### Changed
 - Màn "Duyệt JD" của Trung tâm giữ JD đã duyệt (bộ lọc trạng thái).
 
-**Commit**:
+**Commit**: `a00ea51`
 
 ## Implementation notes
 
