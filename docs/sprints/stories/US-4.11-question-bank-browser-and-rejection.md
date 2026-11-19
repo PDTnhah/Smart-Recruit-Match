@@ -9,8 +9,8 @@ sprint: sprint-2026-W47
 version_shipped: 0.30.0
 prd_ref: [FR-18]
 depends_on: [US-4.10]
-assignee:
-commit:
+assignee: PDTnhah
+commit: a7c932d
 created: 2026-11-19
 updated: 2026-11-20
 ---
@@ -114,7 +114,7 @@ Ngày 2026-11-19 người dùng chốt ([CONTEXT D60](../../CONTEXT.md)): Trung 
 ### Changed
 - Tab "Ngân hàng câu hỏi" chia thành Tổng quan, Câu hỏi, Ma trận đề.
 
-**Commit**: chưa commit.
+**Commit**: `a7c932d`
 
 ## Implementation notes
 
