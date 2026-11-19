@@ -10,8 +10,9 @@ import { QuestionBankService } from '../application/question-bank.service.js';
 import { ExamBlueprintViewDto, QuestionGenerationRunDto, UpdateExamBlueprintRequestDto } from './dto.js';
 
 /**
- * Exam blueprint and question bank of a JD (FR-18, BR-05, US-4.1 AC-3, CONTEXT D49): CENTER only;
- * HR and students get 403. Generation runs in the background; the response is the run.
+ * Exam blueprint and question bank of a JD (FR-18, BR-05, US-4.1 AC-3, US-4.10 AC-2, CONTEXT D49,
+ * D60): CENTER only; HR and students get 403. Generation and AI checks run in the background; the
+ * response is the run.
  */
 @ApiTags('assessment')
 @Controller('jds')
@@ -46,5 +47,14 @@ export class BlueprintController {
   @ZodResponse({ status: 202, type: QuestionGenerationRunDto })
   generate(@CurrentUser() user: AuthUser, @Param() { id }: IdParamDto): Promise<QuestionGenerationRun> {
     return this.questionBanks.generate(id, userActor(user));
+  }
+
+  /** "Kiểm câu bằng AI": a new AI check of the questions nobody has checked; 409 while any run is RUNNING. */
+  @Roles('CENTER')
+  @Post(':id/question-bank/validate')
+  @HttpCode(202)
+  @ZodResponse({ status: 202, type: QuestionGenerationRunDto })
+  validate(@CurrentUser() user: AuthUser, @Param() { id }: IdParamDto): Promise<QuestionGenerationRun> {
+    return this.questionBanks.validate(id, userActor(user));
   }
 }

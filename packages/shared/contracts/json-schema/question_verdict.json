@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./question_verdict.json",
+  "type": "object",
+  "properties": {
+    "draft_id": {
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "maximum": 9007199254740991,
+      "description": "ai.question_drafts.id the verdict is about"
+    },
+    "validation": {
+      "$ref": "./question_validation.json"
+    }
+  },
+  "required": [
+    "draft_id",
+    "validation"
+  ],
+  "additionalProperties": false,
+  "title": "QuestionVerdict",
+  "description": "The Validator verdict on one draft of the job"
+}

@@ -1,10 +1,10 @@
-"""Test Generator (US-4.1 AC-5 to AC-8, AC-10; US-4.2 AC-4), with recorded or scripted LLM
+"""Test Generator (US-4.1 AC-5 to AC-8, AC-10; US-4.10 AC-1), with recorded or scripted LLM
 replies, never a real API.
 
-The fixtures in tests/fixtures/llm/test_generator and tests/fixtures/llm/validator answer the three
-rounds of BANK, each a Generator call and a Validator call. They are keyed by the exact request, so
-they pin the released prompts test_generator/v2 and validator/v1 and the cells, stems, refusals,
-rejections and questions the agent sends. Other tests script the replies (generator_support).
+The fixtures in tests/fixtures/llm/test_generator answer the three rounds of BANK. They are keyed by
+the exact request, so they pin the released prompt test_generator/v3 and the cells, stems and
+refusals the agent sends. The job calls no Validator: CENTER runs it as a job of its own
+(test_validator.py). Other tests script the replies (generator_support).
 """
 
 import inspect
@@ -12,6 +12,7 @@ import math
 import re
 from collections import Counter
 from pathlib import Path
+from typing import Any
 
 import pytest
 from embedding_support import TableEmbedder, at_similarity, unit
@@ -25,12 +26,10 @@ from generator_support import (
     ScriptedProvider,
     answer,
     bank,
-    check,
+    block,
     essay,
     mcq,
-    passes,
     refusal,
-    verdicts,
 )
 
 from app.agents.test_generator import (
@@ -45,7 +44,6 @@ from app.agents.test_generator import (
 from app.agents.test_generator.agent import VERDICT_TEXT
 from app.agents.test_generator.config import (
     DUPLICATE_COSINE,
-    MAX_CHECKS_PER_DRAFT,
     MAX_ESSAYS_PER_CALL,
     MAX_QUESTIONS_PER_CALL,
     MAX_ROUNDS,
@@ -124,52 +122,58 @@ def java_easy(number: int) -> dict:
     return mcq("Java", "EASY", f"Câu hỏi về {topics[number]}?")
 
 
+class AxisEmbedder(TableEmbedder):
+    """Each new text on an axis of its own: no two stems are near duplicates."""
+
+    async def embed(self, texts):
+        for text in texts:
+            self.vectors.setdefault(text, unit(*[0.0] * len(self.vectors), 1.0))
+        return await super().embed(texts)
+
+
+class Writer(ScriptedProvider):
+    """Writes exactly the questions each request asks for, none of them refused by code."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.written = 0
+
+    async def send(self, params: dict[str, Any], documents=()) -> ProviderResponse:
+        self.sent.append(params)
+        questions = []
+        for cell in block(params["user"], "cells"):
+            for _ in range(cell["questions_to_write"]):
+                self.written += 1
+                stem = f"Câu hỏi số {self.written} về {cell['skill']}?"
+                write = mcq if cell["type"] == "MCQ" else essay
+                questions.append(write(cell["skill"], cell["difficulty"], stem))
+        return answer(*questions)
+
+
 # --- AC-5: the loop -------------------------------------------------------------------------------
 
 
-async def test_gd5_generates_until_every_cell_has_three_times_validated():
-    """US-4.1 AC-5, US-4.2 AC-2 and AC-4: coverage → one generate per group of short cells →
-    submit → one Validator call on what the round stored, until every cell has 3× VALIDATED drafts.
-    Round 1 asks part A for 4× of each cell: code refuses two questions and the Validator rejects
-    one more. Round 2, part B's turn, fills the essay cell. Round 3 asks SQL for the three it
-    lacks, with the refusals of round 1 and the rejection. The fixtures pin all six requests."""
+async def test_gd5_generates_until_every_cell_has_three_times_usable():
+    """US-4.1 AC-5, US-4.10 AC-1: coverage → one generate per group of short cells → submit, until
+    every cell holds 3× usable drafts; no Validator call. Round 1 asks part A for 3× of each cell:
+    code refuses two questions, so SQL holds two. Round 2, part B's turn, fills the essay cell.
+    Round 3 asks SQL for the one it lacks, with the refusals of round 1. The fixtures pin the three
+    requests."""
     harness = Harness(BANK, provider=RecordingFixtureProvider())
     output = await harness.run()
 
     assert output.rounds == 3
     assert output.missing_cells == []
     assert questions_status(output) is AiResultStatus.SUCCEEDED
-    assert [params["agent"] for params in harness.provider.sent] == [AGENT, "validator"] * 3
+    assert [params["agent"] for params in harness.provider.sent] == [AGENT] * 3
     assert harness.sent_block(1, "cells") == [
         {
             "type": "MCQ",
             "skill": "Java",
             "difficulty": "EASY",
             "level": "INTERMEDIATE",
-            "questions_to_write": 4,
+            "questions_to_write": 3,
         },
-        {
-            "type": "MCQ",
-            "skill": "SQL",
-            "difficulty": "MEDIUM",
-            "level": "BASIC",
-            "questions_to_write": 4,
-        },
-    ]
-    assert harness.sent_block(1, "refused_questions") is None
-    assert harness.sent_block(1, "rejected_questions") is None
-    # AC-2: each Validator call holds the drafts its round stored, of one type.
-    checked = [harness.sent_block(n, "questions", "validator") for n in (1, 2, 3)]
-    assert [len(questions) for questions in checked] == [6, 3, 2]
-    assert [{q["type"] for q in questions} for questions in checked] == [
-        {"MCQ"},
-        {"ESSAY"},
-        {"MCQ"},
-    ]
-    assert harness.sent_block(2, "cells")[0]["type"] == "ESSAY"
-    assert harness.sent_block(2, "refused_questions") is None
-    # AC-4: SQL holds one VALIDATED draft and one rejected: round 3 asks for 4 - 1.
-    assert harness.sent_block(3, "cells") == [
         {
             "type": "MCQ",
             "skill": "SQL",
@@ -178,45 +182,48 @@ async def test_gd5_generates_until_every_cell_has_three_times_validated():
             "questions_to_write": 3,
         },
     ]
+    assert harness.sent_block(1, "refused_questions") is None
+    assert harness.sent_block(1, "rejected_questions") is None
+    assert harness.sent_block(2, "cells") == [
+        {
+            "type": "ESSAY",
+            "skill": "Java",
+            "difficulty": "MEDIUM",
+            "level": "INTERMEDIATE",
+            "questions_to_write": 3,
+        },
+    ]
+    assert harness.sent_block(2, "refused_questions") is None
+    # SQL holds two usable drafts, nobody has checked them: round 3 asks for 3 - 2.
+    assert harness.sent_block(3, "cells") == [
+        {
+            "type": "MCQ",
+            "skill": "SQL",
+            "difficulty": "MEDIUM",
+            "level": "BASIC",
+            "questions_to_write": 1,
+        },
+    ]
     assert [r["reason"] for r in harness.sent_block(3, "refused_questions")] == [
         "an MCQ needs exactly one correct option",
         "it repeats an existing question or another one of the answer",
     ]
-    [rejected] = harness.sent_block(3, "rejected_questions")
-    assert rejected["stem"].startswith("Khi nối bảng employees với departments")
-    assert rejected["reasons"] == [VERDICT_TEXT[Reason.WEAK_DISTRACTORS]]
-    assert [q["skill"] for q in harness.sent_block(3, "existing_questions")] == ["SQL"]
+    assert harness.sent_block(3, "rejected_questions") is None
+    assert [q["skill"] for q in harness.sent_block(3, "existing_questions")] == ["SQL", "SQL"]
 
-    by_cell = Counter(
-        (q.root.type, q.root.skill, q.root.difficulty, q.root.validation.status.value)
-        for q in output.questions
-    )
+    by_cell = Counter((q.root.type, q.root.skill, q.root.difficulty) for q in output.questions)
+    # The LLM wrote more than asked; a cell takes up to 5×.
     assert by_cell == {
-        ("MCQ", "Java", "EASY", "VALIDATED"): 4,
-        ("MCQ", "SQL", "MEDIUM", "VALIDATED"): 3,
-        ("MCQ", "SQL", "MEDIUM", "REJECTED"): 1,
-        ("ESSAY", "Java", "MEDIUM", "VALIDATED"): 3,
+        ("MCQ", "Java", "EASY"): 4,
+        ("MCQ", "SQL", "MEDIUM"): 4,
+        ("ESSAY", "Java", "MEDIUM"): 3,
     }
     assert {(q.root.model, q.root.prompt_version) for q in output.questions} == {
-        (MODEL, "test_generator/v2")
+        (MODEL, "test_generator/v3")
     }
-    checks = [q.root.validation for q in output.questions]
-    assert {(v.model, v.prompt_version) for v in checks} == {(MODEL, "validator/v1")}
-    # One level off is kept, with the estimate (D50); an essay has no options to solve.
-    [harder] = [
-        q.root
-        for q in output.questions
-        if q.root.difficulty == "EASY" and q.root.validation.estimated_difficulty == "MEDIUM"
-    ]
-    assert harder.validation.status.value == "VALIDATED"
-    assert {q.root.validation.correct_options is None for q in output.questions} == {True, False}
-    assert all(
-        q.root.validation.correct_options is None
-        for q in output.questions
-        if q.root.type == "ESSAY"
-    )
+    assert {q.root.validation for q in output.questions} == {None}
+    assert harness.validations.rows == {}
     assert set(harness.drafts.job_of.values()) == {JOB_ID}
-    assert {job for job, _ in harness.validations.rows.values()} == {JOB_ID}
     QuestionsGenerateOutput.model_validate(output.model_dump(mode="json"))
 
 
@@ -231,7 +238,7 @@ async def test_gd5_prompt_puts_requirements_in_shared_and_effort_high():
     for params in generator:
         assert (params["agent"], params["prompt_version"], params["effort"]) == (
             AGENT,
-            "test_generator/v2",
+            "test_generator/v3",
             "high",
         )
         assert params["shared"].startswith("Requirements of the position:\n\n<jd_requirements>")
@@ -240,20 +247,49 @@ async def test_gd5_prompt_puts_requirements_in_shared_and_effort_high():
         assert set(params["output_schema"]["properties"]) == {"questions"}
     # Byte-identical on every round, so it stays cacheable (AGENTS › Gọi LLM).
     assert len({params["system"] for params in generator}) == 1
-    assert [row.agent for row in harness.calls.rows] == [AGENT, "validator"] * 3
+    assert [row.agent for row in harness.calls.rows] == [AGENT] * 3
     assert {row.effort for row in harness.calls.rows} == {"high"}
 
 
+async def test_gd5_one_call_per_group_of_cells_and_no_check():
+    """US-4.10 AC-1: a bank like that of JD 5 (20 one-question cells in part A, 2 in part B) needs
+    60 multiple-choice and 6 essay drafts at 3×. When code refuses none, the job makes one LLM call
+    per group: 4 of 15 multiple-choice questions and 2 of at most 5 essays, the parts taking turns,
+    and no Validator call."""
+    skills = ("Java", "SQL", "Git", "Docker", "Spring Boot", "React", "Linux")
+    a_cells = [(s, d, 1) for s in skills for d in ("EASY", "MEDIUM", "HARD")][:20]
+    jd5 = bank(a_cells, (("Java", "MEDIUM", 1), ("SQL", "MEDIUM", 1)))
+    harness = Harness(jd5, provider=Writer(), embedder=AxisEmbedder(model="axis-v1"))
+    output = await harness.run()
+
+    asked = [
+        (cells[0]["type"], sum(c["questions_to_write"] for c in cells))
+        for cells in (harness.sent_block(n, "cells") for n in range(1, 7))
+    ]
+    assert asked == [
+        ("MCQ", 15),
+        ("ESSAY", MAX_ESSAYS_PER_CALL),
+        ("MCQ", 15),
+        ("ESSAY", 1),
+        ("MCQ", 15),
+        ("MCQ", 15),
+    ]
+    assert output.rounds == len(harness.provider.sent) == 6
+    assert {params["agent"] for params in harness.provider.sent} == {AGENT}
+    assert output.missing_cells == []
+    assert len(output.questions) == 66
+
+
 async def test_gd5_round_asks_one_part_at_most_fifteen_questions():
-    """A round takes the short cells of one part in blueprint order, each up to 4×, 15 in all."""
+    """A round takes the short cells of one part in blueprint order, each up to 3×, 15 in all."""
     wide = bank((("Java", "EASY", 2), ("Java", "MEDIUM", 3), ("SQL", "HARD", 2)))
     harness = Harness(wide, provider=ScriptedProvider(*[EMPTY] * MAX_ROUNDS))
     await harness.run(wide.bank_id)
 
     cells = harness.sent_block(1, "cells")
     assert [(c["skill"], c["difficulty"], c["questions_to_write"]) for c in cells] == [
-        ("Java", "EASY", 8),
-        ("Java", "MEDIUM", 7),
+        ("Java", "EASY", 6),
+        ("Java", "MEDIUM", 9),
     ]
     assert sum(c["questions_to_write"] for c in cells) == MAX_QUESTIONS_PER_CALL
     assert {c["type"] for c in cells} == {"MCQ"}
@@ -264,14 +300,14 @@ async def test_gd5_essay_round_asks_at_most_five():
     two_essays = bank(b_cells=(("Java", "MEDIUM", 1), ("SQL", "MEDIUM", 1)))
     harness = Harness(two_essays, provider=ScriptedProvider(*[EMPTY] * MAX_ROUNDS))
     for n in range(3):
-        harness.seed_checked(41, java_easy(n), vector=unit(1, n))
-        harness.seed_checked(41, mcq("SQL", "MEDIUM", f"Câu SQL số {n}?"), vector=unit(0, 1, n))
+        harness.drafts.seed(41, java_easy(n), vector=unit(1, n))
+        harness.drafts.seed(41, mcq("SQL", "MEDIUM", f"Câu SQL số {n}?"), vector=unit(0, 1, n))
     await harness.run()
 
     cells = harness.sent_block(1, "cells")
     assert [(c["type"], c["skill"], c["questions_to_write"]) for c in cells] == [
-        ("ESSAY", "Java", 4),
-        ("ESSAY", "SQL", 1),
+        ("ESSAY", "Java", 3),
+        ("ESSAY", "SQL", 2),
     ]
     assert sum(c["questions_to_write"] for c in cells) == MAX_ESSAYS_PER_CALL
 
@@ -284,12 +320,12 @@ async def test_gd5_stops_at_max_rounds_and_reports_missing_cells():
     assert output.rounds == MAX_ROUNDS
     assert len(harness.provider.sent) == MAX_ROUNDS
     assert [
-        (c.type, c.skill, c.difficulty, c.drafted, c.validated, c.required)
+        (c.type, c.skill, c.difficulty, c.drafted, c.validated, c.usable, c.required)
         for c in output.missing_cells
     ] == [
-        ("MCQ", "Java", "EASY", 0, 0, 3),
-        ("MCQ", "SQL", "MEDIUM", 0, 0, 3),
-        ("ESSAY", "Java", "MEDIUM", 0, 0, 3),
+        ("MCQ", "Java", "EASY", 0, 0, 0, 3),
+        ("MCQ", "SQL", "MEDIUM", 0, 0, 0, 3),
+        ("ESSAY", "Java", "MEDIUM", 0, 0, 0, 3),
     ]
     assert questions_status(output) is AiResultStatus.PARTIAL
 
@@ -300,15 +336,15 @@ async def test_gd5_stops_once_the_token_budget_is_spent():
         stop_reason=StopReason.END_TURN,
         text='{"questions": "none"}',
         model=MODEL,
-        usage=Usage(input_tokens=250_000, output_tokens=50_000),
+        usage=Usage(input_tokens=200_000, output_tokens=50_000),
     )
-    spent = Usage(input_tokens=100_000, output_tokens=50_000)
+    spent = Usage(input_tokens=50_000, output_tokens=50_000)
     harness = Harness(
         BANK, provider=ScriptedProvider(invalid, answer(usage=spent), answer(usage=spent))
     )
     output = await harness.run()
 
-    # Round 1: 300K invalid + 150K valid; round 2: 150K more reaches the 600K budget.
+    # Round 1: 250K invalid + 100K valid; round 2: 100K more passes the 400K budget.
     assert output.rounds == 2
     assert [row.outcome for row in harness.calls.rows] == [
         Outcome.INVALID_OUTPUT,
@@ -321,7 +357,7 @@ async def test_gd5_stops_once_the_token_budget_is_spent():
 async def test_gd5_retried_job_counts_the_tokens_of_its_earlier_attempts():
     """AC-5: an attempt that fails is run again with the same job id; the budget is the job's, so
     the retry reads what ai.llm_calls logged for it and stops sooner."""
-    spent = Usage(input_tokens=150_000, output_tokens=50_000)
+    spent = Usage(input_tokens=100_000, output_tokens=50_000)
     harness = Harness(BANK, provider=ScriptedProvider(*[answer(usage=spent)] * 4))
     harness.drafts.fail_inserts = 2  # A store that is down: the first attempt dies in round 2.
     with pytest.raises(ConnectionError):
@@ -329,7 +365,7 @@ async def test_gd5_retried_job_counts_the_tokens_of_its_earlier_attempts():
 
     output = await harness.run()
 
-    # 400K before the retry: one more round reaches the 600K budget, not two.
+    # 300K before the retry: one more round passes the 400K budget, not two.
     assert output.rounds == 1
     assert len(harness.calls.rows) == 3
     assert questions_status(output) is AiResultStatus.PARTIAL
@@ -338,7 +374,7 @@ async def test_gd5_retried_job_counts_the_tokens_of_its_earlier_attempts():
 async def test_gd5_parts_take_turns_and_the_least_asked_cells_go_first():
     """A cell that never fills holds up no other: part B gets every other round, and in part A the
     cells left out of a round open the next one."""
-    wide = bank((("Java", "EASY", 2), ("Java", "MEDIUM", 3), ("SQL", "HARD", 2)))
+    wide = bank((("Java", "EASY", 3), ("Java", "MEDIUM", 3), ("SQL", "HARD", 2)))
     harness = Harness(wide, provider=ScriptedProvider(*[EMPTY] * MAX_ROUNDS))
     await harness.run(wide.bank_id)
 
@@ -350,16 +386,16 @@ async def test_gd5_parts_take_turns_and_the_least_asked_cells_go_first():
         "MCQ",
         "ESSAY",
     ] * 3
-    assert asked(1) == [("Java", "EASY", 8), ("Java", "MEDIUM", 7)]
-    assert asked(3) == [("SQL", "HARD", 8), ("Java", "EASY", 7)]
-    assert asked(5) == [("Java", "MEDIUM", 12), ("SQL", "HARD", 3)]
+    assert asked(1) == [("Java", "EASY", 9), ("Java", "MEDIUM", 6)]
+    assert asked(3) == [("SQL", "HARD", 6), ("Java", "EASY", 9)]
+    assert asked(5) == [("Java", "MEDIUM", 9), ("SQL", "HARD", 6)]
 
 
 async def test_gd5_refusal_fails_with_llm_call_logged():
     """AC-10: a refusal fails the job for a person to look at, and ai.llm_calls has the attempt;
     the drafts of the round before stay for the next run."""
     first = answer(*(java_easy(n) for n in range(3)))
-    harness = Harness(BANK, provider=ScriptedProvider(first, passes(3), refusal()))
+    harness = Harness(BANK, provider=ScriptedProvider(first, refusal()))
 
     with pytest.raises(NeedsHumanReview) as raised:
         await harness.run()
@@ -369,7 +405,6 @@ async def test_gd5_refusal_fails_with_llm_call_logged():
     assert (refused.agent, refused.effort, refused.outcome) == (AGENT, "high", Outcome.REFUSED)
     assert refused.job_id == JOB_ID
     assert len(harness.drafts.rows) == 3
-    assert len(harness.validations.rows) == 3
 
 
 async def test_gd5_bank_locked_or_gone_fails_at_once():
@@ -384,9 +419,9 @@ async def test_gd5_bank_locked_or_gone_fails_at_once():
 
 async def test_gd5_result_carries_every_draft_of_the_bank():
     """D49: the result lists the drafts of earlier jobs too, those of cells no longer in the
-    blueprint included, so a draft of a failed job still reaches the backend; each carries its
-    verdict, and a draft of a cell no longer in the blueprint is never checked (D50). A draft
-    without a vector of the current embedder gets one when the job loads the bank."""
+    blueprint included, so a draft of a failed job still reaches the backend; each carries the
+    verdict an AI check stored, or none. A draft without a vector of the current embedder gets one
+    when the job loads the bank."""
     harness = Harness(BANK, provider=ScriptedProvider())
     seeded = (
         [harness.seed_checked(41, java_easy(n), vector=unit(1, n)) for n in range(3)]
@@ -412,160 +447,33 @@ async def test_gd5_result_carries_every_draft_of_the_bank():
     QuestionsGenerateOutput.model_validate(output.model_dump(mode="json"))
 
 
-# --- US-4.2 AC-4: the Validator in the loop -------------------------------------------------------
+# --- US-4.10 AC-1: drafts nobody checked count, rejected ones are replaced ------------------------
 
 
-async def test_gd5_waiting_drafts_are_checked_before_the_first_round():
-    """US-4.2 AC-4: drafts of a run before the Validator are checked first; the round then asks
-    only for what the VALIDATED ones lack, and shows the rejected one with its reason."""
-    first_check = verdicts(check(1), check(2), check(3, ["B"]))
-    harness = Harness(BANK, provider=ScriptedProvider(first_check, *[EMPTY] * MAX_ROUNDS))
-    waiting = [harness.drafts.seed(41, java_easy(n), vector=unit(1, n)) for n in range(3)]
-    orphan = harness.drafts.seed(41, mcq("Docker", "HARD", "Câu Docker đã bỏ khỏi ma trận?"))
+async def test_gd5_unchecked_drafts_count_and_a_rejected_one_is_written_again():
+    """US-4.10 AC-1: a draft nobody checked counts toward its cell; one an AI check rejected does
+    not, and the round shows it with its reason so the LLM does not write it again."""
+    harness = Harness(BANK, provider=ScriptedProvider(*[EMPTY] * MAX_ROUNDS))
+    ids = [harness.drafts.seed(41, java_easy(n), vector=unit(1, n)) for n in range(3)]
+    harness.validations.pass_draft(harness.drafts.rows[0])
+    harness.validations.judge(harness.drafts.rows[2], clear=False)
     output = await harness.run()
 
-    assert harness.provider.sent[0]["agent"] == "validator"
-    assert len(harness.sent_to("validator")) == 1
-    assert [q["stem"] for q in harness.sent_block(1, "questions", "validator")] == [
-        java_easy(n)["stem"] for n in range(3)
-    ]
+    assert {params["agent"] for params in harness.provider.sent} == {AGENT}
     java = harness.sent_block(1, "cells")[0]
-    assert (java["skill"], java["difficulty"], java["questions_to_write"]) == ("Java", "EASY", 2)
+    assert (java["skill"], java["difficulty"], java["questions_to_write"]) == ("Java", "EASY", 1)
     [rejected] = harness.sent_block(1, "rejected_questions")
     assert rejected == {
         "type": "MCQ",
         "skill": "Java",
         "difficulty": "EASY",
         "stem": java_easy(2)["stem"],
-        "reasons": [VERDICT_TEXT[Reason.ANSWER_MISMATCH]],
+        "reasons": [VERDICT_TEXT[Reason.UNCLEAR]],
     }
+    cell = output.missing_cells[0]
+    assert (cell.drafted, cell.validated, cell.usable, cell.required) == (3, 1, 2, 3)
     by_id = {q.root.draft_id: q.root.validation for q in output.questions}
-    assert [by_id[draft_id].status.value for draft_id in waiting] == [
-        "VALIDATED",
-        "VALIDATED",
-        "REJECTED",
-    ]
-    assert by_id[orphan] is None
-    assert (output.missing_cells[0].drafted, output.missing_cells[0].validated) == (3, 2)
-
-
-async def test_gd5_drafts_without_a_valid_check_are_checked_again_next_round():
-    """AC-2, AC-4: invalid output splits the group; drafts still invalid alone wait and the job
-    goes on. They count toward the cell's 4×, so the next round asks for nothing and only checks
-    them again."""
-    small = bank((("Java", "EASY", 1),))
-    invalid = ProviderResponse(
-        stop_reason=StopReason.END_TURN, text='{"results": 3}', model=MODEL, usage=Usage()
-    )
-    script = [
-        answer(*(java_easy(n) for n in range(4))),
-        *[invalid] * 3,  # the four drafts
-        passes(2),  # the first half
-        *[invalid] * 9,  # the second half, then each of its two drafts alone
-        passes(2),  # round 2: the two drafts again
-    ]
-    harness = Harness(small, provider=ScriptedProvider(*script))
-    for n in range(3):
-        harness.seed_checked(41, essay("Java", "MEDIUM", f"Bài tự luận số {n}"))
-    output = await harness.run()
-
-    assert (output.rounds, output.missing_cells) == (2, [])
-    assert [params["agent"] for params in harness.provider.sent] == [AGENT] + ["validator"] * 14
-    assert [q["stem"] for q in harness.sent_block(14, "questions", "validator")] == [
-        java_easy(n)["stem"] for n in (2, 3)
-    ]
-    assert len(harness.validations.rows) == 7
-
-
-async def test_gd5_a_draft_sent_twice_without_a_verdict_is_given_up_for_the_job():
-    """AC-4: a draft that gets no verdict from MAX_CHECKS_PER_DRAFT checks takes no room in its
-    cell for the rest of the job: the cell asks for another in its place."""
-    small = bank((("Java", "EASY", 1),))
-    script = [
-        answer(*(java_easy(n) for n in range(4))),
-        verdicts(check(1), check(2)),  # no result for the last two
-        verdicts(check(9)),  # round 2 asks for nothing and checks them again: still none
-        answer(java_easy(4), java_easy(5)),
-        passes(2),
-    ]
-    harness = Harness(small, provider=ScriptedProvider(*script))
-    for n in range(3):
-        harness.seed_checked(41, essay("Java", "MEDIUM", f"Bài tự luận số {n}"))
-    output = await harness.run()
-
-    assert MAX_CHECKS_PER_DRAFT == 2
-    assert (output.rounds, output.missing_cells) == (3, [])
-    assert [params["agent"] for params in harness.provider.sent] == [
-        AGENT,
-        "validator",
-        "validator",
-        AGENT,
-        "validator",
-    ]
-    [java] = harness.sent_block(2, "cells")
-    assert java["questions_to_write"] == 2
-    assert [q["stem"] for q in harness.sent_block(3, "questions", "validator")] == [
-        java_easy(n)["stem"] for n in (4, 5)
-    ]
-    checked = {q.root.stem: q.root.validation is not None for q in output.questions}
-    assert [checked[java_easy(n)["stem"]] for n in range(6)] == [
-        True,
-        True,
-        False,
-        False,
-        True,
-        True,
-    ]
-
-
-async def test_gd5_only_the_drafts_a_short_cell_needs_are_checked():
-    """AC-4: before the first round a cell sends the waiting drafts that could take it to 4×,
-    oldest first; a cell already at 3× VALIDATED sends none."""
-    small = bank((("Java", "EASY", 1),))
-    harness = Harness(small, provider=ScriptedProvider(passes(4), *[EMPTY] * MAX_ROUNDS))
-    waiting = [harness.drafts.seed(41, java_easy(n), vector=unit(1, n)) for n in range(5)]
-    for n in range(3):
-        harness.seed_checked(41, essay("Java", "MEDIUM", f"Bài tự luận số {n}"))
-    harness.drafts.seed(41, essay("Java", "MEDIUM", "Bài tự luận còn chờ"))
-    output = await harness.run()
-
-    assert len(harness.sent_to("validator")) == 1
-    assert [q["stem"] for q in harness.sent_block(1, "questions", "validator")] == [
-        java_easy(n)["stem"] for n in range(4)
-    ]
-    assert (output.rounds, output.missing_cells) == (0, [])
-    assert waiting[4] not in harness.validations.rows
-
-
-async def test_gd5_validator_tokens_count_toward_the_budget():
-    """US-4.2 AC-4: the Validator spends from the job's MAX_TOKENS_PER_JOB too."""
-    heavy = Usage(input_tokens=500_000, output_tokens=100_000)
-    harness = Harness(
-        BANK,
-        provider=ScriptedProvider(
-            answer(*(java_easy(n) for n in range(4))),
-            verdicts(*(check(ref) for ref in range(1, 5)), usage=heavy),
-        ),
-    )
-    output = await harness.run()
-
-    assert output.rounds == 1
-    assert questions_status(output) is AiResultStatus.PARTIAL
-
-
-async def test_gd5_no_check_starts_past_the_budget():
-    """No LLM call starts once the budget is spent: the round's drafts wait for the next job."""
-    harness = Harness(
-        BANK,
-        provider=ScriptedProvider(
-            answer(*(java_easy(n) for n in range(4)), usage=Usage(input_tokens=MAX_TOKENS_PER_JOB))
-        ),
-    )
-    output = await harness.run()
-
-    assert [params["agent"] for params in harness.provider.sent] == [AGENT]
-    assert [q.root.validation for q in output.questions] == [None] * 4
-    assert output.missing_cells[0].drafted == 4
+    assert [by_id[i] and by_id[i].status.value for i in ids] == ["VALIDATED", None, "REJECTED"]
 
 
 def test_gd5_every_validator_reason_has_a_text_for_the_generator():
@@ -584,31 +492,35 @@ def test_gd5_tools_expose_exactly_three():
     assert public == {"get_blueprint_coverage", "find_similar_questions", "submit_questions"}
 
 
-async def test_gd5_coverage_lists_cells_below_three_times_validated():
-    """US-4.2 AC-4: a cell is covered by 3× VALIDATED drafts. Waiting drafts count toward what a
-    round asks for (4×); rejected ones do not, and the cell lists them with their reasons."""
+async def test_gd5_coverage_lists_cells_below_three_times_usable():
+    """US-4.10 AC-1: a cell is covered by 3× usable drafts, checked or not; rejected ones do not
+    count, and the cell lists them with their reasons."""
     found: dict[int, QuestionValidation] = {}
     tools, _ = await tools_for(verdicts=found)
     assert [
-        (c.skill, c.difficulty, c.drafted, c.validated, c.required)
+        (c.skill, c.difficulty, c.drafted, c.validated, c.usable, c.required)
         for c in tools.get_blueprint_coverage()
-    ] == [("Java", "EASY", 0, 0, 3), ("SQL", "MEDIUM", 0, 0, 3), ("Java", "MEDIUM", 0, 0, 3)]
+    ] == [
+        ("Java", "EASY", 0, 0, 0, 3),
+        ("SQL", "MEDIUM", 0, 0, 0, 3),
+        ("Java", "MEDIUM", 0, 0, 0, 3),
+    ]
 
-    report = await submit(tools, *(java_easy(n) for n in range(4)))
+    report = await submit(tools, *(java_easy(n) for n in range(2)))
 
     def java() -> object:
         [cell] = [c for c in tools.get_blueprint_coverage() if c.difficulty == "EASY"]
         return cell
 
-    assert (java().drafted, java().validated, java().pending, java().wanted) == (4, 0, 4, 0)
-    first, second, third, fourth = report.accepted
-    found.update({first: judged(), second: judged(), third: judged("UNCLEAR", "DUPLICATE")})
+    assert (java().drafted, java().validated, java().usable, java().wanted) == (2, 0, 2, 1)
+    first, second = report.accepted
+    found.update({first: judged(), second: judged("UNCLEAR", "DUPLICATE")})
     cell = java()
-    assert (cell.drafted, cell.validated, cell.pending, cell.wanted) == (4, 2, 1, 1)
-    assert cell.stems == tuple(java_easy(n)["stem"] for n in (0, 1, 3))
-    assert cell.rejected == (FailedDraft(java_easy(2)["stem"], ("UNCLEAR", "DUPLICATE")),)
+    assert (cell.drafted, cell.validated, cell.usable, cell.wanted) == (2, 1, 1, 2)
+    assert cell.stems == (java_easy(0)["stem"],)
+    assert cell.rejected == (FailedDraft(java_easy(1)["stem"], ("UNCLEAR", "DUPLICATE")),)
 
-    found[fourth] = judged()
+    await submit(tools, java_easy(2), java_easy(3))
 
     assert [(c.skill, c.difficulty) for c in tools.get_blueprint_coverage()] == [
         ("SQL", "MEDIUM"),
@@ -874,7 +786,7 @@ def test_gd5_bank_sql_reads_only_the_two_views():
     assert "WHERE locked_at IS NULL" in banks_view
 
 
-def test_gd5_limits_follow_d49():
-    assert (MAX_ROUNDS, MAX_TOKENS_PER_JOB, MAX_QUESTIONS_PER_CALL) == (12, 600_000, 15)
+def test_gd5_limits_follow_d49_and_d60():
+    assert (MAX_ROUNDS, MAX_TOKENS_PER_JOB, MAX_QUESTIONS_PER_CALL) == (12, 400_000, 15)
     assert MAX_ESSAYS_PER_CALL == 5
     assert DUPLICATE_COSINE == 0.9

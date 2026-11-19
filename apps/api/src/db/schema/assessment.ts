@@ -20,12 +20,14 @@ import {
   type ExamSessionStatus,
   type ExamStoredAnswer,
   type MissingCell,
+  QUESTION_BANK_RUN_KINDS,
   QUESTION_BANK_STATES,
   QUESTION_DIFFICULTIES,
   QUESTION_GENERATION_RUN_STATUSES,
   QUESTION_STATES,
   QUESTION_TYPES,
   type QuestionAnswerKey,
+  type QuestionBankRunKind,
   type QuestionBankStatus,
   type QuestionContent,
   type QuestionDifficulty,
@@ -106,11 +108,12 @@ export const questionBanks = core.table(
 );
 
 /**
- * One row per `ai.questions.generate` job of a bank (US-4.1 AC-4, AC-9). A technical log like
- * `match_runs`: closed once by the result of its job. The job id is stored before the job is sent,
- * so even an answer that comes at once finds its run (LESSONS §33). At most one run per bank is
- * RUNNING (AGENTS › Invariant 11); a run whose result can no longer be expected is closed FAILED
- * with `STALE` by the next one.
+ * One row per AI job of a bank (US-4.1 AC-4, AC-9, US-4.10 AC-2): `ai.questions.generate` for a
+ * GENERATE run, `ai.questions.validate` for a VALIDATE run. A technical log like `match_runs`:
+ * closed once by the result of its job. The job id is stored before the job is sent, so even an
+ * answer that comes at once finds its run (LESSONS §33). At most one run per bank is RUNNING,
+ * whatever its kind, so the bank is never filled and checked at once (AGENTS › Invariant 11); a
+ * run whose result can no longer be expected is closed FAILED with `STALE` by the next one.
  */
 export const questionGenerationRuns = core.table(
   'question_generation_runs',
@@ -120,6 +123,7 @@ export const questionGenerationRuns = core.table(
       .notNull()
       .references(() => questionBanks.id),
     jobId: uuid('job_id').notNull().unique('question_generation_runs_job_id_key'),
+    kind: text('kind').$type<QuestionBankRunKind>().notNull().default('GENERATE'),
     /** When the broker took the job; null until the API has handed it over. */
     dispatchedAt: timestamptz('dispatched_at'),
     status: text('status').$type<QuestionGenerationRunStatus>().notNull(),
@@ -127,7 +131,7 @@ export const questionGenerationRuns = core.table(
     actorId: ref('actor_id').references(() => users.id),
     /** Cells still short of drafts when the job ended; null while it runs or when it failed whole. */
     missingCells: jsonb('missing_cells').$type<MissingCell[]>(),
-    /** Drafts of the result the bank did not hold yet. */
+    /** GENERATE: drafts of the result the bank did not hold yet. VALIDATE: questions it gave a verdict. */
     questionsReceived: integer('questions_received').notNull().default(0),
     errorCode: text('error_code'),
     ...timestamps(),
@@ -135,8 +139,9 @@ export const questionGenerationRuns = core.table(
   },
   (t) => [
     oneOf('question_generation_runs_status_check', t.status, QUESTION_GENERATION_RUN_STATUSES),
+    oneOf('question_generation_runs_kind_check', t.kind, QUESTION_BANK_RUN_KINDS),
     oneOf('question_generation_runs_actor_kind_check', t.actorKind, ACTOR_KINDS),
-    // AC-4: one running job per bank; a second request answers with the running one.
+    // AC-4: one running job per bank, of either kind (US-4.10 AC-2).
     uniqueIndex('question_generation_runs_bank_running_key')
       .on(t.bankId)
       .where(sql`${t.status} = 'RUNNING'`),
@@ -150,8 +155,9 @@ export const questionGenerationRuns = core.table(
 
 /**
  * Questions of a bank (FR-18, US-4.1 AC-9). Written by the Core Backend from the drafts of the
- * Test Generator, each once by `draft_id` (`ai.question_drafts.id`), status DRAFT until the
- * Validator's verdict moves it, with `validation`, to VALIDATED or REJECTED (US-4.2 AC-5).
+ * Test Generator, each once by `draft_id` (`ai.question_drafts.id`), status DRAFT (usable, nobody
+ * checked it) until the Validator's verdict moves it, with `validation`, to VALIDATED or REJECTED
+ * (US-4.2 AC-5, US-4.10). DRAFT and VALIDATED questions are drawn; either may be RETIRED.
  * `content` is what a student may see; `answer_key` and `rubric` never leave the server for a
  * student (AGENTS › Invariant 8).
  */
@@ -171,7 +177,7 @@ export const questions = core.table(
     answerKey: jsonb('answer_key').$type<QuestionAnswerKey>().notNull(),
     rubric: jsonb('rubric').$type<QuestionRubric>(),
     status: text('status').$type<QuestionStatus>().notNull().default('DRAFT'),
-    /** The Validator's verdict with its model and prompt (Invariant 12); null while DRAFT. */
+    /** The Validator's verdict with its model and prompt (Invariant 12); null while DRAFT, and on a question retired unchecked. */
     validation: jsonb('validation').$type<QuestionValidation>(),
     version: integer('version').notNull().default(1),
     model: text('model').notNull(),
@@ -185,7 +191,11 @@ export const questions = core.table(
     oneOf('questions_type_check', t.type, QUESTION_TYPES),
     oneOf('questions_difficulty_check', t.difficulty, QUESTION_DIFFICULTIES),
     oneOf('questions_status_check', t.status, QUESTION_STATES),
-    check('questions_validation_check', sql`(${t.status} = 'DRAFT') = (${t.validation} is null)`),
+    // A checked status has its verdict; a DRAFT has none; a RETIRED one keeps what it had (US-4.10 AC-4).
+    check(
+      'questions_validation_check',
+      sql`${t.status} = 'RETIRED' or (${t.status} = 'DRAFT') = (${t.validation} is null)`,
+    ),
     // An essay is graded by its rubric; a multiple-choice question has none.
     check('questions_rubric_check', sql`(${t.type} = 'ESSAY') = (${t.rubric} is not null)`),
     check('questions_version_check', sql`${t.version} > 0`),

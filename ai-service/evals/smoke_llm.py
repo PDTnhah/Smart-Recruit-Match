@@ -15,9 +15,10 @@ SDK:
 `--cv FILE` runs the CV Parser on a sample CV instead (US-2.4); a scan checks that the adapter
 sends a document: `--cv tests/fixtures/cv/cv_scanned.pdf` (DeepSeek refuses it by design). Its
 skills all come back NEW: the run has an empty catalogue and keeps no embedding (US-2.5).
-`--bank` runs the Test Generator with its Validator on the Backend Java blueprint of PRD GĐ5
-(US-4.1, US-4.2), drafts and verdicts kept in memory, and prints the cost of one bank and the share
-of drafts the Validator rejected: the numbers the stories' performance budgets ask for.
+`--bank` runs the Test Generator on the Backend Java blueprint of PRD GĐ5, then the AI check
+("Kiểm câu bằng AI") on every draft it stored (US-4.1, US-4.2, US-4.10), drafts and verdicts kept in
+memory, and prints the calls and tokens of each job and the share of drafts the Validator rejected:
+the numbers the stories' performance budgets ask for.
 `--grader` grades three synthetic essay answers with grader/v1, each pass sent on its own instead
 of through a batch (US-4.4): a sound answer, a weak one and one that asks for full marks.
 It prints the points per criterion, the confidence, the flags and whether the grade fits the rubric.
@@ -41,11 +42,12 @@ from app.agents.cv_parser import CvParser
 from app.agents.grader.agent import CheckedGradingResult, EssayGrader, parse_rubric, rubric_problem
 from app.agents.grader.source import AnswerRow, ref_of
 from app.agents.test_generator import BankSource, Draft, NewDraft, TestGenerator
-from app.agents.validator import Validator, Verdict
+from app.agents.validator import BankValidator, Validator, Verdict
 from app.contracts.cv_parse_job import CvParseJob
 from app.contracts.exam_blueprint import ExamBlueprint
 from app.contracts.question_validation import QuestionValidation
 from app.contracts.questions_generate_job import QuestionsGenerateJob
+from app.contracts.questions_validate_job import QuestionsValidateJob
 from app.embedding import (
     CatalogSkill,
     EmbeddingRow,
@@ -243,36 +245,59 @@ class MemoryValidations:
             self.rows.setdefault(verdict.draft_id, verdict.validation)
 
 
+def spent_by(calls, job_id) -> str:
+    """Attempts and tokens of one job, as ai.llm_calls logs them (only with `--record local`)."""
+    rows = [row for row in getattr(calls, "rows", []) if row.job_id == job_id]
+    tokens = sum(row.usage.total_tokens for row in rows)
+    return f"{len(rows)} call(s), {tokens} tokens"
+
+
 async def generate_bank(client, settings, calls) -> str:
-    """`calls` is the store the client logs to: the job's budget reads the tokens spent there."""
+    """`calls` is the store the client logs to: each job's budget reads the tokens spent there."""
     prompts = build_prompt_registry(settings)
+    drafts = MemoryDrafts()
+    validations = MemoryValidations()
     agent = TestGenerator(
         sources=OneBank(),
-        drafts=MemoryDrafts(),
-        validator=Validator(llm=client, prompts=prompts, repo=MemoryValidations()),
+        drafts=drafts,
+        validations=validations,
         embedder=HashingEmbedder(),
         llm=client,
         prompts=prompts,
         spend=calls,
     )
-    output = await agent(QuestionsGenerateJob(job_id=uuid4(), bank_id=1))
+    generate = QuestionsGenerateJob(job_id=uuid4(), bank_id=1)
+    output = await agent(generate)
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / "bank.json").write_text(output.model_dump_json(indent=2), "utf-8")
     missing = [
-        f"{c.type} {c.skill} {c.difficulty} {c.validated}/{c.required}"
-        for c in output.missing_cells
+        f"{c.type} {c.skill} {c.difficulty} {c.usable}/{c.required}" for c in output.missing_cells
     ]
-    checked = [q.root.validation for q in output.questions if q.root.validation]
-    rejected = [v for v in checked if v.status.value == "REJECTED"]
+    # "Kiểm câu bằng AI" on every draft, as CENTER would press it (US-4.10).
+    checker = BankValidator(
+        drafts=drafts,
+        validator=Validator(llm=client, prompts=prompts, repo=validations),
+        spend=calls,
+    )
+    ids = [q.root.draft_id for q in output.questions]
+    check = QuestionsValidateJob.model_validate(
+        {"job_id": str(uuid4()), "bank_id": 1, "draft_ids": ids}
+    )
+    checked = await checker(check)
+    (OUT / "bank-check.json").write_text(checked.model_dump_json(indent=2), "utf-8")
+    rejected = [v.validation for v in checked.verdicts if v.validation.status.value == "REJECTED"]
     reasons: dict[str, int] = {}
     for validation in rejected:
         for reason in validation.reasons:
             reasons[reason.value] = reasons.get(reason.value, 0) + 1
     return (
-        f"{len(output.questions)} drafts in {output.rounds} rounds, in {OUT / 'bank.json'}; "
-        f"{len(checked)} checked, {len(rejected)} rejected "
-        f"({', '.join(f'{r} ×{n}' for r, n in sorted(reasons.items())) or '-'}); "
-        f"missing cells (validated/required): {', '.join(missing) or 'none'}"
+        f"generation: {len(output.questions)} drafts in {output.rounds} rounds, "
+        f"{spent_by(calls, generate.job_id)}, in {OUT / 'bank.json'}; "
+        f"missing cells (usable/required): {', '.join(missing) or 'none'}; "
+        f"AI check: {len(checked.verdicts)} checked, {len(checked.unchecked)} unchecked, "
+        f"{len(rejected)} rejected "
+        f"({', '.join(f'{r} ×{n}' for r, n in sorted(reasons.items())) or '-'}), "
+        f"{spent_by(calls, check.job_id)}, in {OUT / 'bank-check.json'}"
     )
 
 

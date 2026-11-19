@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type { MissingCell, QuestionGenerationRunStatus } from '@srm/shared';
+import type { MissingCell, QuestionBankRunKind, QuestionGenerationRunStatus } from '@srm/shared';
 import { and, desc, eq, isNull, lt, or, sql } from 'drizzle-orm';
 import { questionGenerationRuns } from '../../../db/schema/index.js';
 import { DRIZZLE } from '../../../db/tokens.js';
@@ -8,9 +8,10 @@ import type { Actor } from '../../audit/index.js';
 
 export type QuestionGenerationRunRecord = typeof questionGenerationRuns.$inferSelect;
 
-/** How the result of a job closes its run (US-4.1 AC-9). */
+/** How the result of a job closes its run (US-4.1 AC-9, US-4.10 AC-3). */
 export interface QuestionRunEnd {
   status: Exclude<QuestionGenerationRunStatus, 'RUNNING'>;
+  /** GENERATE only; null for a VALIDATE run. */
   missingCells: MissingCell[] | null;
   /** Required for FAILED. */
   errorCode: string | null;
@@ -61,12 +62,19 @@ export class QuestionGenerationRunsRepository {
   }
 
   /** The job id is stored with the run, before the job is sent (LESSONS §33). */
-  async insertRunning(tx: DbTx, bankId: number, jobId: string, actor: Actor): Promise<QuestionGenerationRunRecord> {
+  async insertRunning(
+    tx: DbTx,
+    bankId: number,
+    jobId: string,
+    actor: Actor,
+    kind: QuestionBankRunKind = 'GENERATE',
+  ): Promise<QuestionGenerationRunRecord> {
     const [row] = await tx
       .insert(questionGenerationRuns)
       .values({
         bankId,
         jobId,
+        kind,
         status: 'RUNNING',
         actorKind: actor.kind,
         actorId: actor.kind === 'USER' ? actor.userId : null,
@@ -91,12 +99,12 @@ export class QuestionGenerationRunsRepository {
       .where(and(eq(questionGenerationRuns.id, runId), eq(questionGenerationRuns.status, 'RUNNING')));
   }
 
-  /** The newest run of the bank, which the blueprint view shows. */
-  async latest(bankId: number): Promise<QuestionGenerationRunRecord | undefined> {
+  /** The newest run of the bank of one kind, which the blueprint view shows. */
+  async latest(bankId: number, kind: QuestionBankRunKind): Promise<QuestionGenerationRunRecord | undefined> {
     const [row] = await this.db
       .select()
       .from(questionGenerationRuns)
-      .where(eq(questionGenerationRuns.bankId, bankId))
+      .where(and(eq(questionGenerationRuns.bankId, bankId), eq(questionGenerationRuns.kind, kind)))
       .orderBy(desc(questionGenerationRuns.id))
       .limit(1);
     return row;
@@ -108,9 +116,9 @@ export class QuestionGenerationRunsRepository {
   }
 
   /**
-   * The result of the job: counts the drafts it added, and closes the run while it is RUNNING. A
-   * run already closed (a duplicate, or STALE before the result came) keeps its status; late
-   * drafts are still counted.
+   * The result of the job: counts the drafts it added (GENERATE) or the questions it gave a verdict
+   * (VALIDATE), and closes the run while it is RUNNING. A run already closed (a duplicate, or STALE
+   * before the result came) keeps its status; late drafts and verdicts are still counted.
    */
   async finishJob(tx: DbTx, jobId: string, received: number, end: QuestionRunEnd): Promise<void> {
     if (received > 0) {

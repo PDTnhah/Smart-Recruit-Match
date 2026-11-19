@@ -168,7 +168,7 @@ describe('BR-05: coverage of a question bank (US-4.1 AC-3)', () => {
     },
   };
 
-  const empty = { validated: 0, rejected: 0, pending: 0, rejectReasons: {} };
+  const empty = { validated: 0, rejected: 0, pending: 0, usable: 0, rejectReasons: {} };
 
   it('BR-05 counts drafts per cell by skillKey against 3× and 5× of the cell', () => {
     const coverage = coverageOf(blueprint, [
@@ -181,13 +181,13 @@ describe('BR-05: coverage of a question bank (US-4.1 AC-3)', () => {
       { type: 'MCQ', skill: 'Docker', difficulty: 'EASY', status: 'DRAFT', count: 3 },
     ]);
     expect(coverage).toEqual([
-      { part: 'A', type: 'MCQ', skill: 'Java', difficulty: 'EASY', needed: 2, ...empty, drafted: 6, pending: 6, min: 6, max: 10 },
+      { part: 'A', type: 'MCQ', skill: 'Java', difficulty: 'EASY', needed: 2, ...empty, drafted: 6, pending: 6, usable: 6, min: 6, max: 10 },
       { part: 'A', type: 'MCQ', skill: 'SQL', difficulty: 'HARD', needed: 1, ...empty, drafted: 0, min: 3, max: 5 },
-      { part: 'B', type: 'ESSAY', skill: 'Java', difficulty: 'MEDIUM', needed: 2, ...empty, drafted: 5, pending: 5, min: 6, max: 10 },
+      { part: 'B', type: 'ESSAY', skill: 'Java', difficulty: 'MEDIUM', needed: 2, ...empty, drafted: 5, pending: 5, usable: 5, min: 6, max: 10 },
     ]);
   });
 
-  it('GĐ5 splits each cell by status and counts rejected questions per reason (US-4.2 AC-4, AC-10)', () => {
+  it('GĐ5 splits each cell by status, usable = DRAFT + VALIDATED, rejected per reason (US-4.2 AC-4, US-4.10 AC-1)', () => {
     const [java] = coverageOf(
       blueprint,
       [
@@ -210,6 +210,8 @@ describe('BR-05: coverage of a question bank (US-4.1 AC-3)', () => {
       validated: 6,
       rejected: 3,
       pending: 2,
+      // REJECTED and RETIRED questions are not usable.
+      usable: 8,
       rejectReasons: { ANSWER_MISMATCH: 3, DIFFICULTY_MISMATCH: 1 },
     });
   });

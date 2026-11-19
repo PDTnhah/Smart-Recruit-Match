@@ -14,6 +14,7 @@ import {
   type QuestionStatus,
   type QuestionType,
   skillKey,
+  USABLE_QUESTION_STATES,
 } from '@srm/shared';
 
 // Exam blueprint of a JD (BR-05, PRD GĐ5, US-4.1 AC-1, CONTEXT D49). Pure: no NestJS, no Drizzle.
@@ -263,10 +264,10 @@ interface CellTally {
 }
 
 /**
- * Questions per blueprint cell against the BR-05 bounds (US-4.1 AC-3, US-4.2 AC-4): a cell is
- * complete with `min` times the questions it draws VALIDATED, and holds at most `max` drafts.
- * Questions are matched to cells by `skillKey`; those of a cell the blueprint no longer has, such
- * as one of a skill the JD dropped (US-4.2 AC-11), are not counted anywhere.
+ * Questions per blueprint cell against the BR-05 bounds (US-4.1 AC-3, US-4.2 AC-4, US-4.10 AC-1):
+ * a cell is complete with `min` times the questions it draws usable (DRAFT or VALIDATED), and holds
+ * at most `max` drafts. Questions are matched to cells by `skillKey`; those of a cell the blueprint
+ * no longer has, such as one of a skill the JD dropped (US-4.2 AC-11), are not counted anywhere.
  */
 export function coverageOf(
   blueprint: ExamBlueprint,
@@ -302,6 +303,7 @@ export function coverageOf(
       validated: of('VALIDATED'),
       rejected: of('REJECTED'),
       pending: of('DRAFT'),
+      usable: USABLE_QUESTION_STATES.reduce((acc, status) => acc + of(status), 0),
       rejectReasons: { ...tally?.reasons },
       min: cell.count * QUESTION_BANK_FACTORS.min,
       max: cell.count * QUESTION_BANK_FACTORS.max,

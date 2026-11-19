@@ -1,46 +1,39 @@
 """Test Generator: a loop driven by code that fills the question bank of one JD (US-4.1 AC-5 to
-AC-10, US-4.2 AC-4, PRD GĐ5, FR-18, ARCHITECTURE › Pipeline › Test Generator, CONTEXT D49, D50).
+AC-10, US-4.10 AC-1, PRD GĐ5, FR-18, ARCHITECTURE › Pipeline › Test Generator, CONTEXT D49, D60).
 
 1. Read the bank and the JD requirements through core.v_ai_question_banks and
-   core.v_ai_jd_requirements; load the bank's drafts, their vectors and the Validator's verdicts.
-2. The drafts of the short cells still waiting for a verdict go to the Validator first: those of a
-   run before the Validator existed, or of an attempt that stopped between two steps. A cell sends
-   only what could take it to 4×, oldest first; the others wait until it needs them.
-3. Each round: `get_blueprint_coverage()`; stop when no cell is short of 3× VALIDATED drafts. Take
-   the short cells of one part, the parts taking turns while both have some; the cells asked for in
-   the fewest rounds go first, in blueprint order on a tie. Each asks for what it lacks up to 4×,
-   the drafts waiting for a verdict counted in, at most 15 in all. So a cell that never fills holds
-   up neither the other cells nor the other part.
-4. One `LLMClient.generate` call, effort high: the requirements in `shared`; the cells, the stems
+   core.v_ai_jd_requirements; load the bank's drafts, their vectors and the verdicts the Validator
+   gave when CENTER ran it (QUESTIONS_VALIDATE, app/agents/validator/job.py).
+2. Each round: `get_blueprint_coverage()`; stop when no cell is short of 3× usable drafts (not
+   rejected, checked or not). Take the short cells of one part, the parts taking turns while both
+   have some; the cells asked for in the fewest rounds go first, in blueprint order on a tie. Each
+   asks for what it lacks up to 3×, at most 15 in all. So a cell that never fills holds up neither
+   the other cells nor the other part.
+3. One `LLMClient.generate` call, effort high: the requirements in `shared`; the cells, the stems
    they hold, those the Validator rejected with the reasons, and the questions code refused in the
    part's round before in `user`.
-5. `submit_questions()` checks each question, refuses duplicates and stores the others.
-6. The Validator checks the drafts the round stored, and any still waiting (app/agents/validator).
-   A round whose short cells only lack verdicts skips step 4 and 5. A draft sent
-   MAX_CHECKS_PER_DRAFT times without a verdict is given up for the job: its cell asks for another.
-7. Stop at MAX_ROUNDS, or once MAX_TOKENS_PER_JOB are spent: no LLM call starts past it. The tokens
-   of the Validator and of earlier attempts of the job count, read from ai.llm_calls. The result
-   lists the cells still short and the job is PARTIAL (`questions_status` in
-   app/consumers/kinds.py).
+4. `submit_questions()` checks each question, refuses duplicates and stores the others. A stored
+   draft is usable at once: the job does not call the Validator (D60).
+5. Stop at MAX_ROUNDS, or once MAX_TOKENS_PER_JOB are spent: no LLM call starts past it. The tokens
+   of earlier attempts of the job count, read from ai.llm_calls. The result lists the cells still
+   short and the job is PARTIAL (`questions_status` in app/consumers/kinds.py).
 
-The result carries every draft of the bank with its verdict, or none while it waits, so drafts of
-an earlier job that failed reach the backend too. A refusal of the Generator raises
-NeedsHumanReview: the job fails, and the drafts and verdicts stored so far are kept for the next
-run. The LLM writes and checks questions only; code picks the cells, checks every question, decides
-every verdict and counts coverage (AD-2).
+The result carries every draft of the bank with its verdict, or none when nobody checked it, so
+drafts of an earlier job that failed reach the backend too. A refusal of the Generator raises
+NeedsHumanReview: the job fails, and the drafts stored so far are kept for the next run. The LLM
+writes questions only; code picks the cells, checks every question and counts coverage (AD-2).
 """
 
 import logging
 from collections import Counter
-from collections.abc import Iterable, MutableMapping, Sequence
+from collections.abc import Iterable, Sequence
 from typing import Any
-from uuid import UUID
 
-from app.agents.validator import Validator, Verdict, batches
+from app.agents.validator import QuestionValidationRepo
 from app.consumers.errors import PermanentError
 from app.contracts.generated_question import GeneratedQuestion
 from app.contracts.missing_cell import MissingCell
-from app.contracts.question_validation import QuestionValidation, Reason, Status
+from app.contracts.question_validation import QuestionValidation, Reason
 from app.contracts.questions_generate_job import QuestionsGenerateJob
 from app.contracts.questions_generate_output import QuestionsGenerateOutput
 from app.embedding import Embedder, skill_match_key
@@ -51,7 +44,6 @@ from app.prompts.registry import PromptRegistry
 
 from .config import (
     AGENT,
-    MAX_CHECKS_PER_DRAFT,
     MAX_ESSAYS_PER_CALL,
     MAX_QUESTIONS_PER_CALL,
     MAX_ROUNDS,
@@ -63,7 +55,6 @@ from .schemas import QuestionProposalBatch
 from .source import BankSource, BankSourceRepo
 from .tools import (
     CellCoverage,
-    CellKey,
     PartName,
     Rejection,
     RejectReason,
@@ -112,7 +103,7 @@ class TestGenerator:
         *,
         sources: BankSourceRepo,
         drafts: QuestionDraftRepo,
-        validator: Validator,
+        validations: QuestionValidationRepo,
         embedder: Embedder,
         llm: LLMClient,
         prompts: PromptRegistry,
@@ -120,7 +111,7 @@ class TestGenerator:
     ) -> None:
         self._sources = sources
         self._drafts = drafts
-        self._validator = validator
+        self._validations = validations
         self._embedder = embedder
         self._llm = llm
         self._prompts = prompts
@@ -141,8 +132,7 @@ class TestGenerator:
                 bank.requirements_version,
             )
         drafts = list(await self._drafts.drafts(bank.bank_id))
-        verdicts = await self._validator.stored(bank.bank_id)
-        checks = _Checks(verdicts)
+        verdicts = await self._validations.validations(bank.bank_id)
         tools = await load_bank_tools(
             bank=bank,
             drafts=drafts,
@@ -150,7 +140,6 @@ class TestGenerator:
             repo=self._drafts,
             embedder=self._embedder,
             job_id=job.job_id,
-            unchecked=checks.given_up,
         )
         jd = _jd_for_prompt(bank)
         levels = _levels(bank)
@@ -158,67 +147,50 @@ class TestGenerator:
         tokens = await self._spend.tokens_spent(job.job_id)
         if tokens:
             logger.info("job %s: %d tokens spent by earlier attempts", job.job_id, tokens)
-        tokens, checked = await self._check(
-            drafts, tools.get_blueprint_coverage(), checks, job.job_id, tokens
-        )
-        if checked:
-            logger.info(
-                "bank %s: %d waiting draft(s) checked before the first round: %s",
-                bank.bank_id,
-                len(checked),
-                _verdict_summary(checked),
-            )
         rounds = 0
         part: PartName | None = None
         asked: Counter[CellId] = Counter()
         refused: dict[PartName, list[Rejection]] = {}
         missing = tools.get_blueprint_coverage()
         while missing and rounds < MAX_ROUNDS and tokens < MAX_TOKENS_PER_JOB:
-            rounds += 1
             short = [cell for cell in missing if cell.wanted > 0]
-            stored = "no question asked: the short cells wait for verdicts"
-            if short:
-                part = _round_part(short, part)
-                cells = _round_cells(short, part, asked)
-                round_cells = [cell for cell, _ in cells]
-                prompt = self._prompts.render(
-                    AGENT,
-                    {
-                        "jd": jd,
-                        "cells": [_cell_for_prompt(cell, ask, levels) for cell, ask in cells],
-                        "existing": _existing_for_prompt(round_cells),
-                        "rejected": _failed_for_prompt(round_cells),
-                        "refused": [_refusal_for_prompt(r) for r in refused.get(part, [])],
-                    },
-                )
-                result = await self._llm.generate(
-                    prompt=prompt,
-                    output_model=QuestionProposalBatch,
-                    effort=EFFORT_BY_AGENT[AGENT],
-                    job_id=job.job_id,
-                )
-                asked.update(_cell_id(cell) for cell in round_cells)
-                report = await tools.submit_questions(
-                    result.data.questions, model=result.model, prompt_version=result.prompt_version
-                )
-                refused[part] = list(report.rejected)
-                drafts.extend(report.drafts)
-                tokens = await self._spend.tokens_spent(job.job_id)
-                reasons = ", ".join(sorted({r.reason for r in report.rejected})) or "-"
-                stored = (
-                    f"{sum(ask for _, ask in cells)} asked, {len(report.accepted)} stored, "
-                    f"{len(report.rejected)} refused ({reasons})"
-                )
-            tokens, checked = await self._check(
-                drafts, tools.get_blueprint_coverage(), checks, job.job_id, tokens
+            if not short:
+                break
+            rounds += 1
+            part = _round_part(short, part)
+            cells = _round_cells(short, part, asked)
+            round_cells = [cell for cell, _ in cells]
+            prompt = self._prompts.render(
+                AGENT,
+                {
+                    "jd": jd,
+                    "cells": [_cell_for_prompt(cell, ask, levels) for cell, ask in cells],
+                    "existing": _existing_for_prompt(round_cells),
+                    "rejected": _failed_for_prompt(round_cells),
+                    "refused": [_refusal_for_prompt(r) for r in refused.get(part, [])],
+                },
             )
+            result = await self._llm.generate(
+                prompt=prompt,
+                output_model=QuestionProposalBatch,
+                effort=EFFORT_BY_AGENT[AGENT],
+                job_id=job.job_id,
+            )
+            asked.update(_cell_id(cell) for cell in round_cells)
+            report = await tools.submit_questions(
+                result.data.questions, model=result.model, prompt_version=result.prompt_version
+            )
+            refused[part] = list(report.rejected)
+            tokens = await self._spend.tokens_spent(job.job_id)
+            reasons = ", ".join(sorted({r.reason for r in report.rejected})) or "-"
             logger.info(
-                "bank %s round %d: %s; %d checked: %s; %d tokens so far",
+                "bank %s round %d: %d asked, %d stored, %d refused (%s); %d tokens so far",
                 bank.bank_id,
                 rounds,
-                stored,
-                len(checked),
-                _verdict_summary(checked),
+                sum(ask for _, ask in cells),
+                len(report.accepted),
+                len(report.rejected),
+                reasons,
                 tokens,
             )
             missing = tools.get_blueprint_coverage()
@@ -230,8 +202,8 @@ class TestGenerator:
                 rounds,
                 tokens,
             )
-        # The rows as stored: a draft another attempt checked first keeps that verdict.
-        final = await self._validator.stored(bank.bank_id)
+        # The rows as stored: a verdict an AI check stored meanwhile goes with its draft.
+        final = await self._validations.validations(bank.bank_id)
         return QuestionsGenerateOutput(
             bank_id=bank.bank_id,
             questions=[
@@ -245,69 +217,13 @@ class TestGenerator:
                     difficulty=cell.difficulty,
                     drafted=cell.drafted,
                     validated=cell.validated,
+                    usable=cell.usable,
                     required=cell.required,
                 )
                 for cell in missing
             ],
             rounds=rounds,
         )
-
-    async def _check(
-        self,
-        drafts: Sequence[Draft],
-        short: Sequence[CellCoverage],
-        checks: "_Checks",
-        job_id: UUID,
-        tokens: int,
-    ) -> tuple[int, list[Verdict]]:
-        """Sends the waiting drafts of the short cells to the Validator, a group a call, while the
-        budget lasts; each cell sends what could take it to 4×, oldest first. Drafts of a full cell,
-        or of a cell no longer in the blueprint, are not sent: no exam needs them. Returns the
-        tokens spent."""
-        of_cell: dict[CellKey, list[Draft]] = {}
-        for draft in drafts:
-            if checks.waiting(draft.draft_id):
-                of_cell.setdefault((draft.type, draft.skill_key, draft.difficulty), []).append(
-                    draft
-                )
-        waiting = [
-            draft for cell in short for draft in of_cell.get(cell.key, [])[: cell.worth_checking]
-        ]
-
-        async def within_budget() -> bool:
-            return await self._spend.tokens_spent(job_id) < MAX_TOKENS_PER_JOB
-
-        checked: list[Verdict] = []
-        for group in batches(waiting):
-            if tokens >= MAX_TOKENS_PER_JOB:
-                break
-            found = await self._validator.check(group, job_id=job_id, within_budget=within_budget)
-            checks.record(group, found)
-            checked.extend(found)
-            tokens = await self._spend.tokens_spent(job_id)
-        return tokens, checked
-
-
-class _Checks:
-    """The verdicts of the job's drafts, and how many times the job sent each one still without a
-    verdict (MAX_CHECKS_PER_DRAFT)."""
-
-    def __init__(self, verdicts: MutableMapping[int, QuestionValidation]) -> None:
-        self.verdicts = verdicts
-        self.given_up: set[int] = set()
-        self._sent: Counter[int] = Counter()
-
-    def waiting(self, draft_id: int) -> bool:
-        return draft_id not in self.verdicts and draft_id not in self.given_up
-
-    def record(self, group: Sequence[Draft], found: Sequence[Verdict]) -> None:
-        self.verdicts.update((verdict.draft_id, verdict.validation) for verdict in found)
-        for draft in group:
-            if draft.draft_id in self.verdicts:
-                continue
-            self._sent[draft.draft_id] += 1
-            if self._sent[draft.draft_id] >= MAX_CHECKS_PER_DRAFT:
-                self.given_up.add(draft.draft_id)
 
 
 CellId = tuple[str, str, str]
@@ -407,13 +323,6 @@ def _refusal_for_prompt(rejection: Rejection) -> dict[str, str]:
         "stem": rejection.stem[:PROMPT_STEM_CHARACTERS],
         "reason": REASON_TEXT[rejection.reason],
     }
-
-
-def _verdict_summary(verdicts: Sequence[Verdict]) -> str:
-    rejected = [v.validation for v in verdicts if v.validation.status is Status.REJECTED]
-    reasons = Counter(reason.value for validation in rejected for reason in validation.reasons)
-    counted = ", ".join(f"{reason} ×{n}" for reason, n in sorted(reasons.items())) or "-"
-    return f"{len(verdicts) - len(rejected)} validated, {len(rejected)} rejected ({counted})"
 
 
 def _generated(draft: Draft, validation: QuestionValidation | None) -> GeneratedQuestion:

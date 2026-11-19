@@ -425,13 +425,26 @@ export class QuestionBankLockedError extends DomainError {
   }
 }
 
-/** A generation job of the bank is running: the blueprint cannot change under it (US-4.1 AC-3). */
+/**
+ * A run of the bank is RUNNING, generation or AI check (US-4.1 AC-3, US-4.10 AC-2): the blueprint
+ * cannot change under it, and no other run starts.
+ */
 export class QuestionGenerationRunningError extends DomainError {
   readonly code = 'QUESTION_GENERATION_RUNNING';
   readonly httpStatus = 409;
 
   constructor(bankId: number, runId: number) {
-    super(`question bank ${bankId} has generation run ${runId} in progress`, { bankId, runId });
+    super(`question bank ${bankId} has run ${runId} in progress`, { bankId, runId });
+  }
+}
+
+/** "Kiểm câu bằng AI" with no DRAFT question of a blueprint cell left to check (US-4.10 AC-2). */
+export class NothingToValidateError extends DomainError {
+  readonly code = 'NOTHING_TO_VALIDATE';
+  readonly httpStatus = 409;
+
+  constructor(bankId: number) {
+    super(`question bank ${bankId} has no question left for the Validator to check`, { bankId });
   }
 }
 
@@ -452,13 +465,13 @@ export class QuestionBankJdOutdatedError extends DomainError {
   }
 }
 
-/** A cell has fewer VALIDATED questions than 3× the questions it draws (US-4.2 AC-6). */
+/** A cell has fewer usable questions than 3× the questions it draws (US-4.2 AC-6, US-4.10 AC-4). */
 export class QuestionBankIncompleteError extends DomainError {
   readonly code = 'QUESTION_BANK_INCOMPLETE';
   readonly httpStatus = 409;
 
   constructor(bankId: number, missingCells: readonly MissingCell[]) {
-    super(`question bank ${bankId} has ${missingCells.length} cells short of validated questions`, {
+    super(`question bank ${bankId} has ${missingCells.length} cells short of usable questions`, {
       bankId,
       missingCells,
     });

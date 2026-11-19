@@ -6,6 +6,8 @@ export const ASSESSMENT_AUDIT_ACTIONS = {
   EXAM_BLUEPRINT_UPDATED: 'EXAM_BLUEPRINT_UPDATED',
   /** A generation job was started for the bank; after is `{ runId, jobId }`. */
   QUESTION_GENERATION_STARTED: 'QUESTION_GENERATION_STARTED',
+  /** CENTER sent the unchecked questions to the Validator (US-4.10 AC-2); after is `{ runId, jobId, draftCount }`. */
+  QUESTION_VALIDATION_STARTED: 'QUESTION_VALIDATION_STARTED',
   /**
    * A question of the locked bank was retired (US-4.2 AC-7); before is `{ version }`, after is
    * `{ version, questionId }`. Locking itself is the bank's TRANSITION entry.

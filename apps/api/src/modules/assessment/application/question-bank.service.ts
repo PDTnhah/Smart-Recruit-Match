@@ -4,6 +4,8 @@ import {
   type JdRequirements,
   jobDescriptionMachine,
   QUESTION_BANK_JD_STATES,
+  QUESTION_BANK_MAX_DRAFTS,
+  type QuestionBankRunKind,
   type QuestionBankStatus,
   type QuestionGenerationRun,
   questionMachine,
@@ -17,6 +19,7 @@ import {
   EntityNotFoundError,
   errorMessage,
   JdNotApprovedError,
+  NothingToValidateError,
   QuestionBankIncompleteError,
   QuestionBankJdOutdatedError,
   QuestionBankLockedError,
@@ -46,8 +49,9 @@ import { runView } from './views.js';
 const HOUR_MS = 3_600_000;
 
 /**
- * A run still without its result after this long is closed. A job runs at most MAX_ROUNDS LLM
- * calls one after the other (ai-service test_generator/config.py, CONTEXT D49): minutes, not hours.
+ * A run still without its result after this long is closed. A generation job runs at most
+ * MAX_ROUNDS LLM calls one after the other (ai-service test_generator/config.py, CONTEXT D49), an AI
+ * check one call per group of drafts: minutes, not hours.
  */
 const STALE_AFTER_MS = 24 * HOUR_MS;
 
@@ -68,11 +72,17 @@ interface Planned {
   send: boolean;
 }
 
+/** The job each kind of run sends (US-4.10 AC-2). */
+type RunJob =
+  | { type: 'QUESTIONS_GENERATE'; input: { bank_id: number } }
+  | { type: 'QUESTIONS_VALIDATE'; input: { bank_id: number; draft_ids: number[] } };
+
 /**
- * The question bank of each approved JD and its generation runs (FR-18, US-4.1 AC-3, AC-4,
- * CONTEXT D49). The bank is made with the default blueprint when the JD is approved, and its first
+ * The question bank of each approved JD and its runs (FR-18, US-4.1 AC-3, AC-4, US-4.10, CONTEXT
+ * D49, D60). The bank is made with the default blueprint when the JD is approved, and its first
  * `ai.questions.generate` job is sent then; CENTER starts later runs ("Sinh câu còn thiếu"), which
- * also repairs a missed `jd.approved` (LESSONS §34). Every change to a JD's bank holds the
+ * also repairs a missed `jd.approved` (LESSONS §34), and AI checks of the unchecked questions
+ * ("Kiểm câu bằng AI", `ai.questions.validate`). Every change to a JD's bank holds the
  * QUESTION_BANK lock of the JD, and the job id is stored before the job is sent (LESSONS §33).
  */
 @Injectable()
@@ -107,13 +117,48 @@ export class QuestionBankService {
   }
 
   /**
-   * AC-3, AC-4: `POST /api/jds/{id}/question-bank/generate`. While a run is RUNNING it is returned
-   * and no job is sent. A job the broker refuses fails the run: 503.
+   * AC-3, AC-4: `POST /api/jds/{id}/question-bank/generate`. While a generation run is RUNNING it is
+   * returned and no job is sent; while an AI check runs, 409 QUESTION_GENERATION_RUNNING. A job the
+   * broker refuses fails the run: 503.
    */
   async generate(jdId: number, actor: Actor): Promise<QuestionGenerationRun> {
     const run = await this.start(jdId, actor, { onlyFirstRun: false });
     if (run === null) throw new Error(`JD ${jdId}: generation run not started`);
     return run;
+  }
+
+  /**
+   * US-4.10 AC-2: `POST /api/jds/{id}/question-bank/validate` ("Kiểm câu bằng AI"). A VALIDATE run
+   * whose job lists the DRAFT questions of the blueprint's cells, oldest first; the Validator
+   * writes no question, so the job carries their draft ids only (AD-5). 409, in this order: the
+   * bank is LOCKED, a run of either kind is RUNNING, no question is left to check. A job the broker
+   * refuses fails the run: 503.
+   */
+  async validate(jdId: number, actor: Actor): Promise<QuestionGenerationRun> {
+    const jd = await this.requireBankJd(jdId);
+    const { run, draftIds } = await this.db.transaction(async (tx) => {
+      await this.campaigns.assertNotFinal(jd.campaignId, { tx });
+      const bank = await this.lockBank(tx, jd, actor);
+      if (bank.status === 'LOCKED') throw new QuestionBankLockedError(bank.id);
+      const running = await this.runningRun(tx, bank.id);
+      if (running) throw new QuestionGenerationRunningError(bank.id, running.id);
+      // Questions of a cell the blueprint no longer has are never drawn: no need to check them.
+      const inBlueprint = blueprintCellFilter(bank.blueprint);
+      const unchecked = (await this.banks.uncheckedQuestions(tx, bank.id)).filter(inBlueprint);
+      if (unchecked.length === 0) throw new NothingToValidateError(bank.id);
+      const ids = unchecked.slice(0, QUESTION_BANK_MAX_DRAFTS).map((question) => question.draftId);
+      const inserted = await this.runs.insertRunning(tx, bank.id, randomUUID(), actor, 'VALIDATE');
+      await this.audit.record(tx, {
+        actor,
+        action: ASSESSMENT_AUDIT_ACTIONS.QUESTION_VALIDATION_STARTED,
+        entity: QUESTION_BANK_ENTITY,
+        entityId: bank.id,
+        after: { runId: inserted.id, jobId: inserted.jobId, draftCount: ids.length },
+      });
+      return { run: inserted, draftIds: ids };
+    });
+    await this.dispatch(jdId, run, { type: 'QUESTIONS_VALIDATE', input: { bank_id: run.bankId, draft_ids: draftIds } });
+    return runView(run);
   }
 
   /**
@@ -173,11 +218,11 @@ export class QuestionBankService {
   /**
    * US-4.2 AC-6: CENTER locks the bank, `OPEN → LOCKED` with `locked_at` in the same UPDATE. Under
    * the QUESTION_BANK lock of the JD and the bank's row lock (so no result or retirement changes
-   * the count meanwhile), 409 in this order: `rowVersion` not the stored one, already LOCKED, a
-   * generation RUNNING, the JD's requirements newer than the blueprint, a cell short of VALIDATED
-   * questions (with the cells). The JD's version is read in the transaction, share-locked: a save
-   * of new requirements either comes first and is seen, or waits for the lock (AC-11). Returns the
-   * bank's JD.
+   * the count meanwhile), 409 in this order: `rowVersion` not the stored one, already LOCKED, a run
+   * RUNNING (generation or AI check), the JD's requirements newer than the blueprint, a cell short
+   * of usable questions (with the cells). Questions nobody has checked count (US-4.10 AC-4). The
+   * JD's version is read in the transaction, share-locked: a save of new requirements either comes
+   * first and is seen, or waits for the lock (AC-11). Returns the bank's JD.
    */
   async lock(bankId: number, actor: Actor, rowVersion: number): Promise<{ jdId: number }> {
     const found = await this.banks.findById(bankId);
@@ -208,7 +253,7 @@ export class QuestionBankService {
         id: bankId,
         to: 'LOCKED',
         actor,
-        reason: 'question bank locked: every cell holds 3× validated questions',
+        reason: 'question bank locked: every cell holds 3× usable questions',
         expectedRowVersion: rowVersion,
         set: { lockedAt: this.clock.now() },
         tx,
@@ -218,9 +263,10 @@ export class QuestionBankService {
   }
 
   /**
-   * US-4.2 AC-7: `VALIDATED → RETIRED` (US-4.6, US-4.9 add the endpoints). In a locked bank the
-   * bank's `version` rises by one and `QUESTION_BANK_VERSIONED` is written in the same transaction;
-   * an OPEN bank keeps its version. The bank's row lock orders this with `lock` and with results.
+   * US-4.2 AC-7, US-4.10 AC-4: `DRAFT | VALIDATED → RETIRED` (US-4.6, US-4.9, US-4.11 add the
+   * endpoints): an exam draws both. In a locked bank the bank's `version` rises by one and
+   * `QUESTION_BANK_VERSIONED` is written in the same transaction; an OPEN bank keeps its version.
+   * The bank's row lock orders this with `lock` and with results.
    */
   async retireQuestion(request: {
     questionId: number;
@@ -264,8 +310,9 @@ export class QuestionBankService {
   /**
    * US-4.2 AC-8: what an exam of the bank is drawn from (US-4.3), read in one snapshot so the
    * version matches the questions. Only a LOCKED bank: 409 BANK_NOT_LOCKED otherwise. Only the
-   * VALIDATED questions of the blueprint's cells: those of a skill the JD dropped stay out (AC-11).
-   * The answer keys are for the server; they are never sent to a student (AGENTS › Invariant 8).
+   * usable questions (DRAFT and VALIDATED, US-4.10 AC-4) of the blueprint's cells: those of a skill
+   * the JD dropped stay out (AC-11). The answer keys are for the server; they are never sent to a
+   * student (AGENTS › Invariant 8).
    */
   async getDrawableQuestions(bankId: number): Promise<DrawableBank> {
     return this.db.transaction(
@@ -274,7 +321,7 @@ export class QuestionBankService {
         if (!bank) throw new EntityNotFoundError(QUESTION_BANK_ENTITY, bankId);
         if (bank.status !== 'LOCKED') throw new BankNotLockedError(bankId);
         const inBlueprint = blueprintCellFilter(bank.blueprint);
-        const questions = (await this.banks.validatedQuestions(bankId, tx)).filter(inBlueprint);
+        const questions = (await this.banks.usableQuestions(bankId, tx)).filter(inBlueprint);
         return {
           bankId,
           version: bank.version,
@@ -310,8 +357,9 @@ export class QuestionBankService {
       // saved again against the new requirements first.
       if (bank.jdVersion < jd.jdVersion) throw new QuestionBankJdOutdatedError(bank.id, bank.jdVersion, jd.jdVersion);
       const running = await this.runningRun(tx, bank.id);
+      if (running?.kind === 'VALIDATE') throw new QuestionGenerationRunningError(bank.id, running.id);
       if (running) return { run: running, send: false };
-      const run = await this.runs.insertRunning(tx, bank.id, randomUUID(), actor);
+      const run = await this.runs.insertRunning(tx, bank.id, randomUUID(), actor, 'GENERATE');
       await this.audit.record(tx, {
         actor,
         action: ASSESSMENT_AUDIT_ACTIONS.QUESTION_GENERATION_STARTED,
@@ -322,23 +370,30 @@ export class QuestionBankService {
       return { run, send: true };
     });
     if (planned === null) return null;
-    if (planned.send) await this.dispatch(jdId, planned.run);
+    if (planned.send) {
+      const input = { bank_id: planned.run.bankId };
+      await this.dispatch(jdId, planned.run, { type: 'QUESTIONS_GENERATE', input });
+    }
     return runView(planned.run);
   }
 
   /** After commit, with the job id the run already holds (AD-5, LESSONS §33). */
-  private async dispatch(jdId: number, run: QuestionGenerationRunRecord): Promise<void> {
+  private async dispatch(jdId: number, run: QuestionGenerationRunRecord, job: RunJob): Promise<void> {
+    const what = RUN_NAMES[run.kind];
     try {
-      await this.aiGateway.dispatch('QUESTIONS_GENERATE', { bank_id: run.bankId }, run.jobId);
+      if (job.type === 'QUESTIONS_GENERATE') await this.aiGateway.dispatch(job.type, job.input, run.jobId);
+      else await this.aiGateway.dispatch(job.type, job.input, run.jobId);
     } catch (error) {
-      this.logger.error(`JD ${jdId}: generation run ${run.id} not dispatched: ${errorMessage(error)}`);
+      this.logger.error(`JD ${jdId}: ${what} run ${run.id} not dispatched: ${errorMessage(error)}`);
       await this.runs.fail(run.id, 'DISPATCH_FAILED');
-      throw new AiUnavailableError('QUESTIONS_GENERATE');
+      throw new AiUnavailableError(job.type);
     }
     // The job is on its way, so a failure here is no reason to answer 503. Left unmarked, the run
     // is closed as STALE by the next one after UNDISPATCHED_AFTER_MS.
     await this.runs.markDispatched(run.id).catch((error: unknown) => {
-      this.logger.warn(`JD ${jdId}: generation run ${run.id} sent, not marked so: ${errorMessage(error)}`);
+      this.logger.warn(`JD ${jdId}: ${what} run ${run.id} sent, not marked so: ${errorMessage(error)}`);
     });
   }
 }
+
+const RUN_NAMES: Readonly<Record<QuestionBankRunKind, string>> = { GENERATE: 'generation', VALIDATE: 'AI check' };

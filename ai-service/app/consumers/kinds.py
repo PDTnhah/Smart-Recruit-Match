@@ -18,6 +18,8 @@ from app.contracts.match_run_job import MatchRunJob
 from app.contracts.match_run_result import MatchRunResult
 from app.contracts.questions_generate_job import QuestionsGenerateJob
 from app.contracts.questions_generate_result import QuestionsGenerateResult
+from app.contracts.questions_validate_job import QuestionsValidateJob
+from app.contracts.questions_validate_result import QuestionsValidateResult
 from app.contracts.skill_normalize_job import SkillNormalizeJob
 from app.contracts.skill_normalize_result import SkillNormalizeResult
 from app.queues import QUEUES
@@ -34,6 +36,13 @@ def questions_status(output: BaseModel) -> AiResultStatus:
     (US-4.1 AC-5)."""
     missing = getattr(output, "missing_cells", None)
     return AiResultStatus.PARTIAL if missing else AiResultStatus.SUCCEEDED
+
+
+def validate_status(output: BaseModel) -> AiResultStatus:
+    """A QUESTIONS_VALIDATE result lists the drafts left without a verdict; any makes it PARTIAL
+    (US-4.10 AC-3)."""
+    unchecked = getattr(output, "unchecked", None)
+    return AiResultStatus.PARTIAL if unchecked else AiResultStatus.SUCCEEDED
 
 
 def essay_status(output: BaseModel) -> AiResultStatus:
@@ -61,6 +70,13 @@ JOB_KINDS: dict[str, JobKind] = {
         QuestionsGenerateJob,
         QuestionsGenerateResult,
         status_of=questions_status,
+    ),
+    "QUESTIONS_VALIDATE": JobKind(
+        "QUESTIONS_VALIDATE",
+        QUEUES.jobs["QUESTIONS_VALIDATE"],
+        QuestionsValidateJob,
+        QuestionsValidateResult,
+        status_of=validate_status,
     ),
     "ESSAY_GRADE": JobKind(
         "ESSAY_GRADE",

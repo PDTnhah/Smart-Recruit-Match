@@ -7,9 +7,9 @@ import type {
   QuestionType,
 } from '@srm/shared';
 
-// What other modules read of a locked question bank (US-4.2 AC-7, AC-8, CONTEXT D50).
+// What other modules read of a locked question bank (US-4.2 AC-7, AC-8, US-4.10 AC-4, CONTEXT D50, D60).
 
-/** A VALIDATED question an exam may draw. */
+/** A usable question an exam may draw: DRAFT (nobody checked it) or VALIDATED. */
 export interface DrawableQuestion {
   id: number;
   type: QuestionType;

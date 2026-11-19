@@ -1,5 +1,6 @@
-// Drafts and Test Generator results for the question bank tests (US-4.1, US-4.2). The AI Service is
-// not running in the API tests: results are handed to the listener as the consumer would.
+// Drafts, Test Generator and Validator results for the question bank tests (US-4.1, US-4.2,
+// US-4.10). The AI Service is not running in the API tests: results are handed to the listener as
+// the consumer would.
 import type { INestApplication } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
@@ -10,6 +11,8 @@ import {
   QuestionsGenerateResultSchema,
   type QuestionsGenerateJob,
   type QuestionsGenerateOutput,
+  type QuestionsValidateJob,
+  QuestionsValidateResultSchema,
   type QuestionValidation,
 } from '@srm/shared';
 import { AI_RESULT_EVENTS, type AiResultEvent } from '../../src/modules/aigateway/index.js';
@@ -131,4 +134,31 @@ export function resultMessage(
 /** Hands a result to the listener and waits for it (the listener is not `async: true`). */
 export async function deliverResult(app: INestApplication, result: AiResultEvent<'QUESTIONS_GENERATE'>): Promise<void> {
   await app.get(EventEmitter2).emitAsync(AI_RESULT_EVENTS.QUESTIONS_GENERATE, result);
+}
+
+/** A QUESTIONS_VALIDATE result (US-4.10 AC-3): the verdicts by draft, and the drafts left unchecked. */
+export function validationMessage(
+  job: QuestionsValidateJob,
+  verdicts: ReadonlyArray<{ draft: GeneratedQuestion; validation: QuestionValidation }>,
+  unchecked: readonly number[] = [],
+): AiResultEvent<'QUESTIONS_VALIDATE'> {
+  return QuestionsValidateResultSchema.parse({
+    job_id: job.job_id,
+    type: 'QUESTIONS_VALIDATE',
+    status: unchecked.length > 0 ? 'PARTIAL' : 'SUCCEEDED',
+    job,
+    result: {
+      bank_id: job.bank_id,
+      verdicts: verdicts.map(({ draft, validation }) => ({
+        draft_id: draft.draft_id,
+        validation: draft.type === 'ESSAY' ? { ...validation, correct_options: null } : validation,
+      })),
+      unchecked,
+    },
+    error: null,
+  });
+}
+
+export async function deliverValidation(app: INestApplication, result: AiResultEvent<'QUESTIONS_VALIDATE'>): Promise<void> {
+  await app.get(EventEmitter2).emitAsync(AI_RESULT_EVENTS.QUESTIONS_VALIDATE, result);
 }

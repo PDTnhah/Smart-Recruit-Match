@@ -2,11 +2,13 @@ import { QUESTION_BANK_STATES, questionBankMachine } from '../question-bank.js';
 import { QUESTION_STATES, questionMachine } from '../question.js';
 import { mismatchedPairs } from './pairs.js';
 
-// PRD GĐ5 bước 2–4, US-4.2 AC-5, AC-6, CONTEXT D50: the Validator's verdict moves a draft once; a
-// validated question may be retired later; CENTER locks the bank once and for good.
+// PRD GĐ5 bước 2–4, US-4.2 AC-5, AC-6, US-4.10 AC-4, CONTEXT D50, D60: the Validator's verdict
+// moves a draft once; a draft nobody checked and a validated question may be retired later; CENTER
+// locks the bank once and for good.
 const QUESTION_EDGES = [
   ['DRAFT', 'VALIDATED'],
   ['DRAFT', 'REJECTED'],
+  ['DRAFT', 'RETIRED'],
   ['VALIDATED', 'RETIRED'],
 ] as const;
 

@@ -1,19 +1,24 @@
-"""Validator (US-4.2 AC-1 to AC-3), with recorded or scripted LLM replies, never a real API.
+"""Validator (US-4.2 AC-1 to AC-3) and the QUESTIONS_VALIDATE job that runs it (US-4.10 AC-2,
+AC-3), with recorded or scripted LLM replies, never a real API.
 
 The fixture in tests/fixtures/llm/validator for CASES answers six multiple-choice drafts whose
 verdicts cover the checks of verdict.py; it pins the released prompt validator/v1 and the request
-the agent builds. The three Validator calls of bank 41 are pinned by the Test Generator flow
-(test_test_generator.py). Other tests script the replies (generator_support).
+the agent builds. Two more answer the AI check of the drafts the Test Generator fixtures store in
+bank 41. Other tests script the replies (generator_support).
 """
 
+import json
 import re
 from pathlib import Path
 from typing import get_args
 
 import pytest
 from generator_support import (
+    BANK,
+    CHECK_JOB,
     JOB_ID,
     MODEL,
+    Harness,
     MemoryCalls,
     MemoryDrafts,
     MemoryObjects,
@@ -42,13 +47,18 @@ from app.agents.validator import (
     stored_validation,
 )
 from app.agents.validator.config import (
+    MAX_CHECKS_PER_DRAFT,
     MAX_ESSAYS_PER_CALL,
     MAX_MCQ_PER_CALL,
+    MAX_TOKENS_PER_JOB,
     MCQ_OPTION_COUNT,
     REJECT_REASONS,
 )
 from app.agents.validator.repo import INSERT_SQL, VALIDATIONS_SQL
+from app.consumers.kinds import validate_status
+from app.contracts.ai_result_status import AiResultStatus
 from app.contracts.question_validation import Reason, Status
+from app.contracts.questions_validate_output import QuestionsValidateOutput
 from app.llm.recorder import CallRecorder
 from app.llm.structured import StructuredLLMClient
 from app.llm.types import Outcome, ProviderResponse, StopReason, Usage
@@ -521,6 +531,83 @@ def test_gd5_stored_verdict_of_an_earlier_schema_still_loads():
         "model": MODEL,
         "prompt_version": "validator/v1",
     }
+
+
+# --- US-4.10: the AI check CENTER runs ----------------------------------------------------------
+
+
+async def test_gd5_ai_check_is_a_job_of_its_own_on_the_drafts_it_is_sent():
+    """US-4.10 AC-3 on recorded answers: the drafts the Test Generator stored wait unchecked; the
+    QUESTIONS_VALIDATE job sends them in groups of one type, without their answers, and code
+    decides each verdict. No draft is written."""
+    harness = Harness(BANK, provider=RecordingFixtureProvider())
+    await harness.run()
+    drafts = len(harness.drafts.rows)
+    output = await harness.validate()
+
+    checks = harness.sent_to(AGENT)
+    assert [len(block(params["user"], "questions")) for params in checks] == [8, 3]
+    assert {(p["prompt_version"], p["effort"]) for p in checks} == {("validator/v1", "high")}
+    assert all("correct" not in json.dumps(block(p["user"], "questions")) for p in checks)
+    assert output.unchecked == []
+    assert validate_status(output) is AiResultStatus.SUCCEEDED
+    status = {v.draft_id: v.validation.status.value for v in output.verdicts}
+    assert list(status) == [d.draft_id for d in harness.drafts.rows]
+    [rejected] = [v.validation for v in output.verdicts if v.validation.status is Status.REJECTED]
+    assert rejected.reasons == [Reason.WEAK_DISTRACTORS]
+    assert {job for job, _ in harness.validations.rows.values()} == {CHECK_JOB}
+    assert len(harness.drafts.rows) == drafts
+    QuestionsValidateOutput.model_validate(output.model_dump(mode="json"))
+
+
+async def test_gd5_ai_check_skips_drafts_with_a_verdict_and_those_of_another_bank():
+    """US-4.10 AC-3: a draft an earlier check decided is not sent again, and its verdict goes back
+    with the others; a draft of another bank is left unchecked, so the job is PARTIAL."""
+    harness = Harness(BANK, provider=ScriptedProvider(passes(2)))
+    fresh = [harness.drafts.seed(41, java(n)) for n in range(2)]
+    decided = harness.seed_checked(41, java(2))
+    other = harness.drafts.seed(99, java(3))
+    output = await harness.validate([*fresh, decided, other])
+
+    [sent] = harness.provider.sent
+    assert [q["stem"] for q in block(sent["user"], "questions")] == [
+        java(n)["stem"] for n in (0, 1)
+    ]
+    assert [v.draft_id for v in output.verdicts] == [*fresh, decided]
+    assert [u.root for u in output.unchecked] == [other]
+    assert validate_status(output) is AiResultStatus.PARTIAL
+
+
+async def test_gd5_ai_check_sends_drafts_without_a_verdict_again_regrouped():
+    """US-4.10 AC-3, LESSONS §37: drafts left without a result are grouped again and sent once
+    more, MAX_CHECKS_PER_DRAFT in all; those still without one stay unchecked."""
+    harness = Harness(
+        BANK, provider=ScriptedProvider(verdicts(check(1), check(2)), verdicts(check(9)))
+    )
+    ids = [harness.drafts.seed(41, java(n)) for n in range(4)]
+    output = await harness.validate()
+
+    assert MAX_CHECKS_PER_DRAFT == 2
+    assert [len(block(p["user"], "questions")) for p in harness.provider.sent] == [4, 2]
+    assert [q["ref"] for q in block(harness.provider.sent[1]["user"], "questions")] == [1, 2]
+    assert [v.draft_id for v in output.verdicts] == ids[:2]
+    assert [u.root for u in output.unchecked] == ids[2:]
+
+
+def passes_with(count: int, usage: Usage) -> ProviderResponse:
+    return verdicts(*(check(ref) for ref in range(1, count + 1)), usage=usage)
+
+
+async def test_gd5_ai_check_stops_at_its_token_budget():
+    """US-4.10 AC-3: no group is sent once the job has spent MAX_TOKENS_PER_JOB."""
+    heavy = Usage(input_tokens=MAX_TOKENS_PER_JOB, output_tokens=1)
+    harness = Harness(BANK, provider=ScriptedProvider(passes_with(MAX_MCQ_PER_CALL, heavy)))
+    ids = [harness.drafts.seed(41, java(n)) for n in range(MAX_MCQ_PER_CALL + 1)]
+    output = await harness.validate()
+
+    assert len(harness.provider.sent) == 1
+    assert len(output.verdicts) == MAX_MCQ_PER_CALL
+    assert [u.root for u in output.unchecked] == ids[MAX_MCQ_PER_CALL:]
 
 
 # --- Contract and SQL against the migrations (Invariant 11) ---------------------------------------

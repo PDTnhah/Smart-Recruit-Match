@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { CvVerifyEvaluateJobSchema, CvVerifyGenerateJobSchema } from './cv-verification.js';
 import { EssayGradeJobSchema } from './essay-grade.js';
+import { QUESTION_BANK_MAX_DRAFTS } from './questions.js';
 import { SKILL_NORMALIZE_BATCH } from './skills.js';
 
 /**
@@ -13,6 +14,7 @@ export const AI_JOB_TYPES = [
   'SKILL_NORMALIZE',
   'MATCH',
   'QUESTIONS_GENERATE',
+  'QUESTIONS_VALIDATE',
   'ESSAY_GRADE',
   'CV_VERIFY_GENERATE',
   'CV_VERIFY_EVALUATE',
@@ -113,12 +115,32 @@ export const QuestionsGenerateJobSchema = z
 
 export type QuestionsGenerateJob = z.infer<typeof QuestionsGenerateJobSchema>;
 
+/**
+ * Payload on `ai.questions.validate` (US-4.10 AC-2, CONTEXT D60): CENTER asks the Validator to check
+ * the drafts of a bank that nobody has checked yet. The backend lists them, so the AI Service never
+ * reads the state of `core.questions` (AD-4); it reads the drafts from `ai.question_drafts`.
+ */
+export const QuestionsValidateJobSchema = z
+  .strictObject({
+    job_id: jobId(),
+    bank_id: rowId().describe('core.question_banks.id the drafts belong to'),
+    draft_ids: z
+      .array(rowId())
+      .min(1)
+      .max(QUESTION_BANK_MAX_DRAFTS)
+      .describe('ai.question_drafts.id of the DRAFT questions to check, without duplicates'),
+  })
+  .meta({ title: 'QuestionsValidateJob', description: 'Job on ai.questions.validate: check the unchecked drafts of a bank' });
+
+export type QuestionsValidateJob = z.infer<typeof QuestionsValidateJobSchema>;
+
 export const AI_JOB_SCHEMAS = {
   CV_PARSE: CvParseJobSchema,
   JD_ANALYZE: JdAnalyzeJobSchema,
   SKILL_NORMALIZE: SkillNormalizeJobSchema,
   MATCH: MatchRunJobSchema,
   QUESTIONS_GENERATE: QuestionsGenerateJobSchema,
+  QUESTIONS_VALIDATE: QuestionsValidateJobSchema,
   ESSAY_GRADE: EssayGradeJobSchema,
   CV_VERIFY_GENERATE: CvVerifyGenerateJobSchema,
   CV_VERIFY_EVALUATE: CvVerifyEvaluateJobSchema,

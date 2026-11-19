@@ -30,6 +30,8 @@ import {
   MatchRunResultSchema,
   QuestionsGenerateOutputSchema,
   QuestionsGenerateResultSchema,
+  QuestionsValidateOutputSchema,
+  QuestionsValidateResultSchema,
   SkillNormalizeOutputSchema,
   SkillNormalizeResultSchema,
 } from './envelope.js';
@@ -80,6 +82,7 @@ import {
   MatchPairRefSchema,
   MatchRunJobSchema,
   QuestionsGenerateJobSchema,
+  QuestionsValidateJobSchema,
   SkillNormalizeJobSchema,
 } from './jobs.js';
 import {
@@ -103,6 +106,7 @@ import {
   McqQuestionSchema,
   MissingCellSchema,
   QuestionValidationSchema,
+  QuestionVerdictSchema,
   RubricCriterionSchema,
 } from './questions.js';
 import { SkillGroupSchema, SkillMatchSchema, SkillSuggestionSchema, SkillSuggestionsSchema } from './skills.js';
@@ -119,6 +123,7 @@ const CONTRACTS: ReadonlyArray<[z.ZodType, string]> = [
   [MatchPairRefSchema, 'match_pair_ref'],
   [MatchRunJobSchema, 'match_run_job'],
   [QuestionsGenerateJobSchema, 'questions_generate_job'],
+  [QuestionsValidateJobSchema, 'questions_validate_job'],
   [AiResultStatusSchema, 'ai_result_status'],
   [AiJobErrorSchema, 'ai_job_error'],
   [SkillLevelSchema, 'skill_level'],
@@ -174,6 +179,8 @@ const CONTRACTS: ReadonlyArray<[z.ZodType, string]> = [
   [GeneratedQuestionSchema, 'generated_question'],
   [MissingCellSchema, 'missing_cell'],
   [QuestionsGenerateOutputSchema, 'questions_generate_output'],
+  [QuestionVerdictSchema, 'question_verdict'],
+  [QuestionsValidateOutputSchema, 'questions_validate_output'],
   [EssayGradeJobSchema, 'essay_grade_job'],
   [GradingConfidenceSchema, 'grading_confidence'],
   [GradingFlagSchema, 'grading_flag'],
@@ -201,6 +208,7 @@ const CONTRACTS: ReadonlyArray<[z.ZodType, string]> = [
   [SkillNormalizeResultSchema, 'skill_normalize_result'],
   [MatchRunResultSchema, 'match_run_result'],
   [QuestionsGenerateResultSchema, 'questions_generate_result'],
+  [QuestionsValidateResultSchema, 'questions_validate_result'],
   [EssayGradeResultSchema, 'essay_grade_result'],
   [CvVerifyGenerateResultSchema, 'cv_verify_generate_result'],
   [CvVerifyEvaluateResultSchema, 'cv_verify_evaluate_result'],

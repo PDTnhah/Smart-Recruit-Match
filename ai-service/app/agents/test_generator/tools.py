@@ -1,4 +1,4 @@
-"""The three tools of the Test Generator (US-4.1 AC-6 to AC-8, US-4.2 AC-4, CONTEXT D49, D50).
+"""The three tools of the Test Generator (US-4.1 AC-6 to AC-8, US-4.10 AC-1, CONTEXT D49, D60).
 
 Code calls them; the LLM never does. They read and write the bank's drafts only: ai.question_drafts
 and their vectors in ai.embeddings, through QuestionDraftRepo. They change no state in `core` and
@@ -9,16 +9,16 @@ vector of the current model (written with another embedder) are embedded then. D
 found by exact cosine in memory, over the few hundred vectors of one bank, in a worker thread; the
 stems the Validator rejected stay among them, so a rejected question is not written again.
 
-Coverage reads the Validator's verdicts from a mapping the job adds to as drafts are checked: a
-cell is covered by VALIDATED drafts only, and a rejected draft takes no room in its cell. Neither
-does a draft the job has given up checking (`unchecked`): the cell asks for others in its place.
+Coverage reads the verdicts the Validator gave when CENTER ran it (QUESTIONS_VALIDATE): a draft
+it rejected takes no room in its cell, and the cell asks for others in its place. Every other draft
+is usable, whether anyone checked it or not.
 """
 
 import hashlib
 import logging
 import unicodedata
 from collections import Counter
-from collections.abc import Collection, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any, Literal
@@ -84,7 +84,7 @@ class FailedDraft:
 
 @dataclass(frozen=True)
 class CellCoverage:
-    """A cell of the blueprint short of VALIDATED drafts, with the stems it holds."""
+    """A cell of the blueprint short of usable drafts, with the stems it holds."""
 
     part: PartName
     type: str
@@ -97,8 +97,9 @@ class CellCoverage:
     drafted: int
     """Every draft of the cell, the rejected ones too."""
     validated: int
-    pending: int
-    """Drafts waiting for a verdict this job may still give."""
+    """Drafts of the cell the Validator passed."""
+    usable: int
+    """Drafts of the cell the Validator did not reject: checked or not."""
     stems: tuple[str, ...]
     """Stems of the drafts not rejected."""
     rejected: tuple[FailedDraft, ...]
@@ -109,14 +110,8 @@ class CellCoverage:
 
     @property
     def wanted(self) -> int:
-        """Drafts a round asks for to reach the target (4×) once the waiting ones pass; 0 when
-        those would be enough."""
-        return max(0, TARGET_FACTOR * self.count - self.validated - self.pending)
-
-    @property
-    def worth_checking(self) -> int:
-        """Waiting drafts worth a verdict now: those that reach the target (4×) if they all pass."""
-        return max(0, TARGET_FACTOR * self.count - self.validated)
+        """Drafts a round asks for to reach the target (3×); 0 when the cell holds enough."""
+        return max(0, TARGET_FACTOR * self.count - self.usable)
 
     @property
     def key(self) -> CellKey:
@@ -147,7 +142,7 @@ class SubmitReport:
     """Ids of the new drafts, in batch order."""
     rejected: tuple[Rejection, ...]
     drafts: tuple[Draft, ...] = ()
-    """The new drafts, in batch order, for the Validator."""
+    """The new drafts, in batch order."""
 
 
 @dataclass(frozen=True)
@@ -216,11 +211,9 @@ async def load_bank_tools(
     repo: QuestionDraftRepo,
     embedder: Embedder,
     job_id: UUID,
-    unchecked: Collection[int] = frozenset(),
 ) -> "QuestionBankTools":
     """`drafts`: every draft of the bank, as `repo.drafts` reads them. `verdicts`: the Validator's
-    verdicts by draft id; `unchecked`: the drafts the job gave up checking. The job adds to both,
-    and coverage reads them on each call."""
+    verdicts by draft id, as the bank's AI checks stored them."""
     vectors = await repo.vectors(bank.bank_id, embedder.model)
     lacking = [draft for draft in drafts if draft.draft_id not in vectors]
     if lacking:
@@ -246,7 +239,6 @@ async def load_bank_tools(
         repo=repo,
         embedder=embedder,
         job_id=job_id,
-        unchecked=unchecked,
     )
 
 
@@ -263,14 +255,12 @@ class QuestionBankTools:
         repo: QuestionDraftRepo,
         embedder: Embedder,
         job_id: UUID,
-        unchecked: Collection[int] = frozenset(),
     ) -> None:
         self._bank = bank
         self._repo = repo
         self._embedder = embedder
         self._job_id = job_id
         self._verdicts = verdicts
-        self._unchecked = unchecked
         self._cells = blueprint_cells(bank)
         self._cell_of = {cell.key: cell for cell in self._cells}
         self._drafts_of: dict[CellKey, list[tuple[int, str]]] = {}
@@ -288,16 +278,16 @@ class QuestionBankTools:
             )
 
     def get_blueprint_coverage(self) -> list[CellCoverage]:
-        """The cells holding fewer VALIDATED drafts than 3× the questions they draw, in blueprint
-        order."""
+        """The cells holding fewer usable drafts (not rejected) than 3× the questions they draw, in
+        blueprint order (US-4.10 AC-1)."""
         coverage = []
         for cell in self._cells:
             drafts = [
                 (draft_id, stem, self._verdicts.get(draft_id))
                 for draft_id, stem in self._drafts_of.get(cell.key, [])
             ]
-            validated = sum(1 for _, _, v in drafts if v and v.status is Status.VALIDATED)
-            if validated >= MIN_FACTOR * cell.count:
+            usable = sum(1 for _, _, v in drafts if not _rejected(v))
+            if usable >= MIN_FACTOR * cell.count:
                 continue
             coverage.append(
                 CellCoverage(
@@ -308,12 +298,8 @@ class QuestionBankTools:
                     difficulty=cell.difficulty,
                     count=cell.count,
                     drafted=len(drafts),
-                    validated=validated,
-                    pending=sum(
-                        1
-                        for draft_id, _, v in drafts
-                        if v is None and draft_id not in self._unchecked
-                    ),
+                    validated=sum(1 for _, _, v in drafts if v and v.status is Status.VALIDATED),
+                    usable=usable,
                     stems=tuple(stem for _, stem, v in drafts if not _rejected(v)),
                     rejected=tuple(
                         FailedDraft(stem, tuple(reason.value for reason in v.reasons))
@@ -445,12 +431,11 @@ class QuestionBankTools:
         return accepted, rejected
 
     def _kept(self, key: CellKey) -> int:
-        """Drafts of the cell the Validator did not reject and the job has not given up checking:
-        CELL_FULL counts these (D50)."""
+        """Drafts of the cell the Validator did not reject: CELL_FULL counts these (D50)."""
         return sum(
             1
             for draft_id, _ in self._drafts_of.get(key, [])
-            if not _rejected(self._verdicts.get(draft_id)) and draft_id not in self._unchecked
+            if not _rejected(self._verdicts.get(draft_id))
         )
 
     def _remember(
