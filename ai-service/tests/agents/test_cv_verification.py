@@ -1,4 +1,4 @@
-"""Part D of the test (US-4.8 AC-2, AC-3, AC-5, AC-8, FR-25), with recorded LLM replies only.
+"""Part C of the test (US-4.8 AC-2, AC-3, AC-5, AC-8, FR-25), with recorded LLM replies only.
 
 The fixtures in tests/fixtures/llm/cv_verification and cv_verification_check are keyed by the
 exact request, so they also pin the released prompts and what the agents send of each sample CV.
@@ -314,7 +314,7 @@ async def test_fr25_fewer_entries_than_asked_and_an_unknown_entry_is_asked_again
 
 
 async def test_fr25_refusal_fails_the_draft():
-    """AC-2: a refusal is permanent; the backend marks the row FAILED and part D is skipped."""
+    """AC-2: a refusal is permanent; the backend marks the row FAILED and part C is skipped."""
     harness = Harness()
     with pytest.raises(NeedsHumanReview) as failure:
         await harness.draft(43)
@@ -410,7 +410,7 @@ async def test_fr25_all_answers_blank_calls_no_llm():
 
 
 def test_br03_reads_only_the_masked_views():
-    """AC-3: the masked profile, the JD requirements and part D; never pii, raw or masked text."""
+    """AC-3: the masked profile, the JD requirements and part C; never pii, raw or masked text."""
     sql = " ".join([source.CV_SQL, source.JD_SQL, source.ANSWERS_SQL])
     tables = set(re.findall(r"\b(?:FROM|JOIN)\s+([a-z_]+\.[a-z_]+)", sql))
     assert tables == {

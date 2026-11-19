@@ -27,7 +27,7 @@ export interface BankOptions {
   bank?: 'LOCKED' | 'OPEN' | 'NONE';
   blueprint?: ExamBlueprint;
   drafts?: GeneratedQuestion[];
-  /** Part D of the bank (US-4.8), set before the lock: a locked bank keeps it. Off by default. */
+  /** Part C of the bank (US-4.8), set before the lock: a locked bank keeps it. Off by default. */
   cvVerification?: { enabled: boolean; questionCount: number };
 }
 

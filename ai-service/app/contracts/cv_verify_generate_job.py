@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class CvVerifyGenerateJob(BaseModel):
     """
-    Job on ai.cv_verification.generate: draft part D for one preference
+    Job on ai.cv_verification.generate: draft part C for one preference
     """
 
     model_config = ConfigDict(

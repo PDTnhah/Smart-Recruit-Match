@@ -11,10 +11,10 @@ type BadgeVariant = NonNullable<VariantProps<typeof badgeVariants>['variant']>;
 export const PART_LABELS: Record<ExamPaperPart, string> = {
   A: 'Phần A – Trắc nghiệm',
   B: 'Phần B – Tự luận',
-  D: 'Phần D – Xác minh CV',
+  C: 'Phần C – Xác minh CV',
 };
 
-/** Badge of part D (US-4.8 AC-4), next to its title in the grid and on each of its questions. */
+/** Badge of part C (US-4.8 AC-4), next to its title in the grid and on each of its questions. */
 export const UNSCORED_LABEL = 'Không tính điểm';
 
 /** Where the test of a preference stands (AC-14). */

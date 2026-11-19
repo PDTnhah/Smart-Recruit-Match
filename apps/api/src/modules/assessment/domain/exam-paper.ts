@@ -54,7 +54,7 @@ export function paperQuestionsOf(
 }
 
 /**
- * Part D (US-4.8 AC-4): the session's CV verification questions after parts A and B, numbered on
+ * Part C (US-4.8 AC-4): the session's CV verification questions after parts A and B, numbered on
  * from `scoredCount`, as essays. They carry no answer key and no expected points.
  */
 export function verificationQuestionsOf(
@@ -64,7 +64,7 @@ export function verificationQuestionsOf(
 ): ExamQuestion[] {
   return questionIds.map((questionId, index) => {
     const stem = stems.get(questionId);
-    if (stem === undefined) throw new Error(`paper: part D question ${questionId} not found`);
+    if (stem === undefined) throw new Error(`paper: part C question ${questionId} not found`);
     return { questionId, no: scoredCount + index + 1, part: CV_VERIFICATION_PART, type: 'ESSAY', stem, options: null };
   });
 }
@@ -116,8 +116,8 @@ export interface VerificationAnswerRow {
 }
 
 /**
- * US-4.8 AC-5, AC-6: the answers to part D of a closing session, one per question, for
- * `cv_verification_questions.answer`; a blank answer, or an option code, is null. Part D never
+ * US-4.8 AC-5, AC-6: the answers to part C of a closing session, one per question, for
+ * `cv_verification_questions.answer`; a blank answer, or an option code, is null. Part C never
  * reaches `exam_answers`: `storedAnswersOf` only reads the scored `question_ids`.
  */
 export function verificationAnswersOf(

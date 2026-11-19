@@ -208,7 +208,7 @@ function SheetBody({ answerId, onSaved }: { answerId: number; onSaved: (result: 
       </SheetDescription>
     </SheetHeader>
   );
-  // Part D is read after the grade, so it never sits between the grader and the answer (US-4.8 AC-7).
+  // Part C is read after the grade, so it never sits between the grader and the answer (US-4.8 AC-7).
   const cvTrust = (
     <>
       <Separator />

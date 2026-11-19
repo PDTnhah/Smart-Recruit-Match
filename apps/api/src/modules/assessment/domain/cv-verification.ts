@@ -11,7 +11,7 @@ import {
 } from '@srm/shared';
 import { over, type Ratio, roundHalfUp } from '@srm/shared/scoring';
 
-// Part D of the test (FR-25, US-4.8, AD-2, CONTEXT D57). Pure: the caller reads and writes the rows.
+// Part C of the test (FR-25, US-4.8, AD-2, CONTEXT D57). Pure: the caller reads and writes the rows.
 
 export interface CvTrust {
   /** 0–100: the mean of the verdict points, half-up. */

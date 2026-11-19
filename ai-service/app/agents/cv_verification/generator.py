@@ -1,8 +1,8 @@
-"""Part D drafting: 2–3 questions about entries the student's CV claims (US-4.8 AC-2, FR-25).
+"""Part C drafting: 2–3 questions about entries the student's CV claims (US-4.8 AC-2, FR-25).
 
 1. Read the CV version through core.v_ai_cv_profile_masked and the JD's requirements through
    core.v_ai_jd_requirements (AD-4, BR-03).
-2. List the entries a question may ask about (claims.py); none means no part D (NO_CLAIMS).
+2. List the entries a question may ask about (claims.py); none means no part C (NO_CLAIMS).
 3. Ask for min(question_count, entries) questions, effort medium, structured output (AD-10). A
    draft naming an entry the CV lacks, or two questions on one entry, is invalid output.
 4. Label each question with its entry's name, written by code from the profile.

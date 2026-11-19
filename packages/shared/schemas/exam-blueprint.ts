@@ -120,26 +120,26 @@ export function examBlueprintRequestSchema(requirements: Pick<JdRequirements, 'm
 }
 
 /**
- * Part D of the JD's test (FR-25, US-4.8 AC-1, CONTEXT D57): 2–3 questions about the student's own
+ * Part C of the JD's test (FR-25, US-4.8 AC-1, CONTEXT D57): 2–3 questions about the student's own
  * CV, never scored. Kept in columns of the bank, outside the `ExamBlueprint` contract the Test
- * Generator reads: part D is not drawn from the bank.
+ * Generator reads: part C is not drawn from the bank.
  */
 export const CvVerificationSettingsSchema = z.object({
-  enabled: z.boolean({ error: 'Chọn có dùng phần D hay không' }),
+  enabled: z.boolean({ error: 'Chọn có dùng phần C hay không' }),
   questionCount: z
-    .int({ error: 'Số câu phần D phải là số nguyên' })
-    .min(CV_VERIFICATION_QUESTIONS.min, { error: `Phần D có ${CV_VERIFICATION_QUESTIONS.min} hoặc ${CV_VERIFICATION_QUESTIONS.max} câu` })
-    .max(CV_VERIFICATION_QUESTIONS.max, { error: `Phần D có ${CV_VERIFICATION_QUESTIONS.min} hoặc ${CV_VERIFICATION_QUESTIONS.max} câu` }),
+    .int({ error: 'Số câu phần C phải là số nguyên' })
+    .min(CV_VERIFICATION_QUESTIONS.min, { error: `Phần C có ${CV_VERIFICATION_QUESTIONS.min} hoặc ${CV_VERIFICATION_QUESTIONS.max} câu` })
+    .max(CV_VERIFICATION_QUESTIONS.max, { error: `Phần C có ${CV_VERIFICATION_QUESTIONS.min} hoặc ${CV_VERIFICATION_QUESTIONS.max} câu` }),
 });
 
 export type CvVerificationSettings = z.output<typeof CvVerificationSettingsSchema>;
 
-/** Part D is off until CENTER turns it on; 2 questions when turned on without a count. */
+/** Part C is off until CENTER turns it on; 2 questions when turned on without a count. */
 export const CV_VERIFICATION_DEFAULTS: CvVerificationSettings = { enabled: false, questionCount: CV_VERIFICATION_QUESTIONS.min };
 
 /**
  * Body of `PUT /api/jds/{id}/exam-blueprint`; the service checks the blueprint against the JD.
- * `cvVerification` left out keeps part D as it is.
+ * `cvVerification` left out keeps part C as it is.
  */
 export const UpdateExamBlueprintRequestSchema = z.object({
   rowVersion: RowVersionSchema,

@@ -60,7 +60,7 @@ export async function takeExam(
   const { agent } = exam.student;
   const paper = ExamPaperSchema.parse((await agent.post(api(`preferences/${exam.preferenceId}/exam/start`)).send().expect(200)).body);
   const mcq = paper.questions.find((question) => question.type === 'MCQ')!;
-  // Part B only: the essays of part D (US-4.8) are not scored.
+  // Part B only: the essays of part C (US-4.8) are not scored.
   const essays = paper.questions.filter((question) => question.part === 'B');
   const layout = (await sessionRow(t.db, paper.sessionId)).optionLayout[String(mcq.questionId)]!;
   const saved: unknown[] = [];

@@ -46,7 +46,7 @@ import { QuestionGenerationRunsRepository } from './infrastructure/question-gene
  * each approved JD, its question bank, the generation runs of the Test Generator with the
  * Validator's verdicts, the lock, the exam room with its sweep, and grading (US-4.4): multiple
  * choice by code, essays by the Grader, S_test and S_final, the grading and threshold sweeps; and
- * manual grading of the essays the Grader handed over (US-4.5); part D, the CV verification
+ * manual grading of the essays the Grader handed over (US-4.5); part C, the CV verification
  * questions and their trust index (US-4.8). Reads JDs, campaigns, preferences and CVs through the
  * services those modules export, finds students' accounts through
  * IamModule and notifies through NotificationModule; sends jobs through AiGatewayModule. Relies on

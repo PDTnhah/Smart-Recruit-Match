@@ -11,7 +11,7 @@ from . import cv_claim_ref
 
 class CvVerificationQuestion(BaseModel):
     """
-    One question of part D, checked against the CV
+    One question of part C, checked against the CV
     """
 
     model_config = ConfigDict(

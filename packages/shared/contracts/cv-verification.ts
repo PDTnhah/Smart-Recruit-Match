@@ -1,14 +1,14 @@
 import { z } from 'zod';
 import type { EvidenceSection } from './matching.js';
 
-// CV verification questions, part D of the test (US-4.8, FR-25, AD-2, CONTEXT D57). One job drafts
+// CV verification questions, part C of the test (US-4.8, FR-25, AD-2, CONTEXT D57). One job drafts
 // 2–3 questions about entries the student's CV claims; once the session closes, a second job
 // checks each answer against the entry it asks about. The LLM gives a verdict per question with a
-// quote from the answer; code computes the trust index. Part D never counts towards S_test.
+// quote from the answer; code computes the trust index. Part C never counts towards S_test.
 // Shape and limits only (LESSONS §32): the AI Service checks a draft against the CV, and the
 // backend checks the questions and verdicts again.
 
-/** Part D holds 2–3 questions (PRD GĐ5). */
+/** Part C holds 2–3 questions (PRD GĐ5). */
 export const CV_VERIFICATION_QUESTIONS = { min: 2, max: 3 } as const;
 
 /** CV lists a question may ask about, with the codes of the Matching Agent's evidence sections. */
@@ -74,7 +74,7 @@ export const CvVerifyGenerateJobSchema = z
       .max(CV_VERIFICATION_QUESTIONS.max)
       .describe('Questions to draft; fewer when the CV has fewer entries to ask about'),
   })
-  .meta({ title: 'CvVerifyGenerateJob', description: 'Job on ai.cv_verification.generate: draft part D for one preference' });
+  .meta({ title: 'CvVerifyGenerateJob', description: 'Job on ai.cv_verification.generate: draft part C for one preference' });
 
 export type CvVerifyGenerateJob = z.infer<typeof CvVerifyGenerateJobSchema>;
 
@@ -108,7 +108,7 @@ export const CvVerificationQuestionSchema = z
       .describe('Name of the entry as profile_masked writes it (project, position and organisation, or skill), set by code'),
     stem: stem(),
   })
-  .meta({ title: 'CvVerificationQuestion', description: 'One question of part D, checked against the CV' });
+  .meta({ title: 'CvVerificationQuestion', description: 'One question of part C, checked against the CV' });
 
 export type CvVerificationQuestion = z.output<typeof CvVerificationQuestionSchema>;
 
@@ -131,11 +131,11 @@ export type CvVerifyGenerateOutput = z.output<typeof CvVerifyGenerateOutputSchem
 export const CvVerifyEvaluateJobSchema = z
   .strictObject({
     job_id: jobId(),
-    preference_id: rowId().describe('core.preferences.id whose part D to check'),
+    preference_id: rowId().describe('core.preferences.id whose part C to check'),
     cv_id: rowId().describe('core.cvs.id of the CV version the questions were drafted from'),
     cv_version: rowId().describe('core.cvs.version of that row'),
   })
-  .meta({ title: 'CvVerifyEvaluateJob', description: 'Job on ai.cv_verification.evaluate: check the answers of part D' });
+  .meta({ title: 'CvVerifyEvaluateJob', description: 'Job on ai.cv_verification.evaluate: check the answers of part C' });
 
 export type CvVerifyEvaluateJob = z.infer<typeof CvVerifyEvaluateJobSchema>;
 
@@ -143,7 +143,11 @@ const quote = () => z.string().trim().min(1).max(1_000);
 
 const reason = () => z.string().trim().min(1).max(1_000).describe('Why this verdict, in Vietnamese');
 
-/** The LLM's verdict on one answer. */
+/**
+ * The LLM's verdict on one answer. The description still says "part D": the LLM reads it in the
+ * output schema next to `cv_verification_check/v1`, which says part D too, and a released prompt
+ * never changes (US-4.12). Rename both in the next prompt version.
+ */
 export const CvVerificationCheckItemSchema = z
   .strictObject({
     question_id: rowId().describe('Id of the question, as the prompt gives it'),
@@ -176,7 +180,7 @@ export const CvVerificationEvaluationItemSchema = z
       .describe('rapidfuzz score of the quote against the answer, both normalised: partial_ratio, or ratio for a quote longer than the answer; null without a quote'),
     reason: reason(),
   })
-  .meta({ title: 'CvVerificationEvaluationItem', description: 'The checked verdict on one answer of part D' });
+  .meta({ title: 'CvVerificationEvaluationItem', description: 'The checked verdict on one answer of part C' });
 
 export type CvVerificationEvaluationItem = z.output<typeof CvVerificationEvaluationItemSchema>;
 

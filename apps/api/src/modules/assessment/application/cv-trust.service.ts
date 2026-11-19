@@ -9,7 +9,7 @@ import { ExamSessionsRepository } from '../infrastructure/exam-sessions.reposito
 const NONE: CvTrustView = { state: 'NONE', trustScore: null, trustLevel: null, questions: [] };
 
 /**
- * The CV trust index of part D (FR-25, US-4.8 AC-7, CONTEXT D57), for staff only: the route allows
+ * The CV trust index of part C (FR-25, US-4.8 AC-7, CONTEXT D57), for staff only: the route allows
  * CENTER; HR reads it through `getForPreference` in US-5.3, which checks BR-11 there. Students never
  * see it. Reference only: nothing scores it or changes a state with it (AC-6).
  */
@@ -27,7 +27,7 @@ export class CvTrustService {
     return this.viewOf(await this.verifications.findBySession(sessionId));
   }
 
-  /** The preference's part D, NONE when no session took it. The caller checks who may read it. */
+  /** The preference's part C, NONE when no session took it. The caller checks who may read it. */
   async getForPreference(preferenceId: number): Promise<CvTrustView> {
     const row = await this.verifications.findByPreference(preferenceId);
     return this.viewOf(row?.sessionId === null ? undefined : row);

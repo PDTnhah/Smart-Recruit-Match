@@ -8,7 +8,7 @@ import { CvTrustService } from '../application/cv-trust.service.js';
 import { CvTrustViewDto } from './dto.js';
 
 /**
- * The CV trust index of a session's part D (FR-25, US-4.8 AC-7): CENTER only. HR, STUDENT and
+ * The CV trust index of a session's part C (FR-25, US-4.8 AC-7): CENTER only. HR, STUDENT and
  * ADMIN get 403; HR sees it with a nomination in US-5.3, a student never does.
  */
 @ApiTags('grading')

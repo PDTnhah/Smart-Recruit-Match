@@ -7,7 +7,7 @@
 // cannot write core.questions (the core tables loop below).
 // US-4.2 AC-5 (CONTEXT D50): ai.question_validations, insert only.
 // US-4.4 AC-3 (CONTEXT D53): the essay answers awaiting the Grader, without the student.
-// US-4.8 AC-3 (CONTEXT D57): the part D answers of closed sessions, without the student.
+// US-4.8 AC-3 (CONTEXT D57): the part C answers of closed sessions, without the student.
 import {
   CV_STATES,
   JOB_DESCRIPTION_STATES,
@@ -274,7 +274,7 @@ describe('AD-4: views the AI Service reads', () => {
     ]);
     // The blueprint and which JD version it was made for; no question, no answer (US-4.1).
     expect(await columnsOf(QUESTION_BANKS_VIEW)).toEqual(['bank_id', 'jd_id', 'jd_version', 'campaign_id', 'blueprint']);
-    // Part D by preference only, the CV entry as a reference into profile_masked (US-4.8 AC-3, BR-03).
+    // Part C by preference only, the CV entry as a reference into profile_masked (US-4.8 AC-3, BR-03).
     expect(await columnsOf(CV_VERIFICATION_ANSWERS_VIEW)).toEqual([
       'preference_id',
       'question_id',
@@ -343,7 +343,7 @@ describe('AD-4: views the AI Service reads', () => {
     ]);
   });
 
-  it('US-4.8 v_ai_cv_verification_answers shows part D of closed sessions only', async () => {
+  it('US-4.8 v_ai_cv_verification_answers shows part C of closed sessions only', async () => {
     const jd = await createJobDescription(seed.db, { status: 'APPROVED' });
     const bank = await createBank(seed.db, jd);
     const paper = await seed.db.select({ id: questions.id }).from(questions).where(eq(questions.bankId, bank!.id));

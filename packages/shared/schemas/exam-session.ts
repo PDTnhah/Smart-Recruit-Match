@@ -51,10 +51,10 @@ export const ExamOptionSchema = z.object({
 export type ExamOption = z.output<typeof ExamOptionSchema>;
 
 /**
- * Part D (FR-25, US-4.8, CONTEXT D57): essays about the student's own CV, after parts A and B,
+ * Part C (FR-25, US-4.8, CONTEXT D57): essays about the student's own CV, after parts A and B,
  * never scored. Not a blueprint part: its questions are drafted per student, not drawn.
  */
-export const CV_VERIFICATION_PART = 'D';
+export const CV_VERIFICATION_PART = 'C';
 
 /** Parts a paper may show. */
 export const EXAM_PAPER_PARTS = [...EXAM_PARTS, CV_VERIFICATION_PART] as const;

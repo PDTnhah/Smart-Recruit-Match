@@ -51,14 +51,14 @@ export function publicationMessage(publication: ManualGradePublication, remainin
   }
 }
 
-/** Part D (US-4.8): the CV list a question asks about. */
+/** Part C (US-4.8): the CV list a question asks about. */
 export const CV_CLAIM_SECTION_LABELS: Record<CvClaimSection, string> = {
   PROJECT: 'Dự án',
   EXPERIENCE: 'Kinh nghiệm',
   SKILLS_LIST: 'Kỹ năng',
 };
 
-/** Part D: how an answer compares with the CV entry it is about. */
+/** Part C: how an answer compares with the CV entry it is about. */
 export const CV_VERDICT_LABELS: Record<CvVerdict, string> = {
   CONSISTENT: 'Khớp CV',
   PARTIAL: 'Khớp một phần',

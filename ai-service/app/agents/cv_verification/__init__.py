@@ -1,4 +1,4 @@
-"""CV verification questions, part D of the test (US-4.8, FR-25)."""
+"""CV verification questions, part C of the test (US-4.8, FR-25)."""
 
 from .claims import Claim, claims_of
 from .evaluator import CHECK_AGENT, CvVerificationEvaluator

@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class CvVerifyEvaluateJob(BaseModel):
     """
-    Job on ai.cv_verification.evaluate: check the answers of part D
+    Job on ai.cv_verification.evaluate: check the answers of part C
     """
 
     model_config = ConfigDict(
@@ -22,7 +22,7 @@ class CvVerifyEvaluateJob(BaseModel):
     """
     preference_id: Annotated[int, Field(gt=0, le=9007199254740991)]
     """
-    core.preferences.id whose part D to check
+    core.preferences.id whose part C to check
     """
     cv_id: Annotated[int, Field(gt=0, le=9007199254740991)]
     """

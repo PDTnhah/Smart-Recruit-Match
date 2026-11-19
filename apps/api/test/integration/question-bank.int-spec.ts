@@ -209,7 +209,7 @@ describe('GĐ5 question bank and exam blueprint (US-4.1)', () => {
     expect(ApiErrorSchema.parse(stale.body).code).toBe('ROW_VERSION_CONFLICT');
   });
 
-  it('FR-25 part D is saved with the blueprint and kept when a request leaves it out; 2 or 3 questions (US-4.8 AC-1)', async () => {
+  it('FR-25 part C is saved with the blueprint and kept when a request leaves it out; 2 or 3 questions (US-4.8 AC-1)', async () => {
     const jd = await approvedJd();
     const view = ExamBlueprintViewSchema.parse((await getBlueprint(jd.id).expect(200)).body);
     expect(view.cvVerification).toEqual(CV_VERIFICATION_DEFAULTS);

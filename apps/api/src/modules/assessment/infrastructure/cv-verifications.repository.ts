@@ -44,7 +44,7 @@ const bump = () => sql`${cvVerifications.rowVersion} + 1`;
 export class CvVerificationsRepository {
   constructor(@Inject(DRIZZLE) private readonly db: Database) {}
 
-  /** The preferences among these that already have part D, whatever its state. */
+  /** The preferences among these that already have part C, whatever its state. */
   async preferencesWithRow(preferenceIds: readonly number[]): Promise<Set<number>> {
     if (preferenceIds.length === 0) return new Set();
     const rows = await this.db
@@ -99,7 +99,7 @@ export class CvVerificationsRepository {
       .where(eq(cvVerifications.id, id));
   }
 
-  /** Part D of sessions now closed, not checked yet, oldest first, outside these campaigns. */
+  /** Part C of sessions now closed, not checked yet, oldest first, outside these campaigns. */
   async listDueForEvaluation(limit: number, exceptCampaignIds: readonly number[]): Promise<CvVerificationRecord[]> {
     const rows = await this.db
       .select({ row: cvVerifications })
@@ -207,7 +207,7 @@ export class CvVerificationsRepository {
       .where(eq(cvVerifications.id, id));
   }
 
-  /** AC-2: no part D for this preference; a model and prompt are kept when the result had them. */
+  /** AC-2: no part C for this preference; a model and prompt are kept when the result had them. */
   async markFailed(tx: DbTx, id: number, code: string, by: { model: string; promptVersion: string } | null): Promise<void> {
     await tx
       .update(cvVerifications)
@@ -233,7 +233,7 @@ export class CvVerificationsRepository {
       .orderBy(asc(cvVerificationQuestions.no));
   }
 
-  /** AC-4: what the paper shows of part D, by question id. */
+  /** AC-4: what the paper shows of part C, by question id. */
   async stemsOf(questionIds: readonly number[]): Promise<Map<number, string>> {
     if (questionIds.length === 0) return new Map();
     const rows = await this.db

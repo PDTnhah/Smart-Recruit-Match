@@ -302,7 +302,7 @@ export class ExamSessionService {
     if (locked.status !== 'IN_PROGRESS') return null;
     const rows = storedAnswersOf(locked.questionIds, locked.optionLayout, saved);
     await this.sessions.insertAnswers(tx, locked.id, rows);
-    // Part D (US-4.8 AC-6): its answers go to the CV check, never to `exam_answers` or grading.
+    // Part C (US-4.8 AC-6): its answers go to the CV check, never to `exam_answers` or grading.
     const verificationRows = verificationAnswersOf(locked.verificationQuestionIds, saved);
     await this.verifications.writeAnswers(tx, verificationRows);
     await this.mcq.gradeOnClose(tx, locked.id);
@@ -385,10 +385,10 @@ export class ExamSessionService {
         throw new CampaignPhaseMismatchError(campaign.id, campaign.status, ['TESTING'], testingEnd);
       }
       const deadlineAt = examDeadline(now, drawn.draw.durationMinutes, testingEnd === undefined ? null : new Date(testingEnd));
-      // US-4.8 AC-4: part D only if its questions are READY now; the start never waits for them.
+      // US-4.8 AC-4: part C only if its questions are READY now; the start never waits for them.
       const verification = await this.verifications.lockByPreference(tx, preferenceId);
-      const partD = verification?.status === 'READY' && verification.sessionId === null ? verification : undefined;
-      const verificationQuestionIds = partD ? (await this.verifications.questionsOf(partD.id, tx)).map((q) => q.id) : [];
+      const partC = verification?.status === 'READY' && verification.sessionId === null ? verification : undefined;
+      const verificationQuestionIds = partC ? (await this.verifications.questionsOf(partC.id, tx)).map((q) => q.id) : [];
       const session = await this.sessions.insert(tx, {
         studentId,
         bankId: bank.id,
@@ -401,7 +401,7 @@ export class ExamSessionService {
         deadlineAt,
       });
       if (!session) return this.raced(tx, studentId, bank.id);
-      if (partD && verificationQuestionIds.length > 0) await this.verifications.attachToSession(tx, partD.id, session.id);
+      if (partC && verificationQuestionIds.length > 0) await this.verifications.attachToSession(tx, partC.id, session.id);
       await this.audit.record(tx, {
         actor: { kind: 'USER', userId: user.userId },
         action: ASSESSMENT_AUDIT_ACTIONS.EXAM_SESSION_STARTED,
@@ -440,7 +440,7 @@ export class ExamSessionService {
   }
 
   /**
-   * AC-3, AC-7: whitelisted fields only; a closed session shows no questions. Part D follows parts A
+   * AC-3, AC-7: whitelisted fields only; a closed session shows no questions. Part C follows parts A
    * and B as essays (US-4.8 AC-4).
    */
   private async paperOf(session: ExamSessionRecord): Promise<ExamPaper> {
@@ -484,7 +484,7 @@ export class ExamSessionService {
     return null;
   }
 
-  /** The counts take in part D, as the room's grid does: the student sees one total for the paper. */
+  /** The counts take in part C, as the room's grid does: the student sees one total for the paper. */
   private async submissionOf(session: ExamSessionRecord, answered?: number): Promise<ExamSubmission> {
     if (session.status === 'IN_PROGRESS' || session.submittedAt === null) {
       throw new Error(`exam session ${session.id} is not closed`);

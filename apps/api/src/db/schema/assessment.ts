@@ -70,7 +70,7 @@ import { users } from './users.js';
  * a trigger keeps the bank and its questions as they are (migration 0031): only `version` rises,
  * by one per question retired.
  *
- * Part D (US-4.8 AC-1, CONTEXT D57): `cv_verification_enabled` and `cv_verification_count`, outside
+ * Part C (US-4.8 AC-1, CONTEXT D57): `cv_verification_enabled` and `cv_verification_count`, outside
  * the blueprint contract the Test Generator reads; the lock trigger keeps them too.
  */
 export const questionBanks = core.table(
@@ -224,8 +224,8 @@ export const examSessions = core.table(
     seed: integer('seed').notNull(),
     questionIds: bigint('question_ids', { mode: 'number' }).array().notNull(),
     /**
-     * Part D (US-4.8, CONTEXT D57): `cv_verification_questions.id` in display order, after
-     * `question_ids`; empty without part D. Kept apart, so grading never sees them (AC-6).
+     * Part C (US-4.8, CONTEXT D57): `cv_verification_questions.id` in display order, after
+     * `question_ids`; empty without part C. Kept apart, so grading never sees them (AC-6).
      */
     verificationQuestionIds: bigint('verification_question_ids', { mode: 'number' })
       .array()
@@ -380,7 +380,7 @@ export const essayGradingRuns = core.table(
 );
 
 /**
- * Part D of one preference (FR-25, US-4.8, CONTEXT D57). A technical log like
+ * Part C of one preference (FR-25, US-4.8, CONTEXT D57). A technical log like
  * `essay_grading_runs`, with no lifecycle: the drafting job (`status`, `job_id`), written before
  * the job is sent (LESSONS §33), then, once the session it went into closed, the checking job
  * (`evaluation_*`) and the trust index code computes from its verdicts. `session_id` is set when a
@@ -461,8 +461,8 @@ export const cvVerifications = core.table(
 );
 
 /**
- * The questions of part D (US-4.8 AC-2, AC-5). `id` comes from the sequence of `questions.id`, so a
- * part D question never shares an id with a bank question: the exam room keys both kinds by
+ * The questions of part C (US-4.8 AC-2, AC-5). `id` comes from the sequence of `questions.id`, so a
+ * part C question never shares an id with a bank question: the exam room keys both kinds by
  * question id (Redis, autosave). `claim_ref` points into `cvs.profile_masked` of the row's CV
  * version; `claim_label` names the entry. `answer` is written once, when the session closes (null
  * when blank); `evaluation` with the checking job's result.

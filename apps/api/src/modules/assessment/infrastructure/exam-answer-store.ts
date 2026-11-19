@@ -110,7 +110,7 @@ export interface StoredSessionShape {
   studentId: number;
   deadlineAt: Date;
   questionIds: readonly number[];
-  /** Part D (US-4.8): essays to Redis; their ids never collide with `questionIds` (CONTEXT D57). */
+  /** Part C (US-4.8): essays to Redis; their ids never collide with `questionIds` (CONTEXT D57). */
   verificationQuestionIds: readonly number[];
   optionLayout: ExamOptionLayout;
 }

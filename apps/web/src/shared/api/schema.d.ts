@@ -2737,7 +2737,7 @@ export interface components {
                 questionId: number;
                 no: number;
                 /** @enum {string} */
-                part: "A" | "B" | "D";
+                part: "A" | "B" | "C";
                 /** @enum {string} */
                 type: "MCQ" | "ESSAY";
                 stem: string;
