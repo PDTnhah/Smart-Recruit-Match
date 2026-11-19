@@ -84,15 +84,15 @@ describe('GĐ5: exam paper (US-4.3)', () => {
   });
 });
 
-describe('FR-25: part D of the paper (US-4.8)', () => {
-  it('FR-25 part D follows parts A and B as unscored essays, numbered on', () => {
+describe('FR-25: part C of the paper (US-4.8)', () => {
+  it('FR-25 part C follows parts A and B as unscored essays, numbered on', () => {
     expect(verificationQuestionsOf([501, 502], new Map([[501, 'Dự án X?'], [502, 'Kỹ năng Y?']]), 22)).toEqual([
-      { questionId: 501, no: 23, part: 'D', type: 'ESSAY', stem: 'Dự án X?', options: null },
-      { questionId: 502, no: 24, part: 'D', type: 'ESSAY', stem: 'Kỹ năng Y?', options: null },
+      { questionId: 501, no: 23, part: 'C', type: 'ESSAY', stem: 'Dự án X?', options: null },
+      { questionId: 502, no: 24, part: 'C', type: 'ESSAY', stem: 'Kỹ năng Y?', options: null },
     ]);
   });
 
-  it('FR-25 part D answers never reach exam_answers; a blank one is stored as null', () => {
+  it('FR-25 part C answers never reach exam_answers; a blank one is stored as null', () => {
     const answers = new Map<number, ExamAnswerValue>([
       [20, { text: 'Bài làm' }],
       [501, { text: 'Em làm phần API' }],

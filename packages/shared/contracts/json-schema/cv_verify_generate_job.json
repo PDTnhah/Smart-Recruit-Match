@@ -49,5 +49,5 @@
   ],
   "additionalProperties": false,
   "title": "CvVerifyGenerateJob",
-  "description": "Job on ai.cv_verification.generate: draft part D for one preference"
+  "description": "Job on ai.cv_verification.generate: draft part C for one preference"
 }

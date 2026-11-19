@@ -79,7 +79,7 @@ export class QuestionBanksRepository {
     return row;
   }
 
-  /** Writes with `WHERE row_version = n` and bumps it; a lost race is a 409. Part D with it (US-4.8). */
+  /** Writes with `WHERE row_version = n` and bumps it; a lost race is a 409. Part C with it (US-4.8). */
   async updateBlueprint(
     tx: DbTx,
     id: number,

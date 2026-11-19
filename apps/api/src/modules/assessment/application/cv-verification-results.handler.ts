@@ -19,10 +19,10 @@ export const MISSING_VERDICTS_CODE = 'MISSING_VERDICTS';
 type Outcome = 'UNKNOWN_JOB' | 'ALREADY_APPLIED' | 'READY' | 'DONE' | 'FAILED';
 
 /**
- * Results of the two part D jobs (FR-25, US-4.8 AC-2, AC-5, CONTEXT D57). Listener convention of
+ * Results of the two part C jobs (FR-25, US-4.8 AC-2, AC-5, CONTEXT D57). Listener convention of
  * aigateway/domain/events.ts: the row's lock orders a result against the sweep and the start of an
  * exam, and a result applied twice finds the row no longer RUNNING. A failure stays logged on the
- * row; the student keeps the test without part D, or CENTER sees the check failed. Nothing here is
+ * row; the student keeps the test without part C, or CENTER sees the check failed. Nothing here is
  * scored or changes a state (AC-6).
  */
 @Injectable()
@@ -112,7 +112,7 @@ export class CvVerificationResultsHandler {
   }
 
   private log(step: string, jobId: string, preferenceId: number, outcome: { kind: Outcome; detail?: string }): void {
-    const what = `job ${jobId}: part D ${step} of preference ${preferenceId}`;
+    const what = `job ${jobId}: part C ${step} of preference ${preferenceId}`;
     switch (outcome.kind) {
       case 'UNKNOWN_JOB':
         this.logger.warn(`${what}: no row has the job; result dropped`);

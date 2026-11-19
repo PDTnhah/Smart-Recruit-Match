@@ -84,7 +84,7 @@ function Question({ question }: { question: CvTrustQuestion }) {
 }
 
 const STATE_NOTES: Record<Exclude<CvTrustView['state'], 'DONE'>, string> = {
-  NONE: 'Bài này không có phần D.',
+  NONE: 'Bài này không có phần C.',
   PENDING: 'Câu trả lời đang được đối chiếu với CV; chỉ số có khi đối chiếu xong.',
   FAILED: 'Không đối chiếu được câu trả lời với CV, nên bài này không có chỉ số tin cậy.',
 };
@@ -113,7 +113,7 @@ function TrustBody({ view }: { view: CvTrustView }) {
 }
 
 /**
- * Part D of the session and its CV trust index, read only (US-4.8 AC-7): staff reference, never
+ * Part C of the session and its CV trust index, read only (US-4.8 AC-7): staff reference, never
  * scored, so it sits after the grade of the answer.
  */
 export function CvTrustSection({ sessionId }: { sessionId: number }) {
@@ -125,7 +125,7 @@ export function CvTrustSection({ sessionId }: { sessionId: number }) {
         Chỉ số tin cậy CV
       </h3>
       <p className="text-sm text-muted-foreground">
-        Phần D của bài #{sessionId}: câu trả lời về dự án, kinh nghiệm, kỹ năng sinh viên khai trong CV, đối chiếu với
+        Phần C của bài #{sessionId}: câu trả lời về dự án, kinh nghiệm, kỹ năng sinh viên khai trong CV, đối chiếu với
         CV. Chỉ để tham khảo, không tính vào điểm bài test và không dùng khi chấm câu tự luận.
       </p>
       {trust.isPending ? (

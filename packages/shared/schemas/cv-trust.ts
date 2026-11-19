@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { CV_CLAIM_SECTIONS, CV_VERDICTS, type CvVerdict } from '../contracts/cv-verification.js';
 
-// The CV trust index of part D (FR-25, US-4.8 AC-5, AC-7, CONTEXT D57). For staff only, never
+// The CV trust index of part C (FR-25, US-4.8 AC-5, AC-7, CONTEXT D57). For staff only, never
 // scored: it does not enter S_test or S_final, and no state change reads it (AC-6). The thresholds
 // are constants, not campaign parameters (D57).
 
@@ -55,7 +55,7 @@ export interface StoredCvEvaluation {
 }
 
 /**
- * Where part D of a session stands: NONE when the session has none (off for the JD, drafted too
+ * Where part C of a session stands: NONE when the session has none (off for the JD, drafted too
  * late or the drafting failed), PENDING until the answers are checked, FAILED when the check
  * failed, DONE with the index.
  */

@@ -7,11 +7,18 @@ import {
   QUESTION_REJECT_REASONS,
   skillKey,
 } from '@srm/shared';
-import { CircleAlert } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { CircleAlert, CircleCheck } from 'lucide-react';
 import { Table, TableBody, TableCaption, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatNumber } from '@/lib/format';
-import { CV_VERIFICATION_TITLE, DIFFICULTY_LABELS, EXAM_PART_TITLES, REJECT_REASON_LABELS } from './labels';
+import { IconBadge, type IconBadgeStyle } from '@/shared/ui/icon-badge';
+import {
+  COVERAGE_CAPTION,
+  coverageStatusLabel,
+  CV_VERIFICATION_TITLE,
+  DIFFICULTY_LABELS,
+  EXAM_PART_TITLES,
+  REJECT_REASON_LABELS,
+} from './labels';
 
 interface SkillRow {
   skill: string;
@@ -32,9 +39,16 @@ function rowsOf(coverage: readonly CellCoverage[]): SkillRow[] {
 
 const sum = (values: readonly number[]) => values.reduce((total, value) => total + value, 0);
 
+/** DESIGN.md §6 `badge`: a cell with enough questions, or one short of the minimum. */
+const COVERAGE_STYLE: Readonly<Record<'FULL' | 'SHORT', IconBadgeStyle>> = {
+  FULL: { variant: 'secondary', icon: CircleCheck },
+  SHORT: { variant: 'outline', icon: CircleAlert },
+};
+
 /**
- * A cell (US-4.2 AC-10): its questions per exam, the VALIDATED ones against the 3× it needs, the
- * rejected and still unchecked ones, and why questions were rejected.
+ * A cell (US-4.2 AC-10, US-4.12 AC-1): its questions per exam; the bank's VALIDATED ones next to
+ * the minimum of 3× (`min` is a floor, never a total, so no fraction); Đủ or Thiếu n; the rejected
+ * and still unchecked ones, and why questions were rejected.
  */
 function CoverageCell({ cell }: { cell: CellCoverage | undefined }) {
   if (!cell) {
@@ -44,20 +58,21 @@ function CoverageCell({ cell }: { cell: CellCoverage | undefined }) {
       </span>
     );
   }
-  const short = cell.min - cell.validated;
+  const short = Math.max(cell.min - cell.validated, 0);
   const reasons = QUESTION_REJECT_REASONS.flatMap((reason) => {
     const count = cell.rejectReasons[reason];
     return count ? [{ reason, count }] : [];
   });
   return (
     <div className="flex flex-col items-start gap-1">
-      <span className="font-medium tabular-nums">{formatNumber(cell.needed)} câu</span>
+      <span className="font-medium tabular-nums">{formatNumber(cell.needed)} câu mỗi đề</span>
       <span className="tabular-nums">
-        Đạt {formatNumber(cell.validated)}
-        <span aria-hidden="true">/</span>
-        <span className="sr-only">, cần </span>
+        Ngân hàng: {formatNumber(cell.validated)} câu
+        <span aria-hidden="true"> · cần ≥ </span>
+        <span className="sr-only">, cần tối thiểu </span>
         {formatNumber(cell.min)}
       </span>
+      <IconBadge style={COVERAGE_STYLE[short > 0 ? 'SHORT' : 'FULL']}>{coverageStatusLabel(short)}</IconBadge>
       {(cell.rejected > 0 || cell.pending > 0) && (
         <span className="text-muted-foreground tabular-nums">
           {[
@@ -77,21 +92,15 @@ function CoverageCell({ cell }: { cell: CellCoverage | undefined }) {
           ))}
         </ul>
       )}
-      {short > 0 && (
-        <Badge variant="outline">
-          <CircleAlert data-icon="inline-start" />
-          Thiếu {formatNumber(short)}
-        </Badge>
-      )}
     </div>
   );
 }
 
-/** Part D of the saved blueprint, read only (US-4.8 AC-1). */
+/** Part C of the saved blueprint, read only (US-4.8 AC-1). */
 export function CvVerificationSummary({ settings }: { settings: CvVerificationSettings }) {
   return (
-    <section className="flex flex-col gap-1" aria-labelledby="blueprint-part-D">
-      <h3 id="blueprint-part-D" className="font-heading text-base font-medium">
+    <section className="flex flex-col gap-1" aria-labelledby="blueprint-part-C">
+      <h3 id="blueprint-part-C" className="font-heading text-base font-medium">
         {CV_VERIFICATION_TITLE}
       </h3>
       <p className="text-sm text-muted-foreground">
@@ -131,9 +140,7 @@ export function BlueprintTable({
         </p>
       </div>
       <Table>
-        <TableCaption className="text-left">
-          Mỗi ô: số câu của một đề; câu đạt kiểm định / cần (3 lần số câu); câu bị loại, câu chờ kiểm và lý do loại.
-        </TableCaption>
+        <TableCaption className="text-left">{COVERAGE_CAPTION}</TableCaption>
         <TableHeader>
           <TableRow>
             <TableHead className="min-w-36">Kỹ năng</TableHead>

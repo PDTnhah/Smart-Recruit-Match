@@ -108,7 +108,7 @@ async def stub_essay_grade(job: EssayGradeJob) -> EssayGradeOutput:
 
 
 async def stub_cv_verify_generate(job: CvVerifyGenerateJob) -> CvVerifyGenerateOutput:
-    """Stands in for part D drafting (tests/agents/test_cv_verification.py)."""
+    """Stands in for part C drafting (tests/agents/test_cv_verification.py)."""
     question = {
         "claim_ref": {"section": "PROJECT", "index": 0},
         "claim_label": "Project",
@@ -125,7 +125,7 @@ async def stub_cv_verify_generate(job: CvVerifyGenerateJob) -> CvVerifyGenerateO
 
 
 async def stub_cv_verify_evaluate(job: CvVerifyEvaluateJob) -> CvVerifyEvaluateOutput:
-    """Stands in for part D checking: one blank answer, so no LLM."""
+    """Stands in for part C checking: one blank answer, so no LLM."""
     item = {
         "question_id": 1,
         "llm_verdict": None,

@@ -25,7 +25,7 @@ class QuoteScore(RootModel[float]):
 
 class CvVerificationEvaluationItem(BaseModel):
     """
-    The checked verdict on one answer of part D
+    The checked verdict on one answer of part C
     """
 
     model_config = ConfigDict(

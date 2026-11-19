@@ -40,17 +40,17 @@ export interface CvVerificationSweepReport {
 }
 
 /**
- * The sweep of part D, every minute (FR-25, US-4.8 AC-2, AC-5, ARCHITECTURE › Tác vụ định kỳ,
+ * The sweep of part C, every minute (FR-25, US-4.8 AC-2, AC-5, ARCHITECTURE › Tác vụ định kỳ,
  * CONTEXT D57). Work tied to a phase runs here, never in a phase-change listener (LESSONS §34):
  *
  * 1. closes STALE the jobs still RUNNING after 6 hours; they are not sent again;
  * 2. for each campaign in TESTING with the phase still open, every PENDING_TEST preference of a JD
- *    whose locked bank has part D on, without a session or a row yet, gets a RUNNING row with its
+ *    whose locked bank has part C on, without a session or a row yet, gets a RUNNING row with its
  *    job id, committed before the job is sent (LESSONS §33); preferences no longer change in
  *    TESTING, so the row's preference id holds;
  * 3. sends every drafting job not handed to the broker yet, of those campaigns only: once TESTING
  *    closed, or the campaign was cancelled, no session can take the questions;
- * 4. starts the check of each READY part D whose session closed, outside closed and cancelled
+ * 4. starts the check of each READY part C whose session closed, outside closed and cancelled
  *    campaigns, and sends it the same way.
  *
  * A failed dispatch is logged and left for the next run (LESSONS §44). Under an advisory lock;
@@ -96,7 +96,7 @@ export class CvVerificationScheduler {
         try {
           drafted.push(...(await this.draftFor(campaign)));
         } catch (error) {
-          this.logger.error(`campaign ${campaign.id}: part D not drafted: ${errorMessage(error)}`);
+          this.logger.error(`campaign ${campaign.id}: part C not drafted: ${errorMessage(error)}`);
         }
       }
       const dispatched = await this.sendDrafts(testing.map((campaign) => campaign.id));
@@ -111,10 +111,10 @@ export class CvVerificationScheduler {
     try {
       const stale = await this.verifications.closeStale(before);
       const count = stale.drafts.length + stale.evaluations.length;
-      if (count > 0) this.logger.warn(`part D: ${count} jobs gave no result in time, closed STALE`);
+      if (count > 0) this.logger.warn(`part C: ${count} jobs gave no result in time, closed STALE`);
       return stale;
     } catch (error) {
-      this.logger.error(`part D: stale jobs not closed: ${errorMessage(error)}`);
+      this.logger.error(`part C: stale jobs not closed: ${errorMessage(error)}`);
       return { drafts: [], evaluations: [] };
     }
   }
@@ -132,10 +132,10 @@ export class CvVerificationScheduler {
         .filter((bank) => bank.status === 'LOCKED' && bank.cvVerificationEnabled)
         .map((bank) => [bank.jdId, bank.cvVerificationCount]),
     );
-    const partD = pending.filter((preference) => countOf.has(preference.jdId));
-    if (partD.length === 0) return [];
-    const withRow = await this.verifications.preferencesWithRow(partD.map((preference) => preference.id));
-    const due = partD.filter((preference) => !withRow.has(preference.id));
+    const partC = pending.filter((preference) => countOf.has(preference.jdId));
+    if (partC.length === 0) return [];
+    const withRow = await this.verifications.preferencesWithRow(partC.map((preference) => preference.id));
+    const due = partC.filter((preference) => !withRow.has(preference.id));
     if (due.length === 0) return [];
     const [taken, cvs] = await Promise.all([
       this.sessions.listSessionPairs(
@@ -181,7 +181,7 @@ export class CvVerificationScheduler {
     try {
       rows = await this.verifications.listUndispatched(campaignIds);
     } catch (error) {
-      this.logger.error(`part D: drafting jobs not listed: ${errorMessage(error)}`);
+      this.logger.error(`part C: drafting jobs not listed: ${errorMessage(error)}`);
       return sent;
     }
     for (const row of rows) {
@@ -198,19 +198,19 @@ export class CvVerificationScheduler {
           row.jobId,
         );
       } catch (error) {
-        this.logger.error(`part D ${row.id}: drafting job ${row.jobId} not dispatched: ${errorMessage(error)}`);
+        this.logger.error(`part C ${row.id}: drafting job ${row.jobId} not dispatched: ${errorMessage(error)}`);
         continue;
       }
       sent.push(row.id);
       await this.verifications.markDispatched(row.id).catch((error: unknown) => {
-        this.logger.warn(`part D ${row.id}: dispatched_at not written: ${errorMessage(error)}`);
+        this.logger.warn(`part C ${row.id}: dispatched_at not written: ${errorMessage(error)}`);
       });
     }
     return sent;
   }
 
   /**
-   * Step 4: the check of each closed session's part D, its job id committed first. Closed and
+   * Step 4: the check of each closed session's part C, its job id committed first. Closed and
    * cancelled campaigns are left out, as every sweep does; a row that fails does not hold back the
    * others.
    */
@@ -224,20 +224,20 @@ export class CvVerificationScheduler {
         final.flat().map((campaign) => campaign.id),
       );
     } catch (error) {
-      this.logger.error(`part D: checks not listed: ${errorMessage(error)}`);
+      this.logger.error(`part C: checks not listed: ${errorMessage(error)}`);
     }
     for (const row of due) {
       try {
         await this.db.transaction((tx) => this.verifications.startEvaluation(tx, row.id, randomUUID()));
       } catch (error) {
-        this.logger.error(`part D ${row.id}: check not started: ${errorMessage(error)}`);
+        this.logger.error(`part C ${row.id}: check not started: ${errorMessage(error)}`);
       }
     }
     let rows: CvVerificationRecord[];
     try {
       rows = await this.verifications.listEvaluationUndispatched();
     } catch (error) {
-      this.logger.error(`part D: checking jobs not listed: ${errorMessage(error)}`);
+      this.logger.error(`part C: checking jobs not listed: ${errorMessage(error)}`);
       return sent;
     }
     for (const row of rows) {
@@ -249,12 +249,12 @@ export class CvVerificationScheduler {
           row.evaluationJobId,
         );
       } catch (error) {
-        this.logger.error(`part D ${row.id}: checking job ${row.evaluationJobId} not dispatched: ${errorMessage(error)}`);
+        this.logger.error(`part C ${row.id}: checking job ${row.evaluationJobId} not dispatched: ${errorMessage(error)}`);
         continue;
       }
       sent.push(row.id);
       await this.verifications.markEvaluationDispatched(row.id).catch((error: unknown) => {
-        this.logger.warn(`part D ${row.id}: evaluation_dispatched_at not written: ${errorMessage(error)}`);
+        this.logger.warn(`part C ${row.id}: evaluation_dispatched_at not written: ${errorMessage(error)}`);
       });
     }
     return sent;

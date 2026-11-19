@@ -1,4 +1,4 @@
-"""The two LLM outputs of part D, checked against the job they answer (US-4.8 AC-2, AC-5).
+"""The two LLM outputs of part C, checked against the job they answer (US-4.8 AC-2, AC-5).
 
 The generated contracts check shape and limits only. What makes an answer usable depends on the
 job: the entries of this CV, the number of questions asked, the answers sent. A model class is

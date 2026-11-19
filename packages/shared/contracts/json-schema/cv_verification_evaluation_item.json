@@ -66,5 +66,5 @@
   ],
   "additionalProperties": false,
   "title": "CvVerificationEvaluationItem",
-  "description": "The checked verdict on one answer of part D"
+  "description": "The checked verdict on one answer of part C"
 }

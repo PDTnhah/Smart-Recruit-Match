@@ -100,7 +100,7 @@ Ranh giới mà epic này giữ: chấm trắc nghiệm, tính S_test, S_final v
 | US-4.9 | Duyệt mẫu ngân hàng câu hỏi | HR/giảng viên duyệt một mẫu ngẫu nhiên của ngân hàng | 📋 backlog | — |
 | US-4.10 | Tách Validator khỏi job sinh câu: AI kiểm câu khi Trung tâm yêu cầu | Sinh ngân hàng ít request hơn; AI kiểm câu khi Trung tâm bấm | 📋 backlog | — |
 | US-4.11 | Tab Ngân hàng câu hỏi: xem toàn bộ câu và loại câu sai | Trung tâm xem mọi câu đã sinh và loại câu sai | 📋 backlog | — |
-| US-4.12 | Sửa giao diện ngân hàng câu hỏi: ô độ phủ và đổi phần D thành C | Ô độ phủ dễ đọc; các phần đánh chữ A, B, C | 📋 backlog | — |
+| US-4.12 | Sửa giao diện ngân hàng câu hỏi: ô độ phủ và đổi phần D thành C | Ô độ phủ dễ đọc; các phần đánh chữ A, B, C | 👀 review | 0.27.1 |
 
 ## Object map & user-story interactions
 

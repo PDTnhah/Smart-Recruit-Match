@@ -1,4 +1,4 @@
-"""Part D checking: a verdict per answer against the CV entry its question asks about (US-4.8
+"""Part C checking: a verdict per answer against the CV entry its question asks about (US-4.8
 AC-5, AD-2).
 
 1. Read the questions and answers of the closed session through
@@ -52,7 +52,7 @@ class CvVerificationEvaluator:
         rows = await self._sources.answers(job.preference_id)
         if not rows:
             raise PermanentError(
-                f"preference {job.preference_id} has no part D of a closed session",
+                f"preference {job.preference_id} has no part C of a closed session",
                 code="ANSWERS_NOT_FOUND",
             )
         answered = [row for row in rows if answer_of(row) is not None]

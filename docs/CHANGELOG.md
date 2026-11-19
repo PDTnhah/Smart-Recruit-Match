@@ -15,6 +15,22 @@ Lịch sử phát hành của Smart Recruit Match. Mỗi commit ship code tăng 
 
 ---
 
+## [0.27.1] — 2026-11-19 — Ô độ phủ dễ đọc, phần xác minh CV thành phần C — v0.27.1
+
+US-4.12. Sửa hai lỗi hiển thị mà người dùng báo khi xem ngân hàng câu hỏi của JD 5 (FR-18, FR-25, [CONTEXT D60](CONTEXT.md)). Cách tính độ phủ không đổi.
+
+### Fixed
+- Ô độ phủ của ma trận đề ghi "n câu mỗi đề", "Ngân hàng: x câu · cần ≥ y" và badge "Đủ" hoặc "Thiếu n", thay cho phân số "Đạt 4/3". Mức 3 lần số câu mỗi đề là mức tối thiểu, không phải tổng, nên trước đây tử số thường lớn hơn mẫu số. Caption của bảng giải thích lại cách đọc ô.
+
+### Changed
+- Phần xác minh CV đổi từ phần D thành phần C trên mọi màn (ma trận đề của Trung tâm, phòng thi, khối chỉ số tin cậy CV khi chấm tay) và trong mã `CV_VERIFICATION_PART`. Đề thi (`POST /api/preferences/{id}/exam/start`, `GET /api/exam-sessions/{id}`) ghi `part` của câu là `A`, `B` hoặc `C`. Không có dữ liệu đã lưu nào chứa chữ phần, nên không cần migration.
+- Prompt `cv_verification/v1`, `cv_verification_check/v1` và mô tả `CvVerificationCheckItem` trong output schema vẫn ghi "part D", vì prompt đã phát hành không sửa được. Sẽ đổi ở phiên bản prompt kế tiếp.
+
+### Not done
+- Chưa kiểm tay ở 360 / 768 / 1024 px (AC-4).
+
+---
+
 ## [0.27.0] — 2026-11-19 — Nhà cung cấp LLM OpenAI và DeepSeek — v0.27.0
 
 US-2.9. AI Service chạy được với OpenAI hoặc DeepSeek khi không có key Gemini hay Claude, chọn bằng `LLM_PROVIDER` (NFR-11, NFR-12, [CONTEXT D58](CONTEXT.md)). Agent và lõi gọi LLM không đổi.

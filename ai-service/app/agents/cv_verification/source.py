@@ -1,12 +1,12 @@
-"""What part D reads, through the masked views of AD-4 only (US-4.8 AC-2, AC-3, AC-5, BR-03).
+"""What part C reads, through the masked views of AD-4 only (US-4.8 AC-2, AC-3, AC-5, BR-03).
 
 - core.v_ai_cv_profile_masked: the confirmed, active CV version, PII already masked;
 - core.v_ai_jd_requirements: the approved requirements of the JD, to pick the entries that matter;
-- core.v_ai_cv_verification_answers: the questions and answers of part D once the session closed.
+- core.v_ai_cv_verification_answers: the questions and answers of part C once the session closed.
   The view has no column about the student.
 
 A row gone from its view (a newer CV version, a session still open) is not an error worth
-retrying: the job fails for good and the backend shows the preference without part D.
+retrying: the job fails for good and the backend shows the preference without part C.
 """
 
 from dataclasses import dataclass

@@ -26,5 +26,5 @@
   ],
   "additionalProperties": false,
   "title": "CvVerificationQuestion",
-  "description": "One question of part D, checked against the CV"
+  "description": "One question of part C, checked against the CV"
 }

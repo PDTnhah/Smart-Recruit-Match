@@ -99,7 +99,7 @@ export function BlueprintForm({ view, onDone, onReload, onRefresh }: BlueprintFo
       await update.mutateAsync({
         rowVersion: loaded.rowVersion,
         blueprint,
-        // The resolver checks the matrix only: the Select offers no invalid part D.
+        // The resolver checks the matrix only: the Select offers no invalid part C.
         cvVerification: cvVerificationOf(form.getValues('cvVerification'), loaded.cvVerification),
       });
       toast.success('Đã lưu ma trận đề. Bấm "Sinh câu còn thiếu" nếu còn ô chưa đủ câu nháp.');
@@ -226,7 +226,7 @@ function PartFields({ control, part, rows }: { control: FormControl; part: ExamP
   );
 }
 
-/** Part D (US-4.8 AC-1): off, or 2–3 questions about the student's own CV; never scored. */
+/** Part C (US-4.8 AC-1): off, or 2–3 questions about the student's own CV; never scored. */
 function CvVerificationField({ control }: { control: FormControl }) {
   return (
     <FieldSet>
@@ -237,7 +237,7 @@ function CvVerificationField({ control }: { control: FormControl }) {
         control={control}
         render={({ field }) => (
           <Field className="sm:max-w-xs">
-            <FieldLabel htmlFor="blueprint-cv-verification">Số câu phần D mỗi bài</FieldLabel>
+            <FieldLabel htmlFor="blueprint-cv-verification">Số câu phần C mỗi bài</FieldLabel>
             <Select value={field.value} onValueChange={field.onChange}>
               <SelectTrigger id="blueprint-cv-verification" ref={field.ref} className="w-full" onBlur={field.onBlur}>
                 <SelectValue />

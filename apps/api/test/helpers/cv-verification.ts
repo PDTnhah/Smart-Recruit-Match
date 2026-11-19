@@ -1,4 +1,4 @@
-// Setup for the part D tests (US-4.8): a part D row of a preference written directly, as the
+// Setup for the part C tests (US-4.8): a part C row of a preference written directly, as the
 // drafting result would leave it, and results of the two jobs as the consumer hands them over (the
 // AI Service does not run in the API tests). Listeners are called directly (LESSONS §36).
 import {
@@ -40,11 +40,11 @@ export function draftedQuestion(index: number, stem = `Bạn đã làm gì trong
 }
 
 /**
- * Part D of the exam's preference: READY with one question per stem by default, or RUNNING
+ * Part C of the exam's preference: READY with one question per stem by default, or RUNNING
  * without questions; its drafting job sent unless `dispatched` is false. Uses the student's CV in
  * the campaign, or makes a confirmed one.
  */
-export async function createPartD(
+export async function createPartC(
   db: Database,
   exam: ExamFixture,
   options: { stems?: string[]; status?: 'READY' | 'RUNNING'; dispatched?: boolean } = {},
@@ -117,7 +117,7 @@ export function checkResult(
   row: CvVerificationRow,
   items: CvVerificationEvaluationItem[] | null,
 ): AiResultEvent<'CV_VERIFY_EVALUATE'> {
-  if (row.evaluationJobId === null) throw new Error(`part D ${row.id} has no checking job`);
+  if (row.evaluationJobId === null) throw new Error(`part C ${row.id} has no checking job`);
   const jobId = row.evaluationJobId;
   return CvVerifyEvaluateResultSchema.parse({
     job_id: jobId,

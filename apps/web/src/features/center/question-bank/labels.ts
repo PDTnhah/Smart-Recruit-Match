@@ -8,6 +8,7 @@ import type {
 } from '@srm/shared';
 import type { VariantProps } from 'class-variance-authority';
 import type { badgeVariants } from '@/components/ui/badge';
+import { formatNumber } from '@/lib/format';
 
 // Vietnamese labels of the question bank screen (US-4.1 AC-11, US-4.2 AC-10, DESIGN.md §9).
 
@@ -27,11 +28,11 @@ export const EXAM_PART_TITLES: Readonly<Record<ExamPart, string>> = {
   B: 'Phần B – Tự luận chấm theo rubric',
 };
 
-/** Part D (US-4.8): not a blueprint part, set apart from A and B. */
-export const CV_VERIFICATION_TITLE = 'Phần D – Xác minh CV (không tính điểm)';
+/** Part C (US-4.8): not a blueprint part, set apart from A and B. */
+export const CV_VERIFICATION_TITLE = 'Phần C – Xác minh CV (không tính điểm)';
 
 export const CV_VERIFICATION_DESCRIPTION =
-  'Câu tự luận về dự án, kinh nghiệm, kỹ năng sinh viên khai trong CV, sinh riêng cho từng sinh viên từ hồ sơ đã che thông tin cá nhân khi đợt sang giai đoạn làm test. Câu trả lời được đối chiếu với CV thành chỉ số tin cậy để tham khảo, không tính vào điểm bài test. Thời gian làm phần D nằm trong thời gian làm bài.';
+  'Câu tự luận về dự án, kinh nghiệm, kỹ năng sinh viên khai trong CV, sinh riêng cho từng sinh viên từ hồ sơ đã che thông tin cá nhân khi đợt sang giai đoạn làm test. Câu trả lời được đối chiếu với CV thành chỉ số tin cậy để tham khảo, không tính vào điểm bài test. Thời gian làm phần C nằm trong thời gian làm bài.';
 
 type BadgeVariant = NonNullable<VariantProps<typeof badgeVariants>['variant']>;
 
@@ -59,6 +60,13 @@ export function runErrorMessage(errorCode: string | null): string {
 }
 
 export const cellLabel = (skill: string, difficulty: QuestionDifficulty) => `${skill} – ${DIFFICULTY_LABELS[difficulty]}`;
+
+/** How to read a matrix cell (US-4.2 AC-10, US-4.12 AC-1). */
+export const COVERAGE_CAPTION =
+  'Mỗi ô: số câu của một đề; số câu đạt kiểm định đang có trong ngân hàng và mức tối thiểu cần có (3 lần số câu mỗi đề); "Đủ" khi đạt mức tối thiểu, "Thiếu n" khi còn thiếu n câu; câu bị loại, câu chờ kiểm và lý do loại.';
+
+/** The badge of a cell: enough questions, or how many are still short of the minimum. */
+export const coverageStatusLabel = (short: number) => (short > 0 ? `Thiếu ${formatNumber(short)}` : 'Đủ');
 
 /** Why the Validator rejected a question (US-4.2 AC-3), in the order of QUESTION_REJECT_REASONS. */
 export const REJECT_REASON_LABELS: Readonly<Record<QuestionRejectReason, string>> = {

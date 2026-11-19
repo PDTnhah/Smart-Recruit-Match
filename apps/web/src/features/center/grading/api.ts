@@ -75,7 +75,7 @@ export function useManualGradingDetail(answerId: number) {
   });
 }
 
-/** Part D of a session and its CV trust index (US-4.8 AC-7): CENTER only, never scored. */
+/** Part C of a session and its CV trust index (US-4.8 AC-7): CENTER only, never scored. */
 export function useCvTrust(sessionId: number) {
   return useQuery({
     queryKey: gradingKeys.cvTrust(sessionId),

@@ -12,7 +12,7 @@
       "type": "integer",
       "exclusiveMinimum": 0,
       "maximum": 9007199254740991,
-      "description": "core.preferences.id whose part D to check"
+      "description": "core.preferences.id whose part C to check"
     },
     "cv_id": {
       "type": "integer",
@@ -35,5 +35,5 @@
   ],
   "additionalProperties": false,
   "title": "CvVerifyEvaluateJob",
-  "description": "Job on ai.cv_verification.evaluate: check the answers of part D"
+  "description": "Job on ai.cv_verification.evaluate: check the answers of part C"
 }

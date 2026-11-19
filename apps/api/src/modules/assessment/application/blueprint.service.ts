@@ -138,7 +138,7 @@ export class BlueprintService {
   }
 }
 
-/** Part D of the bank (US-4.8 AC-1). */
+/** Part C of the bank (US-4.8 AC-1). */
 function cvVerificationOf(bank: QuestionBankRecord): CvVerificationSettings {
   return { enabled: bank.cvVerificationEnabled, questionCount: bank.cvVerificationCount };
 }

@@ -35,14 +35,14 @@ export interface PartFormValues {
 export interface BlueprintFormValues {
   duration_minutes: number;
   parts: Record<ExamPart, PartFormValues>;
-  /** Part D (US-4.8 AC-1): `CV_VERIFICATION_OFF` or a question count, as the Select holds it. */
+  /** Part C (US-4.8 AC-1): `CV_VERIFICATION_OFF` or a question count, as the Select holds it. */
   cvVerification: string;
 }
 
-/** Part D turned off; Radix's Select takes no empty value (DESIGN.md §6 `select`). */
+/** Part C turned off; Radix's Select takes no empty value (DESIGN.md §6 `select`). */
 export const CV_VERIFICATION_OFF = 'NONE';
 
-/** The question counts part D may have, 2 to 3. */
+/** The question counts part C may have, 2 to 3. */
 export const CV_VERIFICATION_COUNTS = Array.from(
   { length: CV_VERIFICATION_QUESTIONS.max - CV_VERIFICATION_QUESTIONS.min + 1 },
   (_, index) => CV_VERIFICATION_QUESTIONS.min + index,
@@ -51,7 +51,7 @@ export const CV_VERIFICATION_COUNTS = Array.from(
 export const cvVerificationChoiceOf = (settings: CvVerificationSettings) =>
   settings.enabled ? String(settings.questionCount) : CV_VERIFICATION_OFF;
 
-/** The settings a choice stands for; turning part D off keeps the count it had. */
+/** The settings a choice stands for; turning part C off keeps the count it had. */
 export function cvVerificationOf(choice: string, loaded: CvVerificationSettings): CvVerificationSettings {
   return choice === CV_VERIFICATION_OFF
     ? { enabled: false, questionCount: loaded.questionCount }

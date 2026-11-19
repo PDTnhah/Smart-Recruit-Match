@@ -1,4 +1,4 @@
-"""The CV entries part D may ask about, taken from `profile_masked` (US-4.8 AC-2, AC-3, BR-03).
+"""The CV entries part C may ask about, taken from `profile_masked` (US-4.8 AC-2, AC-3, BR-03).
 
 A claim is one project, one work experience or one listed skill, named by its list and position:
 `{section: PROJECT, index: 0}` is the first project. Only the fields below reach a prompt, so a

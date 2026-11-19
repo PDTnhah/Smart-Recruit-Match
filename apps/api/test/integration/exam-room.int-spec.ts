@@ -23,7 +23,7 @@ import { ExamSessionsRepository } from '../../src/modules/assessment/infrastruct
 import { SYSTEM_ACTOR } from '../../src/modules/audit/index.js';
 import { REDIS } from '../../src/redis/redis.module.js';
 import { api, type AuthTestApp, createAuthTestApp, type LoggedIn } from '../helpers/auth.js';
-import { createPartD, verificationOf, verificationQuestionsOf } from '../helpers/cv-verification.js';
+import { createPartC, verificationOf, verificationQuestionsOf } from '../helpers/cv-verification.js';
 import { createTestDb, type TestDb } from '../helpers/db.js';
 import { createExamFixture, EXAM_MINUTES, type ExamFixture, minutesAfter, sessionRow, waitForALockWait } from '../helpers/exam.js';
 import { FakeClock } from '../helpers/fake-clock.js';
@@ -667,12 +667,12 @@ describe('GĐ5 exam room (US-4.3)', () => {
     expect((await myExams(newcomer).expect(200)).body).toEqual({ campaign: null, items: [], serverNow: clock.now().toISOString() });
   });
 
-  // Part D rows are written directly, with the bank's part D off: the start reads the row only, and
+  // Part C rows are written directly, with the bank's part C off: the start reads the row only, and
   // the sweep of grading.int-spec.ts, which may run meanwhile, then never drafts for these preferences.
-  it('FR-25 part D READY at the start follows A and B unscored, autosaves as essays, closes into its own table', async () => {
+  it('FR-25 part C READY at the start follows A and B unscored, autosaves as essays, closes into its own table', async () => {
     const exam = await fixture();
-    const partD = await createPartD(t.db, exam, { stems: ['Bạn làm gì trong dự án 1?', 'Bạn dùng kỹ năng 2 ra sao?'] });
-    const [d1, d2] = partD.questionIds as [number, number];
+    const partC = await createPartC(t.db, exam, { stems: ['Bạn làm gì trong dự án 1?', 'Bạn dùng kỹ năng 2 ra sao?'] });
+    const [d1, d2] = partC.questionIds as [number, number];
     const paper = ExamPaperSchema.parse((await start(exam.student, exam.preferenceId).expect(200)).body);
     const sessionId = paper.sessionId;
 
@@ -681,12 +681,12 @@ describe('GĐ5 exam room (US-4.3)', () => {
       ['A', 1],
       ['B', 2],
       ['B', 3],
-      ['D', 4],
-      ['D', 5],
+      ['C', 4],
+      ['C', 5],
     ]);
     expect(paper.questions.slice(3)).toEqual([
-      { questionId: d1, no: 4, part: 'D', type: 'ESSAY', stem: 'Bạn làm gì trong dự án 1?', options: null },
-      { questionId: d2, no: 5, part: 'D', type: 'ESSAY', stem: 'Bạn dùng kỹ năng 2 ra sao?', options: null },
+      { questionId: d1, no: 4, part: 'C', type: 'ESSAY', stem: 'Bạn làm gì trong dự án 1?', options: null },
+      { questionId: d2, no: 5, part: 'C', type: 'ESSAY', stem: 'Bạn dùng kỹ năng 2 ra sao?', options: null },
     ]);
     expect([...keysOf(paper)].filter((key) => FORBIDDEN_KEYS.includes(key) || key.startsWith('claim'))).toEqual([]);
     expect(await sessionRow(t.db, sessionId)).toMatchObject({ verificationQuestionIds: [d1, d2] });
@@ -705,13 +705,13 @@ describe('GĐ5 exam room (US-4.3)', () => {
       { questionId: d2, answer: { text: '  ' } },
     ]);
 
-    // AC-6: the close writes part D to its own table, never to exam_answers. The counts take in
-    // part D, as the room does, on the close and on a later submit alike.
+    // AC-6: the close writes part C to its own table, never to exam_answers. The counts take in
+    // part C, as the room does, on the close and on a later submit alike.
     const submitted = ExamSubmissionSchema.parse((await submit(exam.student, sessionId).expect(200)).body);
     expect(submitted).toMatchObject({ answeredCount: 1, questionCount: 5 });
     expect(ExamSubmissionSchema.parse((await submit(exam.student, sessionId).expect(200)).body)).toEqual(submitted);
     expect(await t.db.select().from(examAnswers).where(eq(examAnswers.sessionId, sessionId))).toEqual([]);
-    expect((await verificationQuestionsOf(t.db, partD.id)).map((question) => question.answer)).toEqual([
+    expect((await verificationQuestionsOf(t.db, partC.id)).map((question) => question.answer)).toEqual([
       'Em viết API đăng nhập bằng NestJS',
       null,
     ]);
@@ -723,12 +723,12 @@ describe('GĐ5 exam room (US-4.3)', () => {
     ).toEqual([]);
   });
 
-  it('FR-25 part D not READY at the start: the test starts without it and never waits', async () => {
+  it('FR-25 part C not READY at the start: the test starts without it and never waits', async () => {
     const exam = await fixture();
-    const partD = await createPartD(t.db, exam, { status: 'RUNNING' });
+    const partC = await createPartC(t.db, exam, { status: 'RUNNING' });
     const paper = ExamPaperSchema.parse((await start(exam.student, exam.preferenceId).expect(200)).body);
     expect(paper.questions.map((question) => question.part)).toEqual(['A', 'B', 'B']);
     expect(await sessionRow(t.db, paper.sessionId)).toMatchObject({ verificationQuestionIds: [] });
-    expect(await verificationOf(t.db, exam.preferenceId)).toMatchObject({ id: partD.id, sessionId: null });
+    expect(await verificationOf(t.db, exam.preferenceId)).toMatchObject({ id: partC.id, sessionId: null });
   });
 });

@@ -59,6 +59,6 @@ export class ManualGradeRequestDto extends createZodDto(ManualGradeRequestSchema
 
 export class ManualGradeResultDto extends createZodDto(ManualGradeResultSchema) {}
 
-// Part D (US-4.8): staff only, never the student.
+// Part C (US-4.8): staff only, never the student.
 
 export class CvTrustViewDto extends createZodDto(CvTrustViewSchema) {}
