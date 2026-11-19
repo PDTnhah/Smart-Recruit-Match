@@ -14,10 +14,15 @@ export interface ReviewCandidate {
 export interface ReviewSampleInput<T extends ReviewCandidate> {
   candidates: readonly T[];
   blueprint: ExamBlueprint;
-  /** The most questions the sample holds. */
+  /** The most questions drawn. */
   size: number;
   /** The same seed and candidates give the same sample. */
   seed: number;
+  /**
+   * Questions someone already reviewed: always in the sample, over `size` if need be, so a size
+   * lowered after the reviews never hides one.
+   */
+  keep?: ReadonlySet<number>;
 }
 
 export interface SampledQuestion<T extends ReviewCandidate> {
@@ -70,7 +75,8 @@ const byRankThenId = <T extends { rank: number; id: number }>(a: T, b: T): numbe
  * essay cells (part B) come first, then part A, each part in an order the seed decides, so a sample
  * smaller than the blueprint still holds the essays. Since a question's place in its cell depends on
  * its own id only, a question added to or dropped from a cell moves at most one question of the
- * sample: a reload, or a review that retires a question, keeps the rest. Returned in display order:
+ * sample: a reload, or a review that retires a question, keeps the rest. Questions of `keep` the draw
+ * left out are added at their place in their cell. Returned in display order:
  * part A then B, cells as the blueprint lists them.
  */
 export function drawReviewSample<T extends ReviewCandidate>({
@@ -78,6 +84,7 @@ export function drawReviewSample<T extends ReviewCandidate>({
   blueprint,
   size,
   seed,
+  keep = new Set<number>(),
 }: ReviewSampleInput<T>): SampledQuestion<T>[] {
   const cells = new Map<string, SampleCell<T>>();
   for (const [index, cell] of cellsOf(blueprint).entries()) {
@@ -115,6 +122,12 @@ export function drawReviewSample<T extends ReviewCandidate>({
       progressed = true;
     }
     if (!progressed) break;
+  }
+  const pickedIds = new Set(picked.map(({ question }) => question.id));
+  for (const cell of turnOrder) {
+    for (const [round, question] of cell.pool.entries()) {
+      if (keep.has(question.id) && !pickedIds.has(question.id)) picked.push({ cell, round, question });
+    }
   }
 
   return picked

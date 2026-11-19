@@ -53,7 +53,7 @@ function Summary({ sample }: { sample: QuestionReviewSample }) {
 /**
  * "Duyệt đề mẫu" (FR-19, US-4.9 AC-6), for HR of the JD's company and for CENTER: a random sample of the JD's
  * question bank, part A then part B, each question with its answer key or rubric and the review actions.
- * `readOnly` hides the actions (a cancelled campaign: the API refuses them anyway).
+ * `readOnly` hides the actions (a closed or cancelled campaign: the API refuses them anyway).
  */
 export function ReviewSamplePanel({ jdId, readOnly = false }: { jdId: number; readOnly?: boolean }) {
   const sample = useReviewSample(jdId);

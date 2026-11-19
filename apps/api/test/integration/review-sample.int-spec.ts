@@ -12,6 +12,7 @@ import { and, eq, sql } from 'drizzle-orm';
 import { auditLogs, questionReviews, questions } from '../../src/db/schema/index.js';
 import { AI_JOB_DISPATCHED, type AiJobDispatchedEvent } from '../../src/modules/aigateway/index.js';
 import { QuestionBankService } from '../../src/modules/assessment/index.js';
+import { SYSTEM_ACTOR } from '../../src/modules/audit/index.js';
 import { api, type AuthTestApp, createAuthTestApp, type LoggedIn } from '../helpers/auth.js';
 import { createTestDb, type TestDb } from '../helpers/db.js';
 import { createCampaign, createCompany, TEST_CAMPAIGN_TARGET } from '../helpers/factories.js';
@@ -164,6 +165,12 @@ describe('GĐ5 sample review of a question bank (US-4.9)', () => {
     // A retired question takes no further verdict.
     const again = await review(jdId, { questionId: target.id, verdict: 'OK' }).expect(409);
     expect(errorCode(again.body)).toBe('QUESTION_NOT_REVIEWABLE');
+    // One retired another way before anyone reviewed it leaves the sample: still 409, not 400.
+    const shown = (await getSample(jdId)).questions.find((q) => q.status !== 'RETIRED')!;
+    await t.app.get(QuestionBankService).retireQuestion({ questionId: shown.id, actor: SYSTEM_ACTOR, reason: 'test' });
+    expect((await getSample(jdId)).questions.map((q) => q.id)).not.toContain(shown.id);
+    const gone = await review(jdId, { questionId: shown.id, verdict: 'OK' }).expect(409);
+    expect(errorCode(gone.body)).toBe('QUESTION_NOT_REVIEWABLE');
   });
 
   it('FR-19 Invariant 11 the database refuses an ERROR without a reason and a second ERROR of a question', async () => {

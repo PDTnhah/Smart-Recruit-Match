@@ -1,4 +1,4 @@
-import { QUESTION_BANK_JD_STATES } from '@srm/shared';
+import { isCampaignFinal, QUESTION_BANK_JD_STATES } from '@srm/shared';
 import { ArrowLeft, CircleAlert } from 'lucide-react';
 import { useState } from 'react';
 import { Link, Navigate, useParams, useSearchParams } from 'react-router';
@@ -6,6 +6,7 @@ import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useCampaigns } from '@/features/center/campaigns/api';
 import { QuestionBankPanel } from '@/features/center/question-bank/question-bank-panel';
 import { useJd } from '@/features/jds/api';
 import { ReviewSamplePanel } from '@/features/jds/question-review/review-sample-panel';
@@ -52,11 +53,10 @@ function JdApprovalDetail({ id }: { id: number }) {
   const requested = params.get(TAB_PARAM) ?? DETAILS_TAB;
   const tab = TABS.includes(requested) ? requested : DETAILS_TAB;
   // The bank tab mounts once opened, so a JD only read on its details tab does not load (and make)
-  // the bank, then stays mounted like the details tab. The review tab likewise loads its sample once opened.
+  // the bank, then stays mounted like the details tab.
   const [bankOpened, setBankOpened] = useState(tab === QUESTION_BANK_TAB);
   if (tab === QUESTION_BANK_TAB && !bankOpened) setBankOpened(true);
-  const [reviewOpened, setReviewOpened] = useState(tab === REVIEW_TAB);
-  if (tab === REVIEW_TAB && !reviewOpened) setReviewOpened(true);
+  const campaigns = useCampaigns();
 
   function selectTab(next: string) {
     setParams(
@@ -99,6 +99,9 @@ function JdApprovalDetail({ id }: { id: number }) {
   }
 
   const data = jd.data;
+  // A closed or cancelled campaign takes no review: the API refuses it (409).
+  const campaignFinal =
+    campaigns.data?.some(({ id, status }) => id === data.campaignId && isCampaignFinal(status)) ?? false;
   const details = (
     <div className="grid items-start gap-6 lg:grid-cols-2">
       <JdDetails jd={data} showCompany />
@@ -126,15 +129,17 @@ function JdApprovalDetail({ id }: { id: number }) {
             <TabsTrigger value={QUESTION_BANK_TAB}>Ngân hàng câu hỏi</TabsTrigger>
             <TabsTrigger value={REVIEW_TAB}>Duyệt đề mẫu</TabsTrigger>
           </TabsList>
-          {/* Both stay mounted, so switching tabs keeps a form being edited (DESIGN.md §6 › tabs). */}
+          {/* Details and bank stay mounted, so switching tabs keeps a form being edited (DESIGN.md §6 › tabs). */}
           <TabsContent value={DETAILS_TAB} forceMount className="data-[state=inactive]:hidden">
             {details}
           </TabsContent>
           <TabsContent value={QUESTION_BANK_TAB} forceMount className="data-[state=inactive]:hidden">
             {bankOpened && <QuestionBankPanel jdId={data.id} visible={tab === QUESTION_BANK_TAB} />}
           </TabsContent>
-          <TabsContent value={REVIEW_TAB} forceMount className="data-[state=inactive]:hidden">
-            {reviewOpened && <ReviewSamplePanel jdId={data.id} />}
+          {/* Mounted only while open, so the sample is read again each time: generating, validating or
+              locking on the bank tab changes it. Its only input lives in a modal dialog. */}
+          <TabsContent value={REVIEW_TAB}>
+            <ReviewSamplePanel jdId={data.id} readOnly={campaignFinal} />
           </TabsContent>
         </Tabs>
       ) : (

@@ -27,14 +27,18 @@ export class QuestionReviewsRepository {
     return row;
   }
 
-  /** The latest review of each of these questions, by question id; a question nobody reviewed is absent. */
+  /**
+   * The latest review of each of these questions, by question id; a question nobody reviewed is
+   * absent. Latest by id, not `reviewed_at`: reviews are written under the bank's row lock, so the
+   * id gives the order they were written in, whatever the clock said.
+   */
   async latestOf(questionIds: readonly number[], tx?: DbTx): Promise<Map<number, QuestionReviewRecord>> {
     if (questionIds.length === 0) return new Map();
     const rows = await (tx ?? this.db)
       .selectDistinctOn([questionReviews.questionId])
       .from(questionReviews)
       .where(inArray(questionReviews.questionId, [...questionIds]))
-      .orderBy(questionReviews.questionId, desc(questionReviews.reviewedAt), desc(questionReviews.id));
+      .orderBy(questionReviews.questionId, desc(questionReviews.id));
     return new Map(rows.map((row) => [row.questionId, row]));
   }
 }

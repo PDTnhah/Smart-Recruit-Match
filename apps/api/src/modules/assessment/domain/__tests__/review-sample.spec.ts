@@ -102,4 +102,18 @@ describe('GĐ5 review sample (US-4.9)', () => {
     const added = after.find(({ question: q }) => !ids(sample).includes(q.id))!;
     expect(cellOf(added.question)).toBe(cellOf(dropped));
   });
+
+  it('GĐ5 AC-3 a reviewed question stays in the sample when the size is lowered', () => {
+    const candidates = bank(4);
+    const smaller = drawReviewSample({ candidates, blueprint: BLUEPRINT, size: 3, seed: 5 });
+    const reviewed = drawReviewSample({ candidates, blueprint: BLUEPRINT, size: 10, seed: 5 })
+      .map((entry) => entry.question)
+      .find((q) => q.type === 'MCQ' && !ids(smaller).includes(q.id))!;
+
+    const sample = drawReviewSample({ candidates, blueprint: BLUEPRINT, size: 3, seed: 5, keep: new Set([reviewed.id]) });
+    const byId = (a: number, b: number) => a - b;
+    expect(ids(sample).sort(byId)).toEqual([...ids(smaller), reviewed.id].sort(byId));
+    // Still in display order: part A first.
+    expect(sample.at(-1)!.part).toBe('B');
+  });
 });

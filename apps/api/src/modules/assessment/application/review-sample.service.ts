@@ -41,6 +41,7 @@ const isUsable = (status: QuestionStatus) => (USABLE_QUESTION_STATES as readonly
  *
  * The sample is drawn with the bank's id as seed from the usable questions and those already
  * reviewed, so a reload shows the same questions and a question reported wrong keeps its place.
+ * Reviewed questions stay in it even when CENTER lowers `bank_review_sample_size` afterwards.
  */
 @Injectable()
 export class ReviewSampleService {
@@ -68,11 +69,7 @@ export class ReviewSampleService {
         const bank = await this.banks.findByJd(jdId, tx);
         const sampleSize = config.bank_review_sample_size;
         if (!bank) return { jdId, bank: null, sampleSize, questions: [] };
-        const sample = await this.sampleOf(tx, bank, sampleSize);
-        const latest = await this.reviews.latestOf(
-          sample.map((entry) => entry.question.id),
-          tx,
-        );
+        const { sample, latest } = await this.sampleOf(tx, bank, sampleSize);
         return {
           jdId,
           bank: { id: bank.id, status: bank.status, version: bank.version },
@@ -96,9 +93,15 @@ export class ReviewSampleService {
       const { config } = await this.campaigns.assertNotFinal(campaignId, { tx });
       const found = await this.banks.findByJd(jdId, tx);
       const bank = found && (await this.banks.lock(tx, found.id));
-      const sample = bank ? await this.sampleOf(tx, bank, config.bank_review_sample_size) : [];
+      const { sample } = bank ? await this.sampleOf(tx, bank, config.bank_review_sample_size) : { sample: [] };
       const question = sample.find((entry) => entry.question.id === body.questionId)?.question;
       if (!bank || !question) {
+        // A sampled question rejected or retired before anyone reviewed it left the sample: 409 as when it is
+        // still shown, so the reviewer reloads instead of reading "not in the sample".
+        const stored = bank ? await this.banks.findQuestion(body.questionId, tx) : undefined;
+        if (stored && stored.bankId === bank?.id && !isUsable(stored.status)) {
+          throw new QuestionNotReviewableError(stored.id, stored.status);
+        }
         throw new ValidationFailedError([{ path: 'questionId', message: 'Câu này không thuộc mẫu duyệt của JD' }]);
       }
       if (!isUsable(question.status)) throw new QuestionNotReviewableError(question.id, question.status);
@@ -140,9 +143,19 @@ export class ReviewSampleService {
     return { campaignId: jd.campaignId };
   }
 
-  private async sampleOf(tx: DbTx, bank: QuestionBankRecord, size: number): Promise<SampledQuestion<QuestionRecord>[]> {
+  /** The sample and the latest review of each candidate; reviewed questions stay in it whatever the size. */
+  private async sampleOf(
+    tx: DbTx,
+    bank: QuestionBankRecord,
+    size: number,
+  ): Promise<{ sample: SampledQuestion<QuestionRecord>[]; latest: Map<number, QuestionReviewRecord> }> {
     const candidates = await this.banks.reviewCandidates(bank.id, tx);
-    return drawReviewSample({ candidates, blueprint: bank.blueprint, size, seed: bank.id });
+    const latest = await this.reviews.latestOf(
+      candidates.map((question) => question.id),
+      tx,
+    );
+    const keep = new Set(latest.keys());
+    return { sample: drawReviewSample({ candidates, blueprint: bank.blueprint, size, seed: bank.id, keep }), latest };
   }
 }
 

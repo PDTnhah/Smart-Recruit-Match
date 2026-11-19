@@ -1,4 +1,4 @@
-import { type JobDescription, QUESTION_BANK_JD_STATES } from '@srm/shared';
+import { isCampaignFinal, type JobDescription, QUESTION_BANK_JD_STATES } from '@srm/shared';
 import { ArrowLeft, CircleAlert, Info } from 'lucide-react';
 import { type ReactNode, useState } from 'react';
 import { Link, Navigate, useParams, useSearchParams } from 'react-router';
@@ -37,12 +37,15 @@ function PageHeader({ title, jd, actions }: { title: string; jd?: JobDescription
 }
 
 /**
- * Whether the JD's campaign is no longer listed for HR. A JD is only made in a campaign HR could
- * see, and HR sees every campaign but drafts and cancelled ones, so it was cancelled (US-1.10 AC-7).
+ * Whether the JD's campaign was cancelled, or is over (closed or cancelled). A JD is only made in a
+ * campaign HR could see, and HR sees every campaign but drafts and cancelled ones, so one no longer
+ * listed was cancelled (US-1.10 AC-7).
  */
-function useCampaignCancelled(campaignId: number): boolean {
+function useCampaignEnded(campaignId: number): { cancelled: boolean; final: boolean } {
   const campaigns = useCampaigns();
-  return campaigns.isSuccess && !campaigns.data.some((campaign) => campaign.id === campaignId);
+  if (!campaigns.isSuccess) return { cancelled: false, final: false };
+  const campaign = campaigns.data.find(({ id }) => id === campaignId);
+  return { cancelled: !campaign, final: !campaign || isCampaignFinal(campaign.status) };
 }
 
 function CampaignCancelledAlert() {
@@ -87,7 +90,7 @@ export function HrJdDetailPage() {
 function HrJdDetail({ id }: { id: number }) {
   const jd = useJd(id);
   const [unsaved, setUnsaved] = useState(false);
-  const cancelled = useCampaignCancelled(jd.data?.campaignId ?? 0);
+  const { cancelled, final } = useCampaignEnded(jd.data?.campaignId ?? 0);
   const [params, setParams] = useSearchParams();
   const tab = params.get(TAB_PARAM) === REVIEW_TAB ? REVIEW_TAB : DETAILS_TAB;
   // The sample loads once its tab is opened, then stays mounted.
@@ -172,7 +175,7 @@ function HrJdDetail({ id }: { id: number }) {
             {details}
           </TabsContent>
           <TabsContent value={REVIEW_TAB} forceMount className="data-[state=inactive]:hidden">
-            {reviewOpened && <ReviewSamplePanel jdId={data.id} readOnly={cancelled} />}
+            {reviewOpened && <ReviewSamplePanel jdId={data.id} readOnly={final} />}
           </TabsContent>
         </Tabs>
       ) : (
