@@ -10,7 +10,7 @@ version_shipped: 0.28.0
 prd_ref: [FR-18]
 depends_on: [US-4.2]
 assignee: PDTnhah
-commit:
+commit: d3b0150
 created: 2026-11-19
 updated: 2026-11-19
 ---
@@ -134,7 +134,7 @@ D50 từng loại phương án "job `QUESTIONS_VALIDATE` riêng" vì vòng sinh 
 ### Added
 - Nút "Kiểm câu bằng AI": Trung tâm chạy Validator trên các câu chưa kiểm như một job riêng (`POST /api/jds/{id}/question-bank/validate`).
 
-**Commit**: —
+**Commit**: `d3b0150`
 
 ## Implementation notes
 
