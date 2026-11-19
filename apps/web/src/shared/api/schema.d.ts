@@ -740,6 +740,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/jds/{id}/question-bank/sample": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ReviewSampleController_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jds/{id}/question-bank/sample/reviews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["ReviewSampleController_review"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/me/exams": {
         parameters: {
             query?: never;
@@ -1303,6 +1335,8 @@ export interface components {
                 };
                 /** @default 48 */
                 appeal_window_hours: number;
+                /** @default 10 */
+                bank_review_sample_size: number;
             };
         };
         CampaignDto_Output: {
@@ -1376,6 +1410,8 @@ export interface components {
                 };
                 /** @default 48 */
                 appeal_window_hours: number;
+                /** @default 10 */
+                bank_review_sample_size: number;
             };
             rowVersion: number;
             /** Format: date-time */
@@ -1455,6 +1491,8 @@ export interface components {
                     };
                     /** @default 48 */
                     appeal_window_hours: number;
+                    /** @default 10 */
+                    bank_review_sample_size: number;
                 };
                 rowVersion: number;
                 /** Format: date-time */
@@ -1504,6 +1542,7 @@ export interface components {
                     high_from: number;
                 };
                 appeal_window_hours?: number;
+                bank_review_sample_size?: number;
             };
             reason?: string;
         };
@@ -2751,6 +2790,55 @@ export interface components {
         };
         LockQuestionBankRequestDto: {
             rowVersion: number;
+        };
+        QuestionReviewSampleDto_Output: {
+            jdId: number;
+            bank: {
+                id: number;
+                /** @enum {string} */
+                status: "OPEN" | "LOCKED";
+                version: number;
+            } | null;
+            sampleSize: number;
+            questions: {
+                id: number;
+                rowVersion: number;
+                /** @enum {string} */
+                status: "DRAFT" | "VALIDATED" | "REJECTED" | "RETIRED";
+                /** @enum {string} */
+                part: "A" | "B";
+                /** @enum {string} */
+                type: "MCQ" | "ESSAY";
+                skill: string;
+                /** @enum {string} */
+                difficulty: "EASY" | "MEDIUM" | "HARD";
+                stem: string;
+                options: string[] | null;
+                correctOption: number | null;
+                explanation: string;
+                sampleAnswer: string | null;
+                rubric: {
+                    /** @description What the grader looks for */
+                    criterion: string;
+                    /** @description Points this criterion is worth at most */
+                    max_points: number;
+                }[] | null;
+                review: {
+                    /** @enum {string} */
+                    verdict: "OK" | "ERROR";
+                    reason: string | null;
+                    /** Format: date-time */
+                    reviewedAt: string;
+                    mine: boolean;
+                } | null;
+            }[];
+        };
+        SubmitQuestionReviewRequestDto: {
+            questionId: number;
+            /** @enum {string} */
+            verdict: "OK" | "ERROR";
+            reason?: string;
+            rowVersion?: number;
         };
         MyExamsResponseDto_Output: {
             campaign: {
@@ -4452,6 +4540,52 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ExamBlueprintViewDto_Output"];
+                };
+            };
+        };
+    };
+    ReviewSampleController_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuestionReviewSampleDto_Output"];
+                };
+            };
+        };
+    };
+    ReviewSampleController_review: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubmitQuestionReviewRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuestionReviewSampleDto_Output"];
                 };
             };
         };

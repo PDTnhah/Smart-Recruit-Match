@@ -97,6 +97,9 @@ export const CompetitionThresholdsSchema = z
 
 export type CompetitionThresholds = z.output<typeof CompetitionThresholdsSchema>;
 
+/** Largest sample of a question bank a reviewer is shown (US-4.9). */
+export const BANK_REVIEW_SAMPLE_MAX = 50;
+
 // Declared once without defaults: the full schema adds PRD defaults, the patch schema stays partial
 // (in Zod 4, `.partial()` would still fill defaults in).
 const CONFIG_FIELDS = {
@@ -134,6 +137,10 @@ const CONFIG_FIELDS = {
   appeal_window_hours: positiveInt('Thời hạn phúc khảo').max(168, {
     error: 'Thời hạn phúc khảo tối đa 168 giờ (7 ngày)',
   }),
+  // How many questions of a JD's bank HR or CENTER review as a sample (FR-19, US-4.9).
+  bank_review_sample_size: positiveInt('Số câu của mẫu duyệt đề').max(BANK_REVIEW_SAMPLE_MAX, {
+    error: `Số câu của mẫu duyệt đề tối đa ${BANK_REVIEW_SAMPLE_MAX}`,
+  }),
 };
 
 /**
@@ -143,7 +150,7 @@ const CONFIG_FIELDS = {
  * table (US-3.1, CONTEXT D41). `match_top_m` is not in the PRD table: added by US-3.2 (CONTEXT
  * D46); nor is `require_full_preferences`: added by US-3.3 (CONTEXT D47); nor is
  * `competition_thresholds`: added by US-3.4 (CONTEXT D48); nor is `appeal_window_hours`: added by
- * US-4.4 (CONTEXT D53).
+ * US-4.4 (CONTEXT D53); nor is `bank_review_sample_size`: added by US-4.9.
  */
 export const DEFAULT_CAMPAIGN_CONFIG = {
   n_nv: 3,
@@ -167,6 +174,7 @@ export const DEFAULT_CAMPAIGN_CONFIG = {
   require_full_preferences: false,
   competition_thresholds: { low_below: 1, high_from: 3 },
   appeal_window_hours: 48,
+  bank_review_sample_size: 10,
 } as const;
 
 /** The S_cv criteria in PRD table order; the sum error is reported on the last one. */
@@ -239,6 +247,9 @@ export const CampaignConfigSchema = z
       ...DEFAULT_CAMPAIGN_CONFIG.competition_thresholds,
     })),
     appeal_window_hours: CONFIG_FIELDS.appeal_window_hours.default(DEFAULT_CAMPAIGN_CONFIG.appeal_window_hours),
+    bank_review_sample_size: CONFIG_FIELDS.bank_review_sample_size.default(
+      DEFAULT_CAMPAIGN_CONFIG.bank_review_sample_size,
+    ),
   })
   .superRefine(checkWeights, whenValid(['alpha', 'beta']))
   .superRefine(checkScvWeights, whenValid(SCV_WEIGHT_KEYS));
@@ -295,6 +306,8 @@ export const CAMPAIGN_CONFIG_USED_FROM = {
   sla_hr_business_days: 'ALLOCATION_REVIEW',
   t_offer_days: 'ALLOCATION_REVIEW',
   reminder_hours_before: null,
+  // Only how many questions a reviewer is shown: no score depends on it.
+  bank_review_sample_size: null,
 } as const satisfies Record<keyof CampaignConfig, CampaignStatus | null>;
 
 /** Whether the campaign has reached `phase`, in the order of CAMPAIGN_STATES (CANCELLED is last). */

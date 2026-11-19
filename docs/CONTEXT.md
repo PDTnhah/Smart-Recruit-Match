@@ -67,6 +67,7 @@
 - D58 · Thêm OpenAI và DeepSeek: chọn thủ công, chỉ dữ liệu giả, Chat Completions, batch inline cho DeepSeek (US-2.9) → sửa một phần bởi D59 (OpenAI luôn `medium`)
 - D59 · OpenAI chạy mọi agent ở effort `medium` (US-2.9)
 - D60 · Validator chạy khi Trung tâm yêu cầu (job `QUESTIONS_VALIDATE`, nhắm 3×, câu `DRAFT` dùng được), Trung tâm xem và loại câu, phần xác minh CV đổi `D` → `C`; thêm US-4.10, US-4.11, US-4.12
+- D61 · Duyệt đề mẫu (US-4.9): giảng viên dùng tài khoản CENTER, duyệt cả trước và sau khi khóa, không bước nào chờ, ô thiếu câu chỉ cảnh báo; cỡ mẫu là tham số đợt; màn "Duyệt JD" giữ JD đã duyệt
 
 ---
 
@@ -2608,3 +2609,22 @@ Lúc điều tra còn thấy hai lỗi khác, không gây ra sự cố này:
 
 **Date**: 2026-11-19
 **Version**: 0.27.0 (chưa có code)
+
+### D61. Duyệt đề mẫu: người duyệt, thời điểm, cỡ mẫu; màn "Duyệt JD" giữ JD đã duyệt (US-4.9)
+
+**Context**: US-4.9 để năm điểm "hỏi trước khi chốt": giảng viên không có vai trò trong RBAC; PRD đặt bước duyệt mẫu trước khi khóa nhưng story chạy sau US-4.2; ô thiếu câu sau khi loại; cỡ mẫu; bảng lưu kết quả. Khi bắt đầu story, người dùng báo thêm: Trung tâm duyệt JD xong thì JD biến mất khỏi màn "Duyệt JD" (màn chỉ lấy `PENDING_APPROVAL`), nên tab "Ngân hàng câu hỏi" chỉ còn mở được qua link.
+
+**Decision** (người dùng chốt ngày 2026-11-19, theo đề xuất của story):
+
+- Giảng viên duyệt bằng tài khoản `CENTER`; HR chỉ duyệt JD của công ty mình (BR-11).
+- Duyệt được cả trước và sau khi khóa. Câu bị báo lỗi bị loại ngay qua `retireQuestion()` trong cùng giao dịch; ngân hàng đã khóa thì tăng `version`. Khóa và phòng thi không chờ duyệt.
+- Ô thiếu câu sau khi loại: chỉ cảnh báo trên tab ngân hàng của Trung tâm, không sinh câu thay, không gửi thông báo.
+- Cỡ mẫu là tham số đợt `bank_review_sample_size` (mặc định 10, 1–50), sửa được tới khi đóng đợt vì không điểm nào phụ thuộc nó. Kết quả lưu ở bảng `question_reviews`.
+- Màn "Duyệt JD" có bộ lọc trạng thái, mặc định "Tất cả" (chờ duyệt và đã duyệt trở đi), JD chờ duyệt xếp đầu. Phạm vi này thêm vào US-4.9.
+
+**Rationale**: Không thêm vai trò mới cho một bước tùy chọn. Duyệt sau khi khóa vẫn có ích vì cơ chế tăng phiên bản (FR-18) đã có. Sinh câu sau khi khóa sẽ mở lại ngân hàng, trái D50.
+
+**Impact**: PRD GĐ0 (tham số), FR-19; ARCH › *Các bảng chính* (`question_reviews`), *API architecture*; US-4.9. US-4.11 (Trung tâm loại câu bằng tay) dùng chung cảnh báo ô thiếu câu.
+
+**Date**: 2026-11-19
+**Version**: 0.29.0

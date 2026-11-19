@@ -1,4 +1,4 @@
-import type { JobDescription } from '@srm/shared';
+import { type JobDescription, QUESTION_BANK_JD_STATES } from '@srm/shared';
 import { CircleAlert, ClipboardCheck } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router';
@@ -11,12 +11,67 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useCampaigns, useCancelledCampaignIds } from '@/features/center/campaigns/api';
 import { isWorkCampaign } from '@/features/center/campaigns/running-campaign';
 import { useJds } from '@/features/jds/api';
+import { JdStatusBadge } from '@/features/jds/jd-status-badge';
 import { WORK_MODE_LABELS } from '@/features/jds/labels';
 import { formatDateTime } from '@/lib/format';
 import { apiErrorMessage } from '@/shared/api/errors';
 import { jdApprovalPath } from './paths';
 
 const ALL_CAMPAIGNS = 'all';
+
+/**
+ * Which JDs the list shows: those HR submitted, waiting for approval or approved (and every state after),
+ * so an approved JD stays reachable with its question bank. Drafts and JDs HR is still confirming are HR's.
+ */
+const STATUS_FILTERS = {
+  all: { label: 'Tất cả', matches: (jd: JobDescription) => isPending(jd) || isApproved(jd) },
+  pending: { label: 'Chờ duyệt', matches: (jd: JobDescription) => isPending(jd) },
+  approved: { label: 'Đã duyệt', matches: (jd: JobDescription) => isApproved(jd) },
+} as const;
+
+type StatusFilterKey = keyof typeof STATUS_FILTERS;
+
+const STATUS_FILTER_KEYS = Object.keys(STATUS_FILTERS) as StatusFilterKey[];
+
+function isPending(jd: JobDescription): boolean {
+  return jd.status === 'PENDING_APPROVAL';
+}
+
+function isApproved(jd: JobDescription): boolean {
+  return QUESTION_BANK_JD_STATES.includes(jd.status);
+}
+
+const EMPTY_TEXT: Readonly<Record<StatusFilterKey, { title: string; description: string }>> = {
+  all: {
+    title: 'Chưa có JD nào được nộp',
+    description: 'JD xuất hiện ở đây sau khi HR nộp và xác nhận yêu cầu chuẩn hóa. Chọn đợt khác để xem thêm.',
+  },
+  pending: {
+    title: 'Không có JD chờ duyệt',
+    description: 'JD xuất hiện ở đây sau khi HR nộp và xác nhận yêu cầu chuẩn hóa. Chọn "Tất cả" để xem cả JD đã duyệt.',
+  },
+  approved: {
+    title: 'Chưa có JD đã duyệt',
+    description: 'JD đã duyệt ở lại danh sách này, kèm ngân hàng câu hỏi và đề mẫu của nó.',
+  },
+};
+
+function StatusFilter({ value, onChange }: { value: StatusFilterKey; onChange: (value: StatusFilterKey) => void }) {
+  return (
+    <Select value={value} onValueChange={(next) => onChange(next as StatusFilterKey)}>
+      <SelectTrigger aria-label="Trạng thái JD" className="w-full sm:w-44">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {STATUS_FILTER_KEYS.map((key) => (
+          <SelectItem key={key} value={key}>
+            {STATUS_FILTERS[key].label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
 
 function CampaignFilter({ value, onChange }: { value: string; onChange: (value: string) => void }) {
   const campaigns = useCampaigns();
@@ -38,13 +93,14 @@ function CampaignFilter({ value, onChange }: { value: string; onChange: (value: 
   );
 }
 
-function PendingTable({ jds }: { jds: JobDescription[] }) {
+function JdTable({ jds }: { jds: JobDescription[] }) {
   return (
     <Table>
       <TableHeader>
         <TableRow>
           <TableHead>Vị trí</TableHead>
           <TableHead>Doanh nghiệp</TableHead>
+          <TableHead>Trạng thái</TableHead>
           <TableHead className="text-right">Chỉ tiêu</TableHead>
           <TableHead>Hình thức</TableHead>
           <TableHead>Cập nhật</TableHead>
@@ -64,13 +120,16 @@ function PendingTable({ jds }: { jds: JobDescription[] }) {
             <TableCell className="max-w-56 truncate" title={jd.companyName}>
               {jd.companyName}
             </TableCell>
+            <TableCell>
+              <JdStatusBadge jd={jd} />
+            </TableCell>
             <TableCell className="text-right tabular-nums">{jd.quota}</TableCell>
             <TableCell>{jd.workMode ? WORK_MODE_LABELS[jd.workMode] : '—'}</TableCell>
             <TableCell>{formatDateTime(jd.updatedAt)}</TableCell>
             <TableCell>
               <div className="flex justify-end">
                 <Button variant="outline" size="sm" asChild>
-                  <Link to={jdApprovalPath(jd.id)}>Xem và duyệt</Link>
+                  <Link to={jdApprovalPath(jd.id)}>{isPending(jd) ? 'Xem và duyệt' : 'Xem'}</Link>
                 </Button>
               </div>
             </TableCell>
@@ -81,16 +140,21 @@ function PendingTable({ jds }: { jds: JobDescription[] }) {
   );
 }
 
-/** "Duyệt JD" of the center portal (US-1.5 AC-10): JDs waiting for approval, by campaign. */
+/**
+ * "Duyệt JD" of the center portal (US-1.5 AC-10): the JDs HR submitted, by campaign and status. Approved JDs
+ * stay listed (US-4.9), since their detail page holds the question bank and the sample review; those waiting for
+ * approval come first.
+ */
 export function JdApprovalListPage() {
   const [campaign, setCampaign] = useState(ALL_CAMPAIGNS);
-  const jds = useJds({
-    status: 'PENDING_APPROVAL',
-    ...(campaign === ALL_CAMPAIGNS ? {} : { campaignId: Number(campaign) }),
-  });
-  // A JD of a cancelled campaign can no longer be approved (409), so it is not listed.
+  const [status, setStatus] = useState<StatusFilterKey>('all');
+  const jds = useJds(campaign === ALL_CAMPAIGNS ? {} : { campaignId: Number(campaign) });
+  // A JD of a cancelled campaign can no longer be approved (409), nor its bank changed, so it is not listed.
   const cancelled = useCancelledCampaignIds();
-  const listed = jds.data?.filter((jd) => !cancelled.has(jd.campaignId)) ?? [];
+  const { matches } = STATUS_FILTERS[status];
+  const shown = jds.data?.filter((jd) => !cancelled.has(jd.campaignId) && matches(jd)) ?? [];
+  // Newest first from the API; the ones waiting for approval before the rest.
+  const listed = [...shown.filter(isPending), ...shown.filter((jd) => !isPending(jd))];
 
   let content;
   if (jds.isPending) {
@@ -121,22 +185,23 @@ export function JdApprovalListPage() {
           <EmptyMedia variant="icon">
             <ClipboardCheck />
           </EmptyMedia>
-          <EmptyTitle>Không có JD chờ duyệt</EmptyTitle>
-          <EmptyDescription>
-            JD xuất hiện ở đây sau khi HR nộp và xác nhận yêu cầu chuẩn hóa. Chọn đợt khác để xem thêm.
-          </EmptyDescription>
+          <EmptyTitle>{EMPTY_TEXT[status].title}</EmptyTitle>
+          <EmptyDescription>{EMPTY_TEXT[status].description}</EmptyDescription>
         </EmptyHeader>
       </Empty>
     );
   } else {
-    content = <PendingTable jds={listed} />;
+    content = <JdTable jds={listed} />;
   }
 
   return (
     <>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="font-heading text-xl font-semibold md:text-2xl">Duyệt JD</h1>
-        <CampaignFilter value={campaign} onChange={setCampaign} />
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+          <StatusFilter value={status} onChange={setStatus} />
+          <CampaignFilter value={campaign} onChange={setCampaign} />
+        </div>
       </div>
       {content}
     </>

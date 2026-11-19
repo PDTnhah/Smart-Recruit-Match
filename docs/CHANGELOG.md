@@ -15,6 +15,29 @@ Lịch sử phát hành của Smart Recruit Match. Mỗi commit ship code tăng 
 
 ---
 
+## [0.29.0] — 2026-11-19 — Duyệt đề mẫu ngân hàng câu hỏi — v0.29.0
+
+US-4.9. HR của doanh nghiệp (hoặc giảng viên qua tài khoản Trung tâm) duyệt một mẫu ngẫu nhiên của ngân hàng câu hỏi và báo lỗi câu sai trước khi câu đến tay sinh viên (FR-19, [CONTEXT D61](CONTEXT.md)). Bước này tùy chọn: khóa ngân hàng và phòng thi không chờ duyệt.
+
+### Added
+- Tab "Duyệt đề mẫu" trên trang JD đã duyệt, ở cổng HR (JD của công ty mình) và cổng Trung tâm: mẫu câu chọn ngẫu nhiên, chia đều theo các ô của ma trận đề, phần tự luận được lấy trước khi mẫu nhỏ hơn số ô. Mỗi câu có phương án với đáp án đúng được tô sáng, giải thích, hoặc đáp án mẫu và rubric của câu tự luận. Tải lại trang cho cùng mẫu.
+- "Xác nhận đúng" và "Báo lỗi" (lý do bắt buộc, có hộp thoại xác nhận): câu bị báo lỗi bị loại ngay khỏi ngân hàng trong cùng giao dịch; ngân hàng đã khóa thì tăng phiên bản. Câu bị báo lỗi ở lại trong mẫu với nhãn "Đã loại" và lý do.
+- `GET /api/jds/{id}/question-bank/sample`, `POST /api/jds/{id}/question-bank/sample/reviews` (HR của công ty và Trung tâm; HR công ty khác `404`, sinh viên `403`); `400` khi câu không thuộc mẫu hoặc báo lỗi thiếu lý do, `409 QUESTION_NOT_REVIEWABLE` khi câu đã bị loại.
+- Tham số đợt "Số câu của mẫu duyệt đề" (`bank_review_sample_size`, mặc định 10, 1–50), sửa được tới khi đóng đợt.
+- Tab "Ngân hàng câu hỏi" của ngân hàng đã khóa cảnh báo khi một ô còn ít hơn 3 lần số câu của một đề sau khi loại câu, và báo lỗi khi ô không còn đủ câu cho một đề.
+
+### Changed
+- Màn "Duyệt JD" của Trung tâm giữ JD đã duyệt: bộ lọc trạng thái (mặc định "Tất cả"), cột trạng thái, JD chờ duyệt xếp đầu. Trước đây JD biến mất sau khi duyệt và tab "Ngân hàng câu hỏi" của nó chỉ mở được qua link.
+
+### Migration
+- `0044_question_reviews`: bảng `core.question_reviews` (nhật ký duyệt; CHECK `ERROR` có lý do; mỗi câu tối đa một `ERROR`).
+
+### Not done
+- Chưa kiểm tay hai màn ở 768 / 1024 px (AC-6, AC-7, người dùng kiểm theo checklist trong story).
+- Ô thiếu câu sau khi khóa chỉ được cảnh báo; chưa có thông báo qua chuông hay email.
+
+---
+
 ## [0.28.0] — 2026-11-19 — Kiểm câu bằng AI khi Trung tâm yêu cầu — v0.28.0
 
 US-4.10. Sinh ngân hàng câu hỏi tốn ít lượt gọi LLM hơn: job sinh câu không còn gọi Validator ở mỗi vòng, và Trung tâm chạy kiểm bằng AI khi cần (FR-18, [CONTEXT D60](CONTEXT.md)).

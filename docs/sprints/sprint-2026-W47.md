@@ -30,6 +30,7 @@ goal: 'Sửa lỗi tìm kỹ năng khi ô tìm còn trống (US-2.8, v0.25.1); �
 | US-2.9  | Thêm nhà cung cấp LLM OpenAI và DeepSeek           | EPIC-2 | P1  | 5      | 👀 review  | new  | [stories/US-2.9-openai-deepseek-llm-providers.md](stories/US-2.9-openai-deepseek-llm-providers.md) |
 | US-4.12 | Sửa giao diện ngân hàng câu hỏi: ô độ phủ và đổi phần D thành C | EPIC-4 | P1 | 3 | 👀 review | new | [stories/US-4.12-question-bank-ui-fixes-part-c.md](stories/US-4.12-question-bank-ui-fixes-part-c.md) |
 | US-4.10 | Tách Validator khỏi job sinh câu: AI kiểm câu khi Trung tâm yêu cầu | EPIC-4 | P0 | 8 | 👀 review | new | [stories/US-4.10-on-demand-question-validation.md](stories/US-4.10-on-demand-question-validation.md) |
+| US-4.9  | Duyệt mẫu ngân hàng câu hỏi; màn "Duyệt JD" giữ JD đã duyệt | EPIC-4 | P2 | 2 | 👀 review | new | [stories/US-4.9-question-bank-sample-review.md](stories/US-4.9-question-bank-sample-review.md) |
 
 > **Convention**: AC + Tasks live inside each story file. This sprint file lists planned
 > stories at a glance only. Design + decision docs cross-linked at the bottom.

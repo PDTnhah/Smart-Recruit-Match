@@ -13,8 +13,10 @@ import {
   ManualGradingDetailSchema,
   MyExamsResponseSchema,
   QuestionGenerationRunSchema,
+  QuestionReviewSampleSchema,
   SaveExamAnswersRequestSchema,
   SaveExamAnswersResultSchema,
+  SubmitQuestionReviewRequestSchema,
   UpdateExamBlueprintRequestSchema,
 } from '@srm/shared';
 import { createZodDto } from 'nestjs-zod';
@@ -28,6 +30,12 @@ export class UpdateExamBlueprintRequestDto extends createZodDto(UpdateExamBluepr
 export class QuestionGenerationRunDto extends createZodDto(QuestionGenerationRunSchema) {}
 
 export class LockQuestionBankRequestDto extends createZodDto(LockQuestionBankRequestSchema) {}
+
+// Sample review of a question bank (US-4.9): answer keys go to HR and CENTER only (Invariant 8).
+
+export class QuestionReviewSampleDto extends createZodDto(QuestionReviewSampleSchema) {}
+
+export class SubmitQuestionReviewRequestDto extends createZodDto(SubmitQuestionReviewRequestSchema) {}
 
 // Exam room (US-4.3): responses are whitelists (AGENTS › Invariant 8).
 

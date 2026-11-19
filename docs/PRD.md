@@ -293,6 +293,7 @@ Quyết định kiến trúc và quy trình được ghi trong [CONTEXT.md](CONT
 | `no_preference_policy` | Sinh viên không chọn NV đến hạn: `AUTO_ASSIGN_TOP_SCV` (gán các JD đầu shortlist, Q6) hoặc `NONE`. Thêm ở US-3.3 ([CONTEXT D47](CONTEXT.md)) | `AUTO_ASSIGN_TOP_SCV` |
 | `require_full_preferences` | Bắt buộc chọn đủ min(N_NV, số JD trong shortlist) nguyện vọng (GĐ4 bước 3); `false` là chỉ khuyến nghị. Thêm ở US-3.3 | `false` |
 | `competition_thresholds` | Ngưỡng mức cạnh tranh theo tỷ lệ NV / chỉ tiêu (GĐ4 bước 2): Thấp khi tỷ lệ < `low_below`, Cao khi tỷ lệ ≥ `high_from`, còn lại Trung bình. Số dương, tối đa 2 chữ số thập phân, `low_below < high_from`. Thêm ở US-3.4 ([CONTEXT D48](CONTEXT.md)) | `{ low_below: 1, high_from: 3 }` |
+| `bank_review_sample_size` | Số câu của mẫu HR hoặc Trung tâm duyệt trong ngân hàng câu hỏi của mỗi JD, chia đều theo ô của ma trận đề (GĐ5 bước 3, FR-19); 1–50, sửa được tới khi đóng đợt. Thêm ở US-4.9 ([CONTEXT D61](CONTEXT.md)) | 10 |
 
 Trạng thái đợt: `Nháp → Mở nhận JD/CV → Chọn nguyện vọng → Làm test → Phân bổ & HR duyệt → Vòng bổ sung → Đã đóng`. Ở mỗi trạng thái hệ thống chỉ cho phép các thao tác tương ứng (VD: quá hạn nộp CV thì không nộp được nữa).
 
@@ -910,7 +911,7 @@ Mọi thông báo đều hiện trong ứng dụng (chuông ở ba cổng, cập
 | FR-16 | Sinh viên chọn và sắp thứ tự tối đa N_NV nguyện vọng từ shortlist; danh sách khóa khi hết hạn (UC-13, BR-04, GĐ4) | P0 | 🚧 in-progress | EPIC-3 |
 | FR-17 | Hiển thị mức cạnh tranh theo thời gian thực, gợi ý "phù hợp – ít cạnh tranh"; báo Trung tâm các JD có tỷ lệ NV/chỉ tiêu < 1 | P1 | 📋 backlog | EPIC-3 |
 | FR-18 | AI sinh ngân hàng câu hỏi theo ma trận đề (trắc nghiệm, tự luận kèm rubric); code kiểm định dạng, trùng lặp; Validator kiểm định khi Trung tâm yêu cầu; Trung tâm xem toàn bộ câu và loại câu sai; khóa và ghi phiên bản ngân hàng (UC-32, BR-05, GĐ5) | P0 | 🚧 in-progress | EPIC-4 |
-| FR-19 | HR hoặc giảng viên duyệt một mẫu ngẫu nhiên của ngân hàng câu hỏi (UC-22) | P2 | 📋 backlog | EPIC-4 |
+| FR-19 | HR hoặc giảng viên duyệt một mẫu ngẫu nhiên của ngân hàng câu hỏi (UC-22); giảng viên dùng tài khoản Trung tâm, câu bị báo lỗi bị loại ngay, không bước nào chờ duyệt ([CONTEXT D61](CONTEXT.md)) | P2 | 👀 review | EPIC-4 |
 | FR-20 | Sinh viên làm bài test: rút đề ngẫu nhiên theo ma trận, giới hạn T_test, tự lưu, làm tiếp khi mất kết nối, chỉ làm 1 lần (UC-14, BR-06) | P0 | 🚧 in-progress | EPIC-4 |
 | FR-21 | Ghi nhận tín hiệu gian lận (chuyển tab, thoát toàn màn hình, copy/paste, bài tự luận tương đồng), chỉ dùng để cảnh báo | P1 | 📋 backlog | EPIC-4 |
 | FR-22 | Chấm trắc nghiệm tự động; AI chấm tự luận theo rubric 2 lần độc lập và chuyển người chấm khi cần; tính S_test, bản đồ năng lực và S_final (UC-33, GĐ6) | P0 | 🚧 in-progress | EPIC-4 |
@@ -1067,7 +1068,7 @@ Mỗi epic tương ứng một giai đoạn trong [ARCHITECTURE.md › Implement
 | US-4.6 | Phúc khảo và báo lỗi câu hỏi | 📋 backlog | — |
 | US-4.7 | Tín hiệu gian lận | 📋 backlog | — |
 | US-4.8 | Câu hỏi xác minh CV và chỉ số tin cậy | 👀 review | 0.26.0 |
-| US-4.9 | Duyệt mẫu ngân hàng câu hỏi | 📋 backlog | — |
+| US-4.9 | Duyệt mẫu ngân hàng câu hỏi | 👀 review | 0.29.0 |
 | US-4.10 | Tách Validator khỏi job sinh câu: AI kiểm câu khi Trung tâm yêu cầu | 👀 review | 0.28.0 |
 | US-4.11 | Tab Ngân hàng câu hỏi: xem toàn bộ câu và loại câu sai | 📋 backlog | — |
 | US-4.12 | Sửa giao diện ngân hàng câu hỏi: ô độ phủ và đổi phần D thành C | 👀 review | 0.27.1 |

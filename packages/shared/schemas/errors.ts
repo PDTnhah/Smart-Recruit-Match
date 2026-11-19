@@ -53,6 +53,8 @@ export const API_ERROR_CODES = [
   'QUESTION_BANK_JD_OUTDATED',
   'QUESTION_BANK_INCOMPLETE',
   'BANK_NOT_LOCKED',
+  // Sample review of a question bank (US-4.9).
+  'QUESTION_NOT_REVIEWABLE',
   // Exam room (US-4.3, CONTEXT D51).
   'EXAM_ALREADY_TAKEN',
   'EXAM_CLOSED',

@@ -1,14 +1,16 @@
-import type { JobDescription } from '@srm/shared';
+import { type JobDescription, QUESTION_BANK_JD_STATES } from '@srm/shared';
 import { ArrowLeft, CircleAlert, Info } from 'lucide-react';
 import { type ReactNode, useState } from 'react';
-import { Link, Navigate, useParams } from 'react-router';
+import { Link, Navigate, useParams, useSearchParams } from 'react-router';
 import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useCampaigns } from '@/features/center/campaigns/api';
 import { useJd } from '@/features/jds/api';
 import { JdDetails } from '@/features/jds/jd-details';
 import { JdStatusBadge } from '@/features/jds/jd-status-badge';
+import { ReviewSamplePanel } from '@/features/jds/question-review/review-sample-panel';
 import { RequirementsPanel } from '@/features/jds/requirements/requirements-panel';
 import { apiErrorMessage } from '@/shared/api/errors';
 import { JdFileCard } from './jd-file-card';
@@ -66,9 +68,15 @@ export function HrJdCreatePage() {
   );
 }
 
+/** `?tab=review` opens "Duyệt đề mẫu", so a reload or a link keeps it. */
+const TAB_PARAM = 'tab';
+const REVIEW_TAB = 'review';
+const DETAILS_TAB = 'details';
+
 /**
  * `/hr/job-descriptions/:id`: edit and submit a draft (US-1.5 AC-6, AC-10); once submitted, the
- * JD next to its normalised requirements, which HR reviews and confirms (US-2.3 AC-7, AC-8).
+ * JD next to its normalised requirements, which HR reviews and confirms (US-2.3 AC-7, AC-8). Once
+ * approved, the "Duyệt đề mẫu" tab: a sample of the JD's question bank to review (US-4.9 AC-6).
  */
 export function HrJdDetailPage() {
   const id = Number(useParams().id);
@@ -80,6 +88,23 @@ function HrJdDetail({ id }: { id: number }) {
   const jd = useJd(id);
   const [unsaved, setUnsaved] = useState(false);
   const cancelled = useCampaignCancelled(jd.data?.campaignId ?? 0);
+  const [params, setParams] = useSearchParams();
+  const tab = params.get(TAB_PARAM) === REVIEW_TAB ? REVIEW_TAB : DETAILS_TAB;
+  // The sample loads once its tab is opened, then stays mounted.
+  const [reviewOpened, setReviewOpened] = useState(tab === REVIEW_TAB);
+  if (tab === REVIEW_TAB && !reviewOpened) setReviewOpened(true);
+
+  function selectTab(next: string) {
+    setParams(
+      (current) => {
+        const updated = new URLSearchParams(current);
+        if (next === REVIEW_TAB) updated.set(TAB_PARAM, next);
+        else updated.delete(TAB_PARAM);
+        return updated;
+      },
+      { replace: true },
+    );
+  }
 
   if (jd.isPending) {
     return (
@@ -123,17 +148,35 @@ function HrJdDetail({ id }: { id: number }) {
   }
 
   // The original JD on the left, the requirements on the right (AC-7); stacked below lg.
+  const details =
+    data.status === 'DRAFT' ? (
+      <JdDetails jd={data} />
+    ) : (
+      <div className="grid items-start gap-6 lg:grid-cols-2">
+        <JdDetails jd={data} />
+        <RequirementsPanel jdId={data.id} />
+      </div>
+    );
   return (
     <div className="flex w-full max-w-6xl flex-col gap-6">
       <PageHeader title={data.title} jd={data} />
       {cancelled && <CampaignCancelledAlert />}
-      {data.status === 'DRAFT' ? (
-        <JdDetails jd={data} />
+      {QUESTION_BANK_JD_STATES.includes(data.status) ? (
+        <Tabs value={tab} onValueChange={selectTab} className="gap-6">
+          <TabsList>
+            <TabsTrigger value={DETAILS_TAB}>Thông tin JD</TabsTrigger>
+            <TabsTrigger value={REVIEW_TAB}>Duyệt đề mẫu</TabsTrigger>
+          </TabsList>
+          {/* Both stay mounted, so switching tabs keeps a dialog's input (DESIGN.md §6 › tabs). */}
+          <TabsContent value={DETAILS_TAB} forceMount className="data-[state=inactive]:hidden">
+            {details}
+          </TabsContent>
+          <TabsContent value={REVIEW_TAB} forceMount className="data-[state=inactive]:hidden">
+            {reviewOpened && <ReviewSamplePanel jdId={data.id} readOnly={cancelled} />}
+          </TabsContent>
+        </Tabs>
       ) : (
-        <div className="grid items-start gap-6 lg:grid-cols-2">
-          <JdDetails jd={data} />
-          <RequirementsPanel jdId={data.id} />
-        </div>
+        details
       )}
     </div>
   );
