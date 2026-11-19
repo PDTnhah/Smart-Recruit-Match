@@ -1,4 +1,5 @@
 import {
+  BankQuestionListSchema,
   CvTrustViewSchema,
   EssayGradingDispatchSchema,
   ExamBlueprintViewSchema,
@@ -14,6 +15,8 @@ import {
   MyExamsResponseSchema,
   QuestionGenerationRunSchema,
   QuestionReviewSampleSchema,
+  RejectQuestionRequestSchema,
+  RejectQuestionResultSchema,
   SaveExamAnswersRequestSchema,
   SaveExamAnswersResultSchema,
   SubmitQuestionReviewRequestSchema,
@@ -36,6 +39,14 @@ export class LockQuestionBankRequestDto extends createZodDto(LockQuestionBankReq
 export class QuestionReviewSampleDto extends createZodDto(QuestionReviewSampleSchema) {}
 
 export class SubmitQuestionReviewRequestDto extends createZodDto(SubmitQuestionReviewRequestSchema) {}
+
+// Every question of a bank, and CENTER rejecting one (US-4.11): answer keys go to CENTER only (Invariant 8).
+
+export class BankQuestionListDto extends createZodDto(BankQuestionListSchema) {}
+
+export class RejectQuestionRequestDto extends createZodDto(RejectQuestionRequestSchema) {}
+
+export class RejectQuestionResultDto extends createZodDto(RejectQuestionResultSchema) {}
 
 // Exam room (US-4.3): responses are whitelists (AGENTS › Invariant 8).
 

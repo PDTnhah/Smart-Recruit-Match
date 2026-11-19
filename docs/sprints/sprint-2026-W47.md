@@ -31,6 +31,7 @@ goal: 'Sửa lỗi tìm kỹ năng khi ô tìm còn trống (US-2.8, v0.25.1); �
 | US-4.12 | Sửa giao diện ngân hàng câu hỏi: ô độ phủ và đổi phần D thành C | EPIC-4 | P1 | 3 | 👀 review | new | [stories/US-4.12-question-bank-ui-fixes-part-c.md](stories/US-4.12-question-bank-ui-fixes-part-c.md) |
 | US-4.10 | Tách Validator khỏi job sinh câu: AI kiểm câu khi Trung tâm yêu cầu | EPIC-4 | P0 | 8 | 👀 review | new | [stories/US-4.10-on-demand-question-validation.md](stories/US-4.10-on-demand-question-validation.md) |
 | US-4.9  | Duyệt mẫu ngân hàng câu hỏi; màn "Duyệt JD" giữ JD đã duyệt | EPIC-4 | P2 | 2 | 👀 review | new | [stories/US-4.9-question-bank-sample-review.md](stories/US-4.9-question-bank-sample-review.md) |
+| US-4.11 | Tab Ngân hàng câu hỏi: xem toàn bộ câu và loại câu sai | EPIC-4 | P1 | 5 | 👀 review | new | [stories/US-4.11-question-bank-browser-and-rejection.md](stories/US-4.11-question-bank-browser-and-rejection.md) |
 
 > **Convention**: AC + Tasks live inside each story file. This sprint file lists planned
 > stories at a glance only. Design + decision docs cross-linked at the bottom.
@@ -48,7 +49,7 @@ Ngày 2026-11-16, người dùng bắt đầu US-2.8 (1 điểm, sửa lỗi tá
 3. **US-4.8** (bắt đầu 2026-11-16, người dùng chọn): phần D và chỉ số tin cậy CV ([CONTEXT D57](../CONTEXT.md)); xong 0.26.0 ngày 2026-11-18, `review`, chờ kiểm tay và `db:migrate` `0040`–`0041`.
 4. **US-2.9** (bắt đầu 2026-11-19, người dùng chọn): người dùng không có key Gemini hay Claude, nên thêm nhà cung cấp OpenAI và DeepSeek ([CONTEXT D58](../CONTEXT.md)). v0.27.0, `review`; chờ người dùng chạy với key thật (TASK-2.9.9).
 5. **Story kế tiếp**: US-5.1 (mốc M1), khi người dùng chọn.
-6. **Ngân hàng câu hỏi** (lập ngày 2026-11-19 từ phản hồi của người dùng về ngân hàng JD 5, [CONTEXT D60](../CONTEXT.md)): ba story mới ở `backlog`, thứ tự đề xuất [US-4.12](stories/US-4.12-question-bank-ui-fixes-part-c.md) (ô độ phủ, phần D → C; 3 điểm) → [US-4.10](stories/US-4.10-on-demand-question-validation.md) (Validator chạy khi Trung tâm yêu cầu; 8 điểm) → [US-4.11](stories/US-4.11-question-bank-browser-and-rejection.md) (xem toàn bộ câu, loại câu; 5 điểm). US-4.12 bắt đầu 2026-11-19 (người dùng chọn), xong 0.27.1, `review`; chờ người dùng kiểm tay 360 / 768 / 1024 px. US-4.10 làm ngày 2026-11-19, xong 0.28.0, `review`; chờ `/code-review`, `db:migrate` `0043`, `smoke_llm --bank` với key thật và kiểm tay. Tiếp theo US-4.11.
+6. **Ngân hàng câu hỏi** (lập ngày 2026-11-19 từ phản hồi của người dùng về ngân hàng JD 5, [CONTEXT D60](../CONTEXT.md)): ba story mới ở `backlog`, thứ tự đề xuất [US-4.12](stories/US-4.12-question-bank-ui-fixes-part-c.md) (ô độ phủ, phần D → C; 3 điểm) → [US-4.10](stories/US-4.10-on-demand-question-validation.md) (Validator chạy khi Trung tâm yêu cầu; 8 điểm) → [US-4.11](stories/US-4.11-question-bank-browser-and-rejection.md) (xem toàn bộ câu, loại câu; 5 điểm). US-4.12 bắt đầu 2026-11-19 (người dùng chọn), xong 0.27.1, `review`; chờ người dùng kiểm tay 360 / 768 / 1024 px. US-4.10 làm ngày 2026-11-19, xong 0.28.0, `review`; chờ `/code-review`, `db:migrate` `0043`, `smoke_llm --bank` với key thật và kiểm tay. US-4.11 làm ngày 2026-11-19 → 20, xong 0.30.0, `review`; chờ `/code-review`, `db:migrate` `0045` và kiểm tay AC-2.
 
 ## Parked / deferred from W45, W46
 

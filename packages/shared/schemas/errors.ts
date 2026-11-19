@@ -55,6 +55,8 @@ export const API_ERROR_CODES = [
   'BANK_NOT_LOCKED',
   // Sample review of a question bank (US-4.9).
   'QUESTION_NOT_REVIEWABLE',
+  // CENTER rejects a question by hand (US-4.11).
+  'QUESTION_NOT_REJECTABLE',
   // Exam room (US-4.3, CONTEXT D51).
   'EXAM_ALREADY_TAKEN',
   'EXAM_CLOSED',

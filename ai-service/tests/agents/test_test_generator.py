@@ -50,7 +50,7 @@ from app.agents.test_generator.config import (
     MAX_TOKENS_PER_JOB,
 )
 from app.agents.test_generator.drafts import DRAFTS_SQL, INSERT_SQL, VECTORS_SQL
-from app.agents.test_generator.source import BANK_SQL
+from app.agents.test_generator.source import BANK_SQL, REJECTIONS_SQL
 from app.consumers.errors import NeedsHumanReview, PermanentError
 from app.consumers.kinds import questions_status
 from app.contracts.ai_result_status import AiResultStatus
@@ -480,6 +480,34 @@ def test_gd5_every_validator_reason_has_a_text_for_the_generator():
     assert set(VERDICT_TEXT) == set(Reason)
 
 
+# --- US-4.11 AC-4: drafts CENTER rejected by hand -------------------------------------------------
+
+
+async def test_gd5_drafts_center_rejected_do_not_count_and_their_reason_is_in_the_prompt():
+    """US-4.11 AC-4: a draft CENTER rejected takes no room in its cell, even one the Validator
+    passed, and the round shows it with CENTER's reason, as one the Validator rejected."""
+    harness = Harness(BANK, provider=ScriptedProvider(*[EMPTY] * MAX_ROUNDS))
+    ids = [harness.drafts.seed(41, java_easy(n), vector=unit(1, n)) for n in range(3)]
+    harness.validations.pass_draft(harness.drafts.rows[0])
+    harness.banks.reject(41, ids[0], "ANSWER_MISMATCH")
+    output = await harness.run()
+
+    java = harness.sent_block(1, "cells")[0]
+    assert (java["skill"], java["difficulty"], java["questions_to_write"]) == ("Java", "EASY", 1)
+    [rejected] = harness.sent_block(1, "rejected_questions")
+    assert rejected == {
+        "type": "MCQ",
+        "skill": "Java",
+        "difficulty": "EASY",
+        "stem": java_easy(0)["stem"],
+        "reasons": [VERDICT_TEXT[Reason.ANSWER_MISMATCH]],
+    }
+    stems = [question["stem"] for question in harness.sent_block(1, "existing_questions")]
+    assert java_easy(0)["stem"] not in stems
+    cell = output.missing_cells[0]
+    assert (cell.drafted, cell.validated, cell.usable, cell.required) == (3, 0, 2, 3)
+
+
 # --- AC-6: the tools ------------------------------------------------------------------------------
 
 
@@ -784,6 +812,15 @@ def test_gd5_bank_sql_reads_only_the_two_views():
     assert set(re.findall(r"\bb\.(\w+)", BANK_SQL)) <= banks
     assert set(re.findall(r"\br\.(\w+)", BANK_SQL)) <= jds
     assert "WHERE locked_at IS NULL" in banks_view
+
+
+def test_gd5_rejections_sql_reads_only_its_view():
+    """AD-4, US-4.11 AC-4: CENTER's reasons through their view only, while the bank is open."""
+    sql = migration("question_manual_rejection")
+    columns = {c.split(".")[-1] for c in view_columns(sql, "core.v_ai_question_rejections")}
+    assert set(re.findall(r"core\.\w+", REJECTIONS_SQL)) == {"core.v_ai_question_rejections"}
+    assert {"bank_id", "draft_id", "reasons"} <= columns
+    assert "b.locked_at IS NULL" in sql
 
 
 def test_gd5_limits_follow_d49_and_d60():

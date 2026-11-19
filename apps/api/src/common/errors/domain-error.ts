@@ -564,6 +564,16 @@ export class QuestionNotReviewableError extends DomainError {
   }
 }
 
+/** CENTER rejects only a usable question; one already rejected or retired stays as it is (US-4.11 AC-3). */
+export class QuestionNotRejectableError extends DomainError {
+  readonly code = 'QUESTION_NOT_REJECTABLE';
+  readonly httpStatus = 409;
+
+  constructor(questionId: number, status: string) {
+    super(`question ${questionId} is ${status}; only a usable question can be rejected`, { questionId, status });
+  }
+}
+
 /** Only a preference waiting for its test may start one (AC-5). */
 export class PreferenceNotPendingTestError extends DomainError {
   readonly code = 'PREFERENCE_NOT_PENDING_TEST';

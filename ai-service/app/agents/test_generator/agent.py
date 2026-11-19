@@ -1,17 +1,19 @@
 """Test Generator: a loop driven by code that fills the question bank of one JD (US-4.1 AC-5 to
-AC-10, US-4.10 AC-1, PRD GĐ5, FR-18, ARCHITECTURE › Pipeline › Test Generator, CONTEXT D49, D60).
+AC-10, US-4.10 AC-1, US-4.11 AC-4, PRD GĐ5, FR-18, ARCHITECTURE › Pipeline › Test Generator,
+CONTEXT D49, D60).
 
 1. Read the bank and the JD requirements through core.v_ai_question_banks and
-   core.v_ai_jd_requirements; load the bank's drafts, their vectors and the verdicts the Validator
-   gave when CENTER ran it (QUESTIONS_VALIDATE, app/agents/validator/job.py).
+   core.v_ai_jd_requirements; load the bank's drafts, their vectors, the verdicts the Validator
+   gave when CENTER ran it (QUESTIONS_VALIDATE, app/agents/validator/job.py), and the drafts CENTER
+   rejected by hand through core.v_ai_question_rejections.
 2. Each round: `get_blueprint_coverage()`; stop when no cell is short of 3× usable drafts (not
    rejected, checked or not). Take the short cells of one part, the parts taking turns while both
    have some; the cells asked for in the fewest rounds go first, in blueprint order on a tie. Each
    asks for what it lacks up to 3×, at most 15 in all. So a cell that never fills holds up neither
    the other cells nor the other part.
 3. One `LLMClient.generate` call, effort high: the requirements in `shared`; the cells, the stems
-   they hold, those the Validator rejected with the reasons, and the questions code refused in the
-   part's round before in `user`.
+   they hold, those the Validator or CENTER rejected with the reasons, and the questions code
+   refused in the part's round before in `user`.
 4. `submit_questions()` checks each question, refuses duplicates and stores the others. A stored
    draft is usable at once: the job does not call the Validator (D60).
 5. Stop at MAX_ROUNDS, or once MAX_TOKENS_PER_JOB are spent: no LLM call starts past it. The tokens
@@ -90,7 +92,8 @@ VERDICT_TEXT: dict[Reason, str] = {
     Reason.DUPLICATE: "it asks the same as another question checked with it",
     Reason.VALIDATOR_REFUSAL: "the reviewer refused to read it",
 }
-"""What the next prompt tells the LLM about a question the Validator rejected."""
+"""What the next prompt tells the LLM about a question the Validator or CENTER rejected: CENTER
+picks its reason among the same codes (MANUAL_QUESTION_REJECT_REASONS, US-4.11)."""
 
 
 class TestGenerator:
@@ -133,10 +136,12 @@ class TestGenerator:
             )
         drafts = list(await self._drafts.drafts(bank.bank_id))
         verdicts = await self._validations.validations(bank.bank_id)
+        rejections = await self._sources.rejections(bank.bank_id)
         tools = await load_bank_tools(
             bank=bank,
             drafts=drafts,
             verdicts=verdicts,
+            rejections=rejections,
             repo=self._drafts,
             embedder=self._embedder,
             job_id=job.job_id,

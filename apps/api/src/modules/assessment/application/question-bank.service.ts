@@ -3,6 +3,7 @@ import { OnEvent } from '@nestjs/event-emitter';
 import {
   type JdRequirements,
   jobDescriptionMachine,
+  type ManualQuestionRejection,
   QUESTION_BANK_JD_STATES,
   QUESTION_BANK_MAX_DRAFTS,
   type QuestionBankRunKind,
@@ -275,6 +276,8 @@ export class QuestionBankService {
     reason: string;
     /** Required for a USER actor, as for every `transitionTo`. */
     expectedRowVersion?: number;
+    /** CENTER rejecting the question by hand (US-4.11 AC-3): written by the same UPDATE as the status. */
+    manualRejection?: ManualQuestionRejection;
     tx?: DbTx;
   }): Promise<RetiredQuestion> {
     const { questionId, actor, reason } = request;
@@ -290,6 +293,7 @@ export class QuestionBankService {
         actor,
         reason,
         ...(request.expectedRowVersion === undefined ? {} : { expectedRowVersion: request.expectedRowVersion }),
+        ...(request.manualRejection === undefined ? {} : { set: { manualRejection: request.manualRejection } }),
         tx,
       });
       if (bank.status !== 'LOCKED') {

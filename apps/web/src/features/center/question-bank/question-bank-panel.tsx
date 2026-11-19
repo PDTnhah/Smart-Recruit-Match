@@ -1,6 +1,7 @@
 import { EXAM_PARTS, type ExamBlueprintView } from '@srm/shared';
 import { CircleAlert, FileQuestion, Lock, PencilLine, Sparkles, TriangleAlert } from 'lucide-react';
 import { useState } from 'react';
+import { useSearchParams } from 'react-router';
 import { toast } from 'sonner';
 import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
@@ -20,6 +21,7 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Spinner } from '@/components/ui/spinner';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { formatDateTime, formatNumber } from '@/lib/format';
 import { ApiRequestError, apiErrorMessage } from '@/shared/api/errors';
 import { useExamBlueprint, useGenerateQuestions, useLockQuestionBank } from './api';
@@ -27,25 +29,58 @@ import { BlueprintForm } from './blueprint-form';
 import { BlueprintTable, CvVerificationSummary } from './blueprint-table';
 import { uncheckedOf } from './coverage';
 import { cellLabel, LOCK_BLOCKER_MESSAGES, QUESTION_TYPE_LABELS } from './labels';
+import { QuestionList } from './question-list';
 import { RunStatus } from './run-status';
+import { ShortAfterLockAlert } from './short-after-lock-alert';
 import { ValidationCard } from './validation-card';
 
+/** `?section=` of the bank tab, so a reload or a link keeps it (DESIGN.md §6 › tabs); none is "Tổng quan". */
+const SECTION_PARAM = 'section';
+const SECTIONS = ['overview', 'questions', 'blueprint'] as const;
+type BankSection = (typeof SECTIONS)[number];
+const isSection = (value: string | null): value is BankSection => SECTIONS.some((section) => section === value);
+
 /**
- * The "Ngân hàng câu hỏi" tab of an approved JD (FR-18, BR-05, US-4.1 AC-3, AC-11, US-4.2 AC-10,
- * AC-11, US-4.10 AC-5): the latest generation run, the coverage of each cell (usable questions,
- * checked or not, against 3× its count), "Sinh câu còn thiếu", "Kiểm câu bằng AI", "Khóa ngân
- * hàng", and the exam blueprint, editable while the bank is not locked and no run is RUNNING. The
- * view is polled while a run is RUNNING and the tab is `visible` (no SSE, CONTEXT D49).
+ * The "Ngân hàng câu hỏi" tab of an approved JD (FR-18, BR-05, US-4.1 AC-3, AC-11, US-4.2 AC-10, AC-11, US-4.10
+ * AC-5, US-4.11 AC-2), in three sections. "Tổng quan": the latest generation run, "Sinh câu còn thiếu", "Kiểm câu
+ * bằng AI", "Khóa ngân hàng" and the coverage of each cell (usable questions, checked or not, against 3× its
+ * count). "Câu hỏi (N)": every question of the bank. "Ma trận đề": the structure of one exam, editable while the
+ * bank is not locked and no run is RUNNING. The view is polled while a run is RUNNING and the tab is `visible` (no
+ * SSE, CONTEXT D49). Every section stays mounted, so switching keeps a blueprint being edited.
  */
 export function QuestionBankPanel({ jdId, visible }: { jdId: number; visible: boolean }) {
   const blueprint = useExamBlueprint(jdId, { poll: visible });
+  const [params, setParams] = useSearchParams();
+  const requested = params.get(SECTION_PARAM);
+  const section: BankSection = isSection(requested) ? requested : 'overview';
+  // The question list loads once its section is opened, then stays mounted like the others.
+  const [questionsOpened, setQuestionsOpened] = useState(section === 'questions');
+  if (section === 'questions' && !questionsOpened) setQuestionsOpened(true);
   const [editing, setEditing] = useState(false);
   // A new value mounts a fresh form, with the view read after a row_version conflict.
   const [formRevision, setFormRevision] = useState(0);
 
+  function selectSection(next: string) {
+    setParams(
+      (current) => {
+        const updated = new URLSearchParams(current);
+        if (isSection(next) && next !== 'overview') updated.set(SECTION_PARAM, next);
+        else updated.delete(SECTION_PARAM);
+        return updated;
+      },
+      { replace: true },
+    );
+  }
+
+  function editBlueprint() {
+    setEditing(true);
+    selectSection('blueprint');
+  }
+
   if (blueprint.isPending) {
     return (
       <div className="flex flex-col gap-6" aria-busy="true">
+        <Skeleton className="h-8 w-72 max-w-full" />
         <Skeleton className="h-40 w-full" />
         <Skeleton className="h-32 w-full" />
         <Skeleton className="h-96 w-full" />
@@ -81,58 +116,101 @@ export function QuestionBankPanel({ jdId, visible }: { jdId: number; visible: bo
           </AlertDescription>
           {view.editable && !editing && (
             <AlertAction>
-              <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
+              <Button variant="outline" size="sm" onClick={editBlueprint}>
                 Sửa ma trận
               </Button>
             </AlertAction>
           )}
         </Alert>
       )}
-      <GenerationCard view={view} editing={editing} />
-      <ValidationCard view={view} editing={editing} />
-      <LockCard view={view} editing={editing} />
-      <Card>
-        <CardHeader>
-          <CardTitle>Ma trận đề</CardTitle>
-          <CardDescription>
-            Làm bài trong {formatNumber(view.blueprint.duration_minutes)} phút. Kỹ năng lấy theo yêu cầu chuẩn hóa của JD.
-          </CardDescription>
-          {view.editable && !editing && (
-            <CardAction>
-              <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
-                <PencilLine data-icon="inline-start" />
-                Sửa ma trận
-              </Button>
-            </CardAction>
-          )}
-        </CardHeader>
-        <CardContent className="flex flex-col gap-6">
-          {editing ? (
-            <BlueprintForm
-              key={formRevision}
-              view={view}
-              onDone={() => setEditing(false)}
-              onReload={async () => {
-                await blueprint.refetch();
-                setFormRevision((revision) => revision + 1);
-              }}
-              onRefresh={() => void blueprint.refetch()}
-            />
-          ) : (
-            <>
-              {!view.editable && !view.locked && (
-                <p className="text-sm text-muted-foreground">
-                  AI đang sinh hoặc kiểm câu: sửa được ma trận khi lượt chạy xong.
-                </p>
-              )}
+      <Tabs value={section} onValueChange={selectSection} className="gap-6">
+        <TabsList variant="line" aria-label="Các mục của ngân hàng câu hỏi">
+          <TabsTrigger value="overview">Tổng quan</TabsTrigger>
+          <TabsTrigger value="questions">
+            Câu hỏi <span className="tabular-nums">({formatNumber(view.questionCount)})</span>
+          </TabsTrigger>
+          <TabsTrigger value="blueprint">Ma trận đề</TabsTrigger>
+        </TabsList>
+        <TabsContent value="overview" forceMount className="flex flex-col gap-6 data-[state=inactive]:hidden">
+          <GenerationCard view={view} editing={editing} />
+          <ValidationCard view={view} editing={editing} />
+          <LockCard view={view} editing={editing} />
+          <Card>
+            <CardHeader>
+              <CardTitle>Độ phủ từng ô</CardTitle>
+              <CardDescription>
+                Số câu dùng được của ngân hàng ở mỗi ô của ma trận đề, so với mức tối thiểu 3 lần số câu một đề rút.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-6">
               {EXAM_PARTS.map((part) => (
-                <BlueprintTable key={part} part={part} blueprint={view.blueprint.parts[part]} coverage={view.coverage} />
+                <BlueprintTable
+                  key={part}
+                  part={part}
+                  blueprint={view.blueprint.parts[part]}
+                  coverage={view.coverage}
+                  mode="coverage"
+                />
               ))}
-              <CvVerificationSummary settings={view.cvVerification} />
-            </>
-          )}
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        <TabsContent value="questions" forceMount className="data-[state=inactive]:hidden">
+          {questionsOpened && <QuestionList view={view} active={visible && section === 'questions'} />}
+        </TabsContent>
+        <TabsContent value="blueprint" forceMount className="data-[state=inactive]:hidden">
+          <Card>
+            <CardHeader>
+              <CardTitle>Ma trận đề</CardTitle>
+              <CardDescription>
+                Cấu trúc của một đề: mỗi sinh viên nhận một đề rút ngẫu nhiên từ các câu dùng được của ngân hàng theo
+                cấu trúc này. Làm bài trong {formatNumber(view.blueprint.duration_minutes)} phút. Kỹ năng lấy theo yêu
+                cầu chuẩn hóa của JD.
+              </CardDescription>
+              {view.editable && !editing && (
+                <CardAction>
+                  <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
+                    <PencilLine data-icon="inline-start" />
+                    Sửa ma trận
+                  </Button>
+                </CardAction>
+              )}
+            </CardHeader>
+            <CardContent className="flex flex-col gap-6">
+              {editing ? (
+                <BlueprintForm
+                  key={formRevision}
+                  view={view}
+                  onDone={() => setEditing(false)}
+                  onReload={async () => {
+                    await blueprint.refetch();
+                    setFormRevision((revision) => revision + 1);
+                  }}
+                  onRefresh={() => void blueprint.refetch()}
+                />
+              ) : (
+                <>
+                  {!view.editable && !view.locked && (
+                    <p className="text-sm text-muted-foreground">
+                      AI đang sinh hoặc kiểm câu: sửa được ma trận khi lượt chạy xong.
+                    </p>
+                  )}
+                  {EXAM_PARTS.map((part) => (
+                    <BlueprintTable
+                      key={part}
+                      part={part}
+                      blueprint={view.blueprint.parts[part]}
+                      coverage={view.coverage}
+                      mode="structure"
+                    />
+                  ))}
+                  <CvVerificationSummary settings={view.cvVerification} />
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
@@ -242,41 +320,6 @@ function GenerationCard({ view, editing }: { view: ExamBlueprintView; editing: b
         )}
       </CardContent>
     </Card>
-  );
-}
-
-/**
- * US-4.9 AC-4: questions retired after locking (a sample review, later appeals) may leave a cell below its 3×
- * floor, or below what one exam draws. No question is generated in their place; CENTER is told here. A cell
- * short of one exam's questions stops every exam not yet started (409 EXAM_BANK_INCOMPLETE).
- */
-function ShortAfterLockAlert({ view }: { view: ExamBlueprintView }) {
-  const short = view.coverage.filter((cell) => cell.usable < cell.min);
-  if (short.length === 0) return null;
-  const undrawable = short.filter((cell) => cell.usable < cell.needed);
-  return (
-    <Alert variant={undrawable.length > 0 ? 'destructive' : 'default'}>
-      <TriangleAlert />
-      <AlertTitle>
-        {undrawable.length > 0 ? 'Phòng thi không rút được đề' : 'Có ô thiếu câu sau khi loại câu'}
-      </AlertTitle>
-      <AlertDescription>
-        <p>
-          {undrawable.length > 0
-            ? 'Có ô không còn đủ câu cho một đề, nên sinh viên chưa làm bài sẽ không bắt đầu được bài test.'
-            : 'Câu bị loại sau khi khóa (báo lỗi khi duyệt đề mẫu, phúc khảo) làm các ô dưới đây còn ít hơn 3 lần số câu của một đề. Sinh viên có thể nhận đề trùng nhau nhiều hơn.'}{' '}
-          Ngân hàng đã khóa nên không sinh câu thay thế.
-        </p>
-        <ul className="flex flex-col gap-1">
-          {short.map((cell) => (
-            <li key={`${cell.part}-${cell.skill}-${cell.difficulty}`} className="break-words tabular-nums">
-              {cellLabel(cell.skill, cell.difficulty)} ({QUESTION_TYPE_LABELS[cell.type].toLowerCase()}): còn{' '}
-              {formatNumber(cell.usable)} câu, một đề rút {formatNumber(cell.needed)}
-            </li>
-          ))}
-        </ul>
-      </AlertDescription>
-    </Alert>
   );
 }
 

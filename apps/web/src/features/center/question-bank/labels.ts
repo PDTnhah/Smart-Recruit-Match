@@ -5,13 +5,14 @@ import type {
   QuestionDifficulty,
   QuestionGenerationRunStatus,
   QuestionRejectReason,
+  QuestionStatus,
   QuestionType,
 } from '@srm/shared';
 import type { VariantProps } from 'class-variance-authority';
 import type { badgeVariants } from '@/components/ui/badge';
 import { formatNumber } from '@/lib/format';
 
-// Vietnamese labels of the question bank screen (US-4.1 AC-11, US-4.2 AC-10, US-4.10 AC-5, DESIGN.md §9).
+// Vietnamese labels of the question bank screen (US-4.1 AC-11, US-4.2 AC-10, US-4.10 AC-5, US-4.11, DESIGN.md §9).
 
 export const DIFFICULTY_LABELS: Readonly<Record<QuestionDifficulty, string>> = {
   EASY: 'Dễ',
@@ -80,10 +81,21 @@ export const cellLabel = (skill: string, difficulty: QuestionDifficulty) => `${s
 export const COVERAGE_CAPTION =
   'Mỗi ô: số câu của một đề; số câu dùng được (chưa kiểm hoặc đã kiểm đạt) đang có trong ngân hàng và mức tối thiểu cần có (3 lần số câu mỗi đề); "Đủ" khi đạt mức tối thiểu, "Thiếu n" khi còn thiếu n câu; câu bị loại, câu chưa kiểm và lý do loại.';
 
+/** How to read a cell of one exam's structure (US-4.11 AC-2). */
+export const STRUCTURE_CAPTION = 'Mỗi ô: số câu một đề rút ở kỹ năng và độ khó đó. Mỗi sinh viên nhận một đề rút ngẫu nhiên từ các câu dùng được của ngân hàng theo cấu trúc này.';
+
 /** The badge of a cell: enough questions, or how many are still short of the minimum. */
 export const coverageStatusLabel = (short: number) => (short > 0 ? `Thiếu ${formatNumber(short)}` : 'Đủ');
 
-/** Why the Validator rejected a question (US-4.2 AC-3), in the order of QUESTION_REJECT_REASONS. */
+/** Where a question of the bank stands (US-4.11 AC-2): usable (checked or not), or out of the bank. */
+export const QUESTION_STATUS_LABELS: Readonly<Record<QuestionStatus, string>> = {
+  DRAFT: 'Chưa kiểm',
+  VALIDATED: 'Đã kiểm đạt',
+  REJECTED: 'Bị loại',
+  RETIRED: 'Ngừng dùng',
+};
+
+/** Why the Validator or CENTER rejected a question (US-4.2 AC-3, US-4.11), in the order of QUESTION_REJECT_REASONS. */
 export const REJECT_REASON_LABELS: Readonly<Record<QuestionRejectReason, string>> = {
   ANSWER_MISMATCH: 'Sai đáp án',
   MULTIPLE_CORRECT: 'Nhiều đáp án đúng',

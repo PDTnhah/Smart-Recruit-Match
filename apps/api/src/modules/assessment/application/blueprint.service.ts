@@ -140,6 +140,7 @@ export class BlueprintService {
       cvVerification: cvVerificationOf(bank),
       requirements: jd.requirements,
       coverage,
+      questionCount: counts.reduce((total, row) => total + row.count, 0),
       run: generation ? runView(generation) : null,
       validationRun: validation ? runView(validation) : null,
     };

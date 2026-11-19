@@ -18,6 +18,7 @@ import {
   DIFFICULTY_LABELS,
   EXAM_PART_TITLES,
   REJECT_REASON_LABELS,
+  STRUCTURE_CAPTION,
 } from './labels';
 
 interface SkillRow {
@@ -96,6 +97,18 @@ function CoverageCell({ cell }: { cell: CellCoverage | undefined }) {
   );
 }
 
+/** A cell of one exam: how many questions it draws (US-4.11 AC-2). */
+function StructureCell({ cell }: { cell: CellCoverage | undefined }) {
+  if (!cell) {
+    return (
+      <span className="text-muted-foreground" aria-label="Không có câu">
+        –
+      </span>
+    );
+  }
+  return <>{formatNumber(cell.needed)} câu</>;
+}
+
 /** Part C of the saved blueprint, read only (US-4.8 AC-1). */
 export function CvVerificationSummary({ settings }: { settings: CvVerificationSettings }) {
   return (
@@ -113,21 +126,25 @@ export function CvVerificationSummary({ settings }: { settings: CvVerificationSe
 }
 
 /**
- * One part of the saved blueprint, read only (US-4.1 AC-11, US-4.2 AC-10): a row per skill, a
- * column per difficulty, and the totals. Coverage counts the questions the Validator passed.
+ * One part of the saved blueprint, read only (US-4.1 AC-11, US-4.2 AC-10, US-4.11 AC-2): a row per
+ * skill, a column per difficulty, and the totals. `coverage` mode (the "Tổng quan" section) shows
+ * what the bank holds for each cell; `structure` mode (the "Ma trận đề" section) only how many
+ * questions one exam draws from it.
  */
 export function BlueprintTable({
   part,
   blueprint,
   coverage,
+  mode,
 }: {
   part: ExamPart;
   blueprint: ExamPartBlueprint;
   coverage: readonly CellCoverage[];
+  mode: 'coverage' | 'structure';
 }) {
   const rows = rowsOf(coverage.filter((cell) => cell.part === part));
   const columnTotals = QUESTION_DIFFICULTIES.map((_, index) => sum(rows.map((row) => row.cells[index]?.needed ?? 0)));
-  const headingId = `blueprint-part-${part}`;
+  const headingId = `blueprint-${mode}-part-${part}`;
 
   return (
     <section className="flex flex-col gap-2" aria-labelledby={headingId}>
@@ -140,7 +157,7 @@ export function BlueprintTable({
         </p>
       </div>
       <Table>
-        <TableCaption className="text-left">{COVERAGE_CAPTION}</TableCaption>
+        <TableCaption className="text-left">{mode === 'coverage' ? COVERAGE_CAPTION : STRUCTURE_CAPTION}</TableCaption>
         <TableHeader>
           <TableRow>
             <TableHead className="min-w-36">Kỹ năng</TableHead>
@@ -157,8 +174,8 @@ export function BlueprintTable({
             <TableRow key={row.skill} className="align-top">
               <TableCell className="font-medium whitespace-normal break-words">{row.skill}</TableCell>
               {row.cells.map((cell, index) => (
-                <TableCell key={QUESTION_DIFFICULTIES[index]}>
-                  <CoverageCell cell={cell} />
+                <TableCell key={QUESTION_DIFFICULTIES[index]} className={mode === 'structure' ? 'tabular-nums' : undefined}>
+                  {mode === 'coverage' ? <CoverageCell cell={cell} /> : <StructureCell cell={cell} />}
                 </TableCell>
               ))}
               <TableCell className="text-right tabular-nums">

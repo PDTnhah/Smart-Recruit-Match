@@ -21,13 +21,16 @@ export type QuestionBankRecord = typeof questionBanks.$inferSelect;
 
 export type QuestionRecord = typeof questions.$inferSelect;
 
-/** A question's place in its lifecycle. */
+/** A question's place in its lifecycle, and its cell. */
 export interface QuestionState {
   id: number;
   bankId: number;
   draftId: number;
   status: QuestionStatus;
   rowVersion: number;
+  type: QuestionType;
+  skill: string;
+  difficulty: QuestionDifficulty;
 }
 
 /** A DRAFT question as "Kiểm câu bằng AI" picks it: its draft and its cell. */
@@ -54,6 +57,9 @@ const STATE_COLUMNS = {
   draftId: questions.draftId,
   status: questions.status,
   rowVersion: questions.rowVersion,
+  type: questions.type,
+  skill: questions.skill,
+  difficulty: questions.difficulty,
 };
 
 /** Drizzle access to `core.question_banks` and `core.questions`, owned by the assessment module. */
@@ -135,7 +141,10 @@ export class QuestionBanksRepository {
       .groupBy(questions.type, questions.skill, questions.difficulty, questions.status);
   }
 
-  /** REJECTED questions of the bank per type, skill, difficulty and reason of `validation`. */
+  /**
+   * REJECTED questions of the bank per type, skill, difficulty and reason: CENTER's when it
+   * rejected the question by hand (US-4.11), the Validator's otherwise.
+   */
   async countRejectReasons(bankId: number, tx?: DbTx): Promise<RejectReasonCount[]> {
     const db = tx ?? this.db;
     // One row per reason of each question: jsonb_array_elements_text is set-returning.
@@ -144,7 +153,10 @@ export class QuestionBanksRepository {
         type: questions.type,
         skill: questions.skill,
         difficulty: questions.difficulty,
-        reason: sql<QuestionRejectReason>`jsonb_array_elements_text(${questions.validation} -> 'reasons')`.as('reason'),
+        reason: sql<QuestionRejectReason>`jsonb_array_elements_text(case when ${questions.manualRejection} is not null
+          then jsonb_build_array(${questions.manualRejection} -> 'reason') else ${questions.validation} -> 'reasons' end)`.as(
+          'reason',
+        ),
       })
       .from(questions)
       .where(and(eq(questions.bankId, bankId), eq(questions.status, 'REJECTED')))
@@ -180,6 +192,11 @@ export class QuestionBanksRepository {
   async findQuestion(id: number, tx?: DbTx): Promise<QuestionState | undefined> {
     const [row] = await (tx ?? this.db).select(STATE_COLUMNS).from(questions).where(eq(questions.id, id));
     return row;
+  }
+
+  /** Every question of the bank, whatever its status, by id (US-4.11 AC-1). */
+  async allQuestions(bankId: number, tx?: DbTx): Promise<QuestionRecord[]> {
+    return (tx ?? this.db).select().from(questions).where(eq(questions.bankId, bankId)).orderBy(asc(questions.id));
   }
 
   /** DRAFT and VALIDATED questions of the bank, by id: what an exam is drawn from (US-4.2 AC-8, US-4.10 AC-4). */
