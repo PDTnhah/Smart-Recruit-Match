@@ -8,6 +8,13 @@ Batch requests have their own table, read on 2026-11-03 (US-3.2 AC-14): both pro
 the interactive price. Claude's discount also applies to cache reads and writes, and batch requests
 mark the shared block with the 1-hour TTL, whose writes cost 2x input. Gemini bills cache hits of a
 batch at the standard caching rate. `LLM_BATCH_PRICING` overrides or adds models.
+
+OpenAI and DeepSeek prices were read on 2026-11-19 (US-2.9, CONTEXT D58). OpenAI bills cache writes
+with the default 30-minute lifetime at 1.25x input, and batch requests at half of every rate.
+DeepSeek has no cache-write charge and no batch API, so its batches are priced from DEFAULT_PRICES
+(factory.build_batch_client) and DEFAULT_BATCH_PRICES has no DeepSeek row.
+DeepSeek halves every rate outside its peak hours (01:00-04:00 and 06:00-10:00 UTC on weekdays);
+the tables hold the peak rates, so cost_usd is an upper bound.
 """
 
 import logging
@@ -40,12 +47,17 @@ DEFAULT_PRICES: Mapping[str, ModelPrice] = {
     "gemini-3.8-flash": ModelPrice(input=0.75, output=3.75, cache_read=0.075),
     # Cache writes with the default 5-minute TTL cost 1.25x input.
     "claude-opus-5-5": ModelPrice(input=4, output=20, cache_read=0.20, cache_write=5),
+    # Up to 272K input tokens; longer prompts cost twice as much.
+    "gpt-6.2-sol": ModelPrice(input=2, output=10, cache_read=0.10, cache_write=2.5),
+    "deepseek-flash": ModelPrice(input=0.3, output=1.2, cache_read=0.006),
+    "deepseek-v4-pro": ModelPrice(input=1.32, output=3.96, cache_read=0.044),
 }
 
 
 DEFAULT_BATCH_PRICES: Mapping[str, ModelPrice] = {
     "gemini-3.8-flash": ModelPrice(input=0.375, output=1.875, cache_read=0.075),
     "claude-opus-5-5": ModelPrice(input=2, output=10, cache_read=0.10, cache_write=4),
+    "gpt-6.2-sol": ModelPrice(input=1, output=5, cache_read=0.05, cache_write=1.25),
 }
 
 

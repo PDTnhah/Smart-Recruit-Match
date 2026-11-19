@@ -64,7 +64,9 @@ LLM_PROVIDER=gemini
 GEMINI_API_KEY=...        # free tier chỉ dùng với dữ liệu giả (CONTEXT D34)
 ```
 
-rồi chạy `docker compose -f deploy/docker-compose.yml up -d ai-worker`. Thiếu key của nhà cung cấp đã chọn thì `ai-worker` dừng ngay lúc khởi động và in tên biến thiếu. Từng lượt gọi LLM được ghi ở bảng `ai.llm_calls`; request và response đầy đủ nằm ở bucket `llm-logs`. AI Service tạo bucket này, bật SSE-S3, ở lần ghi đầu.
+Thay vào đó có thể dùng `LLM_PROVIDER=anthropic` với `ANTHROPIC_API_KEY`, `LLM_PROVIDER=openai` với `OPENAI_API_KEY`, hoặc `LLM_PROVIDER=deepseek` với `DEEPSEEK_API_KEY` (từ 0.27.0, [CONTEXT D58](docs/CONTEXT.md)). **OpenAI và DeepSeek chỉ dùng với dữ liệu giả**: điều khoản xử lý dữ liệu sinh viên đã đồng ý chỉ ghi tên Google và Anthropic. DeepSeek không đọc được CV bản scan (CV đó báo "Lỗi phân tích"), và vì DeepSeek không có Batch API, khi chấm phù hợp `ai-worker` gửi từng request với giá thường, tối đa `LLM_INLINE_BATCH_CONCURRENCY` request cùng lúc. Chọn một nhà cung cấp trước đợt và không đổi khi đợt đang chấm phù hợp: batch đang mở của nhà cung cấp cũ không được đọc tới khi đặt lại ([CONTEXT D46](docs/CONTEXT.md)).
+
+Sau đó chạy `docker compose -f deploy/docker-compose.yml up -d ai-worker`. Thiếu key của nhà cung cấp đã chọn thì `ai-worker` dừng ngay lúc khởi động và in tên biến thiếu. Từng lượt gọi LLM được ghi ở bảng `ai.llm_calls`; request và response đầy đủ nằm ở bucket `llm-logs`. AI Service tạo bucket này, bật SSE-S3, ở lần ghi đầu.
 
 **Embedding và danh mục kỹ năng.** Từ 0.11.0, `ai-worker` quy tên kỹ năng trong CV và JD về danh mục `core.skills` và ghi embedding hồ sơ vào `ai.embeddings` ([CONTEXT D39](docs/CONTEXT.md)). Tên chưa có trong danh mục chờ Quản trị duyệt ở trang "Danh mục kỹ năng" (`/admin/skills`). Mặc định `EMBEDDING_PROVIDER=hashing`: vector giả, tất định, không cần mô hình, nên tên kỹ năng chỉ khớp theo alias. Dùng mô hình thật `BAAI/bge-m3` (chạy CPU):
 
@@ -137,11 +139,14 @@ Nguồn: `deploy/.env` (sao từ [`deploy/.env.example`](deploy/.env.example)). 
 | `MAILPIT_UI_HOST_PORT` | Optional (8025) | Tự đặt | |
 | `AI_API_HOST_PORT` | Optional (8000) | Tự đặt | Cổng của `ai-api` (`/health`) trên 127.0.0.1 |
 | `AI_DATABASE_URL` | – (compose tự ghép) | `postgres://ai_service:AI_DB_PASSWORD@postgres:5432/POSTGRES_DB` | `ai-worker`, `ai-api` đọc. Role `ai_service` chỉ đọc view `core.v_ai_*` và đọc ghi schema `ai` |
-| `LLM_PROVIDER` | Optional (`fixture` trong compose) | `gemini`, `anthropic` hoặc `fixture` | Nhà cung cấp LLM của `ai-worker` ([CONTEXT D34](docs/CONTEXT.md), [D35](docs/CONTEXT.md)). `fixture` chỉ trả lời request đã ghi sẵn, nên phân tích JD thật luôn lỗi và HR nhập tay |
+| `LLM_PROVIDER` | Optional (`fixture` trong compose) | `gemini`, `anthropic`, `openai`, `deepseek` hoặc `fixture` | Nhà cung cấp LLM của `ai-worker` ([CONTEXT D34](docs/CONTEXT.md), [D35](docs/CONTEXT.md)). `fixture` chỉ trả lời request đã ghi sẵn, nên phân tích JD thật luôn lỗi và HR nhập tay |
 | `GEMINI_API_KEY` | Required khi `LLM_PROVIDER=gemini` | Google AI Studio | Free tier chỉ dùng với dữ liệu giả; dữ liệu thật dùng paid tier (CONTEXT D34) |
 | `ANTHROPIC_API_KEY` | Required khi `LLM_PROVIDER=anthropic` | Claude Console | |
-| `LLM_MODEL` | Optional (trống = mặc định của nhà cung cấp) | Tên model | Mặc định `gemini-3.8-flash` hoặc `claude-opus-5-5`. Không đổi khi đợt đang chấm phù hợp ([CONTEXT D46](docs/CONTEXT.md)) |
+| `OPENAI_API_KEY` | Required khi `LLM_PROVIDER=openai` | OpenAI Platform | Chỉ dùng với dữ liệu giả ([CONTEXT D58](docs/CONTEXT.md)). Chấm phù hợp chạy qua Batch API của OpenAI |
+| `DEEPSEEK_API_KEY` | Required khi `LLM_PROVIDER=deepseek` | DeepSeek Platform | Chỉ dùng với dữ liệu giả ([CONTEXT D58](docs/CONTEXT.md)). Không đọc được CV bản scan |
+| `LLM_MODEL` | Optional (trống = mặc định của nhà cung cấp) | Tên model | Mặc định `gemini-3.8-flash`, `claude-opus-5-5`, `gpt-6.2-sol` hoặc `deepseek-flash` (DeepSeek có thêm `deepseek-v4-pro`; không model DeepSeek nào đọc được file). Không đổi khi đợt đang chấm phù hợp: batch đang mở của model cũ chờ tới khi đặt lại ([CONTEXT D46](docs/CONTEXT.md)) |
 | `LLM_BATCH_POLL_SECONDS` | Optional (trống = 60) | Số giây, 1–3600 | Khoảng cách giữa hai lần `ai-worker` hỏi trạng thái một batch của nhà cung cấp khi chấm phù hợp ([CONTEXT D46](docs/CONTEXT.md)) |
+| `LLM_INLINE_BATCH_CONCURRENCY` | Optional (trống = 16) | Số nguyên ≥ 1 | Chỉ khi `LLM_PROVIDER=deepseek`: số request `ai-worker` gửi cùng lúc khi đọc một batch chấm phù hợp, vì DeepSeek không có Batch API ([CONTEXT D58](docs/CONTEXT.md)) |
 | `CV_MASK_CONTACTS` | Optional (`true`) | `true`/`false` | `ai-worker` che email, SĐT của CV có chữ trước khi gửi LLM (NFR-3, [CONTEXT D37](docs/CONTEXT.md)). Giữ `true` |
 | `EMBEDDING_PROVIDER` | Optional (`hashing` trong compose) | `hashing` hoặc `bge-m3` | Build arg của image AI Service và env của `ai-worker` ([CONTEXT D39](docs/CONTEXT.md)). `bge-m3` cần `up --build`, 2,5–3 GB RAM mỗi bản sao worker; `hashing` là vector giả cho dev, test |
 | `SKILL_MATCH_THRESHOLD` | Optional (trống = 0.85) | Số trong (0, 1] | Cosine tối thiểu để gán tên kỹ năng cho kỹ năng gần nhất của danh mục (US-2.5); thấp hơn thì tên thành kỹ năng mới chờ duyệt |

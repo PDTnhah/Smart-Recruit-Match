@@ -9,7 +9,7 @@ Hệ thống giúp Trung tâm quan hệ doanh nghiệp của trường ghép sin
 ## Trạng thái
 
 - Story nào xong, story nào đang `review` và còn chờ gì: [STATUS.md](docs/sprints/STATUS.md) (tự sinh) và file story. Đã phát hành gì: [CHANGELOG](docs/CHANGELOG.md). Việc đang làm của người dùng hiện tại: `.active-context.md`; đọc file này khi bắt đầu phiên, nếu có.
-- 44 story của 6 epic nằm trong `docs/sprints/stories/` ([CONTEXT D21, D42, D55, D56](docs/CONTEXT.md)). Lộ trình: xong trong tháng 12/2026, hai làn chạy song song bằng agent ([sprints/README › Lộ trình](docs/sprints/README.md#lộ-trình), [CONTEXT D20](docs/CONTEXT.md)).
+- 45 story của 6 epic nằm trong `docs/sprints/stories/` ([CONTEXT D21, D42, D55, D56, D58](docs/CONTEXT.md)). Lộ trình: xong trong tháng 12/2026, hai làn chạy song song bằng agent ([sprints/README › Lộ trình](docs/sprints/README.md#lộ-trình), [CONTEXT D20](docs/CONTEXT.md)).
 - Khi bắt đầu một story, đọc lại file của nó và thêm khối *Story refresh* nếu spec đã đổi.
 - Không ghi trạng thái từng story vào file này ([CONTEXT D38](docs/CONTEXT.md)). Chỉ sửa khi có quy tắc mới hoặc mẫu mới cho mục *Mẫu có sẵn*.
 
@@ -78,7 +78,7 @@ Monorepo pnpm (cấu trúc thư mục: ARCH › Project structure):
 - `apps/web`: React 19 + TS + Vite, Tailwind CSS + shadcn/ui, TanStack Query, TanStack Table, React Hook Form + Zod
 - `apps/api`: NestJS (TS strict), Drizzle ORM, nestjs-zod, @golevelup/nestjs-rabbitmq; Jest, fast-check, testcontainers
 - `packages/shared`: Zod schema, kiểu trạng thái + bảng chuyển trạng thái, contract message
-- `ai-service`: Python 3.12, FastStream, FastAPI, google-genai + Anthropic SDK (sau `LLMClient`), Jinja2, minio, Pydantic v2; pytest
+- `ai-service`: Python 3.12, FastStream, FastAPI, google-genai + Anthropic SDK + OpenAI SDK (sau `LLMClient`), Jinja2, minio, Pydantic v2; pytest
 - PostgreSQL 16 + pgvector, Redis, RabbitMQ, MinIO; Docker Compose trong `deploy/`
 
 Không thêm thư viện ngoài danh sách ở ARCH › Tech stack và *Thư viện chính* khi chưa hỏi.
@@ -142,15 +142,15 @@ Vi phạm các điều dưới đây là lỗi, kể cả khi code vẫn chạy 
 
 ## Gọi LLM (ai-service)
 
-Hai nhà cung cấp sau `LLMClient`: Gemini (mặc định, `gemini-3.8-flash`) và Claude (`claude-opus-5-5`), chọn bằng `LLM_PROVIDER` ([CONTEXT D34](docs/CONTEXT.md)).
+Bốn nhà cung cấp sau `LLMClient`: Gemini (mặc định, `gemini-3.8-flash`), Claude (`claude-opus-5-5`), OpenAI (`gpt-6.2-sol`) và DeepSeek (`deepseek-flash`, qua SDK `openai`), chọn bằng `LLM_PROVIDER` ([CONTEXT D34, D58](docs/CONTEXT.md)). OpenAI và DeepSeek chỉ dùng với dữ liệu giả.
 
-- Agent gọi `LLMClient.generate(prompt=..., output_model=..., effort=EFFORT_BY_AGENT[...], job_id=...)` (`ai-service/app/llm/`). Chỉ `app/llm/` được import `google.genai` và `anthropic`; test chặn chỗ khác.
-- Ghi rõ effort cho từng tác vụ theo ARCH › *Bản đồ sử dụng LLM theo giai đoạn*; `generate` không có giá trị mặc định cho effort. JSON lấy bằng structured output với model Pydantic, không dùng `tool_choice` để ép gọi công cụ, không gửi `temperature`.
+- Agent gọi `LLMClient.generate(prompt=..., output_model=..., effort=EFFORT_BY_AGENT[...], job_id=...)` (`ai-service/app/llm/`). Chỉ `app/llm/` được import `google.genai`, `anthropic` và `openai`; test chặn chỗ khác.
+- Ghi rõ effort cho từng tác vụ theo ARCH › *Bản đồ sử dụng LLM theo giai đoạn*; `generate` không có giá trị mặc định cho effort. JSON lấy bằng structured output với model Pydantic, không dùng `tool_choice` để ép gọi công cụ, không gửi `temperature`. Ngoại lệ: DeepSeek chỉ có `json_object`, nên adapter gửi JSON Schema trong một system message cố định ([CONTEXT D58](docs/CONTEXT.md)).
 - Refusal được kiểm trước khi đọc nội dung, sai schema được thử lại 2 lần, mọi lần thử được ghi vào `ai.llm_calls` và `llm-logs`: việc của `StructuredLLMClient`, agent không tự làm. Kết quả lưu kèm `result.model` (model thật sự trả lời) và `result.prompt_version`.
-- Sửa adapter hoặc nâng SDK: phần Claude dùng skill `claude-api` (có sẵn trong Claude Code); phần Gemini đối chiếu tài liệu chính thức ai.google.dev và kiểu dữ liệu của `google-genai` đã cài. Không viết tham số API theo trí nhớ. Xong thì chạy `ai-service/evals/smoke_llm.py` với key thật.
+- Sửa adapter hoặc nâng SDK: phần Claude dùng skill `claude-api` (có sẵn trong Claude Code); phần Gemini đối chiếu tài liệu chính thức ai.google.dev và kiểu dữ liệu của `google-genai` đã cài; phần OpenAI, DeepSeek đối chiếu developers.openai.com, api-docs.deepseek.com và kiểu dữ liệu của `openai` đã cài. Không viết tham số API theo trí nhớ. Xong thì chạy `ai-service/evals/smoke_llm.py` với key thật.
 - Prompt là file có phiên bản: `ai-service/app/prompts/<agent>/v<N>.md`, hai block Jinja `system` (không biến) và `user`. Không sửa prompt đã phát hành (có trong `manifest.json`); tạo `v<N+1>`. Phiên bản đang dùng chọn trong `active.json`.
 - Phần cố định của prompt đặt đầu, phần thay đổi đặt cuối. Không chèn thời gian hay ID ngẫu nhiên vào `system`. JSON đưa vào prompt dùng filter `tojson_sorted`; CV, JD, bài làm dùng filter `untrusted("<thẻ>")`.
-- Test dùng fixture, **không gọi API thật**: `conftest.py` xóa key và chặn kết nối ra ngoài. API thật chỉ chạy trong `ai-service/evals/`, khởi động thủ công, với dữ liệu giả khi dùng free tier của Gemini.
+- Test dùng fixture, **không gọi API thật**: `conftest.py` xóa key và chặn kết nối ra ngoài. API thật chỉ chạy trong `ai-service/evals/`, khởi động thủ công, với dữ liệu giả khi dùng free tier của Gemini, OpenAI hoặc DeepSeek.
 
 ## Kiểm thử
 

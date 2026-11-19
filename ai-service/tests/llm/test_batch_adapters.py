@@ -1,23 +1,32 @@
-"""US-3.2 AC-7, AC-9, AC-14: the batch adapters, read against the SDKs' own types (CONTEXT D46).
+"""US-3.2 AC-7, AC-9, AC-14, US-2.9 AC-7: the batch adapters, read against the SDKs' own types
+(CONTEXT D46, D58).
 
-The SDK clients are stand-ins; the replies are built with anthropic 1.11.0 and google-genai 2.28.0
-models, so a renamed field fails here.
+The SDK clients are stand-ins; the replies are built with anthropic 1.11.0, google-genai 2.28.0 and
+openai 3.46.0 models, so a renamed field fails here.
 """
 
+import asyncio
 import json
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
+import httpx2
+import openai
 import pytest
 from anthropic.types.messages import MessageBatchIndividualResponse
 from google.genai import types
+from openai.types import Batch
 
 from app.llm.batch import (
     BatchFailure,
     BatchRequest,
     BatchState,
     StructuredBatchClient,
+    _failure_code,
 )
 from app.llm.providers.anthropic_batch import AnthropicBatchProvider
 from app.llm.providers.anthropic_provider import AnthropicProvider
@@ -25,8 +34,18 @@ from app.llm.providers.fixture_batch import FixtureBatchProvider
 from app.llm.providers.fixture_provider import FixtureProvider, fixture_key
 from app.llm.providers.gemini_batch import GeminiBatchProvider
 from app.llm.providers.gemini_provider import GeminiProvider
+from app.llm.providers.inline_batch import InlineBatchProvider
+from app.llm.providers.openai_batch import FILE_SECONDS, OpenAIBatchProvider
 from app.llm.recorder import CallRecorder
-from app.llm.types import LLMRequest, RenderedPrompt, StopReason
+from app.llm.types import (
+    Document,
+    LLMRequest,
+    Provider,
+    ProviderCallError,
+    ProviderResponse,
+    RenderedPrompt,
+    StopReason,
+)
 from app.llm.usage import DEFAULT_BATCH_PRICES
 
 pytestmark = pytest.mark.anyio
@@ -334,3 +353,265 @@ async def test_gd3_request_without_result_is_resent(tmp_path: Path) -> None:
         submitted_at=None,
     )
     assert outcomes == {"k0": BatchFailure(code="NO_RESULT", retry=True)}
+
+
+OPENAI_MODEL = "gpt-6.2-sol"
+FILES_URL = "https://api.openai.com/v1/files"
+PDF_REF = Document("application/pdf", b"%PDF-1.7").ref
+
+
+def openai_batch(status: str, **fields: Any) -> Batch:
+    return Batch.model_validate(
+        {
+            "id": "batch_1",
+            "object": "batch",
+            "endpoint": "/v1/chat/completions",
+            "completion_window": "24h",
+            "created_at": 1_790_000_000,
+            "input_file_id": "file-in",
+            "status": status,
+            **fields,
+        }
+    )
+
+
+def chat_body(**message: Any) -> dict[str, Any]:
+    return {
+        "id": "chatcmpl-1",
+        "object": "chat.completion",
+        "created": 1_790_000_000,
+        "model": OPENAI_MODEL,
+        "choices": [
+            {
+                "index": 0,
+                "finish_reason": "stop",
+                "message": {"role": "assistant", "content": ANSWER, "refusal": None, **message},
+            }
+        ],
+        "usage": {
+            "prompt_tokens": 1000,
+            "completion_tokens": 50,
+            "total_tokens": 1050,
+            "prompt_tokens_details": {"cached_tokens": 900},
+        },
+    }
+
+
+class FakeOpenAIFiles:
+    """The files and batches resources of openai.AsyncOpenAI, in memory."""
+
+    def __init__(self, batch: Batch | None = None, contents: dict[str, Any] | None = None) -> None:
+        self.batch = batch
+        self.contents = contents or {}
+        self.uploads: list[dict[str, Any]] = []
+        self.created: list[dict[str, Any]] = []
+        self.deleted: list[str] = []
+        self.files = SimpleNamespace(
+            create=self._upload,
+            delete=self._delete,
+            with_streaming_response=SimpleNamespace(content=self._content),
+        )
+        self.batches = SimpleNamespace(create=self._create, retrieve=self._retrieve)
+
+    async def _upload(self, **kwargs: Any) -> Any:
+        self.uploads.append(kwargs)
+        return SimpleNamespace(id="file-in")
+
+    async def _create(self, **kwargs: Any) -> Any:
+        self.created.append(kwargs)
+        return SimpleNamespace(id="batch_1")
+
+    async def _retrieve(self, batch_id: str) -> Batch | None:
+        return self.batch
+
+    @asynccontextmanager
+    async def _content(self, file_id: str) -> AsyncIterator[Any]:
+        """Like the SDK, the request runs when the context opens; a line is a JSON object or
+        raw text."""
+        content = self.contents[file_id]
+        if isinstance(content, Exception):
+            raise content
+        lines = [line if isinstance(line, str) else json.dumps(line) for line in content]
+
+        async def iter_lines() -> AsyncIterator[str]:
+            for line in lines:
+                yield line
+
+        yield SimpleNamespace(iter_lines=iter_lines)
+
+    async def _delete(self, file_id: str) -> None:
+        self.deleted.append(file_id)
+
+
+def not_found() -> openai.NotFoundError:
+    response = httpx2.Response(404, request=httpx2.Request("GET", FILES_URL))
+    return openai.NotFoundError("HTTP 404", response=response, body=None)
+
+
+async def test_gd3_openai_batch_uploads_jsonl_of_chat_completions_requests() -> None:
+    client = FakeOpenAIFiles()
+    provider = OpenAIBatchProvider(client, OPENAI_MODEL)
+    params = provider.build_params(REQUEST)
+    assert params["store"] is False and "max_completion_tokens" in params
+    with pytest.raises(ValueError):
+        provider.build_params(replace(REQUEST, documents=(PDF_REF,)))
+
+    batch_id = await provider.submit([("a", params), ("b", params)], display_name="match-1")
+    assert batch_id == "batch_1"
+    [upload] = client.uploads
+    _, data = upload["file"]
+    lines = [json.loads(line) for line in data.decode().splitlines()]
+    assert lines[0] == {
+        "custom_id": "a",
+        "method": "POST",
+        "url": "/v1/chat/completions",
+        "body": params,
+    }
+    assert [line["custom_id"] for line in lines] == ["a", "b"]
+    expiry = {"anchor": "created_at", "seconds": FILE_SECONDS}
+    assert (upload["purpose"], upload["expires_after"]) == ("batch", expiry)
+    [created] = client.created
+    assert created["input_file_id"] == "file-in"
+    assert (created["endpoint"], created["completion_window"]) == ("/v1/chat/completions", "24h")
+    assert created["output_expires_after"] == expiry
+
+
+@pytest.mark.parametrize(
+    ("status", "expected"),
+    [
+        ("validating", BatchState.RUNNING),
+        ("in_progress", BatchState.RUNNING),
+        ("finalizing", BatchState.RUNNING),
+        ("completed", BatchState.ENDED),
+        ("expired", BatchState.ENDED),
+        ("failed", BatchState.FAILED),
+        ("cancelled", BatchState.FAILED),
+    ],
+)
+async def test_gd3_openai_batch_status(status: str, expected: BatchState) -> None:
+    provider = OpenAIBatchProvider(FakeOpenAIFiles(openai_batch(status)), OPENAI_MODEL)
+    assert (await provider.status("batch_1")).state is expected
+
+
+async def test_gd3_openai_batch_results_read_output_and_error_files() -> None:
+    output = [
+        {"id": "r1", "custom_id": "a", "response": {"status_code": 200, "body": chat_body()}},
+        {
+            "id": "r2",
+            "custom_id": "b",
+            "response": {"status_code": 200, "body": chat_body(content=None, refusal="no")},
+        },
+    ]
+    errors = [
+        {
+            "id": "r3",
+            "custom_id": "c",
+            "response": None,
+            "error": {"code": "batch_expired", "message": "window passed"},
+        },
+        {
+            "id": "r4",
+            "custom_id": "d",
+            "response": {
+                "status_code": 400,
+                "body": {"error": {"type": "invalid_request_error", "message": "bad schema"}},
+            },
+            "error": None,
+        },
+        {
+            "id": "r5",
+            "custom_id": "e",
+            "response": {"status_code": 500, "body": {"error": {"message": "oops"}}},
+            "error": None,
+        },
+        {"id": "r6", "custom_id": "f", "response": {"status_code": 200, "body": {}}},
+        {"id": "r7", "custom_id": "g", "response": {"status_code": 502, "body": "Bad Gateway"}},
+        '{"id": "r8", "custom_id": "h", "resp',
+    ]
+    batch = openai_batch("expired", output_file_id="file-out", error_file_id="file-err")
+    client = FakeOpenAIFiles(batch, {"file-out": output, "file-err": errors})
+    provider = OpenAIBatchProvider(client, OPENAI_MODEL)
+    results = {r.key: r for r in await provider.results("batch_1", {}, round_number=1)}
+
+    assert results["a"].response.text == ANSWER
+    assert results["a"].response.usage.cache_read_tokens == 900
+    assert results["b"].response.stop_reason is StopReason.REFUSAL
+    assert (results["c"].retryable, _failure_code(results["c"].error)) == (True, "EXPIRED")
+    assert results["d"].retryable is False
+    assert _failure_code(results["d"].error) == "LLM_BAD_REQUEST"
+    assert results["e"].retryable is True
+    assert (results["f"].response, results["f"].retryable) == (None, True), "200 without a body"
+    assert (results["g"].response, results["g"].retryable) == (None, True), "plain-text body"
+    assert "h" not in results, "an unreadable line is skipped: its request counts as unanswered"
+    assert client.deleted == ["file-in"], "output and error files expire on their own"
+
+
+async def test_gd3_openai_batch_file_already_gone_counts_as_no_answer() -> None:
+    batch = openai_batch("completed", output_file_id="file-out")
+    client = FakeOpenAIFiles(batch, {"file-out": not_found()})
+    provider = OpenAIBatchProvider(client, OPENAI_MODEL)
+    assert await provider.results("batch_1", {}, round_number=1) == []
+
+
+class KeyedProvider:
+    """Answers by the `user` parameter and records how many requests run at once."""
+
+    name = Provider.DEEPSEEK
+    model = "deepseek-flash"
+
+    def __init__(self) -> None:
+        self.active = 0
+        self.peak = 0
+        self.sent: list[str] = []
+
+    def build_params(self, request: LLMRequest) -> dict[str, Any]:
+        return {"user": request.user}
+
+    async def send(self, params: dict[str, Any], documents: Any = ()) -> ProviderResponse:
+        self.sent.append(params["user"])
+        self.active += 1
+        self.peak = max(self.peak, self.active)
+        await asyncio.sleep(0)
+        self.active -= 1
+        if params["user"] == "bad":
+            raise ProviderCallError("HTTP 400", retryable=False, status=400)
+        if params["user"] == "busy":
+            raise ProviderCallError("HTTP 503", retryable=True, status=503)
+        return ProviderResponse(stop_reason=StopReason.END_TURN, text=ANSWER, model=self.model)
+
+
+async def test_gd3_inline_batch_sends_each_request_when_read() -> None:
+    sync = KeyedProvider()
+    provider = InlineBatchProvider(sync, Objects(), concurrency=2)
+    assert (provider.name, provider.model) == (Provider.DEEPSEEK, "deepseek-flash")
+    with pytest.raises(ValueError):
+        provider.build_params(replace(REQUEST, documents=(PDF_REF,)))
+
+    batch_id = await provider.submit([("a", {"user": "ok"})], display_name="match-1")
+    assert batch_id.startswith("inline-") and sync.peak == 0, "submit sends nothing"
+    assert (await provider.status(batch_id)).state is BatchState.ENDED
+
+    items = {"a": {"user": "ok"}, "b": {"user": "bad"}, "c": {"user": "busy"}}
+    items |= {f"k{i}": {"user": "ok"} for i in range(5)}
+    results = {r.key: r for r in await provider.results(batch_id, items, round_number=1)}
+    assert set(results) == set(items)
+    assert results["a"].response.text == ANSWER
+    assert results["b"].retryable is False
+    assert _failure_code(results["b"].error) == "LLM_BAD_REQUEST"
+    assert (results["c"].response, results["c"].retryable) == (None, True)
+    assert sync.peak == 2
+
+
+async def test_gd3_inline_batch_read_again_sends_only_unanswered_requests() -> None:
+    # A step that fails after the read (a log write, publishing) reads the batch again.
+    sync = KeyedProvider()
+    objects = Objects()
+    provider = InlineBatchProvider(sync, objects, concurrency=4)
+    items = {"a": {"user": "ok"}, "c": {"user": "busy"}}
+
+    first = {r.key: r for r in await provider.results("inline-1", items, round_number=1)}
+    second = {r.key: r for r in await provider.results("inline-1", items, round_number=1)}
+    assert sorted(sync.sent) == ["busy", "busy", "ok"], "the answer to `a` is not paid twice"
+    assert second["a"].response == first["a"].response
+    assert (second["c"].response, second["c"].retryable) == (None, True)
+    assert list(objects.files) == ["inline-batches/inline-1/a.json"]

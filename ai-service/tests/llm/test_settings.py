@@ -22,6 +22,14 @@ def test_anthropic_uses_claude_by_default():
     assert settings.model == "claude-opus-5-5"
 
 
+def test_us29_openai_and_deepseek_use_their_default_models():
+    openai = load_llm_settings({"LLM_PROVIDER": "openai", "OPENAI_API_KEY": "o-key"})
+    assert (openai.model, openai.openai_api_key.get_secret_value()) == ("gpt-6.2-sol", "o-key")
+    deepseek = load_llm_settings({"LLM_PROVIDER": "deepseek", "DEEPSEEK_API_KEY": "d-key"})
+    assert (deepseek.model, deepseek.inline_batch_concurrency) == ("deepseek-flash", 16)
+    assert "gpt-6.2-sol" in deepseek.batch_pricing and "deepseek-flash" in deepseek.pricing
+
+
 def test_only_the_selected_provider_needs_a_key():
     with pytest.raises(RuntimeError, match="GEMINI_API_KEY is required"):
         load_llm_settings({})
@@ -29,6 +37,13 @@ def test_only_the_selected_provider_needs_a_key():
         load_llm_settings({"LLM_PROVIDER": "anthropic", "GEMINI_API_KEY": "g-key"})
     with pytest.raises(RuntimeError, match="LLM_FIXTURES_DIR is required"):
         load_llm_settings({"LLM_PROVIDER": "fixture"})
+    # US-2.9 AC-8: an empty key counts as unset (LESSONS §14).
+    with pytest.raises(RuntimeError, match="OPENAI_API_KEY is required"):
+        load_llm_settings(
+            {"LLM_PROVIDER": "openai", "OPENAI_API_KEY": "", "DEEPSEEK_API_KEY": "d-key"}
+        )
+    with pytest.raises(RuntimeError, match="DEEPSEEK_API_KEY is required"):
+        load_llm_settings({"LLM_PROVIDER": "deepseek", "OPENAI_API_KEY": "o-key"})
 
 
 def test_empty_values_count_as_unset():
@@ -48,6 +63,9 @@ def test_compose_defaults_start_without_a_key():
             "LLM_MODEL": "",
             "GEMINI_API_KEY": "",
             "ANTHROPIC_API_KEY": "",
+            "OPENAI_API_KEY": "",
+            "DEEPSEEK_API_KEY": "",
+            "LLM_INLINE_BATCH_CONCURRENCY": "",
             "LLM_FIXTURES_DIR": "/tmp/llm-fixtures",
             "MINIO_ENDPOINT": "http://minio:9000",
             "MINIO_ACCESS_KEY": "srm-minio",
@@ -87,7 +105,8 @@ def test_secrets_do_not_leak_in_repr():
 @pytest.mark.parametrize(
     "environ",
     [
-        {"GEMINI_API_KEY": "k", "LLM_PROVIDER": "openai"},
+        {"GEMINI_API_KEY": "k", "LLM_PROVIDER": "mistral"},
+        {"DEEPSEEK_API_KEY": "k", "LLM_PROVIDER": "deepseek", "LLM_INLINE_BATCH_CONCURRENCY": "0"},
         {"GEMINI_API_KEY": "k", "LLM_PRICING": "[1, 2]"},
         {"GEMINI_API_KEY": "k", "LLM_PRICING": "{not json"},
         {"GEMINI_API_KEY": "k", "MINIO_ENDPOINT": "minio:9000"},

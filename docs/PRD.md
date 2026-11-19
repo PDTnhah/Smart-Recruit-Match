@@ -987,7 +987,7 @@ Priority: `P0` = bắt buộc cho MVP, `P1` = nên có, `P2` = tùy chọn, `P3`
 
 ## Epics & User Stories
 
-Mỗi epic tương ứng một giai đoạn trong [ARCHITECTURE.md › Implementation roadmap](ARCHITECTURE.md#implementation-roadmap). Chi tiết epic ở `docs/sprints/epics/EPIC-N.md`; file story của cả 44 story nằm ở `docs/sprints/stories/` ([CONTEXT D21](CONTEXT.md); US-2.7, US-3.5, US-3.6 thêm theo [CONTEXT D42](CONTEXT.md); US-1.8, US-1.9, US-2.8 thêm theo [CONTEXT D55](CONTEXT.md); US-1.10 theo [CONTEXT D56](CONTEXT.md)). Lịch theo tuần và thứ tự làm ở [sprints/README › Lộ trình](sprints/README.md#lộ-trình) ([CONTEXT D20](CONTEXT.md)).
+Mỗi epic tương ứng một giai đoạn trong [ARCHITECTURE.md › Implementation roadmap](ARCHITECTURE.md#implementation-roadmap). Chi tiết epic ở `docs/sprints/epics/EPIC-N.md`; file story của cả 45 story nằm ở `docs/sprints/stories/` ([CONTEXT D21](CONTEXT.md); US-2.7, US-3.5, US-3.6 thêm theo [CONTEXT D42](CONTEXT.md); US-1.8, US-1.9, US-2.8 thêm theo [CONTEXT D55](CONTEXT.md); US-1.10 theo [CONTEXT D56](CONTEXT.md); US-2.9 theo [CONTEXT D58](CONTEXT.md)). Lịch theo tuần và thứ tự làm ở [sprints/README › Lộ trình](sprints/README.md#lộ-trình) ([CONTEXT D20](CONTEXT.md)).
 
 ### EPIC-1: Nền tảng, tài khoản và đợt thực tập
 
@@ -1028,6 +1028,7 @@ Mỗi epic tương ứng một giai đoạn trong [ARCHITECTURE.md › Implement
 | US-2.6 | SV xác nhận hồ sơ năng lực | ✅ done | 0.12.0 |
 | US-2.7 | Vùng, họ và quan hệ kéo theo của kỹ năng | 👀 review | 0.14.0 |
 | US-2.8 | Tìm kỹ năng trong danh mục khi ô tìm còn trống | 👀 review | 0.25.1 |
+| US-2.9 | Thêm nhà cung cấp LLM OpenAI và DeepSeek | 👀 review | 0.27.0 |
 
 ### EPIC-3: Chấm phù hợp và chọn nguyện vọng
 

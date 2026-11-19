@@ -42,6 +42,8 @@ class Outcome(StrEnum):
 class Provider(StrEnum):
     GEMINI = "GEMINI"
     ANTHROPIC = "ANTHROPIC"
+    OPENAI = "OPENAI"
+    DEEPSEEK = "DEEPSEEK"
     FIXTURE = "FIXTURE"
 
 
@@ -87,7 +89,8 @@ class DocumentRef:
 @dataclass(frozen=True)
 class Document:
     """A file the model reads before the user prompt, e.g. a scanned CV (US-2.4 AC-4). Claude
-    takes it as a `document` block, Gemini as inline data (CONTEXT D37)."""
+    takes it as a `document` block, Gemini as inline data (CONTEXT D37), OpenAI as a `file` part;
+    DeepSeek cannot take one (CONTEXT D58)."""
 
     media_type: DocumentType
     data: bytes = field(repr=False)

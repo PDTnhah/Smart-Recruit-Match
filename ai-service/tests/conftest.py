@@ -13,6 +13,9 @@ LLM_KEY_VARIABLES = (
     "GOOGLE_API_KEY",
     "ANTHROPIC_API_KEY",
     "ANTHROPIC_AUTH_TOKEN",
+    "OPENAI_API_KEY",
+    "OPENAI_BASE_URL",  # a local proxy on loopback would pass the network guard
+    "DEEPSEEK_API_KEY",
 )
 LOOPBACK_HOSTS = frozenset({"127.0.0.1", "::1", "localhost", None})
 

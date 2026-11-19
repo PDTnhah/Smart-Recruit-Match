@@ -295,6 +295,13 @@
       "when": 1794804046470,
       "tag": "0041_ai_cv_verification_view",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1795023998656,
+      "tag": "0042_llm_providers_openai_deepseek",
+      "breakpoints": true
     }
   ]
 }

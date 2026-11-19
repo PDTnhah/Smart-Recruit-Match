@@ -15,6 +15,28 @@ Lịch sử phát hành của Smart Recruit Match. Mỗi commit ship code tăng 
 
 ---
 
+## [0.27.0] — 2026-11-19 — Nhà cung cấp LLM OpenAI và DeepSeek — v0.27.0
+
+US-2.9. AI Service chạy được với OpenAI hoặc DeepSeek khi không có key Gemini hay Claude, chọn bằng `LLM_PROVIDER` (NFR-11, NFR-12, [CONTEXT D58](CONTEXT.md)). Agent và lõi gọi LLM không đổi.
+
+### Added
+- **Hai nhà cung cấp mới**: `LLM_PROVIDER=openai` (`OPENAI_API_KEY`, mặc định `gpt-6.2-sol`) và `LLM_PROVIDER=deepseek` (`DEEPSEEK_API_KEY`, mặc định `deepseek-flash`). Cả hai gọi Chat Completions qua thư viện `openai` 3.46.0. **Chỉ dùng với dữ liệu giả**, cho tới khi điều khoản xử lý dữ liệu ghi tên hai nhà cung cấp này.
+  - OpenAI: JSON theo `json_schema` (`strict` khi schema cho phép), `store: false`. CV bản scan gửi dạng part `file`.
+  - DeepSeek chỉ có `json_object`, nên JSON Schema của agent nằm trong một system message cố định. Pydantic kiểm mọi câu trả lời như với các nhà cung cấp khác. DeepSeek không đọc được CV bản scan: CV đó báo "Lỗi phân tích".
+  - Từ chối, hết token, lỗi thử lại được và hết hạn mức được phân loại như với Gemini, Claude. `ai.llm_calls` ghi token và chi phí theo bảng giá; giá DeepSeek lấy giờ cao điểm, nên là cận trên.
+- **Chấm phù hợp hàng loạt**: với OpenAI chạy qua Batch API (giá giảm 50%). Với DeepSeek, `ai-worker` gửi từng request với giá thường, tối đa `LLM_INLINE_BATCH_CONCURRENCY` (mặc định 16) request cùng lúc. Câu trả lời được lưu ngay, nên đọc lại batch sau lỗi không trả tiền lần nữa cho câu đã có.
+- Migration `0042`: CHECK `provider` của `ai.llm_calls`, `ai.llm_batches` nhận `OPENAI`, `DEEPSEEK`.
+
+### Changed
+- Bộ poll batch không đọc batch của nhà cung cấp hay model khác cấu hình hiện tại. Batch đó chờ tới khi đặt lại `LLM_PROVIDER`, `LLM_MODEL` ([CONTEXT D46](CONTEXT.md)).
+- Tài liệu: ARCHITECTURE (*Tech stack*, *Chọn model*), AGENTS (*Stack*, *Gọi LLM*), DEPLOY.md, `deploy/.env.example`, PRD, EPIC-2.
+
+### Not done
+- Chưa chạy với key thật (TASK-2.9.9): `evals/smoke_llm.py` cho `openai` và `deepseek`, chấm phù hợp một đợt demo. Chưa kiểm được `prompt_cache_breakpoint` trong Chat Completions và Batch, và `json_object` khi DeepSeek đang suy luận.
+- Người dùng cần chạy `db:migrate` cho `0042`.
+
+---
+
 ## [0.26.0] — 2026-11-18 — Câu hỏi xác minh CV và chỉ số tin cậy — v0.26.0
 
 US-4.8. Bài test có thêm phần D, tùy chọn theo JD: 2–3 câu hỏi về dự án, kinh nghiệm, kỹ năng mà sinh viên đã khai trong CV. Câu trả lời được đối chiếu với CV và quy thành chỉ số tin cậy CV để tham khảo, **không** tính vào S_test, S_final hay phân bổ (FR-25, AD-2, [CONTEXT D57](CONTEXT.md)).

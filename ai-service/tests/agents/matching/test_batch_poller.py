@@ -4,11 +4,19 @@ import asyncio
 from datetime import timedelta
 
 import pytest
-from matching_support import Harness, final_of, items_of, key, match_job, ref
+from matching_support import (
+    Harness,
+    ScriptedBatchProvider,
+    final_of,
+    items_of,
+    key,
+    match_job,
+    ref,
+)
 
 from app.consumers.base import DEFERRED
 from app.llm.batch import BatchState, BatchStatus
-from app.llm.types import ProviderCallError
+from app.llm.types import Provider, ProviderCallError
 
 pytestmark = pytest.mark.anyio
 
@@ -114,6 +122,26 @@ async def test_gd3_long_read_keeps_its_lease() -> None:
     assert len(a.outbox.results) == 2
     assert b.outbox.results == []
     assert a.store.jobs[job.job_id] == "SUCCEEDED"
+
+
+async def test_gd3_batch_of_another_provider_waits_until_the_setting_is_back() -> None:
+    first = Harness(owner="worker-1")
+    job = match_job(*PAIRS)
+    await first.agent(job)
+    first.store.now += timedelta(minutes=2)
+
+    # LLM_PROVIDER changed while the batch was open: the new provider neither reads nor resends it.
+    switched = ScriptedBatchProvider()
+    switched.name = Provider.DEEPSEEK
+    other = Harness(store=first.store, objects=first.objects, provider=switched, owner="worker-2")
+    assert await other.coordinator.poll_once() is True
+    assert not switched.reading.is_set() and switched.submitted == []
+    [row] = first.store.rows.values()
+    assert row["status"] == "SUBMITTED" and row["next_poll_at"] > first.store.now
+    assert other.outbox.results == []
+
+    await first.drain()
+    assert first.store.jobs[job.job_id] == "SUCCEEDED"
 
 
 async def test_gd3_running_batch_is_polled_again_later() -> None:

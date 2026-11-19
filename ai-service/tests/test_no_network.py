@@ -8,6 +8,7 @@ import os
 import socket
 
 import anthropic
+import openai
 import pytest
 from google import genai
 
@@ -25,7 +26,14 @@ def error_chain(error: BaseException | None) -> list[str]:
 
 
 def test_no_llm_key_is_visible():
-    for name in ("GEMINI_API_KEY", "GOOGLE_API_KEY", "ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN"):
+    for name in (
+        "GEMINI_API_KEY",
+        "GOOGLE_API_KEY",
+        "ANTHROPIC_API_KEY",
+        "ANTHROPIC_AUTH_TOKEN",
+        "OPENAI_API_KEY",
+        "DEEPSEEK_API_KEY",
+    ):
         assert name not in os.environ
     assert os.environ["LLM_PROVIDER"] == "fixture"
 
@@ -51,5 +59,16 @@ async def test_anthropic_sdk_cannot_reach_the_api():
             model="claude-opus-5-5",
             max_tokens=10,
             messages=[{"role": "user", "content": "hi"}],
+        )
+    assert any(REFUSED in link for link in error_chain(caught.value))
+
+
+@pytest.mark.parametrize("base_url", [None, "https://api.deepseek.com"])
+async def test_openai_sdk_cannot_reach_the_api(base_url):
+    """US-2.9 AC-9: the SDK behind both OpenAI and DeepSeek."""
+    client = openai.AsyncOpenAI(api_key="not-a-key", base_url=base_url, max_retries=0)
+    with pytest.raises(Exception) as caught:
+        await client.chat.completions.create(
+            model="gpt-6.2-sol", messages=[{"role": "user", "content": "hi"}]
         )
     assert any(REFUSED in link for link in error_chain(caught.value))
