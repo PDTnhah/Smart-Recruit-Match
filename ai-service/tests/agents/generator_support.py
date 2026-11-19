@@ -233,10 +233,19 @@ class MemoryBanks:
     def __init__(self, *banks: BankSource) -> None:
         self._banks = {b.bank_id: b for b in banks}
         self.fetched: list[int] = []
+        self.rejected: dict[int, dict[int, tuple[str, ...]]] = {}
+        """core.v_ai_question_rejections: CENTER's reasons by bank, then by draft (US-4.11)."""
 
     async def fetch(self, bank_id: int) -> BankSource | None:
         self.fetched.append(bank_id)
         return self._banks.get(bank_id)
+
+    async def rejections(self, bank_id: int) -> dict[int, tuple[str, ...]]:
+        return dict(self.rejected.get(bank_id, {}))
+
+    def reject(self, bank_id: int, draft_id: int, reason: str) -> None:
+        """CENTER rejects the draft by hand, as the backend stores it."""
+        self.rejected.setdefault(bank_id, {})[draft_id] = (reason,)
 
 
 class MemoryDrafts:

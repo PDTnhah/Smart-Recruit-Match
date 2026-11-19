@@ -1070,7 +1070,7 @@ Mỗi epic tương ứng một giai đoạn trong [ARCHITECTURE.md › Implement
 | US-4.8 | Câu hỏi xác minh CV và chỉ số tin cậy | 👀 review | 0.26.0 |
 | US-4.9 | Duyệt mẫu ngân hàng câu hỏi | 👀 review | 0.29.0 |
 | US-4.10 | Tách Validator khỏi job sinh câu: AI kiểm câu khi Trung tâm yêu cầu | 👀 review | 0.28.0 |
-| US-4.11 | Tab Ngân hàng câu hỏi: xem toàn bộ câu và loại câu sai | 📋 backlog | — |
+| US-4.11 | Tab Ngân hàng câu hỏi: xem toàn bộ câu và loại câu sai | 👀 review | 0.30.0 |
 | US-4.12 | Sửa giao diện ngân hàng câu hỏi: ô độ phủ và đổi phần D thành C | 👀 review | 0.27.1 |
 
 ### EPIC-5: Phân bổ, HR duyệt và phỏng vấn

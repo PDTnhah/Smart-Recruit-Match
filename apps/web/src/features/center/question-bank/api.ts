@@ -1,17 +1,20 @@
 import {
+  BankQuestionListSchema,
   type ExamBlueprintView,
   ExamBlueprintViewSchema,
   type LockQuestionBankRequest,
   QuestionGenerationRunSchema,
+  type RejectQuestionRequest,
+  RejectQuestionResultSchema,
   type UpdateExamBlueprintRequest,
 } from '@srm/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { jdKeys } from '@/features/jds/api';
 import { api, unwrap } from '@/shared/api/client';
 
-// Exam blueprint and question bank of a JD (US-4.1 AC-3, AC-11, US-4.2 AC-10, US-4.10 AC-5). Responses are
-// parsed with the shared schemas. No SSE: the view is polled while a run, generation or AI check, is RUNNING
-// (CONTEXT D49).
+// Exam blueprint and question bank of a JD (US-4.1 AC-3, AC-11, US-4.2 AC-10, US-4.10 AC-5, US-4.11). Responses
+// are parsed with the shared schemas. No SSE: the view is polled while a run, generation or AI check, is RUNNING
+// (CONTEXT D49); the question list is read again whenever the view changes (`QuestionList`).
 
 export const examBlueprintKey = (jdId: number) => [...jdKeys.all, 'exam-blueprint', jdId] as const;
 
@@ -92,5 +95,41 @@ export function useLockQuestionBank(jdId: number) {
       ),
     onSuccess: (view: ExamBlueprintView) => queryClient.setQueryData(examBlueprintKey(jdId), view),
     onError: () => queryClient.invalidateQueries({ queryKey: examBlueprintKey(jdId) }),
+  });
+}
+
+export const bankQuestionsKey = (jdId: number) => [...jdKeys.all, 'bank-questions', jdId] as const;
+
+/** `GET /api/question-banks/{id}/questions` (US-4.11 AC-1): every question, answer keys included (CENTER only). */
+export function useBankQuestions(jdId: number, bankId: number) {
+  return useQuery({
+    queryKey: bankQuestionsKey(jdId),
+    queryFn: async () =>
+      BankQuestionListSchema.parse(
+        unwrap(await api.GET('/api/question-banks/{id}/questions', { params: { path: { id: bankId } } })),
+      ),
+  });
+}
+
+/**
+ * `POST /api/questions/{id}/reject` (US-4.11 AC-3) with the `rowVersion` of the question when the dialog opened
+ * (LESSONS §25). A rejection changes the view (coverage, version), which reads the list again (`QuestionList`), so
+ * only the view is invalidated. After a failure the view may be unchanged: both are read again, so a 409 shows the
+ * bank as it is now.
+ */
+export function useRejectQuestion(jdId: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ questionId, ...body }: { questionId: number } & RejectQuestionRequest) =>
+      RejectQuestionResultSchema.parse(
+        unwrap(await api.POST('/api/questions/{id}/reject', { params: { path: { id: questionId } }, body })),
+      ),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: examBlueprintKey(jdId) }),
+    onError: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: bankQuestionsKey(jdId) }),
+        queryClient.invalidateQueries({ queryKey: examBlueprintKey(jdId) }),
+      ]);
+    },
   });
 }

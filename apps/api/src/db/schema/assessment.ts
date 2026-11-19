@@ -19,6 +19,7 @@ import {
   type ExamSessionFlag,
   type ExamSessionStatus,
   type ExamStoredAnswer,
+  type ManualQuestionRejection,
   type MissingCell,
   QUESTION_BANK_RUN_KINDS,
   QUESTION_BANK_STATES,
@@ -159,7 +160,8 @@ export const questionGenerationRuns = core.table(
  * Questions of a bank (FR-18, US-4.1 AC-9). Written by the Core Backend from the drafts of the
  * Test Generator, each once by `draft_id` (`ai.question_drafts.id`), status DRAFT (usable, nobody
  * checked it) until the Validator's verdict moves it, with `validation`, to VALIDATED or REJECTED
- * (US-4.2 AC-5, US-4.10). DRAFT and VALIDATED questions are drawn; either may be RETIRED.
+ * (US-4.2 AC-5, US-4.10). DRAFT and VALIDATED questions are drawn; either may be RETIRED. CENTER
+ * may reject either by hand, with `manual_rejection`: REJECTED before locking, RETIRED after (US-4.11).
  * `content` is what a student may see; `answer_key` and `rubric` never leave the server for a
  * student (AGENTS › Invariant 8).
  */
@@ -181,6 +183,8 @@ export const questions = core.table(
     status: text('status').$type<QuestionStatus>().notNull().default('DRAFT'),
     /** The Validator's verdict with its model and prompt (Invariant 12); null while DRAFT, and on a question retired unchecked. */
     validation: jsonb('validation').$type<QuestionValidation>(),
+    /** CENTER's rejection by hand (US-4.11 AC-3), set with REJECTED or RETIRED; null otherwise. */
+    manualRejection: jsonb('manual_rejection').$type<ManualQuestionRejection>(),
     version: integer('version').notNull().default(1),
     model: text('model').notNull(),
     promptVersion: text('prompt_version').notNull(),
@@ -194,9 +198,16 @@ export const questions = core.table(
     oneOf('questions_difficulty_check', t.difficulty, QUESTION_DIFFICULTIES),
     oneOf('questions_status_check', t.status, QUESTION_STATES),
     // A checked status has its verdict; a DRAFT has none; a RETIRED one keeps what it had (US-4.10 AC-4).
+    // CENTER rejects a question checked or not, so a REJECTED one has the Validator's REJECTED verdict or a
+    // rejection by hand (US-4.11): nothing else may reject a question.
     check(
       'questions_validation_check',
-      sql`${t.status} = 'RETIRED' or (${t.status} = 'DRAFT') = (${t.validation} is null)`,
+      sql`${t.status} = 'RETIRED' or (${t.status} = 'REJECTED' and ${t.manualRejection} is not null) or ((${t.status} = 'DRAFT') = (${t.validation} is null) and (${t.status} <> 'REJECTED' or ${t.validation} ->> 'status' = 'REJECTED'))`,
+    ),
+    // A rejection by hand removes the question from the bank (US-4.11 AC-3).
+    check(
+      'questions_manual_rejection_check',
+      sql`${t.manualRejection} is null or ${t.status} in ('REJECTED', 'RETIRED')`,
     ),
     // An essay is graded by its rubric; a multiple-choice question has none.
     check('questions_rubric_check', sql`(${t.type} = 'ESSAY') = (${t.rubric} is not null)`),

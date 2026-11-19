@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { type QuestionErrorReportForm, QuestionErrorReportFormSchema, type SampleQuestion } from '@srm/shared';
 import { Check, CircleAlert, CircleCheck, CircleX, Flag } from 'lucide-react';
-import { type ReactNode, useState } from 'react';
+import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import type { z } from 'zod';
@@ -22,13 +22,12 @@ import { Field, FieldDescription, FieldError, FieldLabel } from '@/components/ui
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
 import { DIFFICULTY_LABELS, QUESTION_TYPE_LABELS } from '@/features/center/question-bank/labels';
-import { formatDateTime, formatNumber } from '@/lib/format';
+import { formatDateTime } from '@/lib/format';
 import { ApiRequestError, apiErrorMessage } from '@/shared/api/errors';
 import { applyServerFieldErrors } from '@/shared/forms/server-errors';
 import { IconBadge, type IconBadgeStyle } from '@/shared/ui/icon-badge';
 import { useSubmitQuestionReview } from './api';
-
-const OPTION_LETTERS = 'ABCDEFGH';
+import { QuestionBody, QuestionText } from './question-body';
 
 const USABLE: ReadonlySet<SampleQuestion['status']> = new Set(['DRAFT', 'VALIDATED']);
 
@@ -36,7 +35,8 @@ const USABLE: ReadonlySet<SampleQuestion['status']> = new Set(['DRAFT', 'VALIDAT
 const STANDING: Readonly<Record<'OK' | 'RETIRED' | 'REJECTED', { label: string; style: IconBadgeStyle }>> = {
   OK: { label: 'Đã xác nhận đúng', style: { variant: 'default', icon: CircleCheck } },
   RETIRED: { label: 'Đã loại', style: { variant: 'outline', icon: CircleX } },
-  REJECTED: { label: 'AI đã loại', style: { variant: 'outline', icon: CircleX } },
+  // The Validator or, since US-4.11, CENTER by hand: the bank's question list says which.
+  REJECTED: { label: 'Bị loại', style: { variant: 'outline', icon: CircleX } },
 };
 
 function Standing({ question }: { question: SampleQuestion }) {
@@ -46,69 +46,6 @@ function Standing({ question }: { question: SampleQuestion }) {
   }
   if (question.review?.verdict === 'OK') return <IconBadge style={STANDING.OK.style}>{STANDING.OK.label}</IconBadge>;
   return <Badge variant="outline">Chưa duyệt</Badge>;
-}
-
-/** Plain text written by AI: never rendered as Markdown or HTML (DESIGN.md §6 › sheet). */
-function Text({ children, muted = false }: { children: string; muted?: boolean }) {
-  return (
-    <p className={muted ? 'text-sm whitespace-pre-wrap break-words text-muted-foreground' : 'whitespace-pre-wrap break-words'}>
-      {children}
-    </p>
-  );
-}
-
-function Section({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <div className="flex flex-col gap-1">
-      <h4 className="text-sm font-medium">{title}</h4>
-      {children}
-    </div>
-  );
-}
-
-function Options({ question }: { question: SampleQuestion }) {
-  return (
-    <ol className="flex flex-col gap-2" aria-label="Phương án">
-      {(question.options ?? []).map((option, index) => {
-        const correct = index === question.correctOption;
-        return (
-          <li
-            key={index}
-            className={
-              correct
-                ? 'flex flex-wrap items-start gap-x-3 gap-y-2 rounded-lg border border-primary bg-muted p-3'
-                : 'flex flex-wrap items-start gap-x-3 gap-y-2 rounded-lg border p-3'
-            }
-          >
-            <span className="font-medium">{OPTION_LETTERS[index]}.</span>
-            <span className={correct ? 'min-w-0 flex-1 font-medium break-words whitespace-pre-wrap' : 'min-w-0 flex-1 break-words whitespace-pre-wrap'}>
-              {option}
-            </span>
-            {correct && <IconBadge style={{ variant: 'default', icon: CircleCheck }}>Đáp án đúng</IconBadge>}
-          </li>
-        );
-      })}
-    </ol>
-  );
-}
-
-function Rubric({ rubric }: { rubric: NonNullable<SampleQuestion['rubric']> }) {
-  const total = rubric.reduce((sum, criterion) => sum + criterion.max_points, 0);
-  return (
-    <Section title="Rubric">
-      <ol className="flex flex-col gap-1 text-sm">
-        {rubric.map((criterion, index) => (
-          <li key={index} className="flex flex-wrap justify-between gap-x-4">
-            <span className="min-w-0 break-words">
-              Tiêu chí {index + 1}: {criterion.criterion}
-            </span>
-            <span className="text-muted-foreground tabular-nums">tối đa {formatNumber(criterion.max_points)} điểm</span>
-          </li>
-        ))}
-      </ol>
-      <p className="text-sm text-muted-foreground tabular-nums">Tổng: {formatNumber(total)} điểm</p>
-    </Section>
-  );
 }
 
 function ReviewNote({ review }: { review: NonNullable<SampleQuestion['review']> }) {
@@ -127,7 +64,7 @@ function ReviewNote({ review }: { review: NonNullable<SampleQuestion['review']> 
         Báo lỗi bởi {who} lúc {formatDateTime(review.reviewedAt)}
       </AlertTitle>
       <AlertDescription>
-        <Text>{review.reason ?? ''}</Text>
+        <QuestionText>{review.reason ?? ''}</QuestionText>
       </AlertDescription>
     </Alert>
   );
@@ -292,20 +229,7 @@ export function SampleQuestionCard({
         </CardAction>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        <Text>{question.stem}</Text>
-        {question.type === 'MCQ' ? (
-          <Options question={question} />
-        ) : (
-          <Section title="Đáp án mẫu">
-            <Text muted>{question.sampleAnswer ?? ''}</Text>
-          </Section>
-        )}
-        {question.explanation && (
-          <Section title="Giải thích">
-            <Text muted>{question.explanation}</Text>
-          </Section>
-        )}
-        {question.rubric && <Rubric rubric={question.rubric} />}
+        <QuestionBody question={question} />
         {question.review && <ReviewNote review={question.review} />}
       </CardContent>
       {actionable && (

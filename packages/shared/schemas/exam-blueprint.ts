@@ -267,6 +267,8 @@ export const ExamBlueprintViewSchema = z.object({
   /** The JD's current requirements: the skills a cell may name. */
   requirements: JdRequirementsSchema,
   coverage: z.array(CellCoverageSchema),
+  /** Every question of the bank, whatever its status or cell: the "Câu hỏi (N)" section (US-4.11 AC-2). */
+  questionCount: count(),
   /** The latest GENERATE run; null before the first one. */
   run: QuestionGenerationRunSchema.nullable(),
   /** The latest VALIDATE run ("Kiểm câu bằng AI", US-4.10 AC-5); null before the first one. */

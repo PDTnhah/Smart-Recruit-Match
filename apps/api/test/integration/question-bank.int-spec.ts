@@ -1,14 +1,18 @@
 // US-4.1 AC-3, AC-4, AC-9 (FR-18, BR-02, BR-05, GĐ5, CONTEXT D49): the question bank of an approved
-// JD, its exam blueprint as CENTER edits it, and the generation runs of the Test Generator. The AI
+// JD, its exam blueprint as CENTER edits it, and the generation runs of the Test Generator. US-4.11
+// (CONTEXT D60): CENTER reads every question of the bank and rejects wrong ones by hand. The AI
 // Service is not running here: jobs stay in their queue and results are handed to the listener.
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
   ApiErrorSchema,
+  BankQuestionListSchema,
   CV_VERIFICATION_DEFAULTS,
   type ExamBlueprint,
   ExamBlueprintViewSchema,
+  type GeneratedQuestion,
   QuestionGenerationRunSchema,
   type QuestionsGenerateJob,
+  RejectQuestionResultSchema,
 } from '@srm/shared';
 import { and, eq } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
@@ -31,6 +35,9 @@ import {
   mcq,
   MODEL,
   resultMessage as message,
+  SMALL_BLUEPRINT,
+  smallBankDrafts,
+  verdict,
 } from '../helpers/question-bank.js';
 
 /** The default blueprint of REQUIREMENTS with the campaign default T_test of 45 minutes. */
@@ -386,5 +393,183 @@ describe('GĐ5 question bank and exam blueprint (US-4.1)', () => {
       editable: false,
       run: { status: 'RUNNING' },
     });
+  });
+
+  // --- US-4.11: every question of the bank, and CENTER rejecting one by hand ------------------------
+
+  const listQuestions = (bankId: number, as: LoggedIn = center) => as.agent.get(api(`question-banks/${bankId}/questions`));
+  const reject = (questionId: number, body: object, as: LoggedIn = center) =>
+    as.agent.post(api(`questions/${questionId}/reject`)).send(body);
+  const errorCode = (body: unknown) => ApiErrorSchema.parse(body).code;
+  const questionRow = async (id: number) => (await t.db.select().from(questions).where(eq(questions.id, id)))[0]!;
+
+  /** An approved JD whose bank holds SMALL_BLUEPRINT filled to 3× VALIDATED, and `extra` drafts. */
+  async function filledBank(extra: GeneratedQuestion[] = []) {
+    const jd = await approvedJd();
+    const view = ExamBlueprintViewSchema.parse((await getBlueprint(jd.id).expect(200)).body);
+    await putBlueprint(jd.id, view.rowVersion, SMALL_BLUEPRINT).expect(200);
+    await generate(jd.id).expect(202);
+    await deliver(message(jobsOf(view.bankId).at(-1)!.job, { questions: [...smallBankDrafts(), ...extra] }));
+    return { jdId: jd.id, bankId: view.bankId, rows: await questionsOf(view.bankId) };
+  }
+
+  it('FR-18 US-4.11 AC-1 CENTER reads every question in every status with its answer key and AI check; HR and STUDENT 403', async () => {
+    const rejected = mcq('Java', 'EASY', verdict(['UNCLEAR'], { note: 'Đề thiếu dữ kiện' }));
+    const unchecked = mcq('Java', 'EASY');
+    const offBlueprint = mcq('Docker', 'HARD');
+    const { jdId, bankId } = await filledBank([rejected, unchecked, offBlueprint]);
+
+    const list = BankQuestionListSchema.parse((await listQuestions(bankId).expect(200)).body);
+    expect(list).toMatchObject({ bankId, jdId, status: 'OPEN', version: 1 });
+    expect(list.questions).toHaveLength(12);
+    // Part A by cell of the blueprint (a cell it no longer has last), then part B.
+    expect(list.questions.map((q) => [q.part, q.skill, q.inBlueprint])).toEqual([
+      ...Array.from({ length: 5 }, () => ['A', 'Java', true]),
+      ['A', 'Docker', false],
+      ...Array.from({ length: 6 }, () => ['B', 'SQL', true]),
+    ]);
+    const byStem = new Map(list.questions.map((q) => [q.stem, q]));
+    expect(byStem.get(rejected.stem)).toMatchObject({
+      status: 'REJECTED',
+      correctOption: 1,
+      explanation: 'Phương án B đúng vì …',
+      aiCheck: { status: 'REJECTED', reasons: ['UNCLEAR'], note: 'Đề thiếu dữ kiện', promptVersion: 'validator/v1' },
+      manualRejection: null,
+      model: MODEL,
+      promptVersion: PROMPT,
+    });
+    expect(byStem.get(rejected.stem)!.options).toHaveLength(4);
+    expect(byStem.get(unchecked.stem)).toMatchObject({ status: 'DRAFT', aiCheck: null });
+    const essayQuestion = list.questions.at(-1)!;
+    expect(essayQuestion).toMatchObject({ type: 'ESSAY', status: 'VALIDATED', options: null, sampleAnswer: 'Đáp án mẫu …' });
+    expect(essayQuestion.rubric).toHaveLength(2);
+    // The tab's "Câu hỏi (N)" counts every question, the one outside the blueprint too.
+    expect(ExamBlueprintViewSchema.parse((await getBlueprint(jdId).expect(200)).body).questionCount).toBe(12);
+
+    const [first] = list.questions;
+    for (const role of ['HR', 'STUDENT'] as const) {
+      const as = await t.loginAs(role, role === 'HR' ? { companyId } : {});
+      await listQuestions(bankId, as).expect(403);
+      await reject(first!.id, { reason: 'UNCLEAR', rowVersion: first!.rowVersion }, as).expect(403);
+    }
+    expect((await questionRow(first!.id)).status).toBe('VALIDATED');
+  });
+
+  it('FR-18 US-4.11 AC-3 AC-4 before locking a rejected question is REJECTED with why, audited and out of its cell', async () => {
+    const unchecked = mcq('Java', 'EASY');
+    const { jdId, bankId, rows } = await filledBank([unchecked]);
+    const validated = rows.find((row) => row.status === 'VALIDATED' && row.type === 'MCQ')!;
+
+    const res = await reject(validated.id, { reason: 'ANSWER_MISMATCH', note: '  Đáp án đúng là C  ', rowVersion: validated.rowVersion });
+    const result = RejectQuestionResultSchema.parse(res.body);
+    expect(result).toMatchObject({ questionId: validated.id, status: 'REJECTED', bank: { id: bankId, status: 'OPEN', version: 1 } });
+    // Three usable Java EASY questions are left of four: the cell still holds its 3×.
+    expect(result.cell).toMatchObject({ skill: 'Java', difficulty: 'EASY', usable: 3, rejected: 1, rejectReasons: { ANSWER_MISMATCH: 1 } });
+    const row = await questionRow(validated.id);
+    expect(row).toMatchObject({
+      status: 'REJECTED',
+      rowVersion: validated.rowVersion + 1,
+      manualRejection: { reason: 'ANSWER_MISMATCH', note: 'Đáp án đúng là C', rejected_by: center.user.id },
+    });
+    // The Validator's verdict stays as it was given.
+    expect(row.validation).toMatchObject({ status: 'VALIDATED' });
+    // The Validator's verdict was the first transition, by SYSTEM; CENTER's rejection is the last.
+    const entry = (
+      await t.db
+        .select()
+        .from(auditLogs)
+        .where(and(eq(auditLogs.entity, 'question'), eq(auditLogs.entityId, validated.id), eq(auditLogs.action, 'TRANSITION')))
+        .orderBy(auditLogs.id)
+    ).at(-1);
+    expect(entry).toMatchObject({
+      actorId: center.user.id,
+      before: { status: 'VALIDATED' },
+      after: { status: 'REJECTED', manualRejection: { reason: 'ANSWER_MISMATCH' } },
+    });
+
+    // A draft nobody checked may be rejected too; the list says who rejected each and why.
+    const draft = rows.find((r) => r.draftId === unchecked.draft_id)!;
+    await reject(draft.id, { reason: 'DUPLICATE', rowVersion: draft.rowVersion }).expect(200);
+    const list = BankQuestionListSchema.parse((await listQuestions(bankId).expect(200)).body);
+    expect(list.questions.find((q) => q.id === draft.id)).toMatchObject({
+      status: 'REJECTED',
+      aiCheck: null,
+      manualRejection: { reason: 'DUPLICATE', note: null, rejectedBy: { id: center.user.id } },
+    });
+    const view = ExamBlueprintViewSchema.parse((await getBlueprint(jdId).expect(200)).body);
+    expect(view.coverage[0]).toMatchObject({ usable: 2, rejected: 2, rejectReasons: { ANSWER_MISMATCH: 1, DUPLICATE: 1 } });
+
+    // AC-4: the AI Service reads the reasons through its view while the bank is open.
+    const { rows: seen } = await t.app
+      .get<Pool>(PG_POOL)
+      .query<{ draft_id: string; reasons: string[] }>(
+        'SELECT draft_id, reasons FROM core.v_ai_question_rejections WHERE bank_id = $1 ORDER BY draft_id',
+        [bankId],
+      );
+    expect(seen).toEqual(
+      [
+        { draft_id: String(validated.draftId), reasons: ['ANSWER_MISMATCH'] },
+        { draft_id: String(draft.draftId), reasons: ['DUPLICATE'] },
+      ].sort((a, b) => Number(a.draft_id) - Number(b.draft_id)),
+    );
+
+    // Already rejected: 409, whatever rowVersion is sent.
+    const again = await reject(draft.id, { reason: 'UNCLEAR', rowVersion: draft.rowVersion + 1 }).expect(409);
+    expect(errorCode(again.body)).toBe('QUESTION_NOT_REJECTABLE');
+    // A Validator refusal is the model's own reason, not CENTER's; an MCQ reason would mislead the next run of an essay.
+    const essayRow = rows.find((r) => r.type === 'ESSAY')!;
+    for (const reason of ['VALIDATOR_REFUSAL', 'MULTIPLE_CORRECT'] as const) {
+      const refused = await reject(essayRow.id, { reason, rowVersion: essayRow.rowVersion }).expect(400);
+      expect(errorCode(refused.body)).toBe('VALIDATION_FAILED');
+    }
+  });
+
+  it('FR-18 US-4.11 AC-3 409 on a stale rowVersion and while a run is RUNNING', async () => {
+    const { jdId, rows } = await filledBank();
+    const [first] = rows;
+    const stale = await reject(first!.id, { reason: 'UNCLEAR', rowVersion: first!.rowVersion - 1 }).expect(409);
+    expect(errorCode(stale.body)).toBe('ROW_VERSION_CONFLICT');
+
+    await generate(jdId).expect(202);
+    const busy = await reject(first!.id, { reason: 'UNCLEAR', rowVersion: first!.rowVersion }).expect(409);
+    expect(errorCode(busy.body)).toBe('QUESTION_GENERATION_RUNNING');
+    expect(await questionRow(first!.id)).toMatchObject({ status: 'VALIDATED', manualRejection: null });
+  });
+
+  it('FR-18 US-4.11 AC-3 after locking a rejected question is retired and the bank version rises; only then may the rejection be written', async () => {
+    const { jdId, bankId, rows } = await filledBank();
+    const view = ExamBlueprintViewSchema.parse((await getBlueprint(jdId).expect(200)).body);
+    await center.agent.post(api(`question-banks/${bankId}/lock`)).send({ rowVersion: view.rowVersion }).expect(200);
+    const target = rows.find((row) => row.type === 'MCQ')!;
+
+    const result = RejectQuestionResultSchema.parse(
+      (await reject(target.id, { reason: 'MULTIPLE_CORRECT', rowVersion: target.rowVersion }).expect(200)).body,
+    );
+    expect(result).toMatchObject({ status: 'RETIRED', bank: { id: bankId, status: 'LOCKED', version: 2 } });
+    // One exam draws one Java EASY question: two are left, below the 3× floor but still drawable.
+    expect(result.cell).toMatchObject({ usable: 2, needed: 1, min: 3 });
+    expect(await questionRow(target.id)).toMatchObject({
+      status: 'RETIRED',
+      manualRejection: { reason: 'MULTIPLE_CORRECT', rejected_by: center.user.id },
+    });
+    expect((await bankOf(jdId))!.version).toBe(2);
+    // A locked bank's questions are not for the Test Generator.
+    const pool = t.app.get<Pool>(PG_POOL);
+    expect((await pool.query('SELECT 1 FROM core.v_ai_question_rejections WHERE bank_id = $1', [bankId])).rows).toEqual([]);
+
+    // Invariant 11: the trigger lets a rejection be written only with the retirement, and the CHECK
+    // only with a status that removes the question.
+    await expect(pool.query('UPDATE core.questions SET manual_rejection = NULL WHERE id = $1', [target.id])).rejects.toMatchObject({
+      code: '23000',
+    });
+    const open = await filledBank();
+    await expect(
+      pool.query(`UPDATE core.questions SET manual_rejection = '{"reason":"UNCLEAR"}' WHERE id = $1`, [open.rows[0]!.id]),
+    ).rejects.toMatchObject({ code: '23514', constraint: 'questions_manual_rejection_check' });
+    // A REJECTED question has the Validator's REJECTED verdict or CENTER's rejection, nothing else.
+    const passed = open.rows.find((row) => row.status === 'VALIDATED')!;
+    await expect(
+      pool.query(`UPDATE core.questions SET status = 'REJECTED' WHERE id = $1`, [passed.id]),
+    ).rejects.toMatchObject({ code: '23514', constraint: 'questions_validation_check' });
   });
 });

@@ -1,4 +1,5 @@
-"""The three tools of the Test Generator (US-4.1 AC-6 to AC-8, US-4.10 AC-1, CONTEXT D49, D60).
+"""The three tools of the Test Generator (US-4.1 AC-6 to AC-8, US-4.10 AC-1, US-4.11 AC-4,
+CONTEXT D49, D60).
 
 Code calls them; the LLM never does. They read and write the bank's drafts only: ai.question_drafts
 and their vectors in ai.embeddings, through QuestionDraftRepo. They change no state in `core` and
@@ -9,9 +10,10 @@ vector of the current model (written with another embedder) are embedded then. D
 found by exact cosine in memory, over the few hundred vectors of one bank, in a worker thread; the
 stems the Validator rejected stay among them, so a rejected question is not written again.
 
-Coverage reads the verdicts the Validator gave when CENTER ran it (QUESTIONS_VALIDATE): a draft
-it rejected takes no room in its cell, and the cell asks for others in its place. Every other draft
-is usable, whether anyone checked it or not.
+Coverage reads the verdicts the Validator gave when CENTER ran it (QUESTIONS_VALIDATE), and the
+drafts CENTER rejected by hand (US-4.11): a rejected draft takes no room in its cell, and the cell
+asks for others in its place, with the reasons. CENTER's reasons win over the Validator's verdict
+of the same draft. Every other draft is usable, whether anyone checked it or not.
 """
 
 import hashlib
@@ -75,11 +77,11 @@ CellKey = tuple[str, str, str]
 
 @dataclass(frozen=True)
 class FailedDraft:
-    """A draft of the cell the Validator rejected."""
+    """A draft of the cell the Validator or CENTER rejected."""
 
     stem: str
     reasons: tuple[str, ...]
-    """QuestionValidation.reasons, in their order."""
+    """QUESTION_REJECT_REASONS codes: the Validator's, in their order, or CENTER's."""
 
 
 @dataclass(frozen=True)
@@ -97,9 +99,9 @@ class CellCoverage:
     drafted: int
     """Every draft of the cell, the rejected ones too."""
     validated: int
-    """Drafts of the cell the Validator passed."""
+    """Drafts of the cell the Validator passed and CENTER did not reject."""
     usable: int
-    """Drafts of the cell the Validator did not reject: checked or not."""
+    """Drafts of the cell nobody rejected: checked or not."""
     stems: tuple[str, ...]
     """Stems of the drafts not rejected."""
     rejected: tuple[FailedDraft, ...]
@@ -208,12 +210,14 @@ async def load_bank_tools(
     bank: BankSource,
     drafts: Sequence[Draft],
     verdicts: Mapping[int, QuestionValidation],
+    rejections: Mapping[int, tuple[str, ...]] | None = None,
     repo: QuestionDraftRepo,
     embedder: Embedder,
     job_id: UUID,
 ) -> "QuestionBankTools":
     """`drafts`: every draft of the bank, as `repo.drafts` reads them. `verdicts`: the Validator's
-    verdicts by draft id, as the bank's AI checks stored them."""
+    verdicts by draft id, as the bank's AI checks stored them. `rejections`: the reasons of the
+    drafts CENTER rejected by hand, by draft id (core.v_ai_question_rejections)."""
     vectors = await repo.vectors(bank.bank_id, embedder.model)
     lacking = [draft for draft in drafts if draft.draft_id not in vectors]
     if lacking:
@@ -236,6 +240,7 @@ async def load_bank_tools(
         drafts=drafts,
         vectors=vectors,
         verdicts=verdicts,
+        rejections=rejections or {},
         repo=repo,
         embedder=embedder,
         job_id=job_id,
@@ -252,6 +257,7 @@ class QuestionBankTools:
         drafts: Sequence[Draft],
         vectors: dict[int, list[float]],
         verdicts: Mapping[int, QuestionValidation],
+        rejections: Mapping[int, tuple[str, ...]],
         repo: QuestionDraftRepo,
         embedder: Embedder,
         job_id: UUID,
@@ -261,6 +267,7 @@ class QuestionBankTools:
         self._embedder = embedder
         self._job_id = job_id
         self._verdicts = verdicts
+        self._rejections = rejections
         self._cells = blueprint_cells(bank)
         self._cell_of = {cell.key: cell for cell in self._cells}
         self._drafts_of: dict[CellKey, list[tuple[int, str]]] = {}
@@ -279,14 +286,14 @@ class QuestionBankTools:
 
     def get_blueprint_coverage(self) -> list[CellCoverage]:
         """The cells holding fewer usable drafts (not rejected) than 3× the questions they draw, in
-        blueprint order (US-4.10 AC-1)."""
+        blueprint order (US-4.10 AC-1, US-4.11 AC-4)."""
         coverage = []
         for cell in self._cells:
             drafts = [
-                (draft_id, stem, self._verdicts.get(draft_id))
+                (draft_id, stem, self._rejection_of(draft_id))
                 for draft_id, stem in self._drafts_of.get(cell.key, [])
             ]
-            usable = sum(1 for _, _, v in drafts if not _rejected(v))
+            usable = sum(1 for _, _, reasons in drafts if reasons is None)
             if usable >= MIN_FACTOR * cell.count:
                 continue
             coverage.append(
@@ -298,13 +305,17 @@ class QuestionBankTools:
                     difficulty=cell.difficulty,
                     count=cell.count,
                     drafted=len(drafts),
-                    validated=sum(1 for _, _, v in drafts if v and v.status is Status.VALIDATED),
+                    validated=sum(
+                        1
+                        for draft_id, _, reasons in drafts
+                        if reasons is None and _validated(self._verdicts.get(draft_id))
+                    ),
                     usable=usable,
-                    stems=tuple(stem for _, stem, v in drafts if not _rejected(v)),
+                    stems=tuple(stem for _, stem, reasons in drafts if reasons is None),
                     rejected=tuple(
-                        FailedDraft(stem, tuple(reason.value for reason in v.reasons))
-                        for _, stem, v in drafts
-                        if v and _rejected(v)
+                        FailedDraft(stem, reasons)
+                        for _, stem, reasons in drafts
+                        if reasons is not None
                     ),
                 )
             )
@@ -431,12 +442,19 @@ class QuestionBankTools:
         return accepted, rejected
 
     def _kept(self, key: CellKey) -> int:
-        """Drafts of the cell the Validator did not reject: CELL_FULL counts these (D50)."""
-        return sum(
-            1
-            for draft_id, _ in self._drafts_of.get(key, [])
-            if not _rejected(self._verdicts.get(draft_id))
-        )
+        """Drafts of the cell nobody rejected: CELL_FULL counts these (D50)."""
+        drafts = self._drafts_of.get(key, [])
+        return sum(1 for draft_id, _ in drafts if self._rejection_of(draft_id) is None)
+
+    def _rejection_of(self, draft_id: int) -> tuple[str, ...] | None:
+        """Why the draft is rejected: CENTER's reasons, else the Validator's; None while usable."""
+        manual = self._rejections.get(draft_id)
+        if manual is not None:
+            return manual
+        verdict = self._verdicts.get(draft_id)
+        if verdict is not None and verdict.status is Status.REJECTED:
+            return tuple(reason.value for reason in verdict.reasons)
+        return None
 
     def _remember(
         self, draft_id: int, key: CellKey, stem: str, stem_key: str, vector: list[float]
@@ -512,8 +530,8 @@ def _checked_payload(
     return payload, None
 
 
-def _rejected(verdict: QuestionValidation | None) -> bool:
-    return verdict is not None and verdict.status is Status.REJECTED
+def _validated(verdict: QuestionValidation | None) -> bool:
+    return verdict is not None and verdict.status is Status.VALIDATED
 
 
 def _cosine(left: Sequence[float], right: Sequence[float]) -> float:

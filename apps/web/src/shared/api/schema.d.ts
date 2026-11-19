@@ -724,6 +724,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/question-banks/{id}/questions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["QuestionBankController_listQuestions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/question-banks/{id}/lock": {
         parameters: {
             query?: never;
@@ -734,6 +750,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["QuestionBankController_lock"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/questions/{id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["QuestionController_reject"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2612,6 +2644,7 @@ export interface components {
                 min: number;
                 max: number;
             }[];
+            questionCount: number;
             run: {
                 runId: number;
                 /** @enum {string} */
@@ -2788,8 +2821,104 @@ export interface components {
             /** Format: date-time */
             finishedAt: string | null;
         };
+        BankQuestionListDto_Output: {
+            bankId: number;
+            jdId: number;
+            /** @enum {string} */
+            status: "OPEN" | "LOCKED";
+            version: number;
+            questions: {
+                id: number;
+                rowVersion: number;
+                /** @enum {string} */
+                status: "DRAFT" | "VALIDATED" | "REJECTED" | "RETIRED";
+                /** @enum {string} */
+                part: "A" | "B";
+                /** @enum {string} */
+                type: "MCQ" | "ESSAY";
+                skill: string;
+                /** @enum {string} */
+                difficulty: "EASY" | "MEDIUM" | "HARD";
+                stem: string;
+                options: string[] | null;
+                correctOption: number | null;
+                explanation: string;
+                sampleAnswer: string | null;
+                rubric: {
+                    /** @description What the grader looks for */
+                    criterion: string;
+                    /** @description Points this criterion is worth at most */
+                    max_points: number;
+                }[] | null;
+                inBlueprint: boolean;
+                aiCheck: {
+                    /** @enum {string} */
+                    status: "VALIDATED" | "REJECTED";
+                    reasons: ("ANSWER_MISMATCH" | "MULTIPLE_CORRECT" | "OFF_SKILL" | "ANSWER_LEAKED" | "WEAK_DISTRACTORS" | "UNCLEAR" | "RUBRIC_MISMATCH" | "DIFFICULTY_MISMATCH" | "DUPLICATE" | "VALIDATOR_REFUSAL")[];
+                    correctOptions: number[] | null;
+                    /** @enum {string|null} */
+                    estimatedDifficulty: "EASY" | "MEDIUM" | "HARD" | null;
+                    note: string | null;
+                    model: string;
+                    promptVersion: string;
+                } | null;
+                manualRejection: {
+                    /** @enum {string} */
+                    reason: "ANSWER_MISMATCH" | "MULTIPLE_CORRECT" | "OFF_SKILL" | "ANSWER_LEAKED" | "WEAK_DISTRACTORS" | "UNCLEAR" | "RUBRIC_MISMATCH" | "DIFFICULTY_MISMATCH" | "DUPLICATE";
+                    note: string | null;
+                    rejectedBy: {
+                        id: number;
+                        name: string;
+                    };
+                    /** Format: date-time */
+                    rejectedAt: string;
+                } | null;
+                model: string;
+                promptVersion: string;
+                /** Format: date-time */
+                createdAt: string;
+            }[];
+        };
         LockQuestionBankRequestDto: {
             rowVersion: number;
+        };
+        RejectQuestionRequestDto: {
+            /** @enum {string} */
+            reason: "ANSWER_MISMATCH" | "MULTIPLE_CORRECT" | "OFF_SKILL" | "ANSWER_LEAKED" | "WEAK_DISTRACTORS" | "UNCLEAR" | "RUBRIC_MISMATCH" | "DIFFICULTY_MISMATCH" | "DUPLICATE";
+            note?: string;
+            rowVersion: number;
+        };
+        RejectQuestionResultDto_Output: {
+            questionId: number;
+            /** @enum {string} */
+            status: "REJECTED" | "RETIRED";
+            rowVersion: number;
+            bank: {
+                id: number;
+                /** @enum {string} */
+                status: "OPEN" | "LOCKED";
+                version: number;
+            };
+            cell: {
+                /** @enum {string} */
+                part: "A" | "B";
+                /** @enum {string} */
+                type: "MCQ" | "ESSAY";
+                skill: string;
+                /** @enum {string} */
+                difficulty: "EASY" | "MEDIUM" | "HARD";
+                needed: number;
+                drafted: number;
+                validated: number;
+                rejected: number;
+                pending: number;
+                usable: number;
+                rejectReasons: {
+                    [key: string]: number;
+                };
+                min: number;
+                max: number;
+            } | null;
         };
         QuestionReviewSampleDto_Output: {
             jdId: number;
@@ -4519,6 +4648,27 @@ export interface operations {
             };
         };
     };
+    QuestionBankController_listQuestions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BankQuestionListDto_Output"];
+                };
+            };
+        };
+    };
     QuestionBankController_lock: {
         parameters: {
             query?: never;
@@ -4540,6 +4690,31 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ExamBlueprintViewDto_Output"];
+                };
+            };
+        };
+    };
+    QuestionController_reject: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RejectQuestionRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RejectQuestionResultDto_Output"];
                 };
             };
         };

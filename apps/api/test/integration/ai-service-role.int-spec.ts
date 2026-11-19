@@ -45,6 +45,7 @@ const SKILLS_VIEW = 'core.v_ai_skills';
 const SKILL_CANDIDATES_VIEW = 'core.v_ai_skill_candidates';
 const MATCH_PAIRS_VIEW = 'core.v_ai_match_pairs';
 const QUESTION_BANKS_VIEW = 'core.v_ai_question_banks';
+const QUESTION_REJECTIONS_VIEW = 'core.v_ai_question_rejections';
 const ESSAY_ANSWERS_VIEW = 'core.v_ai_essay_answers';
 const CV_VERIFICATION_ANSWERS_VIEW = 'core.v_ai_cv_verification_answers';
 
@@ -107,6 +108,7 @@ describe('AD-4: database roles of the AI Service and the API', () => {
   it('AD-4 ai_service reads the views and reads and writes ai.jobs', async () => {
     await ai.query(`SELECT * FROM ${CV_VIEW} LIMIT 1`);
     await ai.query(`SELECT * FROM ${JD_VIEW} LIMIT 1`);
+    await ai.query(`SELECT * FROM ${QUESTION_REJECTIONS_VIEW} LIMIT 1`);
     const jobId = randomUUID();
     await ai.query("INSERT INTO ai.jobs (job_id, type, status, attempts) VALUES ($1, 'CV_PARSE', 'PROCESSING', 1)", [
       jobId,
@@ -185,6 +187,7 @@ describe('AD-4: database roles of the AI Service and the API', () => {
       `${JD_SOURCE_VIEW} SELECT`,
       `${MATCH_PAIRS_VIEW} SELECT`,
       `${QUESTION_BANKS_VIEW} SELECT`,
+      `${QUESTION_REJECTIONS_VIEW} SELECT`,
       `${SKILL_CANDIDATES_VIEW} SELECT`,
       `${SKILLS_VIEW} SELECT`,
     ]);
@@ -274,6 +277,8 @@ describe('AD-4: views the AI Service reads', () => {
     ]);
     // The blueprint and which JD version it was made for; no question, no answer (US-4.1).
     expect(await columnsOf(QUESTION_BANKS_VIEW)).toEqual(['bank_id', 'jd_id', 'jd_version', 'campaign_id', 'blueprint']);
+    // Why CENTER rejected a draft by hand, by draft only: no question text, no account (US-4.11 AC-4).
+    expect(await columnsOf(QUESTION_REJECTIONS_VIEW)).toEqual(['bank_id', 'draft_id', 'reasons']);
     // Part C by preference only, the CV entry as a reference into profile_masked (US-4.8 AC-3, BR-03).
     expect(await columnsOf(CV_VERIFICATION_ANSWERS_VIEW)).toEqual([
       'preference_id',

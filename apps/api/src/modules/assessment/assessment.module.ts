@@ -14,7 +14,9 @@ import { EssayGradingController } from './api/essay-grading.controller.js';
 import { ExamSessionController } from './api/exam-session.controller.js';
 import { ManualGradingController } from './api/manual-grading.controller.js';
 import { QuestionBankController } from './api/question-bank.controller.js';
+import { QuestionController } from './api/question.controller.js';
 import { ReviewSampleController } from './api/review-sample.controller.js';
+import { BankQuestionsService } from './application/bank-questions.service.js';
 import { BlueprintService } from './application/blueprint.service.js';
 import { CvTrustService } from './application/cv-trust.service.js';
 import { CvVerificationResultsHandler } from './application/cv-verification-results.handler.js';
@@ -50,7 +52,8 @@ import { QuestionReviewsRepository } from './infrastructure/question-reviews.rep
  * Validator's verdicts, the lock, the exam room with its sweep, and grading (US-4.4): multiple
  * choice by code, essays by the Grader, S_test and S_final, the grading and threshold sweeps; and
  * manual grading of the essays the Grader handed over (US-4.5); part C, the CV verification
- * questions and their trust index (US-4.8); the sample review of a bank by HR or CENTER (US-4.9).
+ * questions and their trust index (US-4.8); the sample review of a bank by HR or CENTER (US-4.9);
+ * every question of a bank, and CENTER rejecting one by hand (US-4.11).
  * Reads JDs, campaigns, preferences and CVs through the services those modules export, finds
  * students' accounts through IamModule and notifies through NotificationModule; sends jobs through
  * AiGatewayModule. Relies on
@@ -71,6 +74,7 @@ import { QuestionReviewsRepository } from './infrastructure/question-reviews.rep
   controllers: [
     BlueprintController,
     QuestionBankController,
+    QuestionController,
     ReviewSampleController,
     ExamSessionController,
     EssayGradingController,
@@ -79,6 +83,7 @@ import { QuestionReviewsRepository } from './infrastructure/question-reviews.rep
   ],
   providers: [
     QuestionBankService,
+    BankQuestionsService,
     BlueprintService,
     QuestionResultsHandler,
     QuestionBanksRepository,

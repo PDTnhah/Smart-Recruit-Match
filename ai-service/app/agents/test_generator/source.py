@@ -1,7 +1,10 @@
-"""The bank to fill, read through two views of AD-4 only (US-4.1 AC-6, CONTEXT D49).
+"""The bank to fill, read through three views of AD-4 only (US-4.1 AC-6, US-4.11 AC-4, CONTEXT
+D49, D60).
 
 - core.v_ai_question_banks: the banks not locked yet, with their blueprint;
-- core.v_ai_jd_requirements: the approved requirements of the JD, for the prompt.
+- core.v_ai_jd_requirements: the approved requirements of the JD, for the prompt;
+- core.v_ai_question_rejections: the drafts CENTER rejected by hand, with the reasons, while the
+  bank is not locked.
 
 A bank missing from the join (locked by the Validator, or its JD is no longer approved) is not an
 error to retry: the backend stores nothing for a locked bank anyway.
@@ -22,6 +25,7 @@ BANK_SQL = (
     "JOIN core.v_ai_jd_requirements r ON r.jd_id = b.jd_id "
     "WHERE b.bank_id = %s"
 )
+REJECTIONS_SQL = "SELECT draft_id, reasons FROM core.v_ai_question_rejections WHERE bank_id = %s"
 
 
 @dataclass(frozen=True)
@@ -50,8 +54,19 @@ class BankSource:
     contract still reads."""
 
 
+@dataclass(frozen=True)
+class _RejectionRow:
+    draft_id: int
+    reasons: list[str]
+
+
 class BankSourceRepo(Protocol):
     async def fetch(self, bank_id: int) -> BankSource | None: ...
+
+    async def rejections(self, bank_id: int) -> dict[int, tuple[str, ...]]:
+        """Reasons (QUESTION_REJECT_REASONS codes) of each draft CENTER rejected by hand, by draft
+        id: none once the bank is locked."""
+        ...
 
 
 class PostgresBankSourceRepo:
@@ -76,3 +91,12 @@ class PostgresBankSourceRepo:
             position_group=row.position_group,
             requirements=row.requirements,
         )
+
+    async def rejections(self, bank_id: int) -> dict[int, tuple[str, ...]]:
+        async with (
+            self._pool.connection() as conn,
+            conn.cursor(row_factory=class_row(_RejectionRow)) as cursor,
+        ):
+            await cursor.execute(REJECTIONS_SQL, (bank_id,))
+            rows = await cursor.fetchall()
+        return {row.draft_id: tuple(row.reasons) for row in rows}

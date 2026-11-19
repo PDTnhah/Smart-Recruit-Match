@@ -15,6 +15,28 @@ Lịch sử phát hành của Smart Recruit Match. Mỗi commit ship code tăng 
 
 ---
 
+## [0.30.0] — 2026-11-20 — Xem toàn bộ câu và loại câu sai trong ngân hàng câu hỏi — v0.30.0
+
+US-4.11. Trung tâm xem mọi câu AI đã sinh cho một JD và loại câu sai: bước kiểm bằng người thay cho Validator chạy tự động ([CONTEXT D60](CONTEXT.md)).
+
+### Added
+- Mục "Câu hỏi (N)" trong tab "Ngân hàng câu hỏi": mọi câu của ngân hàng ở mọi trạng thái, nhóm theo phần rồi theo ô (kỹ năng × độ khó); lọc theo phần, kỹ năng, độ khó, trạng thái và tìm theo nội dung đề. Mở một câu để xem phương án với đáp án đúng được tô sáng, giải thích, đáp án mẫu và rubric của câu tự luận, kết quả kiểm bằng AI (lý do loại, đáp án AI tự giải, độ khó ước lượng, ghi chú), người loại và lý do, model và prompt đã sinh câu.
+- "Loại câu" (lý do hợp với loại câu, ghi chú tùy chọn, hộp thoại xác nhận): trước khi khóa, câu thành "Bị loại", không được tính vào độ phủ, và lần "Sinh câu còn thiếu" sau AI nhận lý do loại khi sinh câu thay; sau khi khóa, câu ngừng được rút và ngân hàng tăng phiên bản. Hộp thoại báo trước khi ô sẽ thiếu câu.
+- `GET /api/question-banks/{id}/questions`, `POST /api/questions/{id}/reject` (`{ reason, note?, rowVersion }`), chỉ Trung tâm (HR, sinh viên `403`); `400` khi lý do không dùng cho loại câu; `409 QUESTION_NOT_REJECTABLE` khi câu đã bị loại, `409` khi đang có lượt sinh hoặc kiểm câu, hoặc lệch `rowVersion`.
+
+### Changed
+- Tab "Ngân hàng câu hỏi" chia thành Tổng quan (sinh câu, kiểm bằng AI, khóa, độ phủ từng ô), Câu hỏi và Ma trận đề (cấu trúc của một đề rút từ ngân hàng). Mục đang mở nằm trong URL (`?section=`).
+- Test Generator không đếm câu Trung tâm đã loại vào độ phủ, và đưa lý do loại vào prompt của lượt sinh sau, như lý do Validator loại.
+- Màn "Duyệt đề mẫu": câu bị loại ghi "Bị loại" thay vì "AI đã loại", vì câu có thể do Trung tâm loại.
+
+### Migration
+- `0045_question_manual_rejection`: cột `core.questions.manual_rejection`; CHECK: câu bị loại có verdict loại của Validator hoặc lý do Trung tâm loại; view `core.v_ai_question_rejections` cho AI Service; trigger của ngân hàng đã khóa cho ghi lý do loại cùng lúc câu ngừng dùng.
+
+### Not done
+- Chưa kiểm tay tab ở 360 / 768 / 1024 px (AC-2, người dùng kiểm theo checklist trong story).
+
+---
+
 ## [0.29.0] — 2026-11-19 — Duyệt đề mẫu ngân hàng câu hỏi — v0.29.0
 
 US-4.9. HR của doanh nghiệp (hoặc giảng viên qua tài khoản Trung tâm) duyệt một mẫu ngẫu nhiên của ngân hàng câu hỏi và báo lỗi câu sai trước khi câu đến tay sinh viên (FR-19, [CONTEXT D61](CONTEXT.md)). Bước này tùy chọn: khóa ngân hàng và phòng thi không chờ duyệt.

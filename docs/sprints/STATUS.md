@@ -1,21 +1,20 @@
 # Sprint Status
 
 > **AUTO-GENERATED** by `koni-docs status`. Do not hand-edit (RULE-5).
-> Last generated: 2026-11-19 11:16:52 UTC
+> Last generated: 2026-11-19 17:40:39 UTC
 > Total stories: 48
 
 ## ⏰ Deadlines (0)
 
 _No stories carry an explicit deadline._
 
-## 📋 Backlog (15)
+## 📋 Backlog (14)
 
 | ID | Title | Epic | Pri | Points | Sprint | Assignee |
 |---|---|---|---|---|---|---|
 | US-1.9 | Phiên đăng nhập nhất quán giữa các tab | EPIC-1 | P0 | 3 | — | — |
 | US-4.6 | Phúc khảo và báo lỗi câu hỏi | EPIC-4 | P1 | 5 | — | — |
 | US-4.7 | Tín hiệu gian lận | EPIC-4 | P1 | 3 | — | — |
-| US-4.11 | Tab Ngân hàng câu hỏi: xem toàn bộ câu và loại câu sai | EPIC-4 | P1 | 5 | — | — |
 | US-5.1 | Allocation Engine và property-based test | EPIC-5 | P0 | 5 | sprint-2026-W44 | — |
 | US-5.2 | Vòng phân bổ: dự thảo, điều chỉnh, công bố | EPIC-5 | P0 | 8 | — | — |
 | US-5.3 | HR duyệt danh sách đề cử | EPIC-5 | P0 | 8 | — | — |
@@ -36,7 +35,7 @@ _No stories_
 
 _No stories_
 
-## 👀 Review (20)
+## 👀 Review (21)
 
 | ID | Title | Epic | Pri | Points | Sprint | Assignee |
 |---|---|---|---|---|---|---|
@@ -59,6 +58,7 @@ _No stories_
 | US-4.8 | Câu hỏi xác minh CV và chỉ số tin cậy | EPIC-4 | P1 | 8 | sprint-2026-W47 | — |
 | US-4.9 | Duyệt mẫu ngân hàng câu hỏi | EPIC-4 | P2 | 2 | sprint-2026-W47 | PDTnhah |
 | US-4.10 | Tách Validator khỏi job sinh câu: AI kiểm câu khi Trung tâm yêu cầu | EPIC-4 | P0 | 8 | sprint-2026-W47 | PDTnhah |
+| US-4.11 | Tab Ngân hàng câu hỏi: xem toàn bộ câu và loại câu sai | EPIC-4 | P1 | 5 | sprint-2026-W47 | — |
 | US-4.12 | Sửa giao diện ngân hàng câu hỏi: ô độ phủ và đổi phần D thành C | EPIC-4 | P1 | 3 | sprint-2026-W47 | PDTnhah |
 
 ## ✅ Done (13)
@@ -91,10 +91,10 @@ _No stories_
 
 ## Summary
 
-- 📋 **Backlog**: 15
+- 📋 **Backlog**: 14
 - 🟢 **Ready**: 0
 - 🟡 **In Progress**: 0
-- 👀 **Review**: 20
+- 👀 **Review**: 21
 - ✅ **Done**: 13
 - 🚫 **Blocked**: 0
 - 🗑️ **Deprecated**: 0

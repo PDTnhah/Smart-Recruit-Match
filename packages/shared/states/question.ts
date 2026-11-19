@@ -6,9 +6,11 @@ export const QUESTION_BANK_JD_STATES: readonly JobDescriptionStatus[] = reachabl
 
 /**
  * Lifecycle of a question of the bank (ARCHITECTURE › Các bảng chính › `questions`, US-4.2 AC-5,
- * US-4.10, CONTEXT D50, D60). A draft of the Test Generator passed the checks of code: it is usable
- * as it is. When CENTER runs the Validator, its verdict makes the draft VALIDATED or REJECTED. An
- * exam draws DRAFT and VALIDATED questions, until they are RETIRED (US-4.6, US-4.9, US-4.11).
+ * US-4.10, US-4.11, CONTEXT D50, D60). A draft of the Test Generator passed the checks of code: it
+ * is usable as it is. When CENTER runs the Validator, its verdict makes the draft VALIDATED or
+ * REJECTED; CENTER may also reject a DRAFT or VALIDATED question by hand before the bank is locked
+ * (US-4.11). An exam draws DRAFT and VALIDATED questions, until they are RETIRED (US-4.6, US-4.9,
+ * US-4.11: after locking, nothing is rejected any more).
  */
 export const QUESTION_STATES = ['DRAFT', 'VALIDATED', 'REJECTED', 'RETIRED'] as const;
 
@@ -23,7 +25,7 @@ export const questionMachine = defineMachine<QuestionStatus>({
   initial: 'DRAFT',
   transitions: {
     DRAFT: ['VALIDATED', 'REJECTED', 'RETIRED'],
-    VALIDATED: ['RETIRED'],
+    VALIDATED: ['REJECTED', 'RETIRED'],
     REJECTED: [],
     RETIRED: [],
   },
