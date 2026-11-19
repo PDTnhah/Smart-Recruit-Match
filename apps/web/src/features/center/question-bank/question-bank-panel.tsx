@@ -246,6 +246,41 @@ function GenerationCard({ view, editing }: { view: ExamBlueprintView; editing: b
 }
 
 /**
+ * US-4.9 AC-4: questions retired after locking (a sample review, later appeals) may leave a cell below its 3×
+ * floor, or below what one exam draws. No question is generated in their place; CENTER is told here. A cell
+ * short of one exam's questions stops every exam not yet started (409 EXAM_BANK_INCOMPLETE).
+ */
+function ShortAfterLockAlert({ view }: { view: ExamBlueprintView }) {
+  const short = view.coverage.filter((cell) => cell.usable < cell.min);
+  if (short.length === 0) return null;
+  const undrawable = short.filter((cell) => cell.usable < cell.needed);
+  return (
+    <Alert variant={undrawable.length > 0 ? 'destructive' : 'default'}>
+      <TriangleAlert />
+      <AlertTitle>
+        {undrawable.length > 0 ? 'Phòng thi không rút được đề' : 'Có ô thiếu câu sau khi loại câu'}
+      </AlertTitle>
+      <AlertDescription>
+        <p>
+          {undrawable.length > 0
+            ? 'Có ô không còn đủ câu cho một đề, nên sinh viên chưa làm bài sẽ không bắt đầu được bài test.'
+            : 'Câu bị loại sau khi khóa (báo lỗi khi duyệt đề mẫu, phúc khảo) làm các ô dưới đây còn ít hơn 3 lần số câu của một đề. Sinh viên có thể nhận đề trùng nhau nhiều hơn.'}{' '}
+          Ngân hàng đã khóa nên không sinh câu thay thế.
+        </p>
+        <ul className="flex flex-col gap-1">
+          {short.map((cell) => (
+            <li key={`${cell.part}-${cell.skill}-${cell.difficulty}`} className="break-words tabular-nums">
+              {cellLabel(cell.skill, cell.difficulty)} ({QUESTION_TYPE_LABELS[cell.type].toLowerCase()}): còn{' '}
+              {formatNumber(cell.usable)} câu, một đề rút {formatNumber(cell.needed)}
+            </li>
+          ))}
+        </ul>
+      </AlertDescription>
+    </Alert>
+  );
+}
+
+/**
  * "Khóa ngân hàng" (US-4.2 AC-6, AC-10, US-4.10 AC-4): off, with the reasons, until every cell holds
  * 3× usable questions; the dialog says how many nobody has checked, since exams draw them too.
  * Once locked, when and the bank's version. The dialog sends the `rowVersion` of the view it was
@@ -300,6 +335,7 @@ function LockCard({ view, editing }: { view: ExamBlueprintView; editing: boolean
           <p className="text-sm text-muted-foreground">
             Ma trận đề và câu hỏi không sửa được nữa. Mỗi câu bị loại khỏi ngân hàng sau khi khóa làm tăng phiên bản.
           </p>
+          <ShortAfterLockAlert view={view} />
         </CardContent>
       </Card>
     );

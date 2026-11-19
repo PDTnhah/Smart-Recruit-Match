@@ -8,9 +8,9 @@ import {
   type QuestionType,
   USABLE_QUESTION_STATES,
 } from '@srm/shared';
-import { and, asc, count, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, count, eq, inArray, or, sql } from 'drizzle-orm';
 import { RowVersionConflictError } from '../../../common/errors/index.js';
-import { questionBanks, questions } from '../../../db/schema/index.js';
+import { questionBanks, questionReviews, questions } from '../../../db/schema/index.js';
 import { DRIZZLE } from '../../../db/tokens.js';
 import type { Database, DbTx } from '../../../db/types.js';
 import { QUESTION_BANK_ENTITY } from '../domain/audit-actions.js';
@@ -188,6 +188,25 @@ export class QuestionBanksRepository {
       .select()
       .from(questions)
       .where(and(eq(questions.bankId, bankId), inArray(questions.status, [...USABLE_QUESTION_STATES])))
+      .orderBy(asc(questions.id));
+  }
+
+  /**
+   * What the review sample is drawn from (US-4.9 AC-1): the usable questions of the bank, and those
+   * someone reviewed whatever their status now, so a question reported wrong keeps its place in the
+   * sample instead of being replaced.
+   */
+  async reviewCandidates(bankId: number, tx?: DbTx): Promise<QuestionRecord[]> {
+    const reviewed = (tx ?? this.db).select({ id: questionReviews.questionId }).from(questionReviews);
+    return (tx ?? this.db)
+      .select()
+      .from(questions)
+      .where(
+        and(
+          eq(questions.bankId, bankId),
+          or(inArray(questions.status, [...USABLE_QUESTION_STATES]), inArray(questions.id, reviewed)),
+        ),
+      )
       .orderBy(asc(questions.id));
   }
 

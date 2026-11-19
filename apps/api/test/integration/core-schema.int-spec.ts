@@ -23,6 +23,7 @@ const CORE_TABLES = [
   'preferences',
   'question_banks',
   'question_generation_runs',
+  'question_reviews',
   'questions',
   'skill_implications',
   'skills',

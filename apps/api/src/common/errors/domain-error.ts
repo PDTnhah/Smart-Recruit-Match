@@ -551,6 +551,19 @@ export class ExamBankIncompleteError extends DomainError {
   }
 }
 
+/**
+ * A question of the review sample that is no longer usable (retired or rejected since the reviewer
+ * opened the sample) takes no further verdict (US-4.9 AC-3).
+ */
+export class QuestionNotReviewableError extends DomainError {
+  readonly code = 'QUESTION_NOT_REVIEWABLE';
+  readonly httpStatus = 409;
+
+  constructor(questionId: number, status: string) {
+    super(`question ${questionId} is ${status}; only a usable question can be reviewed`, { questionId, status });
+  }
+}
+
 /** Only a preference waiting for its test may start one (AC-5). */
 export class PreferenceNotPendingTestError extends DomainError {
   readonly code = 'PREFERENCE_NOT_PENDING_TEST';

@@ -22,6 +22,7 @@ export * from './exam-session.js';
 export * from './exam-result.js';
 export * from './manual-grading.js';
 export * from './cv-trust.js';
+export * from './question-review.js';
 
 /** Global route prefix of the Core Backend; the web client builds API URLs from it. */
 export const API_PREFIX = 'api';

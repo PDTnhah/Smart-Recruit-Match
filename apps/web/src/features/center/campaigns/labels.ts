@@ -113,6 +113,13 @@ export const PARAMETER_FIELDS: readonly ParameterField[] = [
       'Tính từ lúc sinh viên nhận kết quả test. Hết hạn này, nguyện vọng có điểm test dưới θ_test mới bị loại. Từ 1 đến 168. Mặc định 48.',
     step: 1,
   },
+  {
+    key: 'bank_review_sample_size',
+    label: 'Số câu của mẫu duyệt đề',
+    description:
+      'HR hoặc Trung tâm duyệt chừng này câu chọn ngẫu nhiên từ ngân hàng câu hỏi của mỗi JD, chia đều theo các ô của ma trận đề. Từ 1 đến 50. Mặc định 10.',
+    step: 1,
+  },
 ];
 
 /** The five S_cv criteria (PRD › S_cv table); the student's explanation of a score uses the same names. */

@@ -62,6 +62,7 @@ const MESSAGES: Record<ApiErrorCode, string> = {
   QUESTION_BANK_JD_OUTDATED: 'Yêu cầu của JD đã có phiên bản mới. Lưu lại ma trận đề theo yêu cầu mới trước khi sinh câu hay khóa ngân hàng.',
   QUESTION_BANK_INCOMPLETE: 'Còn ô của ma trận đề chưa đủ câu nên chưa khóa được ngân hàng.',
   BANK_NOT_LOCKED: 'Bài test của JD này chưa sẵn sàng. Thử lại sau, hoặc liên hệ Trung tâm.',
+  QUESTION_NOT_REVIEWABLE: 'Câu này vừa bị loại khỏi ngân hàng nên không duyệt được nữa. Tải lại mẫu để xem trạng thái mới.',
   EXAM_ALREADY_TAKEN: 'Bạn đã làm bài test này. Mỗi bài chỉ làm một lần.',
   EXAM_CLOSED: 'Bài test đã đóng nên không lưu thêm được câu trả lời.',
   EXAM_ANSWER_INVALID: 'Có câu trả lời không hợp lệ. Tải lại trang rồi chọn lại.',

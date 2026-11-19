@@ -266,7 +266,8 @@ export class QuestionBankService {
    * US-4.2 AC-7, US-4.10 AC-4: `DRAFT | VALIDATED → RETIRED` (US-4.6, US-4.9, US-4.11 add the
    * endpoints): an exam draws both. In a locked bank the bank's `version` rises by one and
    * `QUESTION_BANK_VERSIONED` is written in the same transaction; an OPEN bank keeps its version.
-   * The bank's row lock orders this with `lock` and with results.
+   * The bank's row lock orders this with `lock` and with results. With `tx`, in the caller's
+   * transaction (US-4.9 AC-4: a review and the retirement it causes commit together).
    */
   async retireQuestion(request: {
     questionId: number;
@@ -274,9 +275,10 @@ export class QuestionBankService {
     reason: string;
     /** Required for a USER actor, as for every `transitionTo`. */
     expectedRowVersion?: number;
+    tx?: DbTx;
   }): Promise<RetiredQuestion> {
     const { questionId, actor, reason } = request;
-    return this.db.transaction(async (tx) => {
+    const retire = async (tx: DbTx): Promise<RetiredQuestion> => {
       const question = await this.banks.findQuestion(questionId, tx);
       if (!question) throw new EntityNotFoundError(questionMachine.name, questionId);
       const bank = await this.banks.lock(tx, question.bankId);
@@ -304,7 +306,8 @@ export class QuestionBankService {
         reason,
       });
       return { questionId, rowVersion: moved.rowVersion, bankId: bank.id, bankVersion: version };
-    });
+    };
+    return request.tx ? retire(request.tx) : this.db.transaction(retire);
   }
 
   /**

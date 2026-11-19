@@ -32,6 +32,8 @@ import {
   type QuestionContent,
   type QuestionDifficulty,
   type QuestionGenerationRunStatus,
+  QUESTION_REVIEW_VERDICTS,
+  type QuestionReviewVerdict,
   type QuestionRubric,
   type QuestionStatus,
   type QuestionType,
@@ -201,6 +203,38 @@ export const questions = core.table(
     check('questions_version_check', sql`${t.version} > 0`),
     // Same pattern as ai.llm_calls.prompt_version: `<agent>/v<N>`.
     check('questions_prompt_version_check', sql`${t.promptVersion} ~ '^[a-z][a-z0-9_]*/v[1-9][0-9]*$'`),
+  ],
+);
+
+/**
+ * Sample reviews of a question bank by HR or CENTER (FR-19, US-4.9): one row per verdict, kept as a
+ * log; the latest row of a question is its review. `bank_version` is the bank's version when the
+ * verdict was given. An ERROR retires the question in the same transaction, so a question has at
+ * most one ERROR (AGENTS › Invariant 11), and it always says why.
+ */
+export const questionReviews = core.table(
+  'question_reviews',
+  {
+    id: id(),
+    questionId: ref('question_id')
+      .notNull()
+      .references(() => questions.id),
+    bankVersion: integer('bank_version').notNull(),
+    reviewerId: ref('reviewer_id')
+      .notNull()
+      .references(() => users.id),
+    verdict: text('verdict').$type<QuestionReviewVerdict>().notNull(),
+    reason: text('reason'),
+    reviewedAt: timestamptz('reviewed_at').notNull(),
+  },
+  (t) => [
+    index('question_reviews_question_id_idx').on(t.questionId),
+    uniqueIndex('question_reviews_question_error_key')
+      .on(t.questionId)
+      .where(sql`${t.verdict} = 'ERROR'`),
+    oneOf('question_reviews_verdict_check', t.verdict, QUESTION_REVIEW_VERDICTS),
+    check('question_reviews_reason_check', sql`${t.verdict} <> 'ERROR' or btrim(coalesce(${t.reason}, '')) <> ''`),
+    check('question_reviews_bank_version_check', sql`${t.bankVersion} > 0`),
   ],
 );
 

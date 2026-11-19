@@ -55,6 +55,7 @@ describe('GĐ0: campaign config schema', () => {
       require_full_preferences: false,
       competition_thresholds: { low_below: 1, high_from: 3 },
       appeal_window_hours: 48,
+      bank_review_sample_size: 10,
     });
     expect(CampaignConfigSchema.parse({})).toEqual(DEFAULT_CAMPAIGN_CONFIG);
   });

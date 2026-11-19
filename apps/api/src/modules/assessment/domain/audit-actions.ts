@@ -14,6 +14,12 @@ export const ASSESSMENT_AUDIT_ACTIONS = {
    */
   QUESTION_BANK_VERSIONED: 'QUESTION_BANK_VERSIONED',
   /**
+   * HR or CENTER gave a verdict on a question of the review sample (US-4.9 AC-3); entity the
+   * question, after is `{ reviewId, bankId, bankVersion, verdict, reason }`. An ERROR's retirement
+   * is the question's own TRANSITION entry.
+   */
+  QUESTION_REVIEWED: 'QUESTION_REVIEWED',
+  /**
    * A student started the test of a preference (US-4.3 AC-1); after is `{ preferenceId, bankId,
    * bankVersion, seed, deadlineAt }`. Closing the session is its TRANSITION entry.
    */

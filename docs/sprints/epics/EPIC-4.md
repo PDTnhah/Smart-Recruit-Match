@@ -68,7 +68,7 @@ Ranh giới mà epic này giữ: chấm trắc nghiệm, tính S_test, S_final v
 | FR | Story | Status |
 |----|-------|--------|
 | FR-18 | US-4.1, US-4.2, US-4.10, US-4.11, US-4.12 | 🚧 in-progress |
-| FR-19 | US-4.9 | 📋 backlog |
+| FR-19 | US-4.9 | 👀 review |
 | FR-20 | US-4.3 | 🚧 in-progress |
 | FR-21 | US-4.7 | 📋 backlog |
 | FR-22 | US-4.4 | 🚧 in-progress |
@@ -97,7 +97,7 @@ Ranh giới mà epic này giữ: chấm trắc nghiệm, tính S_test, S_final v
 | US-4.6 | Phúc khảo và báo lỗi câu hỏi | SV phúc khảo trong 48 giờ; câu sai bị loại và bài liên quan được chấm lại | 📋 backlog | — |
 | US-4.7 | Tín hiệu gian lận | Trung tâm/HR thấy cảnh báo hành vi khi làm bài | 📋 backlog | — |
 | US-4.8 | Câu hỏi xác minh CV và chỉ số tin cậy | HR thấy chỉ số tin cậy CV để tham khảo | 👀 review | 0.26.0 |
-| US-4.9 | Duyệt mẫu ngân hàng câu hỏi | HR/giảng viên duyệt một mẫu ngẫu nhiên của ngân hàng | 📋 backlog | — |
+| US-4.9 | Duyệt mẫu ngân hàng câu hỏi | HR/giảng viên duyệt một mẫu ngẫu nhiên của ngân hàng | 👀 review | 0.29.0 |
 | US-4.10 | Tách Validator khỏi job sinh câu: AI kiểm câu khi Trung tâm yêu cầu | Sinh ngân hàng ít request hơn; AI kiểm câu khi Trung tâm bấm | 👀 review | 0.28.0 |
 | US-4.11 | Tab Ngân hàng câu hỏi: xem toàn bộ câu và loại câu sai | Trung tâm xem mọi câu đã sinh và loại câu sai | 📋 backlog | — |
 | US-4.12 | Sửa giao diện ngân hàng câu hỏi: ô độ phủ và đổi phần D thành C | Ô độ phủ dễ đọc; các phần đánh chữ A, B, C | 👀 review | 0.27.1 |
