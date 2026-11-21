@@ -316,7 +316,7 @@ Sau khi mở, Cán bộ Trung tâm vẫn sửa được đợt, kèm lý do ([CO
    - Nhóm vị trí (Backend, Frontend, Mobile, Data/AI, Tester/QA, BA, DevOps…).
 3. HR xem lại, chỉnh sửa và **xác nhận** yêu cầu chuẩn hóa — AI chỉ đề xuất.
 4. Cán bộ Trung tâm duyệt JD (nội dung hợp lệ, chỉ tiêu hợp lý).
-5. **Test Generator Agent** sinh ngân hàng câu hỏi cho JD (chi tiết ở GĐ5). HR có thể duyệt nhanh đề mẫu (tùy chọn).
+5. **Test Generator Agent** sinh ngân hàng câu hỏi cho JD (chi tiết ở GĐ5). HR có thể duyệt nhanh đề mẫu và tự thêm câu hỏi cho JD bằng form hoặc file (tùy chọn).
 
 Quy tắc: JD chỉ được dùng để chấm phù hợp khi đã được duyệt. Sau khi mở test, không được sửa yêu cầu chuẩn hóa; muốn sửa phải tạo phiên bản mới và chấm lại toàn bộ hồ sơ liên quan.
 
@@ -379,6 +379,7 @@ Ví dụ ma trận đề phần A — JD "Thực tập sinh Backend Java":
 **Quy trình sinh đề** — thực hiện một lần khi JD được duyệt, **trước** khi sinh viên làm bài:
 
 1. Test Generator Agent nhận yêu cầu chuẩn hóa + ma trận đề, sinh ngân hàng câu hỏi gấp 3–5 lần số câu cần cho mỗi ô của ma trận (khi sinh nhắm 3 lần). Mỗi câu có: kỹ năng, độ khó, đáp án, giải thích; câu tự luận kèm **rubric chấm** và đáp án mẫu. Code kiểm định dạng (đủ phương án, đúng một đáp án, có rubric) và loại câu trùng; câu qua bước này dùng được ngay ([CONTEXT D60](CONTEXT.md)).
+   (Tùy chọn) Trước khi khóa, Cán bộ Trung tâm hoặc HR (JD của công ty mình) tự thêm câu bằng form hoặc import file `.xlsx`/`.csv` theo mẫu. File có bước xem trước, báo lỗi theo dòng, và chỉ được lưu khi mọi dòng hợp lệ. Câu thêm tay qua cùng luật kiểm của code, dùng được ngay và được tính vào độ phủ, nên Test Generator chỉ sinh phần còn thiếu. HR chỉ thấy câu do HR của công ty thêm ([CONTEXT D62](CONTEXT.md)).
 2. (Tùy chọn) Cán bộ Trung tâm bấm **"Kiểm câu bằng AI"**: Validator Agent kiểm các câu chưa kiểm: đúng chủ đề, chỉ một đáp án đúng, phương án nhiễu hợp lý, không trùng lặp, không lộ đáp án trong đề, độ khó khớp nhãn. Câu không đạt bị loại.
 3. Cán bộ Trung tâm xem toàn bộ câu của ngân hàng và loại câu sai kèm lý do. (Tùy chọn) HR hoặc giảng viên duyệt một mẫu ngẫu nhiên của ngân hàng. Ô thiếu câu sau khi loại thì Trung tâm cho sinh bù.
 4. Khóa ngân hàng câu hỏi; mọi thay đổi sau đó đều được ghi phiên bản.
@@ -934,6 +935,7 @@ Mọi thông báo đều hiện trong ứng dụng (chuông ở ba cổng, cập
 | FR-39 | Danh mục kỹ năng có vùng, họ (nhóm kỹ năng thay thế được cho nhau) và quan hệ kéo theo; kỹ năng mềm quy về bộ năng lực chuẩn; Quản trị gán và sửa khi duyệt kỹ năng (GĐ2, FR-13, [CONTEXT D42](CONTEXT.md)) | P0 | 🚧 In progress | EPIC-2 |
 | FR-40 | Khớp kỹ năng CV–JD bằng code, không dùng LLM: bậc bằng chứng của từng kỹ năng (cả kỹ năng mềm), khớp đúng / kéo theo / cùng họ, quy đổi ngoại ngữ theo CEFR (cả điều kiện cứng), ngoại ngữ ưu tiên của JD, mức khớp ngành, độ phủ theo vùng; mọi verdict kèm nguồn trong CV (GĐ3, NFR-4, [CONTEXT D42, D45](CONTEXT.md)) | P0 | 🚧 In progress | EPIC-3 |
 | FR-41 | Cán bộ Trung tâm sửa đợt sau khi mở (tên, thêm đối tượng, tham số của pha chưa bắt đầu, dời mốc chưa tới); hủy đợt đã có dữ liệu; xóa đợt chưa có dữ liệu; SV và HR của đợt được báo khi mốc đổi hoặc đợt bị hủy (GĐ0, [CONTEXT D56](CONTEXT.md)) | P1 | 🚧 In progress | EPIC-1 |
+| FR-42 | Cán bộ Trung tâm hoặc HR (JD của công ty mình) tự thêm câu hỏi vào ngân hàng chưa khóa bằng form hoặc import file `.xlsx`/`.csv` theo mẫu: xem trước có lỗi theo dòng, lưu tất cả hoặc không; code kiểm như câu AI sinh; câu thêm tay dùng được ngay và được tính vào độ phủ; HR chỉ thấy câu của công ty mình, Trung tâm thấy và loại được mọi câu (GĐ5, BR-11, [CONTEXT D62](CONTEXT.md)) | P1 | 📋 backlog | EPIC-4 |
 
 Priority: `P0` = bắt buộc cho MVP, `P1` = nên có, `P2` = tùy chọn, `P3` = mở rộng. Status: `✅ shipped (vX.Y.Z)` / `🚧 in-progress` / `📋 backlog` / `⏪ reverted in vX.Y.Z` / `🗑️ deprecated vX.Y.Z`.
 
@@ -990,7 +992,7 @@ Priority: `P0` = bắt buộc cho MVP, `P1` = nên có, `P2` = tùy chọn, `P3`
 
 ## Epics & User Stories
 
-Mỗi epic tương ứng một giai đoạn trong [ARCHITECTURE.md › Implementation roadmap](ARCHITECTURE.md#implementation-roadmap). Chi tiết epic ở `docs/sprints/epics/EPIC-N.md`; file story của cả 45 story nằm ở `docs/sprints/stories/` ([CONTEXT D21](CONTEXT.md); US-2.7, US-3.5, US-3.6 thêm theo [CONTEXT D42](CONTEXT.md); US-1.8, US-1.9, US-2.8 thêm theo [CONTEXT D55](CONTEXT.md); US-1.10 theo [CONTEXT D56](CONTEXT.md); US-2.9 theo [CONTEXT D58](CONTEXT.md)). Lịch theo tuần và thứ tự làm ở [sprints/README › Lộ trình](sprints/README.md#lộ-trình) ([CONTEXT D20](CONTEXT.md)).
+Mỗi epic tương ứng một giai đoạn trong [ARCHITECTURE.md › Implementation roadmap](ARCHITECTURE.md#implementation-roadmap). Chi tiết epic ở `docs/sprints/epics/EPIC-N.md`; file story của cả 49 story nằm ở `docs/sprints/stories/` ([CONTEXT D21](CONTEXT.md); US-2.7, US-3.5, US-3.6 thêm theo [CONTEXT D42](CONTEXT.md); US-1.8, US-1.9, US-2.8 thêm theo [CONTEXT D55](CONTEXT.md); US-1.10 theo [CONTEXT D56](CONTEXT.md); US-2.9 theo [CONTEXT D58](CONTEXT.md); US-4.10, US-4.11, US-4.12 theo [CONTEXT D60](CONTEXT.md); US-4.13 theo [CONTEXT D62](CONTEXT.md)). Lịch theo tuần và thứ tự làm ở [sprints/README › Lộ trình](sprints/README.md#lộ-trình) ([CONTEXT D20](CONTEXT.md)).
 
 ### EPIC-1: Nền tảng, tài khoản và đợt thực tập
 
@@ -1056,7 +1058,7 @@ Mỗi epic tương ứng một giai đoạn trong [ARCHITECTURE.md › Implement
 
 **Status**: 📋 backlog
 
-**FR**: FR-18 – FR-25 · **Lịch**: T7–T11 (16/11–20/12/2026) · [EPIC-4](sprints/epics/EPIC-4.md)
+**FR**: FR-18 – FR-25, FR-42 · **Lịch**: T7–T11 (16/11–20/12/2026) · [EPIC-4](sprints/epics/EPIC-4.md)
 
 | Story | Title | Status | Version |
 |-------|-------|--------|---------|
@@ -1072,6 +1074,7 @@ Mỗi epic tương ứng một giai đoạn trong [ARCHITECTURE.md › Implement
 | US-4.10 | Tách Validator khỏi job sinh câu: AI kiểm câu khi Trung tâm yêu cầu | 👀 review | 0.28.0 |
 | US-4.11 | Tab Ngân hàng câu hỏi: xem toàn bộ câu và loại câu sai | 👀 review | 0.30.0 |
 | US-4.12 | Sửa giao diện ngân hàng câu hỏi: ô độ phủ và đổi phần D thành C | 👀 review | 0.27.1 |
+| US-4.13 | Trung tâm và HR tự thêm câu hỏi: điền form hoặc import file | 📋 backlog | — |
 
 ### EPIC-5: Phân bổ, HR duyệt và phỏng vấn
 

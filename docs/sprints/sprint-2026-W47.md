@@ -56,7 +56,7 @@ Ngày 2026-11-16, người dùng bắt đầu US-2.8 (1 điểm, sửa lỗi tá
 - ✅ **Closed**: [W45](sprint-2026-W45.md) (11 story, 0.14.0–0.24.0), [W46](sprint-2026-W46.md) (US-1.8 0.24.1, US-1.10 0.25.0), đóng ngày 2026-11-16.
 - 🚧 **Carried into W47**: 14 story `review` (bảng trên).
 - ⏭️ **Not started**: US-5.1, US-6.4.
-- 📋 **Backlog**: US-1.9 (phiên giữa các tab).
+- 📋 **Backlog**: US-1.9 (phiên giữa các tab); [US-4.13](stories/US-4.13-manual-question-entry-and-import.md) (Trung tâm và HR tự thêm câu hỏi bằng form hoặc import file, lập ngày 2026-11-21, [CONTEXT D62](../CONTEXT.md); chưa xếp sprint).
 
 ## Risks & dependencies
 
@@ -84,5 +84,6 @@ Ngày 2026-11-16, người dùng bắt đầu US-2.8 (1 điểm, sửa lỗi tá
 - [Sprint W45](sprint-2026-W45.md), [Sprint W46](sprint-2026-W46.md): đã đóng, bảng *Carry-overs to W47*
 - [CONTEXT D55](../CONTEXT.md): tách US-2.8 khi điều tra US-1.8
 - [CONTEXT D60](../CONTEXT.md): thêm US-4.10, US-4.11, US-4.12
+- [CONTEXT D62](../CONTEXT.md): thêm US-4.13
 - [README.md](README.md): quy ước sprint
 - [STATUS.md](STATUS.md): bảng kanban tự sinh

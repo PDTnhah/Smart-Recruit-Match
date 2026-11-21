@@ -11,11 +11,12 @@ prd_ref:
   - FR-23
   - FR-24
   - FR-25
+  - FR-42
 arch_ref:
   - AD-2
   - AD-12
 created: 2026-10-07
-updated: 2026-11-19
+updated: 2026-11-21
 ---
 
 ## Goal
@@ -26,7 +27,7 @@ Mỗi nguyện vọng của sinh viên có S_test và S_final. Các bài thi c�
 
 ### Business context
 
-Sau EPIC-3, mỗi SV có tối đa N_NV nguyện vọng nhưng mới có S_cv, là điểm tính từ thông tin SV tự khai. EPIC-4 phủ GĐ5 và GĐ6: sinh ngân hàng câu hỏi theo ma trận đề, kiểm câu (code; Trung tâm xem và loại câu; Validator khi Trung tâm yêu cầu, [CONTEXT D60](../../CONTEXT.md)), tổ chức thi, chấm trắc nghiệm bằng code, chấm tự luận bằng Grader và tính S_test, S_final.
+Sau EPIC-3, mỗi SV có tối đa N_NV nguyện vọng nhưng mới có S_cv, là điểm tính từ thông tin SV tự khai. EPIC-4 phủ GĐ5 và GĐ6: sinh ngân hàng câu hỏi theo ma trận đề, kiểm câu (code; Trung tâm xem và loại câu; Validator khi Trung tâm yêu cầu, [CONTEXT D60](../../CONTEXT.md)), Trung tâm và HR tự thêm câu bằng form hoặc file ([CONTEXT D62](../../CONTEXT.md)), tổ chức thi, chấm trắc nghiệm bằng code, chấm tự luận bằng Grader và tính S_test, S_final.
 
 Ranh giới mà epic này giữ: chấm trắc nghiệm, tính S_test, S_final và tín hiệu gian lận đều **không** dùng LLM. Tín hiệu gian lận chỉ để cảnh báo, không tự đánh trượt. Đáp án không bao giờ gửi xuống client. Phân bổ dựa trên S_final thuộc [EPIC-5](EPIC-5.md).
 
@@ -34,7 +35,7 @@ Ranh giới mà epic này giữ: chấm trắc nghiệm, tính S_test, S_final v
 
 | # | Pillar | Stories | Purpose |
 |---|---|---|---|
-| 1 | **Ngân hàng câu hỏi** | US-4.1, US-4.2, US-4.9, US-4.10, US-4.11, US-4.12 | Ma trận đề, Test Generator (vòng lặp do code điều khiển, [CONTEXT D49](../../CONTEXT.md)), Validator chạy khi Trung tâm yêu cầu, Trung tâm xem và loại câu, khóa ngân hàng, duyệt mẫu |
+| 1 | **Ngân hàng câu hỏi** | US-4.1, US-4.2, US-4.9, US-4.10, US-4.11, US-4.12, US-4.13 | Ma trận đề, Test Generator (vòng lặp do code điều khiển, [CONTEXT D49](../../CONTEXT.md)), Validator chạy khi Trung tâm yêu cầu, Trung tâm xem và loại câu, Trung tâm và HR tự thêm câu, khóa ngân hàng, duyệt mẫu |
 | 2 | **Phòng thi** | US-4.3, US-4.7 | Rút đề, đồng hồ server, tự lưu, làm tiếp; tín hiệu gian lận chỉ để cảnh báo |
 | 3 | **Chấm và tính điểm** | US-4.4, US-4.5 | Chấm trắc nghiệm, Grader 2 lần, chuyển người chấm, S_test, S_final, bản đồ năng lực |
 | 4 | **Khiếu nại và độ tin cậy** | US-4.6, US-4.8 | Phúc khảo, báo lỗi câu hỏi; câu hỏi xác minh CV và chỉ số tin cậy |
@@ -55,6 +56,7 @@ Ranh giới mà epic này giữ: chấm trắc nghiệm, tính S_test, S_final v
 | US-4.12 | 3 | T8 (W48) | A | US-4.2, US-4.8 |
 | US-4.10 | 8 | T8 (W48) | A | US-4.2 |
 | US-4.11 | 5 | T9 (W49) | A | US-4.10 |
+| US-4.13 | 8 | T9 (W49) | A | US-4.11, US-4.9 |
 
 ### Out of scope
 
@@ -75,6 +77,7 @@ Ranh giới mà epic này giữ: chấm trắc nghiệm, tính S_test, S_final v
 | FR-23 | US-4.5 | 🚧 in-progress |
 | FR-24 | US-4.6 | 📋 backlog |
 | FR-25 | US-4.8, US-4.12 | 👀 review |
+| FR-42 | US-4.13 | 📋 backlog |
 
 ## AD Coverage
 
@@ -101,6 +104,7 @@ Ranh giới mà epic này giữ: chấm trắc nghiệm, tính S_test, S_final v
 | US-4.10 | Tách Validator khỏi job sinh câu: AI kiểm câu khi Trung tâm yêu cầu | Sinh ngân hàng ít request hơn; AI kiểm câu khi Trung tâm bấm | 👀 review | 0.28.0 |
 | US-4.11 | Tab Ngân hàng câu hỏi: xem toàn bộ câu và loại câu sai | Trung tâm xem mọi câu đã sinh và loại câu sai | 👀 review | 0.30.0 |
 | US-4.12 | Sửa giao diện ngân hàng câu hỏi: ô độ phủ và đổi phần D thành C | Ô độ phủ dễ đọc; các phần đánh chữ A, B, C | 👀 review | 0.27.1 |
+| US-4.13 | Trung tâm và HR tự thêm câu hỏi: điền form hoặc import file | Ngân hàng chứa được câu do người viết, qua cùng luật kiểm với câu AI | 📋 backlog | — |
 
 ## Object map & user-story interactions
 
@@ -120,6 +124,7 @@ Ranh giới mà epic này giữ: chấm trắc nghiệm, tính S_test, S_final v
 | US-4.10 | job `QUESTIONS_VALIDATE`, `question_generation_runs.kind`; độ phủ đếm `DRAFT` + `VALIDATED`; `DRAFT → RETIRED` | FR-18 |
 | US-4.11 | `GET /api/question-banks/{id}/questions`, `questions.manual_rejection`, view `core.v_ai_question_rejections`; web `center/question-bank/` | FR-18 |
 | US-4.12 | `CV_VERIFICATION_PART` = `C`; ô độ phủ; nhãn web | FR-18, FR-25 |
+| US-4.13 | `questions.source`, `created_by`; file mẫu, xem trước và import `.xlsx`/`.csv` (exceljs); view `core.v_ai_manual_questions` (đề xuất); web `center/question-bank/` và trang JD của HR | FR-42, FR-18 |
 
 ## Cross-cutting invariants
 
@@ -160,6 +165,7 @@ Ranh giới mà epic này giữ: chấm trắc nghiệm, tính S_test, S_final v
 - [x] Job sinh câu không gọi Validator; Trung tâm bấm "Kiểm câu bằng AI" khi cần (US-4.10, 0.28.0)
 - [ ] Trung tâm xem mọi câu của ngân hàng và loại câu sai (US-4.11)
 - [ ] Ô độ phủ không còn dạng "Đạt 4/3"; các phần đánh chữ A, B, C (US-4.12)
+- [ ] Trung tâm và HR (JD của công ty mình) thêm câu bằng form hoặc import `.xlsx`/`.csv` trước khi khóa; câu thêm tay được tính vào độ phủ (US-4.13)
 - [ ] SV làm bài 1 lần, giờ do server tính, tự lưu, làm tiếp được khi mất kết nối; response không chứa đáp án (US-4.3)
 - [ ] Trắc nghiệm được chấm tự động; tự luận được chấm 2 lần; có S_test, bản đồ năng lực, S_final (US-4.4)
 - [ ] Câu cần người chấm vào hàng đợi; điểm chấm tay cập nhật S_test/S_final (US-4.5)

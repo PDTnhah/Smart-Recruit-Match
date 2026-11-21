@@ -68,6 +68,7 @@
 - D59 · OpenAI chạy mọi agent ở effort `medium` (US-2.9)
 - D60 · Validator chạy khi Trung tâm yêu cầu (job `QUESTIONS_VALIDATE`, nhắm 3×, câu `DRAFT` dùng được), Trung tâm xem và loại câu, phần xác minh CV đổi `D` → `C`; thêm US-4.10, US-4.11, US-4.12
 - D61 · Duyệt đề mẫu (US-4.9): giảng viên dùng tài khoản CENTER, duyệt cả trước và sau khi khóa, không bước nào chờ, ô thiếu câu chỉ cảnh báo; cỡ mẫu là tham số đợt; màn "Duyệt JD" giữ JD đã duyệt
+- D62 · Trung tâm và HR tự thêm câu hỏi bằng form hoặc import `.xlsx`/`.csv`: HR chỉ thấy câu của công ty, chỉ trước khi khóa, xem trước rồi lưu tất cả hoặc không; thêm US-4.13, FR-42
 
 ---
 
@@ -2628,3 +2629,25 @@ Lúc điều tra còn thấy hai lỗi khác, không gây ra sự cố này:
 
 **Date**: 2026-11-19
 **Version**: 0.29.0
+
+### D62. Trung tâm và HR tự thêm câu hỏi bằng form hoặc import file; thêm US-4.13 (bổ sung D49, D60, D61)
+
+**Context**: Ngày 2026-11-21 người dùng muốn Trung tâm hoặc HR tự thêm câu vào ngân hàng của JD, bằng cách điền form hoặc import file. Đến nay mọi câu do Test Generator sinh (D49). `questions` bắt buộc có `draft_id`, `model`, `prompt_version`. HR chỉ xem đề mẫu (D61), và route xem toàn bộ câu chỉ cho CENTER (US-4.11).
+
+**Decision** (người dùng chốt ngày 2026-11-21):
+
+- CENTER thêm câu cho mọi JD của đợt. HR chỉ thêm cho JD của công ty mình (BR-11), và chỉ thấy câu do HR của công ty thêm (tính theo công ty, không theo từng tài khoản); HR không thấy câu AI hay câu Trung tâm thêm. Câu thêm tay ở trạng thái `DRAFT`, dùng được ngay và được tính vào độ phủ. Không có bước duyệt riêng: Trung tâm thấy mọi câu, biết ai thêm, và loại được như câu AI.
+- Import nhận cả `.xlsx` và `.csv`, cùng một bộ cột theo file mẫu. Đọc bằng exceljs, đã có ở ARCH › *Thư viện chính*.
+- Chỉ thêm khi ngân hàng `OPEN` và không có run đang chạy. Ngân hàng đã khóa thì `409`, như sửa ma trận.
+- Import có bước xem trước: server kiểm mọi dòng theo luật của `submit_questions()`, báo lỗi theo dòng và cột, chưa lưu gì. Khi lưu thì lưu tất cả hoặc không lưu câu nào, trong một giao dịch.
+- Câu thêm tay không phải kết quả của LLM, nên không có `model`, `prompt_version`: Nguyên tắc 12 chỉ áp cho kết quả của LLM. Cột `questions.source` phân biệt hai nguồn. Test Generator đọc câu thêm tay qua một view để đếm độ phủ và kiểm trùng.
+- Thêm US-4.13 (8 điểm) và FR-42.
+
+**Rationale**: Trung tâm và doanh nghiệp thường đã có câu hỏi dùng thật. Câu thêm tay qua cùng luật kiểm và cùng ma trận với câu AI, nên đề vẫn tương đương (BR-05). HR chỉ thấy câu của mình, nên phạm vi HR xem vẫn như D61. Chặn thêm sau khi khóa giữ D50: ngân hàng đã khóa chỉ đổi khi loại câu.
+
+**Alternatives considered**: HR thấy cả ngân hàng; câu của HR chờ Trung tâm duyệt mới dùng được; chỉ nhận `.xlsx` hoặc chỉ nhận `.csv`; cho thêm sau khi khóa và tăng phiên bản; lưu các dòng hợp lệ, bỏ dòng lỗi. Người dùng không chọn các phương án này.
+
+**Impact**: PRD GĐ1, GĐ5 (*Quy trình sinh đề*), FR-42, bảng EPIC-4; BRIEF; EPIC-4; `sprints/README.md` (49 story). ARCH (`questions`, view cho AI Service, API, pipeline Test Generator) cập nhật khi làm US-4.13. US-4.11 thêm nguồn của câu vào danh sách; "Kiểm câu bằng AI" (US-4.10) bỏ qua câu thêm tay.
+
+**Date**: 2026-11-21
+**Version**: 0.30.0 (chưa có code)

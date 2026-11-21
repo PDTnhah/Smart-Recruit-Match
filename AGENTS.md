@@ -9,7 +9,7 @@ Hệ thống giúp Trung tâm quan hệ doanh nghiệp của trường ghép sin
 ## Trạng thái
 
 - Story nào xong, story nào đang `review` và còn chờ gì: [STATUS.md](docs/sprints/STATUS.md) (tự sinh) và file story. Đã phát hành gì: [CHANGELOG](docs/CHANGELOG.md). Việc đang làm của người dùng hiện tại: `.active-context.md`; đọc file này khi bắt đầu phiên, nếu có.
-- 48 story của 6 epic nằm trong `docs/sprints/stories/` ([CONTEXT D21, D42, D55, D56, D58, D60](docs/CONTEXT.md)). Lộ trình: xong trong tháng 12/2026, hai làn chạy song song bằng agent ([sprints/README › Lộ trình](docs/sprints/README.md#lộ-trình), [CONTEXT D20](docs/CONTEXT.md)).
+- 49 story của 6 epic nằm trong `docs/sprints/stories/` ([CONTEXT D21, D42, D55, D56, D58, D60, D62](docs/CONTEXT.md)). Lộ trình: xong trong tháng 12/2026, hai làn chạy song song bằng agent ([sprints/README › Lộ trình](docs/sprints/README.md#lộ-trình), [CONTEXT D20](docs/CONTEXT.md)).
 - Khi bắt đầu một story, đọc lại file của nó và thêm khối *Story refresh* nếu spec đã đổi.
 - Không ghi trạng thái từng story vào file này ([CONTEXT D38](docs/CONTEXT.md)). Chỉ sửa khi có quy tắc mới hoặc mẫu mới cho mục *Mẫu có sẵn*.
 

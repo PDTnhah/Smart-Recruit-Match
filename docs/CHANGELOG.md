@@ -4,6 +4,9 @@ Lịch sử phát hành của Smart Recruit Match. Mỗi commit ship code tăng 
 
 ## [Unreleased]
 
+### Added
+- **Thiết kế US-4.13: Trung tâm và HR tự thêm câu hỏi** ([CONTEXT D62](CONTEXT.md)), chỉ có tài liệu, chưa có code: điền form hoặc import `.xlsx`/`.csv` theo mẫu, xem trước có lỗi theo dòng, lưu tất cả hoặc không, chỉ trước khi khóa ngân hàng; HR chỉ thấy câu do HR của công ty thêm. Tài liệu cập nhật: PRD (GĐ1, GĐ5, FR-42), BRIEF, EPIC-4, lộ trình (49 story), AGENTS.
+
 ### Changed
 - **Thiết kế khớp kỹ năng CV–JD bằng code** ([CONTEXT D42](CONTEXT.md)), chỉ có tài liệu, chưa có code:
   - code chấm kỹ năng (cả kỹ năng mềm), ngoại ngữ và mức khớp ngành; Matching Agent chỉ chấm tiêu chí dự án và viết nhận xét;
