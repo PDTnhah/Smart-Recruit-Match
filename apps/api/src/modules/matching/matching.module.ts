@@ -17,6 +17,7 @@ import { CompetitionService } from './application/competition.service.js';
 import { LowPreferenceAlertService } from './application/low-preference-alert.service.js';
 import { MatchResultsHandler } from './application/match-results.handler.js';
 import { MatchingPhaseListener } from './application/phase-changed.listener.js';
+import { PreferenceAllocationService } from './application/preference-allocation.service.js';
 import { PreferenceAutoAssignScheduler } from './application/preference-auto-assign.scheduler.js';
 import { PreferenceDeadlineReminderSource } from './application/preference-deadline.source.js';
 import { PreferenceExamService } from './application/preference-exam.service.js';
@@ -34,7 +35,8 @@ import { PreferencesRepository } from './infrastructure/preferences.repository.j
  * Matching of GĐ3–GĐ4 (ARCHITECTURE › Các module, FR-14–FR-17, US-3.1–US-3.6): the pure scoring
  * rules in `domain/`, matching runs and their results, students' shortlists and preference lists,
  * the competition level of each JD and the alert of JDs with few preferences; the preferences the
- * exam room reads and closes (US-4.3), and those grading moves with their S_final (US-4.4).
+ * exam room reads and closes (US-4.3), those grading moves with their S_final (US-4.4), and those an
+ * allocation round reads and publishes (US-5.2).
  * Reads CVs, students, JDs, the skill taxonomy and accounts through the services those modules
  * export and notifies through NotificationModule; relies on the global DbModule, ClockModule,
  * ScheduleModule and EventEmitterModule set up in AppModule.
@@ -62,6 +64,7 @@ import { PreferencesRepository } from './infrastructure/preferences.repository.j
     PreferencesService,
     PreferenceExamService,
     PreferenceGradingService,
+    PreferenceAllocationService,
     AutoAssignPreferencesService,
     PreferenceAutoAssignScheduler,
     PreferenceDeadlineReminderSource,
@@ -72,6 +75,12 @@ import { PreferencesRepository } from './infrastructure/preferences.repository.j
     MatchRunsRepository,
     PreferencesRepository,
   ],
-  exports: [RunMatchingService, RecomputeScvService, PreferenceExamService, PreferenceGradingService],
+  exports: [
+    RunMatchingService,
+    RecomputeScvService,
+    PreferenceExamService,
+    PreferenceGradingService,
+    PreferenceAllocationService,
+  ],
 })
 export class MatchingModule {}

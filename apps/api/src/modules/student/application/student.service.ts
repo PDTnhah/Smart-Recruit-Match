@@ -23,6 +23,14 @@ export interface NewStudent {
   gpa: number;
 }
 
+/** What an allocation round reads of a student (US-5.2). */
+export interface StudentAllocationRecord {
+  studentCode: string;
+  fullName: string;
+  /** 4-point scale; null when the school record has none. */
+  gpa4: number | null;
+}
+
 /** Owns `core.students`; other modules create students only through this service (Principle 13). */
 @Injectable()
 export class StudentService {
@@ -58,6 +66,19 @@ export class StudentService {
       .from(students)
       .where(inArray(students.id, [...new Set(studentIds)]));
     return new Map(rows.map((row) => [row.id, { major: row.major, gpa4: row.gpa }]));
+  }
+
+  /**
+   * Code, name and 4-point GPA of each student, by student id (US-5.2): the code and GPA rank a
+   * student in an allocation round (CONTEXT D63), the name is shown to the center only.
+   */
+  async allocationRecords(studentIds: readonly number[]): Promise<Map<number, StudentAllocationRecord>> {
+    if (studentIds.length === 0) return new Map();
+    const rows = await this.db
+      .select({ id: students.id, studentCode: students.studentCode, fullName: students.fullName, gpa4: students.gpa })
+      .from(students)
+      .where(inArray(students.id, [...new Set(studentIds)]));
+    return new Map(rows.map(({ id, ...record }) => [id, record]));
   }
 
   /** Inserts a student inside the caller's transaction, so the account and the student commit together. */

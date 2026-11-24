@@ -865,7 +865,7 @@ Mọi thông báo đều hiện trong ứng dụng (chuông ở ba cổng, cập
 | Hệ thống tự gán NV cho sinh viên không chọn (Q6) | Sinh viên | Trong app + email ([CONTEXT D47](CONTEXT.md)) |
 | Hết hạn chọn NV: danh sách JD có số NV ít hơn chỉ tiêu | Cán bộ Trung tâm | Trong app + email ([CONTEXT D48](CONTEXT.md)) |
 | Có kết quả test, kết quả phúc khảo | Sinh viên | |
-| Công bố đề cử | Sinh viên, HR | |
+| Công bố đề cử | Sinh viên, HR | Chỉ trong app ([CONTEXT D64](CONTEXT.md)) |
 | Nhắc hạn duyệt hồ sơ; quá SLA | HR, Cán bộ Trung tâm | |
 | Lịch phỏng vấn, đổi lịch | Sinh viên, HR | |
 | Kết quả phỏng vấn, lời mời thực tập | Sinh viên | |

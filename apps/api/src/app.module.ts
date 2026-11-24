@@ -13,6 +13,7 @@ import { ZodRequestValidationPipe } from './common/validation/zod-validation.pip
 import { DbModule } from './db/db.module.js';
 import { HealthModule } from './health/health.module.js';
 import { AiGatewayModule } from './modules/aigateway/index.js';
+import { AllocationModule } from './modules/allocation/index.js';
 import { AssessmentModule } from './modules/assessment/index.js';
 import { CampaignModule } from './modules/campaign/index.js';
 import { CompanyModule } from './modules/company/index.js';
@@ -59,6 +60,7 @@ import { RedisModule } from './redis/redis.module.js';
     SkillsModule,
     MatchingModule,
     AssessmentModule,
+    AllocationModule,
   ],
   providers: [
     { provide: APP_PIPE, useClass: ZodRequestValidationPipe },

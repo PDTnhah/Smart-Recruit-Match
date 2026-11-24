@@ -330,6 +330,13 @@
       "when": 1795438675622,
       "tag": "0046_question_manual_entry",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1795495226963,
+      "tag": "0047_allocation_rounds",
+      "breakpoints": true
     }
   ]
 }

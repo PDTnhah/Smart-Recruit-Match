@@ -4,6 +4,7 @@ export { MATCHING_PHASES, RunMatchingService } from './application/run-matching.
 export { RecomputeScvService, type ScvRecompute } from './application/recompute-scv.js';
 export { type ExamPreference, PreferenceExamService } from './application/preference-exam.service.js';
 export { type GradingPreference, PreferenceGradingService } from './application/preference-grading.service.js';
+export { type AllocationPreference, PreferenceAllocationService } from './application/preference-allocation.service.js';
 export {
   PREFERENCES_AUTO_ASSIGNED,
   PREFERENCES_REPLACED,

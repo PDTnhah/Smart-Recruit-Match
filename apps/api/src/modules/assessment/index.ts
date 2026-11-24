@@ -16,6 +16,8 @@ export { CvVerificationScheduler, type CvVerificationSweepReport } from './appli
 export { CvVerificationResultsHandler } from './application/cv-verification-results.handler.js';
 export { ThresholdScheduler, type ThresholdSweepReport } from './application/threshold.scheduler.js';
 export { NO_THRESHOLD_HOLDS, THRESHOLD_HOLDS, type ThresholdHolds } from './application/threshold-holds.js';
+// Tests of the campaign for an allocation round (US-5.2).
+export { type AllocationSessionResult, AllocationResultsService } from './application/allocation-results.service.js';
 export type { DrawableBank, DrawableQuestion, RetiredQuestion } from './domain/drawable-bank.js';
 // Pure blueprint and question helpers, for the locked question bank seed (US-4.2 AC-9).
 export { type BlueprintCellRef, buildDefaultBlueprint, cellsOf } from './domain/blueprint.js';

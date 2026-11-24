@@ -7,32 +7,33 @@ goal: 'Sửa lỗi tìm kỹ năng khi ô tìm còn trống (US-2.8, v0.25.1); �
 ---
 ## Sprint scope
 
-| US      | Title                                              | Epic   | Pri | Points | Status     | Carry    | Story file                                                                                                   |
-| ------- | -------------------------------------------------- | ------ | --- | ------ | ---------- | -------- | ------------------------------------------------------------------------------------------------------------ |
-| US-2.8  | Tìm kỹ năng trong danh mục khi ô tìm còn trống     | EPIC-2 | P1  | 1      | 👀 review  | new      | [stories/US-2.8-skill-search-empty-query.md](stories/US-2.8-skill-search-empty-query.md)                     |
-| US-1.8  | Màn Hồ sơ mở đúng đợt khi sinh viên thấy nhiều đợt | EPIC-1 | P1  | 3      | 👀 review  | from W46 | [stories/US-1.8-profile-default-campaign.md](stories/US-1.8-profile-default-campaign.md)                     |
-| US-1.10 | Sửa, hủy và xóa đợt sau khi mở                     | EPIC-1 | P1  | 8      | 👀 review  | from W46 | [stories/US-1.10-campaign-edit-cancel-delete.md](stories/US-1.10-campaign-edit-cancel-delete.md)             |
-| US-2.7  | Vùng, họ và quan hệ kéo theo của kỹ năng           | EPIC-2 | P0  | 8      | 👀 review  | from W45 | [stories/US-2.7-skill-zones-families-implications.md](stories/US-2.7-skill-zones-families-implications.md)   |
-| US-3.1  | Lọc điều kiện cứng và công thức S_cv               | EPIC-3 | P0  | 5      | 👀 review  | from W44 | [stories/US-3.1-hard-filters-and-scv-formula.md](stories/US-3.1-hard-filters-and-scv-formula.md)             |
-| US-3.2  | Matching Agent chạy hàng loạt                      | EPIC-3 | P0  | 13     | 👀 review  | from W45 | [stories/US-3.2-batch-matching-agent.md](stories/US-3.2-batch-matching-agent.md)                             |
-| US-3.3  | Shortlist và chọn nguyện vọng                      | EPIC-3 | P0  | 8      | 👀 review  | from W45 | [stories/US-3.3-shortlist-and-preferences.md](stories/US-3.3-shortlist-and-preferences.md)                   |
-| US-3.4  | Mức cạnh tranh và gợi ý ít cạnh tranh              | EPIC-3 | P1  | 3      | 👀 review  | from W45 | [stories/US-3.4-competition-level-and-suggestions.md](stories/US-3.4-competition-level-and-suggestions.md)   |
-| US-3.5  | Hồ sơ kỹ năng chi tiết và khớp kỹ năng bằng code   | EPIC-3 | P0  | 8      | 👀 review  | from W45 | [stories/US-3.5-skill-evidence-code-matching.md](stories/US-3.5-skill-evidence-code-matching.md)             |
-| US-3.6  | Quy đổi ngoại ngữ CEFR và mức khớp ngành bằng code | EPIC-3 | P0  | 5      | 👀 review  | from W45 | [stories/US-3.6-language-cefr-major-match.md](stories/US-3.6-language-cefr-major-match.md)                   |
-| US-4.1  | Ma trận đề và Test Generator                       | EPIC-4 | P0  | 8      | 👀 review  | from W45 | [stories/US-4.1-exam-blueprint-test-generator.md](stories/US-4.1-exam-blueprint-test-generator.md)           |
-| US-4.2  | Validator và khóa ngân hàng câu hỏi                | EPIC-4 | P0  | 8      | 👀 review  | from W45 | [stories/US-4.2-validator-and-question-bank-lock.md](stories/US-4.2-validator-and-question-bank-lock.md)     |
-| US-4.3  | Phòng thi                                          | EPIC-4 | P0  | 8      | 👀 review  | from W45 | [stories/US-4.3-exam-room.md](stories/US-4.3-exam-room.md)                                                   |
-| US-4.4  | Chấm bài, S_test và S_final                        | EPIC-4 | P0  | 13     | 👀 review  | from W45 | [stories/US-4.4-grading-stest-sfinal.md](stories/US-4.4-grading-stest-sfinal.md)                             |
-| US-4.5  | Chấm tay câu tự luận được chuyển                   | EPIC-4 | P0  | 5      | 👀 review  | from W45 | [stories/US-4.5-manual-essay-grading.md](stories/US-4.5-manual-essay-grading.md)                             |
-| US-5.1  | Allocation Engine và property-based test           | EPIC-5 | P0  | 5      | 👀 review  | from W42 | [stories/US-5.1-allocation-engine-property-tests.md](stories/US-5.1-allocation-engine-property-tests.md)     |
-| US-6.4  | Mô phỏng phân bổ so với baseline                   | EPIC-6 | P1  | 5      | 📋 backlog | from W44 | [stories/US-6.4-allocation-simulation-vs-baselines.md](stories/US-6.4-allocation-simulation-vs-baselines.md) |
-| US-4.8  | Câu hỏi xác minh CV và chỉ số tin cậy              | EPIC-4 | P1  | 8      | 👀 review  | new  | [stories/US-4.8-cv-verification-questions-trust-score.md](stories/US-4.8-cv-verification-questions-trust-score.md) |
-| US-2.9  | Thêm nhà cung cấp LLM OpenAI và DeepSeek           | EPIC-2 | P1  | 5      | 👀 review  | new  | [stories/US-2.9-openai-deepseek-llm-providers.md](stories/US-2.9-openai-deepseek-llm-providers.md) |
-| US-4.12 | Sửa giao diện ngân hàng câu hỏi: ô độ phủ và đổi phần D thành C | EPIC-4 | P1 | 3 | 👀 review | new | [stories/US-4.12-question-bank-ui-fixes-part-c.md](stories/US-4.12-question-bank-ui-fixes-part-c.md) |
-| US-4.10 | Tách Validator khỏi job sinh câu: AI kiểm câu khi Trung tâm yêu cầu | EPIC-4 | P0 | 8 | 👀 review | new | [stories/US-4.10-on-demand-question-validation.md](stories/US-4.10-on-demand-question-validation.md) |
-| US-4.9  | Duyệt mẫu ngân hàng câu hỏi; màn "Duyệt JD" giữ JD đã duyệt | EPIC-4 | P2 | 2 | 👀 review | new | [stories/US-4.9-question-bank-sample-review.md](stories/US-4.9-question-bank-sample-review.md) |
-| US-4.11 | Tab Ngân hàng câu hỏi: xem toàn bộ câu và loại câu sai | EPIC-4 | P1 | 5 | 👀 review | new | [stories/US-4.11-question-bank-browser-and-rejection.md](stories/US-4.11-question-bank-browser-and-rejection.md) |
-| US-4.13 | Trung tâm và HR tự thêm câu hỏi: điền form hoặc import file | EPIC-4 | P1 | 8 | 👀 review | new | [stories/US-4.13-manual-question-entry-and-import.md](stories/US-4.13-manual-question-entry-and-import.md) |
+| US      | Title                                                               | Epic   | Pri | Points | Status     | Carry    | Story file                                                                                                         |
+| ------- | ------------------------------------------------------------------- | ------ | --- | ------ | ---------- | -------- | ------------------------------------------------------------------------------------------------------------------ |
+| US-2.8  | Tìm kỹ năng trong danh mục khi ô tìm còn trống                      | EPIC-2 | P1  | 1      | 👀 review  | new      | [stories/US-2.8-skill-search-empty-query.md](stories/US-2.8-skill-search-empty-query.md)                           |
+| US-1.8  | Màn Hồ sơ mở đúng đợt khi sinh viên thấy nhiều đợt                  | EPIC-1 | P1  | 3      | 👀 review  | from W46 | [stories/US-1.8-profile-default-campaign.md](stories/US-1.8-profile-default-campaign.md)                           |
+| US-1.10 | Sửa, hủy và xóa đợt sau khi mở                                      | EPIC-1 | P1  | 8      | 👀 review  | from W46 | [stories/US-1.10-campaign-edit-cancel-delete.md](stories/US-1.10-campaign-edit-cancel-delete.md)                   |
+| US-2.7  | Vùng, họ và quan hệ kéo theo của kỹ năng                            | EPIC-2 | P0  | 8      | 👀 review  | from W45 | [stories/US-2.7-skill-zones-families-implications.md](stories/US-2.7-skill-zones-families-implications.md)         |
+| US-3.1  | Lọc điều kiện cứng và công thức S_cv                                | EPIC-3 | P0  | 5      | 👀 review  | from W44 | [stories/US-3.1-hard-filters-and-scv-formula.md](stories/US-3.1-hard-filters-and-scv-formula.md)                   |
+| US-3.2  | Matching Agent chạy hàng loạt                                       | EPIC-3 | P0  | 13     | 👀 review  | from W45 | [stories/US-3.2-batch-matching-agent.md](stories/US-3.2-batch-matching-agent.md)                                   |
+| US-3.3  | Shortlist và chọn nguyện vọng                                       | EPIC-3 | P0  | 8      | 👀 review  | from W45 | [stories/US-3.3-shortlist-and-preferences.md](stories/US-3.3-shortlist-and-preferences.md)                         |
+| US-3.4  | Mức cạnh tranh và gợi ý ít cạnh tranh                               | EPIC-3 | P1  | 3      | 👀 review  | from W45 | [stories/US-3.4-competition-level-and-suggestions.md](stories/US-3.4-competition-level-and-suggestions.md)         |
+| US-3.5  | Hồ sơ kỹ năng chi tiết và khớp kỹ năng bằng code                    | EPIC-3 | P0  | 8      | 👀 review  | from W45 | [stories/US-3.5-skill-evidence-code-matching.md](stories/US-3.5-skill-evidence-code-matching.md)                   |
+| US-3.6  | Quy đổi ngoại ngữ CEFR và mức khớp ngành bằng code                  | EPIC-3 | P0  | 5      | 👀 review  | from W45 | [stories/US-3.6-language-cefr-major-match.md](stories/US-3.6-language-cefr-major-match.md)                         |
+| US-4.1  | Ma trận đề và Test Generator                                        | EPIC-4 | P0  | 8      | 👀 review  | from W45 | [stories/US-4.1-exam-blueprint-test-generator.md](stories/US-4.1-exam-blueprint-test-generator.md)                 |
+| US-4.2  | Validator và khóa ngân hàng câu hỏi                                 | EPIC-4 | P0  | 8      | 👀 review  | from W45 | [stories/US-4.2-validator-and-question-bank-lock.md](stories/US-4.2-validator-and-question-bank-lock.md)           |
+| US-4.3  | Phòng thi                                                           | EPIC-4 | P0  | 8      | 👀 review  | from W45 | [stories/US-4.3-exam-room.md](stories/US-4.3-exam-room.md)                                                         |
+| US-4.4  | Chấm bài, S_test và S_final                                         | EPIC-4 | P0  | 13     | 👀 review  | from W45 | [stories/US-4.4-grading-stest-sfinal.md](stories/US-4.4-grading-stest-sfinal.md)                                   |
+| US-4.5  | Chấm tay câu tự luận được chuyển                                    | EPIC-4 | P0  | 5      | 👀 review  | from W45 | [stories/US-4.5-manual-essay-grading.md](stories/US-4.5-manual-essay-grading.md)                                   |
+| US-5.1  | Allocation Engine và property-based test                            | EPIC-5 | P0  | 5      | 👀 review  | from W42 | [stories/US-5.1-allocation-engine-property-tests.md](stories/US-5.1-allocation-engine-property-tests.md)           |
+| US-6.4  | Mô phỏng phân bổ so với baseline                                    | EPIC-6 | P1  | 5      | 📋 backlog | from W44 | [stories/US-6.4-allocation-simulation-vs-baselines.md](stories/US-6.4-allocation-simulation-vs-baselines.md)       |
+| US-4.8  | Câu hỏi xác minh CV và chỉ số tin cậy                               | EPIC-4 | P1  | 8      | 👀 review  | new      | [stories/US-4.8-cv-verification-questions-trust-score.md](stories/US-4.8-cv-verification-questions-trust-score.md) |
+| US-2.9  | Thêm nhà cung cấp LLM OpenAI và DeepSeek                            | EPIC-2 | P1  | 5      | 👀 review  | new      | [stories/US-2.9-openai-deepseek-llm-providers.md](stories/US-2.9-openai-deepseek-llm-providers.md)                 |
+| US-4.12 | Sửa giao diện ngân hàng câu hỏi: ô độ phủ và đổi phần D thành C     | EPIC-4 | P1  | 3      | 👀 review  | new      | [stories/US-4.12-question-bank-ui-fixes-part-c.md](stories/US-4.12-question-bank-ui-fixes-part-c.md)               |
+| US-4.10 | Tách Validator khỏi job sinh câu: AI kiểm câu khi Trung tâm yêu cầu | EPIC-4 | P0  | 8      | 👀 review  | new      | [stories/US-4.10-on-demand-question-validation.md](stories/US-4.10-on-demand-question-validation.md)               |
+| US-4.9  | Duyệt mẫu ngân hàng câu hỏi; màn "Duyệt JD" giữ JD đã duyệt         | EPIC-4 | P2  | 2      | 👀 review  | new      | [stories/US-4.9-question-bank-sample-review.md](stories/US-4.9-question-bank-sample-review.md)                     |
+| US-4.11 | Tab Ngân hàng câu hỏi: xem toàn bộ câu và loại câu sai              | EPIC-4 | P1  | 5      | 👀 review  | new      | [stories/US-4.11-question-bank-browser-and-rejection.md](stories/US-4.11-question-bank-browser-and-rejection.md)   |
+| US-4.13 | Trung tâm và HR tự thêm câu hỏi: điền form hoặc import file         | EPIC-4 | P1  | 8      | 👀 review  | new      | [stories/US-4.13-manual-question-entry-and-import.md](stories/US-4.13-manual-question-entry-and-import.md)         |
+| US-5.2  | Vòng phân bổ: dự thảo, điều chỉnh, công bố                          | EPIC-5 | P0  | 8      | 👀 review  | new      | [stories/US-5.2-allocation-round-draft-adjust-publish.md](stories/US-5.2-allocation-round-draft-adjust-publish.md) |
 
 > **Convention**: AC + Tasks live inside each story file. This sprint file lists planned
 > stories at a glance only. Design + decision docs cross-linked at the bottom.
@@ -51,6 +52,7 @@ Ngày 2026-11-16, người dùng bắt đầu US-2.8 (1 điểm, sửa lỗi tá
 4. **US-2.9** (bắt đầu 2026-11-19, người dùng chọn): người dùng không có key Gemini hay Claude, nên thêm nhà cung cấp OpenAI và DeepSeek ([CONTEXT D58](../CONTEXT.md)). v0.27.0, `review`; chờ người dùng chạy với key thật (TASK-2.9.9).
 5. **US-5.1** (2026-11-24, người dùng chọn, một phiên): Allocation Engine là hàm thuần, có property-based test; xong 0.32.0, `review`. Người dùng chốt hai điểm phá hòa ([CONTEXT D63](../CONTEXT.md)). Không có migration, không có giao diện để kiểm tay.
 6. **Ngân hàng câu hỏi** (lập ngày 2026-11-19 từ phản hồi của người dùng về ngân hàng JD 5, [CONTEXT D60](../CONTEXT.md)): ba story mới ở `backlog`, thứ tự đề xuất [US-4.12](stories/US-4.12-question-bank-ui-fixes-part-c.md) (ô độ phủ, phần D → C; 3 điểm) → [US-4.10](stories/US-4.10-on-demand-question-validation.md) (Validator chạy khi Trung tâm yêu cầu; 8 điểm) → [US-4.11](stories/US-4.11-question-bank-browser-and-rejection.md) (xem toàn bộ câu, loại câu; 5 điểm). US-4.12 bắt đầu 2026-11-19 (người dùng chọn), xong 0.27.1, `review`; chờ người dùng kiểm tay 360 / 768 / 1024 px. US-4.10 làm ngày 2026-11-19, xong 0.28.0, `review`; chờ `/code-review`, `db:migrate` `0043`, `smoke_llm --bank` với key thật và kiểm tay. US-4.11 làm ngày 2026-11-19 → 20, xong 0.30.0, `review`; chờ `/code-review`, `db:migrate` `0045` và kiểm tay AC-2.
+7. **US-5.2** (2026-11-24, người dùng chọn, một phiên): vòng phân bổ 1 chạy trên dữ liệu thật, dự thảo, điều chỉnh có lý do, công bố, giải thích kết quả; xong 0.33.0, `review`. Người dùng chốt bốn điểm ([CONTEXT D64](../CONTEXT.md)). Chờ `db:migrate` `0047` và kiểm tay màn *Phân bổ* (1024 px), *Kết quả* (360 px).
 
 ## Parked / deferred from W45, W46
 
@@ -66,14 +68,14 @@ Ngày 2026-11-16, người dùng bắt đầu US-2.8 (1 điểm, sửa lỗi tá
 
 ## Per-Epic Retrospective
 
-| Epic   | Retro Status | Notes                                    |
-| ------ | ------------ | ---------------------------------------- |
+| Epic   | Retro Status | Notes                                        |
+| ------ | ------------ | -------------------------------------------- |
 | EPIC-1 | optional     | US-1.8, US-1.10 chờ kiểm tay; US-1.9 backlog |
-| EPIC-2 | optional     | US-2.8 0.25.1; US-2.7 chờ kiểm tay       |
-| EPIC-3 | optional     | US-3.1…US-3.6 chờ kiểm tay hoặc key thật |
-| EPIC-4 | optional     | US-4.1…US-4.5 chờ `db:migrate`, kiểm tay |
-| EPIC-5 | optional     | US-5.1 0.32.0 `review`                   |
-| EPIC-6 | optional     | US-6.4 chưa bắt đầu                      |
+| EPIC-2 | optional     | US-2.8 0.25.1; US-2.7 chờ kiểm tay           |
+| EPIC-3 | optional     | US-3.1…US-3.6 chờ kiểm tay hoặc key thật     |
+| EPIC-4 | optional     | US-4.1…US-4.5 chờ `db:migrate`, kiểm tay     |
+| EPIC-5 | optional     | US-5.1 0.32.0, US-5.2 0.33.0 `review`        |
+| EPIC-6 | optional     | US-6.4 chưa bắt đầu                          |
 
 ## Retrospective
 

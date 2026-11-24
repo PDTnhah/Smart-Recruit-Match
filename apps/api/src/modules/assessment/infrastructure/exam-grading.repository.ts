@@ -59,6 +59,16 @@ export interface PublishedSessionRow {
   sTest: number;
 }
 
+/** A session as an allocation round reads it (US-5.2): its pair, when it closed, its results. */
+export interface AllocationSessionRow {
+  sessionId: number;
+  studentId: number;
+  jdId: number;
+  submittedAt: Date | null;
+  sTest: number | null;
+  resultsPublishedAt: Date | null;
+}
+
 export interface SessionResults {
   scoreAX100: number;
   scoreBX100: number;
@@ -387,6 +397,48 @@ export class ExamGradingRepository {
       .update(examAnswers)
       .set({ aiGrading, rowVersion: nextAnswerVersion })
       .where(and(eq(examAnswers.sessionId, sessionId), eq(examAnswers.questionId, questionId)));
+  }
+
+  /** Every session of the campaign's banks, by id, read in `tx` (US-5.2). */
+  async listForAllocation(tx: DbTx, campaignId: number): Promise<AllocationSessionRow[]> {
+    return tx
+      .select({
+        sessionId: examSessions.id,
+        studentId: examSessions.studentId,
+        jdId: questionBanks.jdId,
+        submittedAt: examSessions.submittedAt,
+        sTest: examSessions.sTest,
+        resultsPublishedAt: examSessions.resultsPublishedAt,
+      })
+      .from(examSessions)
+      .innerJoin(questionBanks, eq(questionBanks.id, examSessions.bankId))
+      .where(eq(questionBanks.campaignId, campaignId))
+      .orderBy(asc(examSessions.id));
+  }
+
+  /**
+   * The model and prompt of every Grader pass the sessions' essays got (BR-17, AGENTS › Invariant
+   * 12), distinct per session; a session without one is missing from the map.
+   */
+  async graderRunsOf(tx: DbTx, sessionIds: readonly number[]): Promise<Map<number, { model: string; promptVersion: string }[]>> {
+    const runs = new Map<number, { model: string; promptVersion: string }[]>();
+    for (let start = 0; start < sessionIds.length; start += CHUNK) {
+      const ids = sessionIds.slice(start, start + CHUNK);
+      const result = await tx.execute<{ session_id: string | number; model: string | null; prompt_version: string | null }>(
+        sql`select distinct a.session_id, r.value ->> 'model' as model, r.value ->> 'prompt_version' as prompt_version from ${examAnswers} a cross join lateral jsonb_each(coalesce(a.ai_grading -> 'runs', '{}'::jsonb)) r where a.session_id in (${sql.join(
+          ids.map((id) => sql`${id}`),
+          sql`, `,
+        )})`,
+      );
+      for (const row of result.rows) {
+        if (row.model === null || row.prompt_version === null) continue;
+        const sessionId = Number(row.session_id);
+        const list = runs.get(sessionId) ?? [];
+        list.push({ model: row.model, promptVersion: row.prompt_version });
+        runs.set(sessionId, list);
+      }
+    }
+    return runs;
   }
 
   /** AC-14: sessions of the campaign whose results were published before `cutoff`. */

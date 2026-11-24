@@ -5,6 +5,7 @@ import { runMigrations } from '../../src/db/migrate.js';
 import { ownerDatabaseUrl } from '../helpers/db.js';
 
 const CORE_TABLES = [
+  'allocation_rounds',
   'audit_logs',
   'campaigns',
   'companies',
@@ -19,6 +20,7 @@ const CORE_TABLES = [
   'job_descriptions',
   'match_results',
   'match_runs',
+  'nominations',
   'notifications',
   'preferences',
   'question_banks',
@@ -95,12 +97,14 @@ describe('AD-9: migrations apply on empty DB and create core tables with constra
     );
     expect(rows).toEqual(
       [
+        'allocation_rounds',
         'campaigns',
         'cv_verifications',
         'cvs',
         'exam_answers',
         'exam_sessions',
         'job_descriptions',
+        'nominations',
         'preferences',
         'question_banks',
         'questions',

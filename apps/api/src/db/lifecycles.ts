@@ -1,6 +1,8 @@
 // Each lifecycle table paired with its state machine, defined once so callers of transitionTo
 // cannot mix a table with another lifecycle's machine (AD-8).
 import {
+  type AllocationRoundStatus,
+  allocationRoundMachine,
   type ApplicationStatus,
   applicationMachine,
   type CampaignStatus,
@@ -11,6 +13,8 @@ import {
   examSessionMachine,
   type JobDescriptionStatus,
   jobDescriptionMachine,
+  type NominationStatus,
+  nominationMachine,
   type QuestionBankStatus,
   questionBankMachine,
   type QuestionStatus,
@@ -22,10 +26,12 @@ import {
 import type { ColumnBaseConfig } from 'drizzle-orm';
 import type { PgColumn, PgTable } from 'drizzle-orm/pg-core';
 import {
+  allocationRounds,
   campaigns,
   cvs,
   examSessions,
   jobDescriptions,
+  nominations,
   preferences,
   questionBanks,
   questions,
@@ -69,3 +75,12 @@ export const questionBankLifecycle: Lifecycle<QuestionBankStatus> = { table: que
 
 /** A student's attempt at a test: submitted or expired, with `submitted_at` set by `transitionTo` `set` (US-4.3). */
 export const examSessionLifecycle: Lifecycle<ExamSessionStatus> = { table: examSessions, machine: examSessionMachine };
+
+/** An allocation round: DRAFT → PUBLISHED, with `published_at` set by `transitionTo` `set` (US-5.2). */
+export const allocationRoundLifecycle: Lifecycle<AllocationRoundStatus> = {
+  table: allocationRounds,
+  machine: allocationRoundMachine,
+};
+
+/** A nomination of a round; HR review and interviews move it on (US-5.3, US-5.4). */
+export const nominationLifecycle: Lifecycle<NominationStatus> = { table: nominations, machine: nominationMachine };

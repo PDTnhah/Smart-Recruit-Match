@@ -199,6 +199,7 @@ export class EmailRenderer {
       case 'JD_REQUIREMENTS_VERSIONED':
       case 'CV_PROFILE_READY':
       case 'CV_NEEDS_ATTENTION':
+      case 'NOMINATIONS_PUBLISHED':
         throw new Error(`${content.type} is shown in the app only, never emailed`);
     }
   }

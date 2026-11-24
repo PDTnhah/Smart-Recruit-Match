@@ -9,6 +9,7 @@ import { examResultPath } from '@/features/exam/paths';
 import { centerCvsPath } from '@/features/center/cvs/paths';
 import { jdApprovalPath } from '@/features/center/jd-approval/paths';
 import { HR_JDS_PATH, hrJdPath } from '@/features/hr/jds/paths';
+import { STUDENT_RESULTS_PATH } from '@/features/student/results/paths';
 import { formatDateTime } from '@/lib/format';
 
 // What each notification type says in the bell (DESIGN.md §9, §10). A type added in
@@ -146,6 +147,27 @@ export function describeNotification(notification: Notification): NotificationVi
         body: `Đợt "${campaignName}" đã bị hủy và không còn hiện trên hệ thống. Lý do: ${reason}`,
         href: HOME_OF[audience],
       };
+    }
+    case 'NOMINATIONS_PUBLISHED': {
+      const { payload } = notification;
+      if (payload.audience === 'HR') {
+        return {
+          title: 'Có danh sách đề cử mới',
+          body: `Vòng phân bổ ${payload.roundNo} của đợt "${payload.campaignName}" đã công bố ${payload.nominationCount} sinh viên được đề cử vào "${payload.jd.title}".`,
+          href: hrJdPath(payload.jd.jdId),
+        };
+      }
+      return payload.jd
+        ? {
+            title: 'Bạn được đề cử',
+            body: `Vòng phân bổ ${payload.roundNo} của đợt "${payload.campaignName}": bạn được đề cử vào "${payload.jd.title}" của ${payload.jd.companyName}.`,
+            href: STUDENT_RESULTS_PATH,
+          }
+        : {
+            title: 'Kết quả phân bổ đã công bố',
+            body: `Vòng phân bổ ${payload.roundNo} của đợt "${payload.campaignName}" chưa có đề cử cho bạn. Bạn đang chờ vòng sau; xem lý do từng nguyện vọng.`,
+            href: STUDENT_RESULTS_PATH,
+          };
     }
     case 'JD_LOW_PREFERENCES': {
       const { campaignId, campaignName, jds } = notification.payload;

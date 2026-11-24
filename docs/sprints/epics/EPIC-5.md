@@ -80,7 +80,7 @@ Allocation Engine (US-5.1) là hàm TS thuần, không phụ thuộc DB hay AI. 
 | ID | Title | Goal | Status | Version |
 |---|---|---|---|---|
 | US-5.1 | Allocation Engine và property-based test | Thuật toán phân bổ thuần, ổn định, tất định, có chứng minh bằng test | 👀 review | — |
-| US-5.2 | Vòng phân bổ: dự thảo, điều chỉnh, công bố | Trung tâm chạy phân bổ, xem dự thảo, điều chỉnh có lý do và công bố | 📋 backlog | — |
+| US-5.2 | Vòng phân bổ: dự thảo, điều chỉnh, công bố | Trung tâm chạy phân bổ, xem dự thảo, điều chỉnh có lý do và công bố | 👀 review | — |
 | US-5.3 | HR duyệt danh sách đề cử | HR xem hồ sơ chi tiết và mời phỏng vấn hoặc từ chối có lý do | 📋 backlog | — |
 | US-5.4 | Phỏng vấn, Dự bị và lời mời thực tập | Kết quả phỏng vấn dẫn đến lời mời; SV nhận hoặc từ chối trong hạn | 📋 backlog | — |
 | US-5.5 | Vòng bổ sung và đóng đợt | SV trong hàng chờ được xét vòng sau; Trung tâm đóng đợt | 📋 backlog | — |

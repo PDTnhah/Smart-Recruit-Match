@@ -8,6 +8,7 @@ import { StudentLayout } from '@/app/layouts/student-layout';
 import { ComingSoonPage, PortalHomePage } from '@/app/pages/portal-pages';
 import { AcceptInvitationPage } from '@/features/auth/accept-invitation-page';
 import { LoginPage } from '@/features/auth/login-page';
+import { AllocationPage } from '@/features/center/allocation/allocation-page';
 import { CampaignListPage } from '@/features/center/campaigns/campaign-list-page';
 import { CampaignCreatePage, CampaignEditPage } from '@/features/center/campaigns/campaign-pages';
 import { CompanyListPage } from '@/features/center/companies/company-list-page';
@@ -24,6 +25,7 @@ import { HrJdListPage } from '@/features/hr/jds/hr-jd-list-page';
 import { HrJdCreatePage, HrJdDetailPage } from '@/features/hr/jds/hr-jd-pages';
 import { StudentHomePage } from '@/features/student/home/student-home-page';
 import { PreferencesPage } from '@/features/student/preferences/preferences-page';
+import { ResultsPage } from '@/features/student/results/results-page';
 import { CvPage } from '@/features/student/profile/cv-page';
 
 // Routes by portal (DESIGN.md §12). A story that ships a screen adds its route next to the
@@ -83,6 +85,8 @@ export const router = createBrowserRouter([
       { path: 'exams', element: <ExamsPage /> },
       // US-4.4: the results of a closed session.
       { path: 'exams/:sessionId/result', element: <ExamResultPage /> },
+      // US-5.2: "Kết quả": where the student is nominated after each published allocation round.
+      { path: 'results', element: <ResultsPage /> },
     ],
     // US-1.6 AC-1: the home lists what to do now, starting with consent and CV for open campaigns.
     <StudentHomePage />,
@@ -107,6 +111,8 @@ export const router = createBrowserRouter([
     // US-2.4: CVs whose analysis failed or whose file hid text.
     { path: 'cvs', element: centerOnly(<CvAttentionPage />) },
     { path: 'grading', element: centerOnly(<GradingQueuePage />) },
+    // US-5.2: allocation rounds: run, draft, adjustments, publish.
+    { path: 'allocation', element: centerOnly(<AllocationPage />) },
     // US-2.5: review of the new skills the AI found.
     { path: 'skills', element: adminOnly(<SkillReviewPage />) },
   ]),
