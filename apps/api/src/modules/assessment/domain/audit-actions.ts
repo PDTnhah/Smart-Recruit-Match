@@ -20,6 +20,11 @@ export const ASSESSMENT_AUDIT_ACTIONS = {
    */
   QUESTION_REVIEWED: 'QUESTION_REVIEWED',
   /**
+   * CENTER or HR added questions by hand to the bank (US-4.13 AC-1, AC-5), from the form or a
+   * file: one entry per save; after is `{ origin, fileName, count, questionIds }`.
+   */
+  QUESTIONS_ADDED_MANUALLY: 'QUESTIONS_ADDED_MANUALLY',
+  /**
    * A student started the test of a preference (US-4.3 AC-1); after is `{ preferenceId, bankId,
    * bankVersion, seed, deadlineAt }`. Closing the session is its TRANSITION entry.
    */

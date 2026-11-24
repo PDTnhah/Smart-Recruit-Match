@@ -11,6 +11,27 @@ import { SampleQuestionSchema } from './question-review.js';
 // returns them (AGENTS › Invariant 8).
 
 /**
+ * Who wrote a question (US-4.13 AC-8, CONTEXT D62): the Test Generator, or CENTER or HR by hand. A
+ * question written by hand has no draft, model or prompt (Invariant 12 is about LLM output only).
+ */
+export const QUESTION_SOURCES = ['AI', 'MANUAL'] as const;
+
+export type QuestionSource = (typeof QUESTION_SOURCES)[number];
+
+/** Roles that may add questions by hand (US-4.13 AC-1). */
+export const QUESTION_AUTHOR_ROLES = ['CENTER', 'HR'] as const;
+
+/** The account that added a question by hand. */
+export const QuestionCreatorSchema = z.object({
+  id: z.int().positive(),
+  /** Full name, or the email of an account without one. */
+  name: z.string(),
+  role: z.enum(QUESTION_AUTHOR_ROLES),
+});
+
+export type QuestionCreator = z.output<typeof QuestionCreatorSchema>;
+
+/**
  * Why CENTER rejects a question: the Validator's reasons (US-4.2 AC-3) but its refusal, which only
  * the model gives. The same codes, so the Test Generator reads both kinds of rejection alike.
  */
@@ -86,15 +107,20 @@ export type QuestionManualRejection = z.output<typeof QuestionManualRejectionSch
 
 /**
  * One question of the bank, whatever its status (US-4.11 AC-1): what a sample question shows, the
- * Validator's verdict, CENTER's rejection, and the model and prompt that wrote it (Invariant 12).
+ * Validator's verdict, CENTER's rejection, and who wrote it: the model and prompt of an AI question
+ * (Invariant 12), the account of one added by hand (US-4.13 AC-7).
  */
 export const BankQuestionSchema = SampleQuestionSchema.omit({ review: true }).extend({
   /** In a cell of the current blueprint: an exam draws no question of a skill the JD dropped. */
   inBlueprint: z.boolean(),
   aiCheck: QuestionAiCheckSchema.nullable(),
   manualRejection: QuestionManualRejectionSchema.nullable(),
-  model: z.string(),
-  promptVersion: z.string(),
+  source: z.enum(QUESTION_SOURCES),
+  /** Null for an AI question. */
+  createdBy: QuestionCreatorSchema.nullable(),
+  /** Null for a question added by hand. */
+  model: z.string().nullable(),
+  promptVersion: z.string().nullable(),
   createdAt: z.iso.datetime(),
 });
 

@@ -26,7 +26,14 @@ export const RUBRIC_MAX_POINTS = 100;
 /** Most drafts one bank holds: two full parts at `max` with room to spare. */
 export const QUESTION_BANK_MAX_DRAFTS = 1_000;
 
-const QUESTION_TEXT_MAX = 4_000;
+/** Longest stem, explanation or model answer of a question. */
+export const QUESTION_TEXT_MAX = 4_000;
+
+/** Longest skill name of a question, as a blueprint cell writes it. */
+export const QUESTION_SKILL_MAX = 100;
+
+/** Longest text of an MCQ option or of a rubric criterion. */
+export const QUESTION_PART_TEXT_MAX = 1_000;
 
 const text = (max: number) => z.string().trim().min(1).max(max);
 
@@ -94,7 +101,7 @@ export type QuestionVerdict = z.output<typeof QuestionVerdictSchema>;
 
 const questionBase = {
   draft_id: z.int().positive().describe('ai.question_drafts.id; the backend stores each draft once by it'),
-  skill: text(100).describe('Skill of the blueprint cell, as the blueprint writes it'),
+  skill: text(QUESTION_SKILL_MAX).describe('Skill of the blueprint cell, as the blueprint writes it'),
   difficulty: QuestionDifficultySchema,
   stem: text(QUESTION_TEXT_MAX).describe('The question as the student reads it'),
   explanation: text(QUESTION_TEXT_MAX).describe('Why the answer is right; for staff, never sent to students'),
@@ -105,14 +112,14 @@ const questionBase = {
 
 export const McqOptionSchema = z
   .strictObject({
-    text: text(1_000).describe('Option text'),
+    text: text(QUESTION_PART_TEXT_MAX).describe('Option text'),
     correct: z.boolean().describe('Whether this option is the answer'),
   })
   .meta({ title: 'McqOption', description: 'One option of a multiple-choice question' });
 
 export const RubricCriterionSchema = z
   .strictObject({
-    criterion: text(1_000).describe('What the grader looks for'),
+    criterion: text(QUESTION_PART_TEXT_MAX).describe('What the grader looks for'),
     max_points: z.int().positive().max(RUBRIC_MAX_POINTS).describe('Points this criterion is worth at most'),
   })
   .meta({ title: 'RubricCriterion', description: 'One criterion of an essay rubric' });
@@ -145,7 +152,7 @@ export type GeneratedQuestion = z.output<typeof GeneratedQuestionSchema>;
 export const MissingCellSchema = z
   .strictObject({
     type: QuestionTypeSchema,
-    skill: text(100).describe('Skill of the blueprint cell'),
+    skill: text(QUESTION_SKILL_MAX).describe('Skill of the blueprint cell'),
     difficulty: QuestionDifficultySchema,
     drafted: z.int().min(0).describe('Drafts the bank holds for the cell, rejected ones too'),
     validated: z.int().min(0).describe('Drafts of the cell the Validator passed'),

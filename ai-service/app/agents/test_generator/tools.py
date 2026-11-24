@@ -14,6 +14,12 @@ Coverage reads the verdicts the Validator gave when CENTER ran it (QUESTIONS_VAL
 drafts CENTER rejected by hand (US-4.11): a rejected draft takes no room in its cell, and the cell
 asks for others in its place, with the reasons. CENTER's reasons win over the Validator's verdict
 of the same draft. Every other draft is usable, whether anyone checked it or not.
+
+The questions CENTER and HR added by hand (US-4.13, core.v_ai_manual_questions) count as the
+backend counts them: usable while DRAFT or VALIDATED, taking room in their cell unless REJECTED,
+and in the bank's total. Their stems are embedded at the start of the job, in memory only (they
+have no draft to own a row of ai.embeddings), and every new draft is checked against them, exact
+and near duplicates alike. Their usable stems go to the prompt with the drafts'.
 """
 
 import hashlib
@@ -48,11 +54,14 @@ from .config import (
 )
 from .drafts import Draft, NewDraft, QuestionDraftRepo
 from .schemas import ProposedQuestion
-from .source import BankSource
+from .source import BankSource, ManualQuestion
 
 logger = logging.getLogger(__name__)
 
 PartName = Literal["A", "B"]
+
+USABLE_STATUSES = frozenset({"DRAFT", "VALIDATED"})
+"""core.questions statuses an exam draws (USABLE_QUESTION_STATES)."""
 
 
 class RejectReason(StrEnum):
@@ -211,13 +220,15 @@ async def load_bank_tools(
     drafts: Sequence[Draft],
     verdicts: Mapping[int, QuestionValidation],
     rejections: Mapping[int, tuple[str, ...]] | None = None,
+    manual: Sequence[ManualQuestion] = (),
     repo: QuestionDraftRepo,
     embedder: Embedder,
     job_id: UUID,
 ) -> "QuestionBankTools":
     """`drafts`: every draft of the bank, as `repo.drafts` reads them. `verdicts`: the Validator's
     verdicts by draft id, as the bank's AI checks stored them. `rejections`: the reasons of the
-    drafts CENTER rejected by hand, by draft id (core.v_ai_question_rejections)."""
+    drafts CENTER rejected by hand, by draft id (core.v_ai_question_rejections). `manual`: the
+    questions added by hand (core.v_ai_manual_questions)."""
     vectors = await repo.vectors(bank.bank_id, embedder.model)
     lacking = [draft for draft in drafts if draft.draft_id not in vectors]
     if lacking:
@@ -235,12 +246,14 @@ async def load_bank_tools(
         logger.info(
             "bank %s: embedded %d draft(s) with %s", bank.bank_id, len(lacking), embedder.model
         )
+    manual_vectors = await embedder.embed([question.stem for question in manual]) if manual else []
     return QuestionBankTools(
         bank=bank,
         drafts=drafts,
         vectors=vectors,
         verdicts=verdicts,
         rejections=rejections or {},
+        manual=list(zip(manual, manual_vectors, strict=True)),
         repo=repo,
         embedder=embedder,
         job_id=job_id,
@@ -258,6 +271,7 @@ class QuestionBankTools:
         vectors: dict[int, list[float]],
         verdicts: Mapping[int, QuestionValidation],
         rejections: Mapping[int, tuple[str, ...]],
+        manual: Sequence[tuple[ManualQuestion, list[float]]] = (),
         repo: QuestionDraftRepo,
         embedder: Embedder,
         job_id: UUID,
@@ -272,7 +286,10 @@ class QuestionBankTools:
         self._cell_of = {cell.key: cell for cell in self._cells}
         self._drafts_of: dict[CellKey, list[tuple[int, str]]] = {}
         """Id and stem of each draft of a cell, oldest first."""
-        self._stem_keys: dict[str, int] = {}
+        self._manual_of: dict[CellKey, list[ManualQuestion]] = {}
+        """Questions added by hand to each cell, oldest first."""
+        self._stem_keys: dict[str, int | None] = {}
+        """Stem key -> the draft holding it; None for a question added by hand."""
         self._known: list[_Known] = []
         self._total = 0
         for draft in drafts:
@@ -283,6 +300,12 @@ class QuestionBankTools:
                 draft.stem_key,
                 vectors[draft.draft_id],
             )
+        for question, vector in manual:
+            key = (question.type, skill_match_key(question.skill), question.difficulty)
+            self._manual_of.setdefault(key, []).append(question)
+            self._stem_keys.setdefault(stem_key(question.stem), None)
+            self._known.append(_Known(None, question.stem, vector))
+            self._total += 1
 
     def get_blueprint_coverage(self) -> list[CellCoverage]:
         """The cells holding fewer usable drafts (not rejected) than 3× the questions they draw, in
@@ -293,7 +316,12 @@ class QuestionBankTools:
                 (draft_id, stem, self._rejection_of(draft_id))
                 for draft_id, stem in self._drafts_of.get(cell.key, [])
             ]
-            usable = sum(1 for _, _, reasons in drafts if reasons is None)
+            manual = [
+                question
+                for question in self._manual_of.get(cell.key, [])
+                if question.status in USABLE_STATUSES
+            ]
+            usable = sum(1 for _, _, reasons in drafts if reasons is None) + len(manual)
             if usable >= MIN_FACTOR * cell.count:
                 continue
             coverage.append(
@@ -304,14 +332,18 @@ class QuestionBankTools:
                     skill_key=cell.skill_key,
                     difficulty=cell.difficulty,
                     count=cell.count,
-                    drafted=len(drafts),
+                    drafted=len(drafts) + len(self._manual_of.get(cell.key, [])),
                     validated=sum(
                         1
                         for draft_id, _, reasons in drafts
                         if reasons is None and _validated(self._verdicts.get(draft_id))
-                    ),
+                    )
+                    + sum(1 for question in manual if question.status == "VALIDATED"),
                     usable=usable,
-                    stems=tuple(stem for _, stem, reasons in drafts if reasons is None),
+                    stems=(
+                        *(stem for _, stem, reasons in drafts if reasons is None),
+                        *(question.stem for question in manual),
+                    ),
                     rejected=tuple(
                         FailedDraft(stem, reasons)
                         for _, stem, reasons in drafts
@@ -442,9 +474,13 @@ class QuestionBankTools:
         return accepted, rejected
 
     def _kept(self, key: CellKey) -> int:
-        """Drafts of the cell nobody rejected: CELL_FULL counts these (D50)."""
+        """Drafts and questions added by hand of the cell nobody rejected: CELL_FULL counts these
+        (D50, US-4.13)."""
         drafts = self._drafts_of.get(key, [])
-        return sum(1 for draft_id, _ in drafts if self._rejection_of(draft_id) is None)
+        manual = self._manual_of.get(key, [])
+        return sum(1 for draft_id, _ in drafts if self._rejection_of(draft_id) is None) + sum(
+            1 for question in manual if question.status != "REJECTED"
+        )
 
     def _rejection_of(self, draft_id: int) -> tuple[str, ...] | None:
         """Why the draft is rejected: CENTER's reasons, else the Validator's; None while usable."""

@@ -57,6 +57,9 @@ export const API_ERROR_CODES = [
   'QUESTION_NOT_REVIEWABLE',
   // CENTER rejects a question by hand (US-4.11).
   'QUESTION_NOT_REJECTABLE',
+  // CENTER and HR add questions by hand or from a file (US-4.13, CONTEXT D62).
+  'MANUAL_QUESTIONS_INVALID',
+  'QUESTION_IMPORT_FILE_INVALID',
   // Exam room (US-4.3, CONTEXT D51).
   'EXAM_ALREADY_TAKEN',
   'EXAM_CLOSED',

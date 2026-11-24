@@ -1,4 +1,10 @@
-import type { ApiErrorCode, MissingCell, PreferenceRejectionCode } from '@srm/shared';
+import type {
+  ApiErrorCode,
+  ManualQuestionIssue,
+  MissingCell,
+  PreferenceRejectionCode,
+  QuestionImportFileError,
+} from '@srm/shared';
 
 // Plain classes without NestJS imports, so domain/ code may throw them too.
 // ApiExceptionFilter (or DomainErrorFilter) turns them into `{ code, message, details }` responses.
@@ -571,6 +577,29 @@ export class QuestionNotRejectableError extends DomainError {
 
   constructor(questionId: number, status: string) {
     super(`question ${questionId} is ${status}; only a usable question can be rejected`, { questionId, status });
+  }
+}
+
+/**
+ * Questions added by hand that break a rule of the bank (US-4.13 AC-2, AC-5): every issue, by the
+ * question's position in the request. Nothing of the request was saved.
+ */
+export class ManualQuestionsInvalidError extends DomainError {
+  readonly code = 'MANUAL_QUESTIONS_INVALID';
+  readonly httpStatus = 400;
+
+  constructor(issues: readonly ManualQuestionIssue[]) {
+    super(`${issues.length} rule(s) broken by the questions added by hand`, { issues: [...issues] });
+  }
+}
+
+/** An import file refused as a whole (US-4.13 AC-4): `reason` says why; `columns` lists the missing headers. */
+export class QuestionImportFileInvalidError extends DomainError {
+  readonly code = 'QUESTION_IMPORT_FILE_INVALID';
+  readonly httpStatus = 400;
+
+  constructor(reason: QuestionImportFileError, extra: { columns?: string[]; maxRows?: number } = {}) {
+    super(`import file refused: ${reason}`, { reason, ...extra });
   }
 }
 

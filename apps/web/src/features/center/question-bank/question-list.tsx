@@ -1,12 +1,15 @@
 import {
   type BankQuestion,
   type CellCoverage,
+  cellRoom,
   EXAM_PARTS,
   type ExamBlueprintView,
   type ExamPart,
   QUESTION_DIFFICULTIES,
   QUESTION_STATES,
   type QuestionDifficulty,
+  QUESTION_SOURCES,
+  type QuestionSource,
   type QuestionStatus,
   skillKey,
 } from '@srm/shared';
@@ -20,11 +23,12 @@ import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTi
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ManualQuestionActions } from '@/features/jds/manual-questions/manual-question-actions';
 import { formatNumber } from '@/lib/format';
 import { apiErrorMessage } from '@/shared/api/errors';
 import { bankQuestionsKey, useBankQuestions } from './api';
 import { BankQuestionItem } from './bank-question-item';
-import { cellLabel, DIFFICULTY_LABELS, EXAM_PART_TITLES, QUESTION_STATUS_LABELS } from './labels';
+import { cellLabel, DIFFICULTY_LABELS, EXAM_PART_TITLES, QUESTION_SOURCE_LABELS, QUESTION_STATUS_LABELS } from './labels';
 import { ShortAfterLockAlert } from './short-after-lock-alert';
 
 /** Radix Select takes no empty value: "all" is a value of its own (DESIGN.md §6 `select`). */
@@ -35,10 +39,11 @@ interface Filters {
   skill: string;
   difficulty: QuestionDifficulty | typeof ALL;
   status: QuestionStatus | typeof ALL;
+  source: QuestionSource | typeof ALL;
   search: string;
 }
 
-const NO_FILTER: Filters = { part: ALL, skill: ALL, difficulty: ALL, status: ALL, search: '' };
+const NO_FILTER: Filters = { part: ALL, skill: ALL, difficulty: ALL, status: ALL, source: ALL, search: '' };
 
 /** Case and Unicode form do not matter when searching a stem. */
 const normalise = (text: string) => text.normalize('NFC').toLocaleLowerCase('vi');
@@ -103,8 +108,8 @@ function FilterSelect<T extends string>({
 }
 
 /**
- * "Câu hỏi (N)" (US-4.11 AC-2): every question of the bank, by part then by cell (skill × difficulty), filtered by
- * part, skill, difficulty and status and searched by stem on the client (a bank holds at most 1 000 questions,
+ * "Câu hỏi (N)" (US-4.11 AC-2, US-4.13 AC-7, AC-10): every question of the bank, by part then by cell (skill ×
+ * difficulty), filtered by part, skill, difficulty, status and source and searched by stem on the client (a bank holds at most 1 000 questions,
  * about 100 as a rule). The list is read again whenever the bank's view changes (a run's result, a lock, a
  * rejection), since the view polls while AI works: right away while the list is `active` (shown), else once it is
  * shown again.
@@ -135,10 +140,28 @@ export function QuestionList({ view, active }: { view: ExamBlueprintView; active
         (filters.skill === ALL || skillKey(question.skill) === filters.skill) &&
         (filters.difficulty === ALL || question.difficulty === filters.difficulty) &&
         (filters.status === ALL || question.status === filters.status) &&
+        (filters.source === ALL || question.source === filters.source) &&
         (search === '' || normalise(question.stem).includes(search)),
     );
   }, [all, filters]);
   const coverage = useMemo(() => new Map<string, CellCoverage>(view.coverage.map((cell) => [cellKey(cell), cell])), [view.coverage]);
+  const running = view.run?.status === 'RUNNING' || view.validationRun?.status === 'RUNNING';
+  // US-4.13 AC-10: "Thêm câu" and "Import file" offer the cells of the blueprint with the room each has left.
+  const actions = (
+    <ManualQuestionActions
+      jdId={view.jdId}
+      cells={view.coverage.map((cell) => ({
+        type: cell.type,
+        skill: cell.skill,
+        difficulty: cell.difficulty,
+        usable: cell.usable,
+        room: cellRoom(cell),
+      }))}
+      locked={view.locked}
+      running={running}
+      outdated={view.jdOutdated}
+    />
+  );
 
   if (questions.isPending) {
     return (
@@ -168,26 +191,31 @@ export function QuestionList({ view, active }: { view: ExamBlueprintView; active
 
   if (questions.data.questions.length === 0) {
     return (
-      <Empty>
-        <EmptyHeader>
-          <EmptyMedia variant="icon">
-            <FileQuestion />
-          </EmptyMedia>
-          <EmptyTitle>Ngân hàng chưa có câu hỏi</EmptyTitle>
-          <EmptyDescription>Bấm "Sinh câu còn thiếu" ở mục Tổng quan để AI sinh câu theo ma trận đề.</EmptyDescription>
-        </EmptyHeader>
-      </Empty>
+      <div className="flex flex-col gap-6">
+        {actions}
+        <Empty>
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <FileQuestion />
+            </EmptyMedia>
+            <EmptyTitle>Ngân hàng chưa có câu hỏi</EmptyTitle>
+            <EmptyDescription>
+              Bấm "Sinh câu còn thiếu" ở mục Tổng quan để AI sinh câu theo ma trận đề, hoặc tự thêm câu bằng form hay file.
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      </div>
     );
   }
 
-  const running = view.run?.status === 'RUNNING' || view.validationRun?.status === 'RUNNING';
   const set = <K extends keyof Filters>(key: K) => (value: Filters[K]) => setFilters((current) => ({ ...current, [key]: value }));
   const filtered = shown.length !== questions.data.questions.length;
   return (
     <div className="flex flex-col gap-6">
       <ShortAfterLockAlert view={view} />
+      {actions}
       <div className="flex flex-col gap-2">
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-6">
           <Input
             type="search"
             className="sm:col-span-2 lg:col-span-1"
@@ -224,6 +252,15 @@ export function QuestionList({ view, active }: { view: ExamBlueprintView; active
             options={[
               { value: ALL, label: 'Mọi trạng thái' },
               ...QUESTION_STATES.map((status) => ({ value: status, label: QUESTION_STATUS_LABELS[status] })),
+            ]}
+          />
+          <FilterSelect
+            label="Lọc theo nguồn"
+            value={filters.source}
+            onChange={set('source')}
+            options={[
+              { value: ALL, label: 'Mọi nguồn' },
+              ...QUESTION_SOURCES.map((source) => ({ value: source, label: QUESTION_SOURCE_LABELS[source] })),
             ]}
           />
         </div>

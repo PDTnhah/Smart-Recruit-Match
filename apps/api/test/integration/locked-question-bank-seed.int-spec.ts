@@ -73,8 +73,9 @@ describe('GĐ5 locked question bank seed (US-4.2)', () => {
     const [bank] = await t.db.select().from(questionBanks).where(eq(questionBanks.id, seed.bankId));
     const rows = await t.db.select().from(questions).where(eq(questions.bankId, seed.bankId));
     const expected = seedQuestions(bank!.blueprint);
-    expect(rows.map((row) => row.draftId).sort((a, b) => b - a)).toEqual(expected.map((draft) => draft.draft_id));
-    expect(Math.max(...rows.map((row) => row.draftId))).toBe(-1);
+    const draftIds = rows.map((row) => row.draftId ?? 0);
+    expect(draftIds.sort((a, b) => b - a)).toEqual(expected.map((draft) => draft.draft_id));
+    expect(Math.max(...draftIds)).toBe(-1);
     for (const row of rows) {
       expect(row).toMatchObject({ status: 'VALIDATED', model: SEED_QUESTION_MODEL, promptVersion: SEED_QUESTION_PROMPT });
       expect(row.validation).toMatchObject({ status: 'VALIDATED', reasons: [], model: SEED_QUESTION_MODEL, prompt_version: SEED_QUESTION_PROMPT });

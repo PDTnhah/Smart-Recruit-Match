@@ -1,5 +1,5 @@
 import type { BankQuestion, CellCoverage, QuestionStatus } from '@srm/shared';
-import { Bot, ChevronRight, CircleCheck, CircleDashed, CircleMinus, CircleX, UserX } from 'lucide-react';
+import { Bot, ChevronRight, CircleCheck, CircleDashed, CircleMinus, CircleX, UserPen, UserX } from 'lucide-react';
 import { useState } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
@@ -7,7 +7,13 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { OPTION_LETTERS, QuestionBody, QuestionSection, QuestionText } from '@/features/jds/question-review/question-body';
 import { formatDateTime } from '@/lib/format';
 import { IconBadge, type IconBadgeStyle } from '@/shared/ui/icon-badge';
-import { DIFFICULTY_LABELS, QUESTION_STATUS_LABELS, REJECT_REASON_LABELS } from './labels';
+import {
+  DIFFICULTY_LABELS,
+  QUESTION_AUTHOR_ROLE_LABELS,
+  QUESTION_SOURCE_LABELS,
+  QUESTION_STATUS_LABELS,
+  REJECT_REASON_LABELS,
+} from './labels';
 import { RejectQuestionDialog } from './reject-question-dialog';
 
 /** DESIGN.md §6 › badge: where a question of the bank stands (US-4.11 AC-2). */
@@ -35,6 +41,13 @@ function RemovalLine({ question }: { question: BankQuestion }) {
 /** The Validator's verdict (US-4.10), with the model and prompt that gave it (AGENTS › Invariant 12). */
 function AiCheck({ question }: { question: BankQuestion }) {
   const check = question.aiCheck;
+  if (question.source === 'MANUAL') {
+    return (
+      <QuestionSection title="Kiểm bằng AI">
+        <p className="text-sm text-muted-foreground">Câu thêm tay không qua "Kiểm câu bằng AI". Bài test vẫn rút câu này.</p>
+      </QuestionSection>
+    );
+  }
   if (!check) {
     return (
       <QuestionSection title="Kiểm bằng AI">
@@ -83,9 +96,10 @@ function ManualRejection({ rejection }: { rejection: NonNullable<BankQuestion['m
 }
 
 /**
- * One question of the bank (US-4.11 AC-2, AC-3): collapsed to its stem, its status and why it was taken out; open,
- * the whole question with the correct option highlighted, the AI check, CENTER's rejection, who wrote it, and
- * "Loại câu" while it is usable. The content mounts only while open, so a long list stays light.
+ * One question of the bank (US-4.11 AC-2, AC-3, US-4.13 AC-7): collapsed to its stem, its status, "Thêm tay" for a
+ * question added by hand and why it was taken out; open, the whole question with the correct option highlighted, the
+ * AI check, CENTER's rejection, who wrote it (the model, or the account and its role), and "Loại câu" while it is
+ * usable. The content mounts only while open, so a long list stays light.
  */
 export function BankQuestionItem({
   jdId,
@@ -119,6 +133,9 @@ export function BankQuestionItem({
               </span>
               <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
                 <IconBadge style={STATUS_STYLE[question.status]}>{QUESTION_STATUS_LABELS[question.status]}</IconBadge>
+                {question.source === 'MANUAL' && (
+                  <IconBadge style={{ variant: 'outline', icon: UserPen }}>{QUESTION_SOURCE_LABELS.MANUAL}</IconBadge>
+                )}
                 <span className="tabular-nums">#{question.id}</span>
                 <RemovalLine question={question} />
               </span>
@@ -130,10 +147,18 @@ export function BankQuestionItem({
             <QuestionBody question={question} showStem={false} />
             {question.manualRejection && <ManualRejection rejection={question.manualRejection} />}
             <AiCheck question={question} />
-            <p className="flex flex-wrap items-center gap-x-2 text-xs break-words text-muted-foreground">
-              <Bot aria-hidden="true" className="size-3.5" />
-              Sinh bởi {question.model} · {question.promptVersion} · {formatDateTime(question.createdAt)}
-            </p>
+            {question.createdBy ? (
+              <p className="flex flex-wrap items-center gap-x-2 text-xs break-words text-muted-foreground">
+                <UserPen aria-hidden="true" className="size-3.5" />
+                Thêm tay bởi {question.createdBy.name} ({QUESTION_AUTHOR_ROLE_LABELS[question.createdBy.role]}) ·{' '}
+                {formatDateTime(question.createdAt)}
+              </p>
+            ) : (
+              <p className="flex flex-wrap items-center gap-x-2 text-xs break-words text-muted-foreground">
+                <Bot aria-hidden="true" className="size-3.5" />
+                Sinh bởi {question.model} · {question.promptVersion} · {formatDateTime(question.createdAt)}
+              </p>
+            )}
           </CardContent>
           {USABLE.has(question.status) && (
             <CardFooter className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-end">

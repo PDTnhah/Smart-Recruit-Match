@@ -10,6 +10,7 @@ import { useCampaigns } from '@/features/center/campaigns/api';
 import { useJd } from '@/features/jds/api';
 import { JdDetails } from '@/features/jds/jd-details';
 import { JdStatusBadge } from '@/features/jds/jd-status-badge';
+import { CompanyQuestionsPanel } from '@/features/jds/manual-questions/company-questions-panel';
 import { ReviewSamplePanel } from '@/features/jds/question-review/review-sample-panel';
 import { RequirementsPanel } from '@/features/jds/requirements/requirements-panel';
 import { apiErrorMessage } from '@/shared/api/errors';
@@ -71,15 +72,20 @@ export function HrJdCreatePage() {
   );
 }
 
-/** `?tab=review` opens "Duyệt đề mẫu", so a reload or a link keeps it. */
+/** `?tab=review` opens "Duyệt đề mẫu", `?tab=questions` "Câu hỏi của công ty", so a reload or a link keeps it. */
 const TAB_PARAM = 'tab';
 const REVIEW_TAB = 'review';
+const QUESTIONS_TAB = 'questions';
 const DETAILS_TAB = 'details';
+const TABS = [DETAILS_TAB, REVIEW_TAB, QUESTIONS_TAB] as const;
+type HrJdTab = (typeof TABS)[number];
+const isTab = (value: string | null): value is HrJdTab => TABS.some((tab) => tab === value);
 
 /**
  * `/hr/job-descriptions/:id`: edit and submit a draft (US-1.5 AC-6, AC-10); once submitted, the
  * JD next to its normalised requirements, which HR reviews and confirms (US-2.3 AC-7, AC-8). Once
- * approved, the "Duyệt đề mẫu" tab: a sample of the JD's question bank to review (US-4.9 AC-6).
+ * approved, the "Duyệt đề mẫu" tab: a sample of the JD's question bank to review (US-4.9 AC-6), and the "Câu hỏi
+ * của công ty" tab: the questions HR adds to the bank by hand or from a file (US-4.13 AC-10).
  */
 export function HrJdDetailPage() {
   const id = Number(useParams().id);
@@ -92,16 +98,19 @@ function HrJdDetail({ id }: { id: number }) {
   const [unsaved, setUnsaved] = useState(false);
   const { cancelled, final } = useCampaignEnded(jd.data?.campaignId ?? 0);
   const [params, setParams] = useSearchParams();
-  const tab = params.get(TAB_PARAM) === REVIEW_TAB ? REVIEW_TAB : DETAILS_TAB;
-  // The sample loads once its tab is opened, then stays mounted.
+  const requested = params.get(TAB_PARAM);
+  const tab: HrJdTab = isTab(requested) ? requested : DETAILS_TAB;
+  // The sample and the company's questions load once their tab is opened, then stay mounted.
   const [reviewOpened, setReviewOpened] = useState(tab === REVIEW_TAB);
   if (tab === REVIEW_TAB && !reviewOpened) setReviewOpened(true);
+  const [questionsOpened, setQuestionsOpened] = useState(tab === QUESTIONS_TAB);
+  if (tab === QUESTIONS_TAB && !questionsOpened) setQuestionsOpened(true);
 
   function selectTab(next: string) {
     setParams(
       (current) => {
         const updated = new URLSearchParams(current);
-        if (next === REVIEW_TAB) updated.set(TAB_PARAM, next);
+        if (isTab(next) && next !== DETAILS_TAB) updated.set(TAB_PARAM, next);
         else updated.delete(TAB_PARAM);
         return updated;
       },
@@ -166,9 +175,11 @@ function HrJdDetail({ id }: { id: number }) {
       {cancelled && <CampaignCancelledAlert />}
       {QUESTION_BANK_JD_STATES.includes(data.status) ? (
         <Tabs value={tab} onValueChange={selectTab} className="gap-6">
-          <TabsList>
+          {/* Three tabs: scroll sideways at 360 px rather than overflow the page (DESIGN.md §5). */}
+          <TabsList className="max-w-full justify-start overflow-x-auto">
             <TabsTrigger value={DETAILS_TAB}>Thông tin JD</TabsTrigger>
             <TabsTrigger value={REVIEW_TAB}>Duyệt đề mẫu</TabsTrigger>
+            <TabsTrigger value={QUESTIONS_TAB}>Câu hỏi của công ty</TabsTrigger>
           </TabsList>
           {/* Both stay mounted, so switching tabs keeps a dialog's input (DESIGN.md §6 › tabs). */}
           <TabsContent value={DETAILS_TAB} forceMount className="data-[state=inactive]:hidden">
@@ -176,6 +187,9 @@ function HrJdDetail({ id }: { id: number }) {
           </TabsContent>
           <TabsContent value={REVIEW_TAB} forceMount className="data-[state=inactive]:hidden">
             {reviewOpened && <ReviewSamplePanel jdId={data.id} readOnly={final} />}
+          </TabsContent>
+          <TabsContent value={QUESTIONS_TAB} forceMount className="data-[state=inactive]:hidden">
+            {questionsOpened && <CompanyQuestionsPanel jdId={data.id} readOnly={final} />}
           </TabsContent>
         </Tabs>
       ) : (

@@ -13,6 +13,7 @@ import { CvTrustController } from './api/cv-trust.controller.js';
 import { EssayGradingController } from './api/essay-grading.controller.js';
 import { ExamSessionController } from './api/exam-session.controller.js';
 import { ManualGradingController } from './api/manual-grading.controller.js';
+import { ManualQuestionsController } from './api/manual-questions.controller.js';
 import { QuestionBankController } from './api/question-bank.controller.js';
 import { QuestionController } from './api/question.controller.js';
 import { ReviewSampleController } from './api/review-sample.controller.js';
@@ -27,6 +28,7 @@ import { EssayResultsHandler } from './application/essay-results.handler.js';
 import { ExamResultService } from './application/exam-result.service.js';
 import { ExamScheduler } from './application/exam-scheduler.js';
 import { ExamSessionService } from './application/exam-session.service.js';
+import { ManualQuestionsService } from './application/manual-questions.service.js';
 import { GradingScheduler } from './application/grading.scheduler.js';
 import { GradingService } from './application/grading.service.js';
 import { ManualGradingService } from './application/manual-grading.service.js';
@@ -76,6 +78,7 @@ import { QuestionReviewsRepository } from './infrastructure/question-reviews.rep
     QuestionBankController,
     QuestionController,
     ReviewSampleController,
+    ManualQuestionsController,
     ExamSessionController,
     EssayGradingController,
     ManualGradingController,
@@ -89,6 +92,7 @@ import { QuestionReviewsRepository } from './infrastructure/question-reviews.rep
     QuestionBanksRepository,
     QuestionGenerationRunsRepository,
     ReviewSampleService,
+    ManualQuestionsService,
     QuestionReviewsRepository,
     DrawableBankCache,
     ExamSessionService,

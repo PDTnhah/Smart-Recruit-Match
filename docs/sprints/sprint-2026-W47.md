@@ -32,6 +32,7 @@ goal: 'Sửa lỗi tìm kỹ năng khi ô tìm còn trống (US-2.8, v0.25.1); �
 | US-4.10 | Tách Validator khỏi job sinh câu: AI kiểm câu khi Trung tâm yêu cầu | EPIC-4 | P0 | 8 | 👀 review | new | [stories/US-4.10-on-demand-question-validation.md](stories/US-4.10-on-demand-question-validation.md) |
 | US-4.9  | Duyệt mẫu ngân hàng câu hỏi; màn "Duyệt JD" giữ JD đã duyệt | EPIC-4 | P2 | 2 | 👀 review | new | [stories/US-4.9-question-bank-sample-review.md](stories/US-4.9-question-bank-sample-review.md) |
 | US-4.11 | Tab Ngân hàng câu hỏi: xem toàn bộ câu và loại câu sai | EPIC-4 | P1 | 5 | 👀 review | new | [stories/US-4.11-question-bank-browser-and-rejection.md](stories/US-4.11-question-bank-browser-and-rejection.md) |
+| US-4.13 | Trung tâm và HR tự thêm câu hỏi: điền form hoặc import file | EPIC-4 | P1 | 8 | 👀 review | new | [stories/US-4.13-manual-question-entry-and-import.md](stories/US-4.13-manual-question-entry-and-import.md) |
 
 > **Convention**: AC + Tasks live inside each story file. This sprint file lists planned
 > stories at a glance only. Design + decision docs cross-linked at the bottom.
@@ -56,7 +57,7 @@ Ngày 2026-11-16, người dùng bắt đầu US-2.8 (1 điểm, sửa lỗi tá
 - ✅ **Closed**: [W45](sprint-2026-W45.md) (11 story, 0.14.0–0.24.0), [W46](sprint-2026-W46.md) (US-1.8 0.24.1, US-1.10 0.25.0), đóng ngày 2026-11-16.
 - 🚧 **Carried into W47**: 14 story `review` (bảng trên).
 - ⏭️ **Not started**: US-5.1, US-6.4.
-- 📋 **Backlog**: US-1.9 (phiên giữa các tab); [US-4.13](stories/US-4.13-manual-question-entry-and-import.md) (Trung tâm và HR tự thêm câu hỏi bằng form hoặc import file, lập ngày 2026-11-21, [CONTEXT D62](../CONTEXT.md); chưa xếp sprint).
+- 📋 **Backlog**: US-1.9 (phiên giữa các tab). US-4.13 (lập ngày 2026-11-21, [CONTEXT D62](../CONTEXT.md)) xếp vào W47 ngày 2026-11-23, 0.31.0 `review`.
 
 ## Risks & dependencies
 

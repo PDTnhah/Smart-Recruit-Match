@@ -1,15 +1,17 @@
 import { Inject, Injectable } from '@nestjs/common';
+import type { Role } from '@srm/shared';
 import { and, eq, inArray, isNotNull } from 'drizzle-orm';
 import { users } from '../../../db/schema/index.js';
 import { DRIZZLE } from '../../../db/tokens.js';
 import type { Database } from '../../../db/types.js';
 
-/** How to reach an account, as the notification module needs it (US-1.7). */
+/** How to reach an account, as the notification module needs it (US-1.7), and its role (US-4.13). */
 export interface UserContact {
   id: number;
   email: string;
   fullName: string | null;
   isActive: boolean;
+  role: Role;
 }
 
 /**
@@ -83,7 +85,7 @@ export class UserDirectory {
   async findContacts(userIds: readonly number[]): Promise<UserContact[]> {
     if (userIds.length === 0) return [];
     return this.db
-      .select({ id: users.id, email: users.email, fullName: users.fullName, isActive: users.isActive })
+      .select({ id: users.id, email: users.email, fullName: users.fullName, isActive: users.isActive, role: users.role })
       .from(users)
       .where(inArray(users.id, [...userIds]));
   }
