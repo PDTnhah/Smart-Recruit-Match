@@ -19,7 +19,7 @@ depends_on:
   - US-4.4
   - US-1.7
 assignee: PDTnhah
-commit:
+commit: 3574d0c
 created: 2026-10-07
 updated: 2026-11-24
 ---
@@ -141,7 +141,7 @@ Thuật toán đã có ở [US-5.1](US-5.1-allocation-engine-property-tests.md) 
 
 Xem [CHANGELOG 0.33.0](../../CHANGELOG.md).
 
-**Commit**:
+**Commit**: `3574d0c`
 
 ## Implementation notes
 
