@@ -68,7 +68,13 @@ export class AllocationViewService {
         roundNo: round.roundNo,
         publishedAt: (round.publishedAt ?? round.ranAt).toISOString(),
         nomination: own
-          ? { jdId: own.jdId, title: ownJd?.title ?? '', companyName: ownJd?.companyName ?? '', status: own.status }
+          ? {
+              nominationId: own.id,
+              jdId: own.jdId,
+              title: ownJd?.title ?? '',
+              companyName: ownJd?.companyName ?? '',
+              status: own.status,
+            }
           : null,
         preferences: outcome.items.map((item) => {
           const jd = jds.get(Number(item.jdId));

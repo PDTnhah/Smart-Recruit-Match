@@ -1,7 +1,7 @@
 ---
 id: EPIC-5
 title: "Phân bổ, HR duyệt và phỏng vấn"
-status: backlog
+status: in-progress
 prd_ref:
   - FR-26
   - FR-27
@@ -14,7 +14,7 @@ arch_ref:
   - AD-7
   - AD-8
 created: 2026-10-07
-updated: 2026-10-07
+updated: 2026-11-24
 ---
 
 ## Goal
@@ -27,7 +27,7 @@ Chạy trọn luồng từ phân bổ đến khi sinh viên nhận thực tập,
 
 Sau EPIC-4, mỗi nguyện vọng có S_final. EPIC-5 phủ GĐ7–GĐ10: chạy Deferred Acceptance phía sinh viên đề xuất (AD-7), Trung tâm xem dự thảo, điều chỉnh có lý do rồi công bố; HR duyệt danh sách đề cử, phỏng vấn, gửi lời mời; SV nhận hoặc từ chối; SV chưa có nơi được xét ở vòng bổ sung với sức chứa C_j(r).
 
-Allocation Engine (US-5.1) là hàm TS thuần, không phụ thuộc DB hay AI. Vì vậy nó được làm ở Tuần 2, sớm hơn nhiều so với các story còn lại của epic, và mô phỏng thực nghiệm (US-6.4) dùng lại nó. Epic này **không** dùng LLM để ra quyết định. Phần tóm tắt hồ sơ cho HR (US-5.3) chỉ để tham khảo.
+Allocation Engine (US-5.1) là hàm TS thuần, không phụ thuộc DB hay AI. Vì vậy nó được làm ở Tuần 2, sớm hơn nhiều so với các story còn lại của epic, và mô phỏng thực nghiệm (US-6.4) dùng lại nó. Epic này **không** dùng LLM để ra quyết định. Phần tóm tắt hồ sơ cho HR chỉ để tham khảo; nó được tách khỏi US-5.3 thành US-5.6, chờ người dùng quyết có làm không ([CONTEXT D65](../../CONTEXT.md)).
 
 ### Feature pillars
 
@@ -38,6 +38,7 @@ Allocation Engine (US-5.1) là hàm TS thuần, không phụ thuộc DB hay AI. 
 | 3 | **HR duyệt** | US-5.3 | Danh sách đề cử, hồ sơ chi tiết, quyết định có lý do, SLA |
 | 4 | **Phỏng vấn và lời mời** | US-5.4 | Lịch, kết quả, Dự bị, lời mời có hạn |
 | 5 | **Vòng bổ sung và đóng đợt** | US-5.5 | Hàng chờ thêm NV, C_j(r), R_max, đóng đợt |
+| 6 | **Tóm tắt hồ sơ bằng AI** | US-5.6 | HR đọc tham khảo; không ảnh hưởng thứ tự hay quyết định (chưa quyết làm) |
 
 ### Schedule and dependencies
 
@@ -48,6 +49,7 @@ Allocation Engine (US-5.1) là hàm TS thuần, không phụ thuộc DB hay AI. 
 | US-5.3 | 8 | T11 (W51) | A | US-5.2 |
 | US-5.4 | 8 | T12 (W52) | A | US-5.3 |
 | US-5.5 | 5 | T12 (W52) | A | US-5.4 |
+| US-5.6 | 5 | chưa xếp | B | US-5.3, US-2.2 |
 
 ### Out of scope
 
@@ -62,8 +64,8 @@ Allocation Engine (US-5.1) là hàm TS thuần, không phụ thuộc DB hay AI. 
 |----|-------|--------|
 | FR-26 | US-5.1, US-5.2 | 📋 backlog |
 | FR-27 | US-5.2 | 📋 backlog |
-| FR-28 | US-5.3 | 📋 backlog |
-| FR-29 | US-5.3 | 📋 backlog |
+| FR-28 | US-5.3 (US-5.6: tóm tắt tham khảo) | 👀 review |
+| FR-29 | US-5.3 | 👀 review |
 | FR-30 | US-5.4 | 📋 backlog |
 | FR-31 | US-5.4 | 📋 backlog |
 | FR-32 | US-5.5 | 📋 backlog |
@@ -81,9 +83,10 @@ Allocation Engine (US-5.1) là hàm TS thuần, không phụ thuộc DB hay AI. 
 |---|---|---|---|---|
 | US-5.1 | Allocation Engine và property-based test | Thuật toán phân bổ thuần, ổn định, tất định, có chứng minh bằng test | 👀 review | — |
 | US-5.2 | Vòng phân bổ: dự thảo, điều chỉnh, công bố | Trung tâm chạy phân bổ, xem dự thảo, điều chỉnh có lý do và công bố | 👀 review | — |
-| US-5.3 | HR duyệt danh sách đề cử | HR xem hồ sơ chi tiết và mời phỏng vấn hoặc từ chối có lý do | 📋 backlog | — |
+| US-5.3 | HR duyệt danh sách đề cử | HR xem hồ sơ chi tiết và mời phỏng vấn hoặc từ chối có lý do | 👀 review | 0.34.0 |
 | US-5.4 | Phỏng vấn, Dự bị và lời mời thực tập | Kết quả phỏng vấn dẫn đến lời mời; SV nhận hoặc từ chối trong hạn | 📋 backlog | — |
 | US-5.5 | Vòng bổ sung và đóng đợt | SV trong hàng chờ được xét vòng sau; Trung tâm đóng đợt | 📋 backlog | — |
+| US-5.6 | Tóm tắt hồ sơ đề cử bằng AI cho HR | HR đọc một đoạn tóm tắt tham khảo do AI viết từ hồ sơ đã che PII | 📋 backlog | — |
 
 ## Object map & user-story interactions
 
@@ -93,9 +96,10 @@ Allocation Engine (US-5.1) là hàm TS thuần, không phụ thuộc DB hay AI. 
 |---|---|---|
 | US-5.1 | `apps/api/src/modules/allocation/domain/` | FR-26 |
 | US-5.2 | `allocation_rounds`, `nominations`; Redis `lock:allocation:{campaignId}` | FR-26, FR-27 |
-| US-5.3 | module `review`; `hr_reviews` | FR-28, FR-29 |
+| US-5.3 | module `review`; `hr_reviews`, `supplement_requests`, `review_deadline_extensions`; đề cử qua `NominationService` của `allocation` | FR-28, FR-29 |
 | US-5.4 | module `interview`; `interviews`, `offers` | FR-30, FR-31 |
 | US-5.5 | `allocation_rounds` (round_no > 1); trạng thái đợt | FR-32 |
+| US-5.6 | AI Service: agent `profile_summarizer` (đề xuất) | FR-28 |
 
 ## Cross-cutting invariants
 

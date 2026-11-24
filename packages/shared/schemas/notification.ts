@@ -36,6 +36,10 @@ export const NOTIFICATION_TYPES = [
   'CAMPAIGN_CANCELLED',
   // An allocation round was published (US-5.2, GĐ7 step 4, CONTEXT D64): in the app only.
   'NOMINATIONS_PUBLISHED',
+  // HR review of nominations (US-5.3, CONTEXT D65): in the app only.
+  'HR_REVIEW_DUE_SOON',
+  'HR_REVIEW_OVERDUE',
+  'SUPPLEMENT_REQUESTED',
 ] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
@@ -53,6 +57,9 @@ export const IN_APP_ONLY_NOTIFICATION_TYPES = [
   'CV_PROFILE_READY',
   'CV_NEEDS_ATTENTION',
   'NOMINATIONS_PUBLISHED',
+  'HR_REVIEW_DUE_SOON',
+  'HR_REVIEW_OVERDUE',
+  'SUPPLEMENT_REQUESTED',
 ] as const satisfies readonly NotificationType[];
 
 /** Types that may be sent by email, each with a template in the notification module. */
@@ -265,6 +272,43 @@ export const NominationsPublishedPayloadSchema = z.discriminatedUnion('audience'
   }),
 ]);
 
+const ReviewJdSchema = z.object({ jdId: id, title: z.string().min(1), companyName: z.string().min(1) });
+
+/**
+ * HR's answer on a JD's nominations is due in 2 working days (US-5.3 AC-10, GĐ8 step 4, CONTEXT
+ * D65), in the app only; `dueAt` is part of the dedupe key, so an extension is reminded again.
+ */
+export const HrReviewDueSoonPayloadSchema = z.object({
+  campaignId: id,
+  campaignName: z.string().min(1),
+  roundNo: z.number().int().min(1),
+  jd: ReviewJdSchema,
+  dueAt: instant,
+  pendingCount: z.number().int().min(1),
+});
+
+/** HR's deadline passed with nominations still undecided (AC-10): HR and the center hear it once. */
+export const HrReviewOverduePayloadSchema = z.object({
+  audience: z.enum(['HR', 'CENTER']),
+  campaignId: id,
+  campaignName: z.string().min(1),
+  roundId: id,
+  roundNo: z.number().int().min(1),
+  jd: ReviewJdSchema,
+  dueAt: instant,
+  pendingCount: z.number().int().min(1),
+});
+
+/** HR asked for more candidates for a JD (AC-9, GĐ8 step 3): the center hears it with HR's note. */
+export const SupplementRequestedPayloadSchema = z.object({
+  campaignId: id,
+  campaignName: z.string().min(1),
+  jd: ReviewJdSchema,
+  invitedCount: z.number().int().min(0),
+  quota: z.number().int().min(0),
+  note: z.string().min(1),
+});
+
 /** `type` and the `payload` that goes with it. */
 export const NotificationContentSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('CAMPAIGN_OPENED'), payload: CampaignOpenedPayloadSchema }),
@@ -283,6 +327,9 @@ export const NotificationContentSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('CAMPAIGN_DEADLINES_CHANGED'), payload: CampaignDeadlinesChangedPayloadSchema }),
   z.object({ type: z.literal('CAMPAIGN_CANCELLED'), payload: CampaignCancelledPayloadSchema }),
   z.object({ type: z.literal('NOMINATIONS_PUBLISHED'), payload: NominationsPublishedPayloadSchema }),
+  z.object({ type: z.literal('HR_REVIEW_DUE_SOON'), payload: HrReviewDueSoonPayloadSchema }),
+  z.object({ type: z.literal('HR_REVIEW_OVERDUE'), payload: HrReviewOverduePayloadSchema }),
+  z.object({ type: z.literal('SUPPLEMENT_REQUESTED'), payload: SupplementRequestedPayloadSchema }),
 ]);
 
 export type NotificationContent = z.output<typeof NotificationContentSchema>;

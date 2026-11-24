@@ -1,8 +1,11 @@
 import {
   ALLOCATION_EXCLUSION_REASON_LABELS,
   ALLOCATION_OUTCOME_REASON_LABELS,
+  HR_REJECT_REASON_LABELS,
+  type HrRejectReason,
   type MyAllocationResult,
   NOMINATION_STATUS_LABELS,
+  type NominationStatus,
 } from '@srm/shared';
 import { CircleAlert, Hourglass, Trophy } from 'lucide-react';
 import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -14,7 +17,7 @@ import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDateTime, formatNumber } from '@/lib/format';
 import { apiErrorMessage } from '@/shared/api/errors';
-import { useMyAllocationResults } from './api';
+import { useMyAllocationResults, useMyNominationReviews } from './api';
 
 function PageTitle() {
   return <h1 className="font-heading text-xl font-semibold md:text-2xl">Kết quả phân bổ</h1>;
@@ -50,7 +53,22 @@ function Reasons({ result }: { result: MyAllocationResult }) {
   );
 }
 
-function ResultCard({ result }: { result: MyAllocationResult }) {
+/** What the nomination's state means for the student (GĐ8, US-5.3 AC-5, AC-6). */
+function nominationNote(status: NominationStatus, rejectReason: HrRejectReason | null | undefined): string {
+  switch (status) {
+    case 'NOMINATED':
+      return 'Doanh nghiệp sẽ xem hồ sơ và báo kết quả cho bạn qua hệ thống.';
+    case 'INTERVIEW':
+      return 'Doanh nghiệp mời bạn phỏng vấn. Lịch phỏng vấn sẽ được báo qua hệ thống.';
+    case 'HR_REJECTED':
+      // The catalogue label only; HR's note never reaches the student (GĐ8, BR-12).
+      return `Doanh nghiệp không tiếp tục với hồ sơ này${rejectReason ? `. Lý do: ${HR_REJECT_REASON_LABELS[rejectReason].toLowerCase()}` : ''}. Các nguyện vọng còn lại của bạn được xét ở vòng bổ sung.`;
+    default:
+      return 'Theo dõi kết quả tiếp theo qua thông báo của hệ thống.';
+  }
+}
+
+function ResultCard({ result, rejectReasons }: { result: MyAllocationResult; rejectReasons: ReadonlyMap<number, HrRejectReason | null> }) {
   const { nomination } = result;
   // Without a nomination every NV is listed; when BR-07 kept all of them out, none waits for a round.
   const noneEligible =
@@ -74,7 +92,9 @@ function ResultCard({ result }: { result: MyAllocationResult }) {
             <p className="text-sm break-words">
               <span className="font-medium">{nomination.title}</span> · {nomination.companyName}
             </p>
-            <p className="text-sm text-muted-foreground">Doanh nghiệp sẽ xem hồ sơ và báo kết quả cho bạn qua hệ thống.</p>
+            <p className="text-sm text-muted-foreground">
+              {nominationNote(nomination.status, rejectReasons.get(nomination.nominationId))}
+            </p>
           </div>
         ) : noneEligible ? (
           <div className="flex flex-col gap-2">
@@ -106,11 +126,15 @@ function ResultCard({ result }: { result: MyAllocationResult }) {
 
 /**
  * "Kết quả" of the student portal (US-5.2 AC-13, AC-15, NFR-13): where the student is nominated
- * after each published round, or that they wait, with the reason for each NV ranked above. Cards,
+ * after each published round, or that they wait, with the reason for each NV ranked above; what HR
+ * decided, a rejection with its catalogue reason only (US-5.3 AC-6). Cards,
  * one column, for a 360 px phone (DESIGN.md §5).
  */
 export function ResultsPage() {
   const results = useMyAllocationResults();
+  // A failed read only leaves the reason out: the state itself comes with the results.
+  const reviews = useMyNominationReviews();
+  const rejectReasons = new Map((reviews.data ?? []).map((review) => [review.nominationId, review.reasonCode]));
 
   let content;
   if (results.isPending) {
@@ -149,7 +173,7 @@ export function ResultsPage() {
     content = (
       <div className="flex flex-col gap-4">
         {results.data.map((result) => (
-          <ResultCard key={`${result.campaignId}:${result.roundNo}`} result={result} />
+          <ResultCard key={`${result.campaignId}:${result.roundNo}`} result={result} rejectReasons={rejectReasons} />
         ))}
       </div>
     );

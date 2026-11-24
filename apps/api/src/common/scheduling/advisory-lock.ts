@@ -57,6 +57,8 @@ export const ADVISORY_LOCK_KEYS = {
   ESSAY_GRADING: 4_403,
   /** Sweep of part C (US-4.8, CONTEXT D57): drafting and checking jobs, stale rows. */
   CV_VERIFICATION_SWEEP: 4_801,
+  /** HR's review deadline: reminders and overdue notices (US-5.3 AC-10). */
+  REVIEW_SLA: 5_301,
 } as const;
 
 /**

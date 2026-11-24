@@ -8,13 +8,16 @@ export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 /** Lifetime of a presigned download URL: 5 minutes. */
 export const FILE_URL_TTL_SECONDS = 5 * 60;
 
-/** Owners of stored files: JD originals (US-1.5) and CV versions (US-1.6). */
-export const FILE_OWNER_TYPES = ['jd', 'cv'] as const;
+/**
+ * Owners of stored files: JD originals (US-1.5), CV versions (US-1.6), and the CV of a nomination,
+ * which the HR of the nominated JD may open (US-5.3, BR-11).
+ */
+export const FILE_OWNER_TYPES = ['jd', 'cv', 'nomination'] as const;
 
 export type FileOwnerType = (typeof FILE_OWNER_TYPES)[number];
 
 /** `{id}` of `GET /api/files/{id}/url`: `<owner>:<record id>`, e.g. `jd:12` (CONTEXT D28). */
-export const FileIdSchema = z.string().regex(/^(jd|cv):[1-9]\d{0,9}$/, { error: 'Mã file không hợp lệ' });
+export const FileIdSchema = z.string().regex(/^(jd|cv|nomination):[1-9]\d{0,9}$/, { error: 'Mã file không hợp lệ' });
 
 export function fileId(owner: FileOwnerType, id: number): string {
   return `${owner}:${id}`;

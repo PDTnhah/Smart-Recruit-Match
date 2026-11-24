@@ -274,7 +274,13 @@ export const MyAllocationResultSchema = z.object({
   roundNo: z.number().int().min(1),
   publishedAt: instant,
   nomination: z
-    .object({ jdId: id, title: z.string(), companyName: z.string(), status: z.enum(NOMINATION_STATES) })
+    .object({
+      nominationId: id,
+      jdId: id,
+      title: z.string(),
+      companyName: z.string(),
+      status: z.enum(NOMINATION_STATES),
+    })
     .nullable(),
   preferences: z.array(AllocationPreferenceOutcomeSchema.extend({ sFinal: score.nullable() })),
 });

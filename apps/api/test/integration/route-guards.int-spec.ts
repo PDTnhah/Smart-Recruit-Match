@@ -22,6 +22,42 @@ const HTTP_METHODS: Partial<Record<RequestMethod, 'get' | 'post' | 'put' | 'patc
   [RequestMethod.DELETE]: 'delete',
 };
 
+/**
+ * Every route HR may call (US-5.3 AC-4, PRD Q5): its JDs, their question banks, the nominations of
+ * its JDs and files it may see. A new HR route must be added here on purpose, so a route that lists
+ * or opens students outside the nominations cannot slip in.
+ */
+const HR_ROUTES = [
+  'GET campaigns',
+  'GET campaigns/:id',
+  'GET events/stream',
+  'GET files/:id/url', // `cv:` answers 404 to HR; `nomination:` only for its own JDs
+  'GET jds',
+  'GET jds/:id',
+  'GET jds/:id/nominations',
+  'GET jds/:id/question-bank/import-template',
+  'GET jds/:id/question-bank/manual-questions',
+  'GET jds/:id/question-bank/sample',
+  'GET jds/:id/requirements',
+  'GET me',
+  'GET nominations/:id',
+  'GET notifications',
+  'GET skills',
+  'PATCH jds/:id',
+  'POST jds',
+  'POST jds/:id/question-bank/import/preview',
+  'POST jds/:id/question-bank/questions',
+  'POST jds/:id/question-bank/sample/reviews',
+  'POST jds/:id/submit',
+  'POST jds/:id/supplement-requests',
+  'POST nominations/:id/decision',
+  'POST notifications/:id/read',
+  'POST notifications/read-all',
+  'PUT jds/:id/file',
+  'PUT jds/:id/requirements',
+  'PUT jds/:id/requirements/confirm',
+];
+
 function joinPath(...parts: unknown[]): string {
   const segments = parts
     .map((part) => (Array.isArray(part) ? (part[0] as unknown) : part))
@@ -77,6 +113,14 @@ describe('NFR-1: route guards (US-1.3 AC-5)', () => {
     );
     const undeclared = routes.filter((route) => !route.isPublic && !route.roles?.length);
     expect(undeclared.map((route) => route.name)).toEqual([]);
+  });
+
+  it('Q5: no HR route lists or searches students outside nominations (US-5.3 AC-4, BR-11)', () => {
+    const hrRoutes = discoverRoutes(t)
+      .filter((route) => route.roles?.includes('HR'))
+      .map((route) => `${RequestMethod[route.method]} ${route.path}`)
+      .sort();
+    expect(hrRoutes).toEqual(HR_ROUTES);
   });
 
   it('NFR-1: wrong role returns 403', async () => {

@@ -1,4 +1,4 @@
-import type { MatchSkillVerdict, ShortlistItem } from '@srm/shared';
+import type { MatchSkillVerdict, NominationMatch, ShortlistItem } from '@srm/shared';
 import { FileSearch, TriangleAlert } from 'lucide-react';
 import { type ReactNode, useId } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -33,7 +33,7 @@ import { VerdictBadge } from './verdict-badge';
 /** Most CV entries shown under one skill; the verdict lists up to ten. */
 const SOURCES_SHOWN = 3;
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+export function Section({ title, children }: { title: string; children: ReactNode }) {
   const id = useId();
   return (
     <section aria-labelledby={id} className="flex min-w-0 flex-col gap-2">
@@ -45,7 +45,7 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-function TextList({ items }: { items: readonly string[] }) {
+export function TextList({ items }: { items: readonly string[] }) {
   return (
     <ul className="flex list-disc flex-col gap-1 pl-5 text-sm">
       {items.map((text, index) => (
@@ -57,8 +57,11 @@ function TextList({ items }: { items: readonly string[] }) {
   );
 }
 
+// The sections below take the explanation part of a shortlist item, which HR's nomination detail
+// shows too (US-5.3 AC-2): `NominationMatch` is that part of `ShortlistItem`.
+
 /** S_cv and the five criteria: score sᵢ, weight wᵢ after redistribution, contribution (NFR-4). */
-function ScoreSection({ item }: { item: ShortlistItem }) {
+export function ScoreSection({ item }: { item: NominationMatch }) {
   return (
     <Section title="Điểm phù hợp">
       <p className="text-sm">
@@ -115,7 +118,7 @@ function SkillRow({ skill }: { skill: MatchSkillVerdict }) {
   );
 }
 
-function SkillSection({ title, skills }: { title: string; skills: readonly MatchSkillVerdict[] }) {
+export function SkillSection({ title, skills }: { title: string; skills: readonly MatchSkillVerdict[] }) {
   if (skills.length === 0) return null;
   return (
     <Section title={title}>
@@ -129,7 +132,7 @@ function SkillSection({ title, skills }: { title: string; skills: readonly Match
 }
 
 /** Coverage by field of work as bars with their percentage (AC-17), largest demand first. */
-function ZoneSection({ item }: { item: ShortlistItem }) {
+export function ZoneSection({ item }: { item: NominationMatch }) {
   if (item.zones.length === 0) return null;
   const zones = [...item.zones].sort((a, b) => b.demandWeightX100 - a.demandWeightX100);
   return (
@@ -155,7 +158,7 @@ function ZoneSection({ item }: { item: ShortlistItem }) {
 }
 
 /** Project score of the Matching Agent; a quote the CV does not contain is flagged (AC-17, CONTEXT D46). */
-function ProjectSection({ item }: { item: ShortlistItem }) {
+export function ProjectSection({ item }: { item: NominationMatch }) {
   const { project } = item;
   const unmatched = project.quotes.some((quote) => !quote.matched);
   return (
@@ -194,7 +197,7 @@ function ProjectSection({ item }: { item: ShortlistItem }) {
 }
 
 /** Required and preferred languages against the student's, with CEFR levels (AC-16). */
-function LanguageSection({ item }: { item: ShortlistItem }) {
+export function LanguageSection({ item }: { item: NominationMatch }) {
   const { language } = item;
   return (
     <Section title={SCV_CRITERION_LABELS.language}>
@@ -216,7 +219,7 @@ function LanguageSection({ item }: { item: ShortlistItem }) {
   );
 }
 
-function EducationSection({ item }: { item: ShortlistItem }) {
+export function EducationSection({ item }: { item: NominationMatch }) {
   const { education } = item;
   return (
     <Section title={SCV_CRITERION_LABELS.education}>

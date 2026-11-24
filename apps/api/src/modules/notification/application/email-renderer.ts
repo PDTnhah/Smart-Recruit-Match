@@ -200,6 +200,9 @@ export class EmailRenderer {
       case 'CV_PROFILE_READY':
       case 'CV_NEEDS_ATTENTION':
       case 'NOMINATIONS_PUBLISHED':
+      case 'HR_REVIEW_DUE_SOON':
+      case 'HR_REVIEW_OVERDUE':
+      case 'SUPPLEMENT_REQUESTED':
         throw new Error(`${content.type} is shown in the app only, never emailed`);
     }
   }

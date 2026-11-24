@@ -8,7 +8,8 @@ import { campaignPath } from '@/features/center/campaigns/paths';
 import { examResultPath } from '@/features/exam/paths';
 import { centerCvsPath } from '@/features/center/cvs/paths';
 import { jdApprovalPath } from '@/features/center/jd-approval/paths';
-import { HR_JDS_PATH, hrJdPath } from '@/features/hr/jds/paths';
+import { allocationPath } from '@/features/center/allocation/paths';
+import { HR_JDS_PATH, hrJdNominationsPath, hrJdPath } from '@/features/hr/jds/paths';
 import { STUDENT_RESULTS_PATH } from '@/features/student/results/paths';
 import { formatDateTime } from '@/lib/format';
 
@@ -154,7 +155,7 @@ export function describeNotification(notification: Notification): NotificationVi
         return {
           title: 'Có danh sách đề cử mới',
           body: `Vòng phân bổ ${payload.roundNo} của đợt "${payload.campaignName}" đã công bố ${payload.nominationCount} sinh viên được đề cử vào "${payload.jd.title}".`,
-          href: hrJdPath(payload.jd.jdId),
+          href: hrJdNominationsPath(payload.jd.jdId),
         };
       }
       return payload.jd
@@ -168,6 +169,36 @@ export function describeNotification(notification: Notification): NotificationVi
             body: `Vòng phân bổ ${payload.roundNo} của đợt "${payload.campaignName}" chưa có đề cử cho bạn. Xem kết quả và lý do của từng nguyện vọng.`,
             href: STUDENT_RESULTS_PATH,
           };
+    }
+    case 'HR_REVIEW_DUE_SOON': {
+      const { jd, dueAt, pendingCount } = notification.payload;
+      return {
+        title: 'Sắp hết hạn duyệt đề cử',
+        body: `"${jd.title}" còn ${pendingCount} sinh viên được đề cử chưa có quyết định. Hạn phản hồi: ${formatDateTime(dueAt)}.`,
+        href: hrJdNominationsPath(jd.jdId),
+      };
+    }
+    case 'HR_REVIEW_OVERDUE': {
+      const { audience, campaignId, jd, dueAt, pendingCount } = notification.payload;
+      return audience === 'HR'
+        ? {
+            title: 'Quá hạn duyệt đề cử',
+            body: `"${jd.title}" còn ${pendingCount} sinh viên được đề cử chưa có quyết định, đã quá hạn ${formatDateTime(dueAt)}. Trung tâm sẽ liên hệ hoặc gia hạn.`,
+            href: hrJdNominationsPath(jd.jdId),
+          }
+        : {
+            title: 'Doanh nghiệp quá hạn duyệt đề cử',
+            body: `${jd.companyName} – "${jd.title}" còn ${pendingCount} đề cử chưa có quyết định (hạn ${formatDateTime(dueAt)}). Liên hệ doanh nghiệp hoặc gia hạn.`,
+            href: allocationPath(campaignId),
+          };
+    }
+    case 'SUPPLEMENT_REQUESTED': {
+      const { campaignId, jd, invitedCount, quota, note } = notification.payload;
+      return {
+        title: 'Doanh nghiệp yêu cầu bổ sung hồ sơ',
+        body: `${jd.companyName} – "${jd.title}" mới mời phỏng vấn ${invitedCount}/${quota} chỉ tiêu. Ghi chú: ${note}`,
+        href: allocationPath(campaignId),
+      };
     }
     case 'JD_LOW_PREFERENCES': {
       const { campaignId, campaignName, jds } = notification.payload;

@@ -13,6 +13,7 @@ import { MeAllocationResultsController } from './api/me-allocation-results.contr
 import { AllocationRoundService } from './application/allocation-round.service.js';
 import { AllocationViewService } from './application/allocation-view.service.js';
 import { ALLOCATION_ENGINE, DEFERRED_ACCEPTANCE_ENGINE } from './application/engine.js';
+import { NominationService } from './application/nomination.service.js';
 import { AllocationRoundRepository } from './infrastructure/allocation-round.repository.js';
 
 /**
@@ -38,8 +39,9 @@ import { AllocationRoundRepository } from './infrastructure/allocation-round.rep
     AllocationRoundService,
     AllocationViewService,
     AllocationRoundRepository,
+    NominationService,
     { provide: ALLOCATION_ENGINE, useValue: DEFERRED_ACCEPTANCE_ENGINE },
   ],
-  exports: [AllocationRoundService, AllocationViewService],
+  exports: [AllocationRoundService, AllocationViewService, NominationService],
 })
 export class AllocationModule {}

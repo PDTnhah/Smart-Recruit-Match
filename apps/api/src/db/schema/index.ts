@@ -13,4 +13,5 @@ export * from './audit-logs.js';
 export * from './matching.js';
 export * from './assessment.js';
 export * from './allocation.js';
+export * from './review.js';
 export * from './ai.js';

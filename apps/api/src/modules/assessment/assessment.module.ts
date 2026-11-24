@@ -37,6 +37,7 @@ import { QuestionBankService } from './application/question-bank.service.js';
 import { QuestionResultsHandler } from './application/question-results.handler.js';
 import { ReviewSampleService } from './application/review-sample.service.js';
 import { AllocationResultsService } from './application/allocation-results.service.js';
+import { ReviewResultsService } from './application/review-results.service.js';
 import { NO_THRESHOLD_HOLDS, THRESHOLD_HOLDS } from './application/threshold-holds.js';
 import { ThresholdScheduler } from './application/threshold.scheduler.js';
 import { CvVerificationsRepository } from './infrastructure/cv-verifications.repository.js';
@@ -116,9 +117,10 @@ import { QuestionReviewsRepository } from './infrastructure/question-reviews.rep
     CvVerificationResultsHandler,
     CvTrustService,
     AllocationResultsService,
+    ReviewResultsService,
     // US-4.6 replaces it to hold back sessions with an open appeal.
     { provide: THRESHOLD_HOLDS, useValue: NO_THRESHOLD_HOLDS },
   ],
-  exports: [QuestionBankService, GradingService, CvTrustService, AllocationResultsService],
+  exports: [QuestionBankService, GradingService, CvTrustService, AllocationResultsService, ReviewResultsService],
 })
 export class AssessmentModule {}

@@ -4,6 +4,9 @@ import {
   AllocationRoundListSchema,
   type AllocationRoundView,
   AllocationRoundViewSchema,
+  type ReviewDeadlineExtensionRequest,
+  ReviewDeadlineListSchema,
+  ReviewDeadlineSchema,
 } from '@srm/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, unwrap } from '@/shared/api/client';
@@ -16,6 +19,7 @@ export const allocationKeys = {
   rounds: (campaignId: number) => ['allocation', 'rounds', campaignId] as const,
   round: (roundId: number) => ['allocation', 'round', roundId] as const,
   explanation: (roundId: number, studentId: number) => ['allocation', 'explanation', roundId, studentId] as const,
+  deadlines: (roundId: number) => ['allocation', 'review-deadlines', roundId] as const,
 };
 
 /** The campaign's rounds, round 1 first. */
@@ -103,5 +107,33 @@ export function useAllocationExplanation(roundId: number, studentId: number | nu
           }),
         ),
       ),
+  });
+}
+
+/** HR's deadline for each JD of a published round (US-5.3 AC-10). */
+export function useReviewDeadlines(roundId: number) {
+  return useQuery({
+    queryKey: allocationKeys.deadlines(roundId),
+    queryFn: async () =>
+      ReviewDeadlineListSchema.parse(
+        unwrap(await api.GET('/api/allocation-rounds/{id}/review-deadlines', { params: { path: { id: roundId } } })),
+      ).items,
+  });
+}
+
+/** AC-10: move one JD's deadline later, with a reason; the list is read again either way. */
+export function useExtendReviewDeadline(roundId: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ jdId, ...body }: Omit<ReviewDeadlineExtensionRequest, 'roundId'> & { jdId: number }) =>
+      ReviewDeadlineSchema.parse(
+        unwrap(
+          await api.POST('/api/jds/{id}/review-deadline-extensions', {
+            params: { path: { id: jdId } },
+            body: { roundId, ...body },
+          }),
+        ),
+      ),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: allocationKeys.deadlines(roundId) }),
   });
 }

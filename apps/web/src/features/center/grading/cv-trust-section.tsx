@@ -89,7 +89,8 @@ const STATE_NOTES: Record<Exclude<CvTrustView['state'], 'DONE'>, string> = {
   FAILED: 'Không đối chiếu được câu trả lời với CV, nên bài này không có chỉ số tin cậy.',
 };
 
-function TrustBody({ view }: { view: CvTrustView }) {
+/** The trust index and its questions, from a view the caller already has (HR's nomination, US-5.3). */
+export function CvTrustBody({ view }: { view: CvTrustView }) {
   return (
     <>
       {view.state === 'DONE' ? (
@@ -145,7 +146,7 @@ export function CvTrustSection({ sessionId }: { sessionId: number }) {
           </AlertAction>
         </Alert>
       ) : (
-        <TrustBody view={trust.data} />
+        <CvTrustBody view={trust.data} />
       )}
     </section>
   );
