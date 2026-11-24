@@ -1,4 +1,4 @@
-import type { CvProfile, CvProfileView } from '@srm/shared';
+import { type CvProfile, type CvProfileView, fileId } from '@srm/shared';
 import { CircleAlert, CircleCheck, PencilLine, ShieldCheck } from 'lucide-react';
 import { lazy, Suspense, useId, useState } from 'react';
 import { toast } from 'sonner';
@@ -16,7 +16,7 @@ import { ProfileSummary } from './profile-summary';
 type ViewWithProfile = CvProfileView & { profile: CvProfile };
 
 // pdf.js is large: loaded with the review, not with the bundle every portal shares.
-const CvViewer = lazy(() => import('./cv-viewer').then((module) => ({ default: module.CvViewer })));
+const CvViewer = lazy(() => import('@/shared/files/cv-viewer').then((module) => ({ default: module.CvViewer })));
 
 /** "Sửa lại" (AC-12): a new version of the confirmed profile, to edit and confirm again. */
 function ReopenButton({ view }: { view: ViewWithProfile }) {
@@ -160,7 +160,12 @@ export function ProfileReview({ campaignId }: { campaignId: number }) {
           className="min-w-0 data-[state=inactive]:hidden lg:sticky lg:top-20 lg:max-h-[calc(100svh_-_6rem)] lg:overflow-y-auto lg:data-[state=inactive]:block"
         >
           <Suspense fallback={<Skeleton className="aspect-[210/297] w-full" />}>
-            <CvViewer key={view.cvId} cvId={view.cvId} fileName={view.fileName} />
+            <CvViewer
+              key={view.cvId}
+              fileId={fileId('cv', view.cvId)}
+              fileName={view.fileName}
+              hint="Mở file CV ở thẻ mới để đối chiếu khi sửa hồ sơ."
+            />
           </Suspense>
         </TabsContent>
         <TabsContent value="profile" forceMount className="min-w-0 data-[state=inactive]:hidden lg:data-[state=inactive]:block">

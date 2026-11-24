@@ -17,6 +17,7 @@ const CORE_TABLES = [
   'exam_answers',
   'exam_events',
   'exam_sessions',
+  'hr_reviews',
   'job_descriptions',
   'match_results',
   'match_runs',
@@ -27,9 +28,11 @@ const CORE_TABLES = [
   'question_generation_runs',
   'question_reviews',
   'questions',
+  'review_deadline_extensions',
   'skill_implications',
   'skills',
   'students',
+  'supplement_requests',
   'users',
 ];
 

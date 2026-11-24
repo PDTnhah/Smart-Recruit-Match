@@ -261,7 +261,7 @@ Quyết định kiến trúc và quy trình được ghi trong [CONTEXT.md](CONT
 | Q2 | Làm 1 bài test cho mỗi NV hay 1 bài chung theo nhóm vị trí? | Theo JD; các JD cùng nhóm vị trí được phép dùng chung. **Chốt một phần ([CONTEXT D49](CONTEXT.md)):** mỗi JD một ma trận đề và một ngân hàng câu hỏi; dùng chung theo nhóm vị trí còn mở |
 | Q3 | Hệ số đề cử k? | 1,5 — HR có dư lựa chọn mà không quá tải |
 | Q4 | Sinh viên từ chối lời mời thực tập thì xử lý thế nào? | Xếp ưu tiên thấp nhất ở vòng sau |
-| Q5 | HR có được chủ động chọn sinh viên ngoài danh sách đề cử? | Không; chỉ "yêu cầu bổ sung hồ sơ" qua hệ thống |
+| Q5 | HR có được chủ động chọn sinh viên ngoài danh sách đề cử? | Không; chỉ "yêu cầu bổ sung hồ sơ" qua hệ thống. **Chốt ([CONTEXT D65](CONTEXT.md)):** theo đề xuất |
 | Q6 | Sinh viên không chọn NV đến hạn? | Hệ thống tự gán N_NV JD có S_cv cao nhất trong shortlist và thông báo cho sinh viên. **Chốt ([CONTEXT D47](CONTEXT.md)):** theo đề xuất, là mặc định của tham số `no_preference_policy`; Trung tâm đổi được thành `NONE` (không gán) |
 | Q7 | Có chấm bài lập trình tự động? | Để ở phần mở rộng; MVP dùng trắc nghiệm + tự luận. **Chốt ([CONTEXT D49](CONTEXT.md)):** theo đề xuất; ma trận đề chỉ có phần A và B |
 | Q8 | Dùng LLM qua API thương mại hay mô hình mở tự triển khai? | Quyết định theo yêu cầu bảo mật dữ liệu và ngân sách; thiết kế lớp trừu tượng để đổi được. **Chốt một phần ([CONTEXT D34](CONTEXT.md)):** API thương mại, Gemini mặc định, Claude thay thế, sau lớp `LLMClient`; mô hình tự host còn mở |
@@ -866,7 +866,8 @@ Mọi thông báo đều hiện trong ứng dụng (chuông ở ba cổng, cập
 | Hết hạn chọn NV: danh sách JD có số NV ít hơn chỉ tiêu | Cán bộ Trung tâm | Trong app + email ([CONTEXT D48](CONTEXT.md)) |
 | Có kết quả test, kết quả phúc khảo | Sinh viên | |
 | Công bố đề cử | Sinh viên, HR | Chỉ trong app ([CONTEXT D64](CONTEXT.md)) |
-| Nhắc hạn duyệt hồ sơ; quá SLA | HR, Cán bộ Trung tâm | |
+| Nhắc hạn duyệt hồ sơ (HR); quá SLA (HR, Cán bộ Trung tâm) | HR, Cán bộ Trung tâm | Chỉ trong app ([CONTEXT D65](CONTEXT.md)) |
+| HR yêu cầu bổ sung hồ sơ | Cán bộ Trung tâm | Chỉ trong app ([CONTEXT D65](CONTEXT.md)) |
 | Lịch phỏng vấn, đổi lịch | Sinh viên, HR | |
 | Kết quả phỏng vấn, lời mời thực tập | Sinh viên | |
 | Sinh viên nhận/từ chối lời mời | HR, Cán bộ Trung tâm | |
@@ -921,8 +922,8 @@ Mọi thông báo đều hiện trong ứng dụng (chuông ở ba cổng, cập
 | FR-25 | Câu hỏi xác minh CV (phần C) và chỉ số tin cậy CV cho HR tham khảo | P1 | 🚧 in-progress | EPIC-4 |
 | FR-26 | Chạy phân bổ Deferred Acceptance có sức chứa, kết quả ở trạng thái dự thảo; kiểm tra tính ổn định; lưu snapshot đầu vào và cấu hình (UC-34, BR-07, BR-09, BR-17, GĐ7) | P0 | 🚧 in-progress | EPIC-5 |
 | FR-27 | Cán bộ Trung tâm xem dự thảo, điều chỉnh thủ công có ghi lý do và công bố danh sách đề cử (UC-05, BR-10) | P0 | 📋 backlog | EPIC-5 |
-| FR-28 | HR xem danh sách đề cử và hồ sơ chi tiết: CV gốc, hồ sơ năng lực, S_cv kèm bằng chứng, S_test và bản đồ năng lực (UC-23, BR-11, GĐ8) | P0 | 📋 backlog | EPIC-5 |
-| FR-29 | HR mời phỏng vấn, từ chối có lý do, hoặc yêu cầu bổ sung hồ sơ; SLA và nhắc hạn (UC-24, BR-12) | P0 | 📋 backlog | EPIC-5 |
+| FR-28 | HR xem danh sách đề cử và hồ sơ chi tiết: CV gốc, hồ sơ năng lực, S_cv kèm bằng chứng, S_test và bản đồ năng lực (UC-23, BR-11, GĐ8) | P0 | 👀 review | EPIC-5 |
+| FR-29 | HR mời phỏng vấn, từ chối có lý do, hoặc yêu cầu bổ sung hồ sơ; SLA và nhắc hạn (UC-24, BR-12) | P0 | 👀 review | EPIC-5 |
 | FR-30 | HR lên lịch phỏng vấn; sinh viên xác nhận hoặc xin đổi lịch 1 lần; HR nhập kết quả Đạt / Dự bị / Không đạt / Vắng (UC-25, UC-16, BR-14, GĐ9) | P0 | 📋 backlog | EPIC-5 |
 | FR-31 | Lời mời thực tập: sinh viên nhận hoặc từ chối trong T_offer; Dự bị được chuyển thành Đạt khi có suất trống (UC-17, BR-15, BR-16) | P0 | 📋 backlog | EPIC-5 |
 | FR-32 | Vòng bổ sung: sinh viên trong hàng chờ thêm nguyện vọng, chạy lại phân bổ với sức chứa C_j(r); đóng đợt (UC-07, GĐ10) | P0 | 📋 backlog | EPIC-5 |
@@ -1080,7 +1081,7 @@ Mỗi epic tương ứng một giai đoạn trong [ARCHITECTURE.md › Implement
 
 **Goal**: Chạy trọn luồng từ phân bổ đến khi sinh viên nhận thực tập, kể cả vòng bổ sung.
 
-**Status**: 📋 backlog
+**Status**: 🚧 in-progress
 
 **FR**: FR-26 – FR-32 · **Lịch**: US-5.1 ở T2 (12–18/10/2026); US-5.2…US-5.5 ở T11–T12 (14/12–27/12/2026) · [EPIC-5](sprints/epics/EPIC-5.md)
 
@@ -1088,11 +1089,12 @@ Thuật toán phân bổ là hàm thuần, không phụ thuộc epic khác, nên
 
 | Story | Title | Status | Version |
 |-------|-------|--------|---------|
-| US-5.1 | Allocation Engine và property-based test | 📋 backlog | — |
-| US-5.2 | Vòng phân bổ: dự thảo, điều chỉnh, công bố | 📋 backlog | — |
-| US-5.3 | HR duyệt danh sách đề cử | 📋 backlog | — |
+| US-5.1 | Allocation Engine và property-based test | 👀 review | 0.32.0 |
+| US-5.2 | Vòng phân bổ: dự thảo, điều chỉnh, công bố | 👀 review | 0.33.0 |
+| US-5.3 | HR duyệt danh sách đề cử | 👀 review | 0.34.0 |
 | US-5.4 | Phỏng vấn, Dự bị và lời mời thực tập | 📋 backlog | — |
 | US-5.5 | Vòng bổ sung và đóng đợt | 📋 backlog | — |
+| US-5.6 | Tóm tắt hồ sơ đề cử bằng AI cho HR (chưa quyết làm, [CONTEXT D65](CONTEXT.md)) | 📋 backlog | — |
 
 ### EPIC-6: Báo cáo, đánh giá và thực nghiệm
 

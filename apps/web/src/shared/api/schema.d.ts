@@ -1140,6 +1140,118 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/jds/{id}/nominations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["NominationReviewController_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/nominations/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["NominationReviewController_detail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/nominations/{id}/decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["NominationReviewController_decide"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jds/{id}/supplement-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["NominationReviewController_requestSupplement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/allocation-rounds/{id}/review-deadlines": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ReviewDeadlinesController_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jds/{id}/review-deadline-extensions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["ReviewDeadlinesController_extend"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/me/nomination-reviews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["MeNominationReviewsController_mine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2403,6 +2515,71 @@ export interface components {
                         title: string;
                     };
                     nominationCount: number;
+                };
+            } | {
+                id: number;
+                /** Format: date-time */
+                readAt: string | null;
+                /** Format: date-time */
+                createdAt: string;
+                /** @enum {string} */
+                type: "HR_REVIEW_DUE_SOON";
+                payload: {
+                    campaignId: number;
+                    campaignName: string;
+                    roundNo: number;
+                    jd: {
+                        jdId: number;
+                        title: string;
+                        companyName: string;
+                    };
+                    /** Format: date-time */
+                    dueAt: string;
+                    pendingCount: number;
+                };
+            } | {
+                id: number;
+                /** Format: date-time */
+                readAt: string | null;
+                /** Format: date-time */
+                createdAt: string;
+                /** @enum {string} */
+                type: "HR_REVIEW_OVERDUE";
+                payload: {
+                    /** @enum {string} */
+                    audience: "HR" | "CENTER";
+                    campaignId: number;
+                    campaignName: string;
+                    roundId: number;
+                    roundNo: number;
+                    jd: {
+                        jdId: number;
+                        title: string;
+                        companyName: string;
+                    };
+                    /** Format: date-time */
+                    dueAt: string;
+                    pendingCount: number;
+                };
+            } | {
+                id: number;
+                /** Format: date-time */
+                readAt: string | null;
+                /** Format: date-time */
+                createdAt: string;
+                /** @enum {string} */
+                type: "SUPPLEMENT_REQUESTED";
+                payload: {
+                    campaignId: number;
+                    campaignName: string;
+                    jd: {
+                        jdId: number;
+                        title: string;
+                        companyName: string;
+                    };
+                    invitedCount: number;
+                    quota: number;
+                    note: string;
                 };
             })[];
             unreadCount: number;
@@ -3718,6 +3895,7 @@ export interface components {
                 /** Format: date-time */
                 publishedAt: string;
                 nomination: {
+                    nominationId: number;
                     jdId: number;
                     title: string;
                     companyName: string;
@@ -3734,6 +3912,430 @@ export interface components {
                     exclusionReasons: ("HARD_FILTER" | "BELOW_THETA_CV" | "BELOW_THETA_TEST" | "TEST_NOT_TAKEN")[];
                     sFinal: number | null;
                 }[];
+            }[];
+        };
+        JdNominationListDto_Output: {
+            jd: {
+                jdId: number;
+                title: string;
+                quota: number;
+                campaignId: number;
+            };
+            invitedCount: number;
+            supplement: {
+                /** @enum {string|null} */
+                blockedBy: "NO_PUBLISHED_ROUND" | "QUOTA_REACHED" | "ALREADY_REQUESTED" | "PHASE_CLOSED" | null;
+                /** Format: date-time */
+                requestedAt: string | null;
+            };
+            items: {
+                nominationId: number;
+                roundNo: number;
+                /** Format: date-time */
+                publishedAt: string;
+                student: {
+                    studentId: number;
+                    studentCode: string;
+                    fullName: string;
+                };
+                sCv: number | null;
+                sTest: number | null;
+                sFinal: number;
+                /** @enum {string} */
+                status: "NOMINATED" | "INTERVIEW" | "HR_REJECTED" | "PASSED" | "RESERVE" | "INTERVIEW_FAILED" | "ACCEPTED" | "DECLINED" | "CLOSED";
+                /** Format: date-time */
+                reviewDueAt: string;
+                rowVersion: number;
+                review: {
+                    /** @enum {string} */
+                    decision: "INVITE" | "REJECT";
+                    /** @enum {string|null} */
+                    reasonCode: "MISSING_SKILLS" | "TEST_BELOW_EXPECTATION" | "POSITION_FILLED" | "OTHER" | null;
+                    note: string | null;
+                    /** Format: date-time */
+                    decidedAt: string;
+                } | null;
+            }[];
+        };
+        NominationDetailDto_Output: {
+            nominationId: number;
+            rowVersion: number;
+            /** @enum {string} */
+            status: "NOMINATED" | "INTERVIEW" | "HR_REJECTED" | "PASSED" | "RESERVE" | "INTERVIEW_FAILED" | "ACCEPTED" | "DECLINED" | "CLOSED";
+            roundNo: number;
+            /** Format: date-time */
+            publishedAt: string;
+            /** Format: date-time */
+            reviewDueAt: string;
+            jd: {
+                jdId: number;
+                title: string;
+            };
+            student: {
+                studentId: number;
+                studentCode: string;
+                fullName: string;
+            };
+            scores: {
+                sCv: number | null;
+                sTest: number | null;
+                sFinal: number;
+            };
+            cv: {
+                fileId: string;
+                fileName: string;
+                /**
+                 * CvProfile
+                 * @description Competence profile of a CV, without its personal section; skills mapped to the catalogue (FR-11)
+                 */
+                profile: {
+                    /** @description Career objective or summary as written; no personal details */
+                    summary: string | null;
+                    /** @description Education, most recent first */
+                    education: {
+                        /** @description School or university */
+                        institution: string;
+                        /** @description Degree or programme level, e.g. "Kỹ sư", "Cử nhân" */
+                        degree: string | null;
+                        /** @description Major or field of study */
+                        major: string | null;
+                        /** @description Start as written */
+                        start: string | null;
+                        /** @description End as written; "hiện tại" when ongoing */
+                        end: string | null;
+                        /** @description GPA as written, with its scale, e.g. "3.2/4" */
+                        gpa: string | null;
+                    }[];
+                    /** @description Skills, one entry each */
+                    skills: {
+                        /** @description Skill name as the CV writes it */
+                        name: string;
+                        /** @description Name of the catalogue skill it maps to; null when match is NEW */
+                        canonical_name: string | null;
+                        /**
+                         * SkillMatch
+                         * @description ALIAS = its key equals the key of a catalogue name or alias, EMBEDDING = cosine to a catalogue skill at or above the threshold, NEW = not in the catalogue
+                         * @enum {string}
+                         */
+                        match: "ALIAS" | "EMBEDDING" | "NEW";
+                    }[];
+                    /** @description Projects */
+                    projects: {
+                        /** @description Project name */
+                        name: string;
+                        /** @description The student's role in the project */
+                        role: string | null;
+                        /** @description What the project does and what the student did, as written */
+                        description: string | null;
+                        /** @description Languages, frameworks and tools the project used */
+                        technologies: string[];
+                        /** @description Start as written */
+                        start: string | null;
+                        /** @description End as written */
+                        end: string | null;
+                    }[];
+                    /** @description Work experience */
+                    experience: {
+                        /** @description Company or organisation */
+                        organization: string;
+                        /** @description Job title */
+                        position: string | null;
+                        /** @description Work done, as written */
+                        description: string | null;
+                        /** @description Start as written */
+                        start: string | null;
+                        /** @description End as written; "hiện tại" when ongoing */
+                        end: string | null;
+                    }[];
+                    /** @description Foreign languages */
+                    languages: {
+                        /** @description Language, e.g. "Tiếng Anh" */
+                        language: string;
+                        /** @description Level or certificate as written, e.g. "TOEIC 650", "N3" */
+                        level: string | null;
+                    }[];
+                    /** @description Certificates and awards */
+                    certificates: {
+                        /** @description Certificate or award */
+                        name: string;
+                        /** @description Who issued it */
+                        issuer: string | null;
+                        /** @description When, as written */
+                        year: string | null;
+                    }[];
+                } | null;
+            } | null;
+            match: {
+                sCv: number;
+                breakdown: {
+                    /** @enum {string} */
+                    criterion: "must_have" | "nice_to_have" | "project" | "education" | "language";
+                    applicable: boolean;
+                    scoreX100: number | null;
+                    weightBp: number;
+                    effectiveWeightBp: number;
+                    contributionX100: number;
+                }[];
+                skills: {
+                    must_have: {
+                        /** @description Skill name exactly as the JD requirements list it */
+                        skill: string;
+                        /**
+                         * SkillLevel
+                         * @description BASIC = basic: used in at least 1 project, experience or certificate; INTERMEDIATE = working knowledge: used in at least 2 projects or experience entries; ADVANCED = proficient: at least 6 months of work or internship experience using it
+                         * @enum {string}
+                         */
+                        level_required: "BASIC" | "INTERMEDIATE" | "ADVANCED";
+                        /**
+                         * MatchVerdict
+                         * @description MET = the CV shows the required level; PARTIAL = only listed, below the required level, or a skill of the same family; NOT_MET = no evidence
+                         * @enum {string}
+                         */
+                        verdict: "MET" | "PARTIAL" | "NOT_MET";
+                        /** @description Quote copied from the CV that supports the verdict; null when NOT_MET */
+                        evidence: string | null;
+                        /**
+                         * MatchKind
+                         * @description EXACT = the CV shows the skill itself; IMPLIED = only skills that imply it; FAMILY = a skill of the same family; NONE = no match
+                         * @enum {string}
+                         */
+                        match_kind: "EXACT" | "IMPLIED" | "FAMILY" | "NONE";
+                        /** @description Evidence tier of the matched skill: 0 none, 1 listed, 2 used, 3 used often, 4 proficient (CONTEXT D44) */
+                        tier: number;
+                        /** @description Catalogue skill of the CV the match goes through for IMPLIED and FAMILY; null for EXACT and NONE */
+                        via: string | null;
+                        /** @description CV entries the tier rests on: experience, projects, certificates, then the skills list */
+                        sources: {
+                            /**
+                             * EvidenceSection
+                             * @description CV list of a source entry: skills, projects, experience or certificates
+                             * @enum {string}
+                             */
+                            section: "SKILLS_LIST" | "PROJECT" | "EXPERIENCE" | "CERTIFICATE";
+                            /** @description Position of the entry in its CV list, from 0 */
+                            index: number;
+                            /** @description The words of the entry that name the skill, copied from the CV */
+                            text: string;
+                        }[];
+                    }[];
+                    nice_to_have: {
+                        /** @description Skill name exactly as the JD requirements list it */
+                        skill: string;
+                        /**
+                         * SkillLevel
+                         * @description BASIC = basic: used in at least 1 project, experience or certificate; INTERMEDIATE = working knowledge: used in at least 2 projects or experience entries; ADVANCED = proficient: at least 6 months of work or internship experience using it
+                         * @enum {string}
+                         */
+                        level_required: "BASIC" | "INTERMEDIATE" | "ADVANCED";
+                        /**
+                         * MatchVerdict
+                         * @description MET = the CV shows the required level; PARTIAL = only listed, below the required level, or a skill of the same family; NOT_MET = no evidence
+                         * @enum {string}
+                         */
+                        verdict: "MET" | "PARTIAL" | "NOT_MET";
+                        /** @description Quote copied from the CV that supports the verdict; null when NOT_MET */
+                        evidence: string | null;
+                        /**
+                         * MatchKind
+                         * @description EXACT = the CV shows the skill itself; IMPLIED = only skills that imply it; FAMILY = a skill of the same family; NONE = no match
+                         * @enum {string}
+                         */
+                        match_kind: "EXACT" | "IMPLIED" | "FAMILY" | "NONE";
+                        /** @description Evidence tier of the matched skill: 0 none, 1 listed, 2 used, 3 used often, 4 proficient (CONTEXT D44) */
+                        tier: number;
+                        /** @description Catalogue skill of the CV the match goes through for IMPLIED and FAMILY; null for EXACT and NONE */
+                        via: string | null;
+                        /** @description CV entries the tier rests on: experience, projects, certificates, then the skills list */
+                        sources: {
+                            /**
+                             * EvidenceSection
+                             * @description CV list of a source entry: skills, projects, experience or certificates
+                             * @enum {string}
+                             */
+                            section: "SKILLS_LIST" | "PROJECT" | "EXPERIENCE" | "CERTIFICATE";
+                            /** @description Position of the entry in its CV list, from 0 */
+                            index: number;
+                            /** @description The words of the entry that name the skill, copied from the CV */
+                            text: string;
+                        }[];
+                    }[];
+                };
+                zones: {
+                    /** @enum {string} */
+                    zone: "FOUNDATION" | "BACKEND" | "FRONTEND" | "MOBILE" | "DATABASE" | "DATA_AI" | "DEVOPS_CLOUD" | "TESTING_QA" | "BUSINESS_ANALYSIS" | "PROCESS" | "SECURITY_NETWORK" | "EMBEDDED_IOT" | "GAME_DEV" | "BLOCKCHAIN" | "SOFT_SKILL";
+                    demandWeightX100: number;
+                    coverageX100: number;
+                }[];
+                /**
+                 * MatchLanguageVerdict
+                 * @description How well the languages and certificates meet the JD, computed by code (CONTEXT D42, D45)
+                 */
+                language: {
+                    /**
+                     * MatchVerdict
+                     * @description MET = the CV shows the required level; PARTIAL = only listed, below the required level, or a skill of the same family; NOT_MET = no evidence
+                     * @enum {string}
+                     */
+                    verdict: "MET" | "PARTIAL" | "NOT_MET";
+                    /** @description Quote copied from the CV that supports the verdict; null when NOT_MET */
+                    evidence: string | null;
+                    /** @description The required and preferred languages of the JD with their CEFR levels, joined by "; " */
+                    required: string;
+                    /** @description The languages and certificates of the student with their CEFR levels, joined by "; "; null when none */
+                    held: string | null;
+                } | null;
+                /**
+                 * MatchEducation
+                 * @description Major against the JD, computed by code (CONTEXT D42, D45); the GPA comes from the school record, not from the CV (CONTEXT D41)
+                 */
+                education: {
+                    /**
+                     * MajorMatch
+                     * @description EXACT = the major the JD asks for, RELATED = a close major, OTHER = unrelated
+                     * @enum {string}
+                     */
+                    major_match: "EXACT" | "RELATED" | "OTHER";
+                    /** @description The major is in no major group, or the student has none, so it counts as OTHER */
+                    major_unrecognized: boolean;
+                };
+                project: {
+                    score: number;
+                    reason: string;
+                    quotes: {
+                        quote: string;
+                        matched: boolean;
+                    }[];
+                };
+                gaps: {
+                    skill: string;
+                    /** @enum {string} */
+                    group: "must_have" | "nice_to_have";
+                    /**
+                     * SkillLevel
+                     * @description BASIC = basic: used in at least 1 project, experience or certificate; INTERMEDIATE = working knowledge: used in at least 2 projects or experience entries; ADVANCED = proficient: at least 6 months of work or internship experience using it
+                     * @enum {string}
+                     */
+                    levelRequired: "BASIC" | "INTERMEDIATE" | "ADVANCED";
+                    /** @enum {string} */
+                    verdict: "PARTIAL" | "NOT_MET";
+                }[];
+            } | null;
+            test: {
+                /** Format: date-time */
+                submittedAt: string | null;
+                skills: {
+                    skill: string;
+                    score: number | null;
+                }[];
+            } | null;
+            cvTrust: {
+                /** @enum {string} */
+                state: "NONE" | "PENDING" | "FAILED" | "DONE";
+                trustScore: number | null;
+                /** @enum {string|null} */
+                trustLevel: "HIGH" | "MEDIUM" | "LOW" | null;
+                questions: {
+                    no: number;
+                    stem: string;
+                    /** @enum {string} */
+                    claimSection: "PROJECT" | "EXPERIENCE" | "SKILLS_LIST";
+                    claimLabel: string;
+                    answer: string | null;
+                    /** @enum {string|null} */
+                    verdict: "CONSISTENT" | "PARTIAL" | "INCONSISTENT" | "NO_ANSWER" | null;
+                    quote: string | null;
+                    reason: string | null;
+                }[];
+            };
+            warnings: {
+                /** @enum {string} */
+                code: "INSTRUCTION_IN_ANSWER";
+                count: number;
+            }[];
+            review: {
+                /** @enum {string} */
+                decision: "INVITE" | "REJECT";
+                /** @enum {string|null} */
+                reasonCode: "MISSING_SKILLS" | "TEST_BELOW_EXPECTATION" | "POSITION_FILLED" | "OTHER" | null;
+                note: string | null;
+                /** Format: date-time */
+                decidedAt: string;
+            } | null;
+        };
+        HrDecisionRequestDto: {
+            /** @enum {string} */
+            decision: "INVITE" | "REJECT";
+            rowVersion: number;
+            /** @enum {string|null} */
+            reasonCode?: "MISSING_SKILLS" | "TEST_BELOW_EXPECTATION" | "POSITION_FILLED" | "OTHER" | null;
+            note?: string | null;
+        };
+        HrDecisionResultDto_Output: {
+            nominationId: number;
+            /** @enum {string} */
+            status: "NOMINATED" | "INTERVIEW" | "HR_REJECTED" | "PASSED" | "RESERVE" | "INTERVIEW_FAILED" | "ACCEPTED" | "DECLINED" | "CLOSED";
+            rowVersion: number;
+            review: {
+                /** @enum {string} */
+                decision: "INVITE" | "REJECT";
+                /** @enum {string|null} */
+                reasonCode: "MISSING_SKILLS" | "TEST_BELOW_EXPECTATION" | "POSITION_FILLED" | "OTHER" | null;
+                note: string | null;
+                /** Format: date-time */
+                decidedAt: string;
+            };
+        };
+        SupplementRequestBodyDto: {
+            note: string;
+        };
+        SupplementRequestDto_Output: {
+            id: number;
+            campaignId: number;
+            jdId: number;
+            roundId: number;
+            note: string;
+            invitedCount: number;
+            quota: number;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        ReviewDeadlineListDto_Output: {
+            items: {
+                roundId: number;
+                jdId: number;
+                jdTitle: string;
+                companyName: string;
+                /** Format: date-time */
+                dueAt: string;
+                extended: boolean;
+                pendingCount: number;
+                nominationCount: number;
+            }[];
+        };
+        ReviewDeadlineExtensionRequestDto: {
+            roundId: number;
+            /** Format: date-time */
+            dueAt: string;
+            reason: string;
+        };
+        ReviewDeadlineDto_Output: {
+            roundId: number;
+            jdId: number;
+            jdTitle: string;
+            companyName: string;
+            /** Format: date-time */
+            dueAt: string;
+            extended: boolean;
+            pendingCount: number;
+            nominationCount: number;
+        };
+        MyNominationReviewsDto_Output: {
+            items: {
+                nominationId: number;
+                /** @enum {string} */
+                decision: "INVITE" | "REJECT";
+                /** @enum {string|null} */
+                reasonCode: "MISSING_SKILLS" | "TEST_BELOW_EXPECTATION" | "POSITION_FILLED" | "OTHER" | null;
             }[];
         };
     };
@@ -5750,6 +6352,163 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MyAllocationResultsDto_Output"];
+                };
+            };
+        };
+    };
+    NominationReviewController_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JdNominationListDto_Output"];
+                };
+            };
+        };
+    };
+    NominationReviewController_detail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NominationDetailDto_Output"];
+                };
+            };
+        };
+    };
+    NominationReviewController_decide: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HrDecisionRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HrDecisionResultDto_Output"];
+                };
+            };
+        };
+    };
+    NominationReviewController_requestSupplement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SupplementRequestBodyDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupplementRequestDto_Output"];
+                };
+            };
+        };
+    };
+    ReviewDeadlinesController_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewDeadlineListDto_Output"];
+                };
+            };
+        };
+    };
+    ReviewDeadlinesController_extend: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviewDeadlineExtensionRequestDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewDeadlineDto_Output"];
+                };
+            };
+        };
+    };
+    MeNominationReviewsController_mine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyNominationReviewsDto_Output"];
                 };
             };
         };

@@ -15,6 +15,26 @@ Lịch sử phát hành của Smart Recruit Match. Mỗi commit ship code tăng 
 
 ---
 
+## [0.34.0] — 2026-11-24 — HR duyệt danh sách đề cử — v0.34.0
+
+US-5.3. HR xem đề cử của JD công ty mình ở các vòng đã công bố, mở hồ sơ chi tiết có bằng chứng, mời phỏng vấn hoặc từ chối có lý do, yêu cầu bổ sung hồ sơ; hạn phản hồi được nhắc và Trung tâm gia hạn được ([CONTEXT D65](CONTEXT.md)).
+
+### Added
+- Module `review` với bảng `hr_reviews` (một quyết định mỗi đề cử; từ chối bắt buộc lý do thuộc danh mục và ghi chú), `supplement_requests`, `review_deadline_extensions` (migration `0048`). Đề cử vẫn thuộc `allocation`, đọc và chuyển qua `NominationService`.
+- `GET /api/jds/{id}/nominations` (sắp theo S_final, phá hòa như US-5.1, kèm hạn phản hồi), `GET /api/nominations/{id}` (hồ sơ năng lực, bằng chứng S_cv, bản đồ năng lực, chỉ số tin cậy CV, cảnh báo của bài test; không có đáp án hay rubric), CV gốc qua `GET /api/files/nomination:{id}/url`.
+- `POST /api/nominations/{id}/decision`: mời (`NOMINATED → INTERVIEW`) hoặc từ chối (`→ HR_REJECTED`), NV của cặp đi theo, audit cùng giao dịch; `409 NOMINATION_ALREADY_DECIDED` hoặc `ROW_VERSION_CONFLICT`. SV thấy lý do tổng quát qua `GET /api/me/nomination-reviews`, không thấy ghi chú.
+- `POST /api/jds/{id}/supplement-requests` khi số người được mời dưới chỉ tiêu, một lần mỗi vòng; Trung tâm nhận thông báo `SUPPLEMENT_REQUESTED`.
+- Hạn phản hồi = `published_at` + SLA_HR ngày làm việc (thứ Hai–thứ Sáu, giờ Việt Nam). Tác vụ quét gửi `HR_REVIEW_DUE_SOON` trước 2 ngày làm việc và `HR_REVIEW_OVERDUE` cho HR và Trung tâm, mỗi hạn một lần, chỉ trong app; Trung tâm xem hạn của vòng và gia hạn có lý do.
+- Kiểm tra BR-11 bằng test IDOR; test duyệt mọi route của HR so với danh sách cho phép (Q5).
+- Giao diện: tab "Đề cử" ở trang JD của HR (bảng TanStack Table, ngăn chi tiết có radar năng lực, CV, hộp thoại mời / từ chối, yêu cầu bổ sung hồ sơ); thẻ "Hạn phản hồi của HR" ở màn *Phân bổ*; lý do từ chối ở màn *Kết quả* của SV.
+- Thư viện web: `@tanstack/react-table` 8.21.3, `recharts` 3.8.0 (shadcn Chart).
+
+### Changed
+- `GET /api/me/allocation-results` trả thêm `nominationId`. Trình xem CV chuyển sang `shared/files/cv-viewer.tsx`.
+- Tóm tắt hồ sơ bằng AI cho HR tách thành US-5.6 (`backlog`, chưa quyết làm). Q5 chốt theo đề xuất.
+
+---
+
 ## [0.33.0] — 2026-11-24 — Vòng phân bổ: dự thảo, điều chỉnh, công bố — v0.33.0
 
 US-5.2. Trung tâm chạy vòng phân bổ 1 trên dữ liệu thật của đợt, xem dự thảo, điều chỉnh có lý do rồi công bố; HR và sinh viên chỉ thấy đề cử sau khi công bố ([CONTEXT D64](CONTEXT.md)).

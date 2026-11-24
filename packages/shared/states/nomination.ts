@@ -50,6 +50,17 @@ export const NOMINATION_ACTIVE_STATES = [
   'RESERVE',
 ] as const satisfies readonly NominationStatus[];
 
+/**
+ * Nominations HR has invited to an interview (GĐ8 step 3, US-5.3 AC-9): they count toward the JD's
+ * quota when HR asks for more candidates.
+ */
+export const NOMINATION_INVITED_STATES = [
+  'INTERVIEW',
+  'PASSED',
+  'RESERVE',
+  'ACCEPTED',
+] as const satisfies readonly NominationStatus[];
+
 /** The names of the application lifecycle, shown to students, HR and the center alike. */
 export const NOMINATION_STATUS_LABELS: Readonly<Record<NominationStatus, string>> = Object.fromEntries(
   NOMINATION_STATES.map((state) => [state, APPLICATION_STATUS_LABELS[state]]),

@@ -41,7 +41,10 @@ export function emailStillRelevant(content: NotificationContent, now: Date): boo
     case 'CV_PROFILE_READY':
     case 'CV_NEEDS_ATTENTION':
     case 'NOMINATIONS_PUBLISHED':
-      // Shown in the app only; never queued as email (CONTEXT D35, D37, D64).
+    case 'HR_REVIEW_DUE_SOON':
+    case 'HR_REVIEW_OVERDUE':
+    case 'SUPPLEMENT_REQUESTED':
+      // Shown in the app only; never queued as email (CONTEXT D35, D37, D64, D65).
       return false;
   }
 }

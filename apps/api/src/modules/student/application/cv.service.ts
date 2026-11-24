@@ -11,6 +11,7 @@ import {
   type CvList,
   type CvListQuery,
   cvMachine,
+  type CvProfile,
 } from '@srm/shared';
 import { assertRecordAccess, type AuthUser } from '../../../common/auth/index.js';
 import { ConsentRequiredError } from '../../../common/errors/index.js';
@@ -40,6 +41,14 @@ import {
 } from '../infrastructure/cv.repository.js';
 import { ConsentService } from './consent.service.js';
 import { studentIdOf } from './current-student.js';
+
+/** A student's active CV in a campaign, as HR reads it for a nomination (US-5.3). */
+export interface ReviewCv {
+  cvId: number;
+  fileName: string;
+  /** Null until the analysis succeeds. */
+  profile: CvProfile | null;
+}
 
 /** Audit and error entity, shared with transitionTo (the machine name). */
 const ENTITY = cvMachine.name;
@@ -166,6 +175,23 @@ export class CvService implements OnModuleInit {
     return this.repository.listActiveOf(studentId);
   }
 
+  /**
+   * The student's active CV in the campaign as HR reads it for a nomination (US-5.3 AC-2): the file
+   * name and the competence profile `cvs.profile`, which has no personal section (CONTEXT D65). The
+   * caller checks BR-11; undefined without an active CV.
+   */
+  async reviewCvOf(studentId: number, campaignId: number): Promise<ReviewCv | undefined> {
+    const row = await this.repository.findActiveProfile(studentId, campaignId);
+    return row && { cvId: row.id, fileName: row.fileName, profile: row.profile };
+  }
+
+  /** The original file of that CV, for `GET /api/files/nomination:{id}/url`; the caller checks BR-11. */
+  async reviewFileOf(studentId: number, campaignId: number): Promise<StoredFile | undefined> {
+    const active = await this.repository.findActiveProfile(studentId, campaignId);
+    const record = active && (await this.repository.findById(active.id));
+    return record && { bucket: BUCKETS.CV_FILES, key: record.fileKey, fileName: record.fileName };
+  }
+
   /** AC-8: the caller's own versions, newest first. */
   async listMine(user: AuthUser, query: CvListQuery): Promise<CvList> {
     const rows = await this.repository.listByStudent(studentIdOf(user), query.campaignId);
@@ -180,7 +206,8 @@ export class CvService implements OnModuleInit {
 
   /**
    * The file of a CV version the caller may see, for `GET /api/files/cv:{id}/url` (AC-8): its
-   * student, CENTER and ADMIN. HR gets 404 (a CV has no company) until nominations, US-5.3.
+   * student, CENTER and ADMIN. HR gets 404 (a CV has no company); HR opens the CV of a nomination
+   * of its own JD as `nomination:{id}` instead (US-5.3, BR-11).
    */
   private async fileOf(user: AuthUser, id: number): Promise<StoredFile> {
     const record = assertRecordAccess(user, await this.repository.findById(id), ENTITY, id);

@@ -33,6 +33,16 @@ export const DEDUPE_KEYS = {
   nominationsPublished: (roundId: number, jdId?: number) =>
     jdId === undefined ? `nominations_published:${roundId}` : `nominations_published:${roundId}:jd:${jdId}`,
   /**
+   * HR's deadline for a JD of a round, reminded once and reported overdue once (US-5.3 AC-10); the
+   * deadline is part of the key, so an extension by the center is reminded again.
+   */
+  hrReviewDueSoon: (roundId: number, jdId: number, dueAt: Date) =>
+    `hr_review_due_soon:${roundId}:${jdId}:${dueAt.toISOString()}`,
+  hrReviewOverdue: (roundId: number, jdId: number, dueAt: Date) =>
+    `hr_review_overdue:${roundId}:${jdId}:${dueAt.toISOString()}`,
+  /** One notice per supplement request (US-5.3 AC-9). */
+  supplementRequested: (requestId: number) => `supplement_requested:${requestId}`,
+  /**
    * One notice per CV version and outcome (US-2.4, CONTEXT D37): a redelivered result is quiet, a
    * profile after a failed dispatch is still announced, and a retry by command that fails again
    * with another job is announced again.

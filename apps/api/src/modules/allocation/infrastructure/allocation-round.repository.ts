@@ -1,6 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type { AllocationRoundStatus, NominationAdjustment, NominationStatus } from '@srm/shared';
-import { and, asc, eq, sql } from 'drizzle-orm';
+import {
+  type AllocationRoundStatus,
+  NOMINATION_INVITED_STATES,
+  type NominationAdjustment,
+  type NominationStatus,
+} from '@srm/shared';
+import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import { RowVersionConflictError } from '../../../common/errors/index.js';
 import { allocationRounds, nominations } from '../../../db/schema/index.js';
 import { DRIZZLE } from '../../../db/tokens.js';
@@ -51,6 +56,32 @@ export interface NominationRecord {
 
 export type NewNomination = Omit<NominationRecord, 'id' | 'status' | 'rowVersion'>;
 
+/** A nomination of a published round, with the round it came from (US-5.3). */
+export interface PublishedNominationRecord extends NominationRecord {
+  roundNo: number;
+  publishedAt: Date;
+}
+
+/** The nominations of one JD in one published round, for HR's deadline (US-5.3 AC-10). */
+export interface ReviewGroupRecord {
+  roundId: number;
+  roundNo: number;
+  campaignId: number;
+  publishedAt: Date;
+  jdId: number;
+  nominationCount: number;
+  /** Still NOMINATED: HR has not decided on them. */
+  pendingCount: number;
+}
+
+/** A published round, without its snapshots. */
+export interface PublishedRoundRecord {
+  id: number;
+  campaignId: number;
+  roundNo: number;
+  publishedAt: Date;
+}
+
 export interface RoundContent {
   inputSnapshot: AllocationInputSnapshot;
   configSnapshot: AllocationConfigSnapshot;
@@ -86,6 +117,12 @@ const NOMINATION_COLUMNS = {
   overrideReason: nominations.overrideReason,
   rowVersion: nominations.rowVersion,
 };
+
+/** A published round always has `published_at` (CHECK `allocation_rounds_published_check`). */
+const published = (row: NominationRecord & { roundNo: number; publishedAt: Date | null }): PublishedNominationRecord => ({
+  ...row,
+  publishedAt: row.publishedAt!,
+});
 
 /** Rows written per statement. */
 const CHUNK = 500;
@@ -226,6 +263,111 @@ export class AllocationRoundRepository {
       .update(nominations)
       .set({ rank, rowVersion: sql`${nominations.rowVersion} + 1` })
       .where(eq(nominations.id, id));
+  }
+
+  /** Nominations of the JD in every PUBLISHED round (US-5.3 AC-1); drafts never show. */
+  async publishedNominationsOfJd(jdId: number): Promise<PublishedNominationRecord[]> {
+    const rows = await this.db
+      .select({ ...NOMINATION_COLUMNS, roundNo: allocationRounds.roundNo, publishedAt: allocationRounds.publishedAt })
+      .from(nominations)
+      .innerJoin(allocationRounds, eq(allocationRounds.id, nominations.roundId))
+      .where(and(eq(nominations.jdId, jdId), eq(allocationRounds.status, 'PUBLISHED')))
+      .orderBy(asc(allocationRounds.roundNo), asc(nominations.rank), asc(nominations.id));
+    return rows.map(published);
+  }
+
+  /**
+   * A nomination of a PUBLISHED round; undefined for a draft's or a missing one (US-5.3 AC-3). With
+   * `lock`, the nomination row is locked first by a statement without join (LESSONS §12).
+   */
+  async findPublishedNomination(
+    id: number,
+    options: { tx?: DbTx; lock?: 'update' } = {},
+  ): Promise<PublishedNominationRecord | undefined> {
+    const db = options.tx ?? this.db;
+    if (options.lock) {
+      const [locked] = await db.select({ id: nominations.id }).from(nominations).where(eq(nominations.id, id)).for(options.lock);
+      if (!locked) return undefined;
+    }
+    const [row] = await db
+      .select({ ...NOMINATION_COLUMNS, roundNo: allocationRounds.roundNo, publishedAt: allocationRounds.publishedAt })
+      .from(nominations)
+      .innerJoin(allocationRounds, eq(allocationRounds.id, nominations.roundId))
+      .where(and(eq(nominations.id, id), eq(allocationRounds.status, 'PUBLISHED')));
+    return row && published(row);
+  }
+
+  /** Ids of the student's nominations in published rounds, newest first (US-5.3 AC-6). */
+  async publishedNominationIdsOfStudent(studentId: number): Promise<number[]> {
+    const rows = await this.db
+      .select({ id: nominations.id })
+      .from(nominations)
+      .innerJoin(allocationRounds, eq(allocationRounds.id, nominations.roundId))
+      .where(and(eq(nominations.studentId, studentId), eq(allocationRounds.status, 'PUBLISHED')))
+      .orderBy(desc(nominations.id));
+    return rows.map((row) => row.id);
+  }
+
+  /** Nominations of the JD HR has invited, in published rounds (US-5.3 AC-9). */
+  async countInvited(tx: DbTx | Database, jdId: number): Promise<number> {
+    const [row] = await tx
+      .select({ count: sql<number>`count(*)::int` })
+      .from(nominations)
+      .innerJoin(allocationRounds, eq(allocationRounds.id, nominations.roundId))
+      .where(
+        and(
+          eq(nominations.jdId, jdId),
+          eq(allocationRounds.status, 'PUBLISHED'),
+          inArray(nominations.status, [...NOMINATION_INVITED_STATES]),
+        ),
+      );
+    return row?.count ?? 0;
+  }
+
+  /** The campaign's newest published round; undefined before the first is published. */
+  async latestPublishedRound(tx: DbTx | Database, campaignId: number): Promise<PublishedRoundRecord | undefined> {
+    const [row] = await tx
+      .select({
+        id: allocationRounds.id,
+        campaignId: allocationRounds.campaignId,
+        roundNo: allocationRounds.roundNo,
+        publishedAt: allocationRounds.publishedAt,
+      })
+      .from(allocationRounds)
+      .where(and(eq(allocationRounds.campaignId, campaignId), eq(allocationRounds.status, 'PUBLISHED')))
+      .orderBy(desc(allocationRounds.roundNo))
+      .limit(1);
+    return row && { ...row, publishedAt: row.publishedAt! };
+  }
+
+  /**
+   * Nominations of published rounds counted per round and JD (US-5.3 AC-10): one round, or with
+   * `pendingOnly` every group that still has a NOMINATED one (the SLA sweep).
+   */
+  async reviewGroups(filter: { roundId?: number; pendingOnly?: boolean }): Promise<ReviewGroupRecord[]> {
+    const pending = sql<number>`(count(*) filter (where ${nominations.status} = 'NOMINATED'))::int`;
+    const rows = await this.db
+      .select({
+        roundId: allocationRounds.id,
+        roundNo: allocationRounds.roundNo,
+        campaignId: allocationRounds.campaignId,
+        publishedAt: allocationRounds.publishedAt,
+        jdId: nominations.jdId,
+        nominationCount: sql<number>`count(*)::int`,
+        pendingCount: pending,
+      })
+      .from(nominations)
+      .innerJoin(allocationRounds, eq(allocationRounds.id, nominations.roundId))
+      .where(
+        and(
+          eq(allocationRounds.status, 'PUBLISHED'),
+          filter.roundId === undefined ? undefined : eq(allocationRounds.id, filter.roundId),
+        ),
+      )
+      .groupBy(allocationRounds.id, nominations.jdId)
+      .having(filter.pendingOnly ? sql`${pending} > 0` : undefined)
+      .orderBy(asc(allocationRounds.id), asc(nominations.jdId));
+    return rows.map((row) => ({ ...row, publishedAt: row.publishedAt! }));
   }
 
   private async update(tx: DbTx, round: RoundRecord, values: Partial<typeof allocationRounds.$inferInsert>): Promise<void> {

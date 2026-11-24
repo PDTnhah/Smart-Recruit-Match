@@ -18,6 +18,7 @@ import { LowPreferenceAlertService } from './application/low-preference-alert.se
 import { MatchResultsHandler } from './application/match-results.handler.js';
 import { MatchingPhaseListener } from './application/phase-changed.listener.js';
 import { PreferenceAllocationService } from './application/preference-allocation.service.js';
+import { PreferenceReviewService } from './application/preference-review.service.js';
 import { PreferenceAutoAssignScheduler } from './application/preference-auto-assign.scheduler.js';
 import { PreferenceDeadlineReminderSource } from './application/preference-deadline.source.js';
 import { PreferenceExamService } from './application/preference-exam.service.js';
@@ -65,6 +66,7 @@ import { PreferencesRepository } from './infrastructure/preferences.repository.j
     PreferenceExamService,
     PreferenceGradingService,
     PreferenceAllocationService,
+    PreferenceReviewService,
     AutoAssignPreferencesService,
     PreferenceAutoAssignScheduler,
     PreferenceDeadlineReminderSource,
@@ -81,6 +83,7 @@ import { PreferencesRepository } from './infrastructure/preferences.repository.j
     PreferenceExamService,
     PreferenceGradingService,
     PreferenceAllocationService,
+    PreferenceReviewService,
   ],
 })
 export class MatchingModule {}

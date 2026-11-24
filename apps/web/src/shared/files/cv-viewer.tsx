@@ -1,4 +1,3 @@
-import { fileId } from '@srm/shared';
 import { useQuery } from '@tanstack/react-query';
 import { FileText } from 'lucide-react';
 import workerSrc from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
@@ -27,11 +26,19 @@ function useWidth() {
   return { ref, width };
 }
 
-function OpenFile({ cvId, fileName }: { cvId: number; fileName: string }) {
-  return <ViewFileButton fileId={fileId('cv', cvId)} label={`Mở file: ${fileName}`} />;
+interface CvViewerProps {
+  /** `cv:{id}` for the student's own version (US-2.6), `nomination:{id}` for HR (US-5.3). */
+  fileId: string;
+  fileName: string;
+  /** Why to open the file in a new tab when it cannot show here. */
+  hint: string;
 }
 
-function Unavailable({ cvId, fileName, title }: { cvId: number; fileName: string; title: string }) {
+function OpenFile({ fileId, fileName }: Pick<CvViewerProps, 'fileId' | 'fileName'>) {
+  return <ViewFileButton fileId={fileId} label={`Mở file: ${fileName}`} />;
+}
+
+function Unavailable({ fileId, fileName, hint, title }: CvViewerProps & { title: string }) {
   return (
     <Empty className="border">
       <EmptyHeader>
@@ -39,10 +46,10 @@ function Unavailable({ cvId, fileName, title }: { cvId: number; fileName: string
           <FileText />
         </EmptyMedia>
         <EmptyTitle>{title}</EmptyTitle>
-        <EmptyDescription>Mở file CV ở thẻ mới để đối chiếu khi sửa hồ sơ.</EmptyDescription>
+        <EmptyDescription>{hint}</EmptyDescription>
       </EmptyHeader>
       <EmptyContent>
-        <OpenFile cvId={cvId} fileName={fileName} />
+        <OpenFile fileId={fileId} fileName={fileName} />
       </EmptyContent>
     </Empty>
   );
@@ -51,27 +58,29 @@ function Unavailable({ cvId, fileName, title }: { cvId: number; fileName: string
 const pageSkeleton = <Skeleton className="aspect-[210/297] w-full" />;
 
 /**
- * The CV file next to the profile (US-2.6 AC-1), through a 5-minute presigned URL (CONTEXT D28).
- * A PDF shows page by page at the width of its column; a DOCX, or a PDF that does not load (a URL
- * from another origin in development), offers the file in a new tab instead.
+ * A CV file through a 5-minute presigned URL (CONTEXT D28): next to the profile the student reviews
+ * (US-2.6 AC-1), in the nomination HR reads (US-5.3 AC-12). A PDF shows page by page at the width of
+ * its column; a DOCX, or a PDF that does not load (a URL from another origin in development), offers
+ * the file in a new tab instead.
  */
-export function CvViewer({ cvId, fileName }: { cvId: number; fileName: string }) {
+export function CvViewer(props: CvViewerProps) {
+  const { fileId, fileName } = props;
   const isPdf = fileName.toLowerCase().endsWith('.pdf');
   const { ref, width } = useWidth();
   const [pages, setPages] = useState(0);
   const [failed, setFailed] = useState(false);
   // Read once per mount and dropped on unmount: a refetch would reload the PDF, and the URL expires.
   const url = useQuery({
-    queryKey: ['files', fileId('cv', cvId), 'url'],
-    queryFn: () => fetchFileUrl(fileId('cv', cvId)),
+    queryKey: ['files', fileId, 'url'],
+    queryFn: () => fetchFileUrl(fileId),
     enabled: isPdf,
     staleTime: Infinity,
     gcTime: 0,
     refetchOnWindowFocus: false,
   });
 
-  if (!isPdf) return <Unavailable cvId={cvId} fileName={fileName} title="File DOCX không xem trước được ở đây" />;
-  if (url.isError || failed) return <Unavailable cvId={cvId} fileName={fileName} title="Không hiển thị được file CV" />;
+  if (!isPdf) return <Unavailable {...props} title="File DOCX không xem trước được ở đây" />;
+  if (url.isError || failed) return <Unavailable {...props} title="Không hiển thị được file CV" />;
 
   return (
     <div className="flex min-w-0 flex-col gap-4">
@@ -106,7 +115,7 @@ export function CvViewer({ cvId, fileName }: { cvId: number; fileName: string })
         )}
       </div>
       <div className="min-w-0">
-        <OpenFile cvId={cvId} fileName={fileName} />
+        <OpenFile fileId={fileId} fileName={fileName} />
       </div>
     </div>
   );

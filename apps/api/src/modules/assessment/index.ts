@@ -18,6 +18,8 @@ export { ThresholdScheduler, type ThresholdSweepReport } from './application/thr
 export { NO_THRESHOLD_HOLDS, THRESHOLD_HOLDS, type ThresholdHolds } from './application/threshold-holds.js';
 // Tests of the campaign for an allocation round (US-5.2).
 export { type AllocationSessionResult, AllocationResultsService } from './application/allocation-results.service.js';
+// Tests and the CV trust index of a nomination, for HR review (US-5.3).
+export { ReviewResultsService, type ReviewTestResult } from './application/review-results.service.js';
 export type { DrawableBank, DrawableQuestion, RetiredQuestion } from './domain/drawable-bank.js';
 // Pure blueprint and question helpers, for the locked question bank seed (US-4.2 AC-9).
 export { type BlueprintCellRef, buildDefaultBlueprint, cellsOf } from './domain/blueprint.js';

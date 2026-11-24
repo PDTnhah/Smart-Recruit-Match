@@ -4,6 +4,7 @@ import type {
   MissingCell,
   PreferenceRejectionCode,
   QuestionImportFileError,
+  SupplementBlock,
 } from '@srm/shared';
 
 // Plain classes without NestJS imports, so domain/ code may throw them too.
@@ -736,5 +737,42 @@ export class NominationStudentActiveError extends DomainError {
 
   constructor(studentId: number) {
     super(`student ${studentId} already has a running nomination`, { studentId });
+  }
+}
+
+/** HR decides once per nomination (US-5.3 AC-7): it is no longer NOMINATED. */
+export class NominationAlreadyDecidedError extends DomainError {
+  readonly code = 'NOMINATION_ALREADY_DECIDED';
+  readonly httpStatus = 409;
+
+  constructor(nominationId: number, status: string) {
+    super(`nomination ${nominationId} is already decided (${status})`, { nominationId, status });
+  }
+}
+
+/**
+ * HR may not ask for more candidates for the JD now (US-5.3 AC-9, GĐ8 step 3): no round published
+ * yet, HR already invited as many as the quota, or already asked in this round.
+ */
+export class SupplementNotAllowedError extends DomainError {
+  readonly code = 'SUPPLEMENT_NOT_ALLOWED';
+  readonly httpStatus = 409;
+
+  constructor(jdId: number, blockedBy: SupplementBlock, extra: Record<string, unknown> = {}) {
+    super(`job description ${jdId}: a supplement request is not allowed (${blockedBy})`, { jdId, blockedBy, ...extra });
+  }
+}
+
+/** An extension must move HR's deadline later than both now and the current deadline (US-5.3 AC-10). */
+export class ReviewDeadlineNotLaterError extends DomainError {
+  readonly code = 'REVIEW_DEADLINE_NOT_LATER';
+  readonly httpStatus = 422;
+
+  constructor(roundId: number, jdId: number, currentDueAt: Date) {
+    super(`round ${roundId}, job description ${jdId}: the new deadline must be after ${currentDueAt.toISOString()} and now`, {
+      roundId,
+      jdId,
+      currentDueAt: currentDueAt.toISOString(),
+    });
   }
 }

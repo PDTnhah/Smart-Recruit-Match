@@ -9,7 +9,7 @@ Hệ thống giúp Trung tâm quan hệ doanh nghiệp của trường ghép sin
 ## Trạng thái
 
 - Story nào xong, story nào đang `review` và còn chờ gì: [STATUS.md](docs/sprints/STATUS.md) (tự sinh) và file story. Đã phát hành gì: [CHANGELOG](docs/CHANGELOG.md). Việc đang làm của người dùng hiện tại: `.active-context.md`; đọc file này khi bắt đầu phiên, nếu có.
-- 49 story của 6 epic nằm trong `docs/sprints/stories/` ([CONTEXT D21, D42, D55, D56, D58, D60, D62](docs/CONTEXT.md)). Lộ trình: xong trong tháng 12/2026, hai làn chạy song song bằng agent ([sprints/README › Lộ trình](docs/sprints/README.md#lộ-trình), [CONTEXT D20](docs/CONTEXT.md)).
+- 50 story của 6 epic nằm trong `docs/sprints/stories/` ([CONTEXT D21, D42, D55, D56, D58, D60, D62, D65](docs/CONTEXT.md)). Lộ trình: xong trong tháng 12/2026, hai làn chạy song song bằng agent ([sprints/README › Lộ trình](docs/sprints/README.md#lộ-trình), [CONTEXT D20](docs/CONTEXT.md)).
 - Khi bắt đầu một story, đọc lại file của nó và thêm khối *Story refresh* nếu spec đã đổi.
 - Không ghi trạng thái từng story vào file này ([CONTEXT D38](docs/CONTEXT.md)). Chỉ sửa khi có quy tắc mới hoặc mẫu mới cho mục *Mẫu có sẵn*.
 
@@ -36,6 +36,7 @@ Code đã có các mẫu sau. Dùng lại thay vì dò code hay viết mới:
 | Chấm theo tiêu chí của rubric (form, API) | Luật kiểm `manualGradeCriteriaSchemaFor(rubric)` / `manualGradeFormSchemaFor` ở `@srm/shared`: `z.tuple`, lỗi ở `criteria.N.points`. Form mẫu `apps/web/src/features/center/grading/manual-grade-form.tsx`: ô số nguyên cho từng tiêu chí, tổng chỉ để hiện, `AlertDialog` xác nhận, gửi `rowVersion` của lúc mở. API mẫu `ManualGradingService.grade`: khóa dòng, audit, `finalizeIfReady` sau commit, lỗi sau commit thành `NEXT_SWEEP` ([LESSONS §44](docs/LESSONS.md), [CONTEXT D54](docs/CONTEXT.md)) |
 | Tính lại điểm và công bố kết quả một bài test (sau khi cán bộ chấm, sau phúc khảo) | `GradingService.finalizeIfReady(sessionId)` (module `assessment`): idempotent, rollback khi lệch `row_version`, không công bố trước `testing_end`. NV: `PreferenceGradingService` của `matching` (`lockForGrading`, `markTestGraded`, `markBelowThreshold`); giữ NV khỏi chuyển dưới ngưỡng qua provider `THRESHOLD_HOLDS` ([CONTEXT D53](docs/CONTEXT.md)) |
 | Số nguyên ×100, phân số chính xác, làm tròn half-up | `@srm/shared/scoring` (`Ratio`, `add`, `times`, `over`, `roundHalfUp`); điểm cấu hình của đợt qua `toHundredths` (AGENTS › Nguyên tắc 9) |
+| Đề cử đã công bố (đọc, khóa, chuyển trạng thái, đếm số đã mời); hạn HR theo ngày làm việc | `NominationService` của `allocation` (chỉ vòng `PUBLISHED`; `transition` qua `transitionTo`); quyết định của HR, yêu cầu bổ sung, hạn và gia hạn ở module `review`: `ReviewDeadlineService.deadlinesOf`, `SupplementRequestService.listOfCampaign`. Ngày làm việc (thứ Hai–thứ Sáu, UTC+7): `addWorkingDays`, `workingDaysBetween` ở `review/domain/working-days.ts`. HR mở CV của đề cử qua file id `nomination:{id}` ([CONTEXT D64, D65](docs/CONTEXT.md)) |
 | Đổi trạng thái kèm cột khác của cùng dòng | `transitionTo({ ..., set: { lockedAt } })`: cột ghi trong cùng lệnh UPDATE với `status`, nên CHECK giữa hai cột luôn đúng |
 
 ## Tài liệu

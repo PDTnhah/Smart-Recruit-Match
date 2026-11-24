@@ -71,6 +71,7 @@
 - D62 · Trung tâm và HR tự thêm câu hỏi bằng form hoặc import `.xlsx`/`.csv`: HR chỉ thấy câu của công ty, chỉ trước khi khóa, xem trước rồi lưu tất cả hoặc không; thêm US-4.13, FR-42
 - D63 · Phá hòa cuối của Allocation Engine: `student_code` tăng dần theo code unit, SV thiếu GPA xếp sau; `computeCapacity` đọc k như số thập phân chính xác (US-5.1)
 - D64 · Vòng phân bổ: `allocation` sở hữu `nominations`, điều chỉnh vi phạm BR-07/BR-09 bị chặn, chạy sau hạn phúc khảo, *Công bố đề cử* chỉ trong app, chạy lại ghi đè dự thảo (US-5.2)
+- D65 · HR duyệt đề cử: hồ sơ HR xem, tóm tắt AI tách US-5.6, SLA ngày làm việc và thông báo chỉ trong app, Q5 chốt "không", file CV qua `nomination:{id}` (US-5.3)
 
 ---
 
@@ -2693,3 +2694,25 @@ Lúc điều tra còn thấy hai lỗi khác, không gây ra sự cố này:
 
 **Date**: 2026-11-24
 **Version**: 0.33.0
+
+### D65. HR duyệt đề cử: hồ sơ HR xem, tóm tắt AI, SLA, Q5, đường đọc dữ liệu (US-5.3) (chốt điểm mở của US-5.3 và Q5)
+
+**Context**: Story US-5.3 để năm điểm "hỏi trước khi chốt": hồ sơ năng lực HR xem có che thông tin nhạy cảm không; tóm tắt hồ sơ bằng LLM chưa có queue, agent, chỗ lưu; SLA "5 ngày làm việc" không nói ngày lễ; kênh của *Nhắc hạn duyệt hồ sơ; quá SLA*; Q5. Theo D64, `allocation` sở hữu `nominations` và phụ thuộc `student`, nên `student` và `allocation` không đọc được dữ liệu của `review`.
+
+**Decision** (người dùng chốt bốn điểm đầu ngày 2026-11-24; các điểm còn lại theo đề xuất của story):
+
+- HR xem `cvs.profile` (không có phần PII riêng) và CV gốc, vì SV đã đồng ý chia sẻ CV với doanh nghiệp được đề cử (GĐ2).
+- Không làm tóm tắt hồ sơ bằng LLM trong US-5.3; tách thành US-5.6 (`backlog`) để người dùng quyết có làm hay không. AC-11 bỏ khỏi US-5.3.
+- Hạn HR = `published_at` + `sla_hr_business_days` ngày làm việc, thứ Hai–thứ Sáu theo giờ Việt Nam (UTC+7), không có lịch nghỉ lễ; nhắc khi còn 2 ngày làm việc. *Nhắc hạn*, *quá SLA* (HR và Trung tâm) và *Yêu cầu bổ sung hồ sơ* (Trung tâm) chỉ trong app. Hết hạn không tự quyết định gì (BR-13).
+- Q5 chốt theo Đề xuất: HR không chọn SV ngoài đề cử; test duyệt danh sách route có `@Roles('HR')`.
+- Theo đề xuất: gia hạn là bảng chỉ ghi thêm `review_deadline_extensions` theo (vòng, JD), bản mới nhất là hạn, phải sau hạn hiện tại và sau lúc gia hạn; yêu cầu bổ sung tối đa một lần mỗi vòng đã công bố cho mỗi JD, chỉ lưu và báo Trung tâm, cách dùng chốt ở US-5.5; quyết định lần hai trả `409 NOMINATION_ALREADY_DECIDED` (không phải `422 INVALID_TRANSITION`).
+- Đường đọc: HR mở CV qua file id `nomination:{id}` (resolver của `review`, kiểm BR-11), không qua `cv:{id}`; SV đọc lý do từ chối qua `GET /api/me/nomination-reviews` của `review`, `me/allocation-results` thêm `nominationId` để ghép.
+
+**Rationale**: HR đã xem được CV gốc, che hồ sơ năng lực không bảo vệ thêm gì. Tóm tắt AI chỉ để tham khảo và cần thêm hợp đồng message, agent, prompt. Ngày làm việc tính theo giờ Việt Nam để cuối tuần không lệch 7 giờ. Đường đọc mới tránh phụ thuộc vòng giữa `student`, `allocation` và `review`.
+
+**Alternatives considered**: `profile_masked` cho HR; làm tóm tắt AI ngay; gửi cả email cho lời nhắc; cột `nominations.review_due_at` (đề xuất cũ của story: `allocation` phải biết SLA); cho `student` tra đề cử qua registry. Người dùng không chọn hoặc story không dùng các phương án này.
+
+**Impact**: ARCH › *Các bảng chính*, *API architecture*, *Tác vụ định kỳ*, *Bản đồ sử dụng LLM* (dòng GĐ8 chờ US-5.6); PRD › Q5, *Thông báo*, EPIC-5 (thêm US-5.6). US-5.4 đọc `INTERVIEW` qua `NominationService`; US-5.5 đọc `SupplementRequestService.listOfCampaign` và `ReviewDeadlineService.deadlinesOf`.
+
+**Date**: 2026-11-24
+**Version**: 0.34.0

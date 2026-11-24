@@ -2,3 +2,7 @@
 export const HR_JDS_PATH = '/hr/job-descriptions';
 
 export const hrJdPath = (id: number) => `${HR_JDS_PATH}/${id}`;
+
+/** The "Đề cử" tab of a JD (US-5.3), optionally with one nomination open. */
+export const hrJdNominationsPath = (id: number, nominationId?: number) =>
+  `${hrJdPath(id)}?tab=nominations${nominationId === undefined ? '' : `&nomination=${nominationId}`}`;

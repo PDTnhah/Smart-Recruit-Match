@@ -29,6 +29,7 @@ import { IconBadge } from '@/shared/ui/icon-badge';
 import { AdjustNominationDialog, type AdjustTarget } from './adjust-nomination-dialog';
 import { useAllocationRound, useAllocationRounds, usePublishRound, useRunAllocation } from './api';
 import { ExplanationSheet } from './explanation-sheet';
+import { ReviewDeadlinesCard } from './review-deadlines';
 import {
   ADJUSTMENT_OP_LABELS,
   ALLOCATION_ROUND_STATUS_LABELS,
@@ -536,6 +537,12 @@ function RoundPanel({ roundId, campaign }: { roundId: number; campaign: Campaign
   return (
     <div className="flex flex-col gap-6">
       <RoundSummary round={view} campaign={campaign} />
+      {view.status === 'PUBLISHED' && (
+        <ReviewDeadlinesCard
+          roundId={view.id}
+          editable={campaign.status === 'ALLOCATION_REVIEW' || campaign.status === 'SUPPLEMENTARY'}
+        />
+      )}
       <Warnings round={view} />
       <NominationTable round={view} onAdjust={adjust} onExplain={setExplaining} />
       <UnassignedTable round={view} onAdjust={adjust} onExplain={setExplaining} />
