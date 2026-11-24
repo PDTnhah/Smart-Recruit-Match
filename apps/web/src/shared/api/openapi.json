@@ -3342,6 +3342,16 @@
             }
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunAllocationRequestDto"
+              }
+            }
+          }
+        },
         "responses": {
           "201": {
             "description": "",
@@ -14783,6 +14793,21 @@
           "trustScore",
           "trustLevel",
           "questions"
+        ],
+        "additionalProperties": false
+      },
+      "RunAllocationRequestDto": {
+        "type": "object",
+        "properties": {
+          "rowVersion": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "nullable": true
+          }
+        },
+        "required": [
+          "rowVersion"
         ],
         "additionalProperties": false
       },

@@ -1,4 +1,5 @@
 import { type CandidatePair, filterEligible } from '../eligibility.js';
+import { InvalidAllocationInputError } from '../errors.js';
 
 // US-5.2 AC-2 (BR-07): θ_cv = 50, θ_test = 40, as integers ×100.
 const THRESHOLDS = { thetaCv: 5000, thetaTest: 4000 };
@@ -37,9 +38,24 @@ describe('filterEligible (US-5.2 AC-2)', () => {
 
   it('a pair failing several rules keeps every reason', () => {
     const { excluded } = filterEligible(
-      [pair({ hardFilter: { eligible: false, codes: ['MAJOR_NOT_ALLOWED'] }, sCv: null, sTest: 100 })],
+      [pair({ hardFilter: { eligible: false, codes: ['MAJOR_NOT_ALLOWED'] }, sCv: 4000, sTest: 100 })],
       THRESHOLDS,
     );
     expect(excluded[0]?.reasons).toEqual(['HARD_FILTER', 'BELOW_THETA_CV', 'BELOW_THETA_TEST']);
+  });
+
+  it('a missing S_cv is not reported as below θ_cv; an eligible pair without one is refused', () => {
+    const { excluded } = filterEligible(
+      [
+        pair({ jdId: 'closed', hardFilter: { eligible: false, codes: ['GPA_BELOW_MIN'] }, sCv: null, sTest: null, sFinal: null }),
+        pair({ jdId: 'not-taken', sCv: null, sTest: null, sFinal: null }),
+      ],
+      THRESHOLDS,
+    );
+    expect(excluded.map((p) => [p.jdId, p.reasons])).toEqual([
+      ['closed', ['HARD_FILTER', 'TEST_NOT_TAKEN']],
+      ['not-taken', ['TEST_NOT_TAKEN']],
+    ]);
+    expect(() => filterEligible([pair({ sCv: null })], THRESHOLDS)).toThrow(InvalidAllocationInputError);
   });
 });

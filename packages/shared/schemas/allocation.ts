@@ -37,9 +37,10 @@ export type AllocationOutcomeReason = (typeof ALLOCATION_OUTCOME_REASONS)[number
 /**
  * What still keeps a round from running (AC-6): a preference whose test score is not final yet
  * (essays waiting for a grader, the test not closed), a session still within its appeal window, an
- * appeal still open (US-4.6).
+ * appeal still open (US-4.6), a graded preference whose pair has no match result under the current
+ * rules and pinned prompt (matching must run again first).
  */
-export const ALLOCATION_PENDING_KINDS = ['TEST_NOT_FINAL', 'APPEAL_WINDOW_OPEN', 'APPEAL_OPEN'] as const;
+export const ALLOCATION_PENDING_KINDS = ['TEST_NOT_FINAL', 'APPEAL_WINDOW_OPEN', 'APPEAL_OPEN', 'MATCH_NOT_CURRENT'] as const;
 
 export type AllocationPendingKind = (typeof ALLOCATION_PENDING_KINDS)[number];
 
@@ -64,6 +65,7 @@ export const ALLOCATION_PENDING_KIND_LABELS: Readonly<Record<AllocationPendingKi
   TEST_NOT_FINAL: 'Bài test chưa có điểm cuối',
   APPEAL_WINDOW_OPEN: 'Còn trong hạn phúc khảo',
   APPEAL_OPEN: 'Đang phúc khảo',
+  MATCH_NOT_CURRENT: 'Chưa có kết quả phù hợp theo bộ luật hiện tại',
 };
 
 // Requests.
@@ -105,6 +107,14 @@ export const NominationTargetFormSchema = NominationAdjustmentFormSchema.extend(
 });
 
 export type NominationAdjustmentForm = z.output<typeof NominationAdjustmentFormSchema>;
+
+/**
+ * `POST /api/campaigns/{id}/allocation-rounds`: the row version of the draft the caller saw, null
+ * when they saw none. Running again over a draft changed since then is refused (AC-11).
+ */
+export const RunAllocationRequestSchema = z.strictObject({ rowVersion: RowVersionSchema.nullable() });
+
+export type RunAllocationRequest = z.output<typeof RunAllocationRequestSchema>;
 
 /** `POST /api/allocation-rounds/{id}/publish`. */
 export const PublishAllocationRoundRequestSchema = z.strictObject({ rowVersion: RowVersionSchema });

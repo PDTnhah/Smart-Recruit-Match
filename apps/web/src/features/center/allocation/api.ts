@@ -58,11 +58,16 @@ function useRoundWrite<T>(campaignId: number, write: (input: T) => Promise<Alloc
   });
 }
 
-/** Runs round 1, or runs a draft again (its adjustments are replaced). */
+/**
+ * Runs round 1, or runs a draft again (its adjustments are replaced). `rowVersion` is the draft's as
+ * the screen shows it, null when it shows none: a draft changed since is refused with a 409.
+ */
 export function useRunAllocation(campaignId: number) {
-  return useRoundWrite(campaignId, async () =>
+  return useRoundWrite(campaignId, async (rowVersion: number | null) =>
     AllocationRoundViewSchema.parse(
-      unwrap(await api.POST('/api/campaigns/{id}/allocation-rounds', { params: { path: { id: campaignId } } })),
+      unwrap(
+        await api.POST('/api/campaigns/{id}/allocation-rounds', { params: { path: { id: campaignId } }, body: { rowVersion } }),
+      ),
     ),
   );
 }

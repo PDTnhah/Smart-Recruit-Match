@@ -3572,6 +3572,9 @@ export interface components {
                 reason: string | null;
             }[];
         };
+        RunAllocationRequestDto: {
+            rowVersion: number | null;
+        };
         AllocationRoundViewDto_Output: {
             id: number;
             campaignId: number;
@@ -5623,7 +5626,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RunAllocationRequestDto"];
+            };
+        };
         responses: {
             201: {
                 headers: {

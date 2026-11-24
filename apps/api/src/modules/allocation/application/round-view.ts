@@ -114,8 +114,9 @@ export function buildRoundView(
     .sort((a, b) => compareCodeUnits(a.title, b.title) || a.jdId - b.jdId);
 
   const nominated = new Set(nominations.map((nomination) => nomination.studentId));
-  const ranked = [...new Set(snapshot.pairs.map((pair) => Number(pair.studentId)))];
-  const unassigned = ranked
+  // Every student of the round, also one whose every NV BR-07 kept out (AC-7: with the reasons).
+  const { studentIds } = idsOf(snapshot);
+  const unassigned = studentIds
     .filter((studentId) => !nominated.has(studentId))
     .map(
       (studentId): AllocationUnassignedView => ({
@@ -131,7 +132,7 @@ export function buildRoundView(
     ...summaryOf(round),
     campaignName: context.campaignName,
     counts: {
-      students: ranked.length,
+      students: studentIds.length,
       nominated: nominations.length,
       unassigned: unassigned.length,
       excludedPairs: snapshot.excluded.length,

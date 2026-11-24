@@ -116,6 +116,15 @@ export class AllocationRoundRepository {
     return row && toRound(row);
   }
 
+  /** The campaign of a round, read without a lock (it never changes). */
+  async campaignOf(tx: DbTx, id: number): Promise<number | undefined> {
+    const [row] = await tx
+      .select({ campaignId: allocationRounds.campaignId })
+      .from(allocationRounds)
+      .where(eq(allocationRounds.id, id));
+    return row?.campaignId;
+  }
+
   async findByRoundNo(tx: DbTx, campaignId: number, roundNo: number): Promise<RoundRecord | undefined> {
     const [row] = await tx
       .select(ROUND_COLUMNS)

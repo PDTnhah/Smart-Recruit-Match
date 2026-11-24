@@ -14,6 +14,7 @@ import {
   AllocationRoundViewDto,
   PublishAllocationRoundRequestDto,
   RoundStudentParamDto,
+  RunAllocationRequestDto,
 } from './dto.js';
 
 /** GĐ7 for the center (FR-26, US-5.2 AC-1, AC-6): run round 1 of a campaign, list its rounds. */
@@ -29,8 +30,12 @@ export class CampaignAllocationRoundsController {
   @Post()
   @HttpCode(201)
   @ZodResponse({ status: 201, type: AllocationRoundViewDto })
-  run(@CurrentUser() user: AuthUser, @Param() { id }: IdParamDto): Promise<AllocationRoundView> {
-    return this.rounds.run(id, userActor(user));
+  run(
+    @CurrentUser() user: AuthUser,
+    @Param() { id }: IdParamDto,
+    @Body() body: RunAllocationRequestDto,
+  ): Promise<AllocationRoundView> {
+    return this.rounds.run(id, body, userActor(user));
   }
 
   @Roles('CENTER')

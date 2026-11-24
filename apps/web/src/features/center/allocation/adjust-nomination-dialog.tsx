@@ -37,6 +37,9 @@ export type AdjustTarget =
 const TITLES = { add: 'Thêm đề cử', move: 'Chuyển đề cử', remove: 'Bỏ đề cử' } as const;
 const SUBMIT = { add: 'Thêm đề cử', move: 'Chuyển', remove: 'Bỏ đề cử' } as const;
 
+/** Codes meaning the draft on screen is no longer the one to adjust. */
+const STALE_DRAFT: ReadonlySet<string> = new Set(['ROW_VERSION_CONFLICT', 'ALLOCATION_ROUND_PUBLISHED', 'CAMPAIGN_PHASE_MISMATCH']);
+
 function describe(target: AdjustTarget): string {
   switch (target.op) {
     case 'add':
@@ -99,7 +102,9 @@ export function AdjustNominationDialog({
       onClose();
       toast.success('Đã lưu điều chỉnh', { description: 'Lý do được ghi vào nhật ký của vòng phân bổ.' });
     } catch (caught) {
-      if (caught instanceof ApiRequestError && caught.status === 409) {
+      // The draft moved on (another staff member, a publish): close and show the current one. Other
+      // refusals (BR-07, BR-08, BR-09) stay in the dialog with what was typed.
+      if (caught instanceof ApiRequestError && STALE_DRAFT.has(caught.body?.code ?? '')) {
         onClose();
         toast.error(apiErrorMessage(caught));
         return;

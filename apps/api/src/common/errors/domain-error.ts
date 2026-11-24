@@ -52,8 +52,9 @@ export class RowVersionConflictError extends DomainError {
   readonly code = 'ROW_VERSION_CONFLICT';
   readonly httpStatus = 409;
 
-  constructor(entity: string, id: number, expected: number, actual?: number) {
-    super(`${entity} ${id} was modified concurrently (expected row_version ${expected})`, {
+  /** `expected` is null when the caller saw no row at all (a draft created since). */
+  constructor(entity: string, id: number, expected: number | null, actual?: number) {
+    super(`${entity} ${id} was modified concurrently (expected row_version ${expected ?? 'none'})`, {
       entity,
       id,
       expectedRowVersion: expected,
@@ -664,7 +665,7 @@ export class AllocationInProgressError extends DomainError {
 
 /** What keeps a round from running (AC-6); `until` is when an appeal window ends. */
 export interface AllocationPendingItem {
-  kind: 'TEST_NOT_FINAL' | 'APPEAL_WINDOW_OPEN' | 'APPEAL_OPEN';
+  kind: 'TEST_NOT_FINAL' | 'APPEAL_WINDOW_OPEN' | 'APPEAL_OPEN' | 'MATCH_NOT_CURRENT';
   preferenceId: number;
   studentId: number;
   jdId: number;

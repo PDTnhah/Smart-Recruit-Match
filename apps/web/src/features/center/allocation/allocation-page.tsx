@@ -177,7 +177,7 @@ function NoRound({ campaign }: { campaign: Campaign }) {
           </EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
-          <Button disabled={!allowed || run.isPending} onClick={() => run.mutate()}>
+          <Button disabled={!allowed || run.isPending} onClick={() => run.mutate(null)}>
             {run.isPending ? <Spinner data-icon="inline-start" /> : <Play data-icon="inline-start" />}
             {run.isPending ? 'Đang chạy phân bổ' : 'Chạy phân bổ'}
           </Button>
@@ -240,7 +240,7 @@ function RoundSummary({ round, campaign }: { round: AllocationRoundView; campaig
         confirm="Chạy lại"
         pendingLabel="Đang chạy"
         onConfirm={async () => {
-          await run.mutateAsync();
+          await run.mutateAsync(round.rowVersion);
           toast.success('Đã chạy lại phân bổ');
         }}
       />

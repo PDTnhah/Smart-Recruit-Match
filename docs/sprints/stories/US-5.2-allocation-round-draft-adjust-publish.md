@@ -153,7 +153,13 @@ Xem [CHANGELOG 0.33.0](../../CHANGELOG.md).
 - **Engine qua DI.** Token `ALLOCATION_ENGINE`; test AC-4 thay `allocate` của provider. `ALLOCATION_UNSTABLE` trả `500` kèm tối đa 50 vi phạm và ghi log.
 - **Lưu kết quả.** `engine_result` giữ kết quả gốc trước điều chỉnh (cho `replayRound`); `adjustments` giữ nhật ký điều chỉnh cho màn dự thảo, mỗi thao tác cũng có một dòng `audit_logs` (entity `nomination`). Bỏ đề cử ở dự thảo là xóa dòng. Sau điều chỉnh, `rank` của các JD bị đụng được tính lại theo rank key của snapshot. `move` sang chính JD đang giữ trả `422` với lý do `ALREADY_AT_JD`; JD không thuộc NV hợp lệ trả lý do `NOT_A_PREFERENCE` hoặc lý do BR-07 của cặp.
 - **Version hệ thống** trong `config_snapshot` đọc từ `apps/api/package.json`.
-- **Công bố.** Thông báo ghi bằng `NotificationService.notify(…, { tx })` trong giao dịch công bố, `push` sau commit trong `try/catch` (LESSONS §44), nên lỗi giữa chừng không để lại thông báo nào. Mỗi SV có NV được xếp hạng nhận một thông báo (nơi được đề cử, hoặc đang chờ vòng sau); HR của mỗi JD có đề cử nhận số đề cử, link tạm tới trang JD của HR cho tới khi US-5.3 có màn đề cử.
+- **Công bố.** Thông báo ghi bằng `NotificationService.notify(…, { tx })` trong giao dịch công bố, `push` sau commit trong `try/catch` (LESSONS §44), nên lỗi giữa chừng không để lại thông báo nào. Mỗi SV của vòng nhận một thông báo (nơi được đề cử, hoặc chưa có đề cử), kể cả SV bị BR-07 loại hết NV; HR của mỗi JD có đề cử nhận số đề cử, link tạm tới trang JD của HR cho tới khi US-5.3 có màn đề cử.
+- **Sửa sau `/code-review`** (2026-11-24):
+  - Điều chỉnh và công bố khóa đợt trước rồi mới khóa vòng, cùng thứ tự với `run`, để hai thao tác chạy cùng lúc không deadlock.
+  - NV `TEST_GRADED` thiếu `match_results` theo `rules_version` hiện hành và prompt ghim thành mục chờ `MATCH_NOT_CURRENT`, không bị tính là trượt điều kiện cứng. Với cặp khác thiếu kết quả, hệ thống không ghi `HARD_FILTER`. Cặp có S_cv rỗng không bị ghi `BELOW_THETA_CV`.
+  - Khi công bố, NV `TEST_GRADED` bị BR-07 loại chuyển sang `BELOW_THRESHOLD` vì không vòng nào đề cử được nó. US-5.5 chỉ đọc `WAITING_NEXT_ROUND`.
+  - SV bị loại hết NV vẫn có trong danh sách chưa đề cử, trong `counts.students`, và vẫn nhận thông báo.
+  - Chạy lại phải gửi `rowVersion` của dự thảo đang xem (`null` khi chưa có dự thảo). Lệch thì trả `409 ROW_VERSION_CONFLICT`.
 - **Giao diện.** `apps/web` chưa cài TanStack Table; bảng dự thảo không sắp xếp hay phân trang nên dùng primitive `table` (DESIGN §6). Màn SV đặt ở mục *Kết quả* sẵn có của thanh dưới thay vì thêm mục thứ sáu.
 
 Self-verify: typecheck, lint, depcruise, `depcruise:fixture`, build; unit shared 412, API 699; `pnpm test` 1110/1110 (135 suite).

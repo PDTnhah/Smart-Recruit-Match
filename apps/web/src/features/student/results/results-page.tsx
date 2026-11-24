@@ -52,6 +52,9 @@ function Reasons({ result }: { result: MyAllocationResult }) {
 
 function ResultCard({ result }: { result: MyAllocationResult }) {
   const { nomination } = result;
+  // Without a nomination every NV is listed; when BR-07 kept all of them out, none waits for a round.
+  const noneEligible =
+    !nomination && result.preferences.length > 0 && result.preferences.every((preference) => preference.reason === 'NOT_ELIGIBLE');
   return (
     <Card>
       <CardHeader>
@@ -72,6 +75,16 @@ function ResultCard({ result }: { result: MyAllocationResult }) {
               <span className="font-medium">{nomination.title}</span> · {nomination.companyName}
             </p>
             <p className="text-sm text-muted-foreground">Doanh nghiệp sẽ xem hồ sơ và báo kết quả cho bạn qua hệ thống.</p>
+          </div>
+        ) : noneEligible ? (
+          <div className="flex flex-col gap-2">
+            <span className="flex items-center gap-2">
+              <CircleAlert className="size-5 shrink-0" aria-hidden="true" />
+              <span className="font-medium">Không có nguyện vọng đủ điều kiện đề cử</span>
+            </span>
+            <p className="text-sm text-muted-foreground">
+              Vòng này không có nguyện vọng nào của bạn đạt điều kiện để được đề cử. Lý do của từng nguyện vọng ở bên dưới.
+            </p>
           </div>
         ) : (
           <div className="flex flex-col gap-2">

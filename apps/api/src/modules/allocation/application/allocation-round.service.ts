@@ -5,6 +5,7 @@ import {
   type CampaignStatus,
   type JobDescriptionStatus,
   type PublishAllocationRoundRequest,
+  type RunAllocationRequest,
   toHundredths,
 } from '@srm/shared';
 import type { Redis } from 'ioredis';
@@ -65,6 +66,7 @@ import {
 import { ALLOCATION_AUDIT_ACTIONS, NOMINATION_ENTITY, ROUND_PUBLISHED_REASON } from './audit-actions.js';
 import { ALLOCATION_ENGINE, type AllocationEngine } from './engine.js';
 import { AllocationViewService } from './allocation-view.service.js';
+import { idsOf } from './round-view.js';
 import { SYSTEM_VERSION } from './system-version.js';
 
 /** Rounds run, are adjusted and published while the campaign is in "Phân bổ & HR duyệt" (GĐ7). */
@@ -129,14 +131,15 @@ export class AllocationRoundService {
   /**
    * AC-1–AC-6: one run at a time per campaign (Redis lock, then the campaign row `FOR UPDATE`); in
    * one transaction the inputs, BR-07, the engine, `checkStability`, the round and its nominations.
-   * A draft run again is replaced. The lock is released whatever happens.
+   * A draft run again is replaced, only at the row version the caller saw (AC-11), so a stale page
+   * cannot wipe newer adjustments. The lock is released whatever happens.
    */
-  async run(campaignId: number, actor: Actor): Promise<AllocationRoundView> {
+  async run(campaignId: number, request: RunAllocationRequest, actor: Actor): Promise<AllocationRoundView> {
     const key = `lock:allocation:${campaignId}`;
     const token = randomUUID();
     const lock = await this.acquire(key, token, campaignId);
     try {
-      return await this.db.transaction((tx) => this.runInTx(tx, campaignId, actor));
+      return await this.db.transaction((tx) => this.runInTx(tx, campaignId, request, actor));
     } catch (error) {
       if (error instanceof AllocationUnstableError) {
         this.logger.error(`campaign ${campaignId}: allocation result unstable: ${JSON.stringify(error.details)}`);
@@ -162,8 +165,8 @@ export class AllocationRoundService {
    */
   async adjust(roundId: number, request: AdjustNominationsRequest, actor: Actor): Promise<AllocationRoundView> {
     return this.db.transaction(async (tx) => {
+      await this.assertRoundPhase(tx, roundId);
       const round = await this.lockDraft(tx, roundId, request.rowVersion);
-      await this.campaigns.assertPhase(round.campaignId, ALLOCATION_PHASES, { tx });
       const adjustments = await this.applyAdjustments(tx, round, request, actor);
       await this.repository.saveAdjustments(tx, round, [...round.adjustments, ...adjustments]);
       return this.views.view(round.id, tx);
@@ -176,8 +179,8 @@ export class AllocationRoundService {
    */
   async publish(roundId: number, request: PublishAllocationRoundRequest, actor: Actor): Promise<AllocationRoundView> {
     const { view, pending } = await this.db.transaction(async (tx) => {
+      const campaign = await this.assertRoundPhase(tx, roundId);
       const round = await this.lockDraft(tx, roundId, request.rowVersion);
-      const campaign = await this.campaigns.assertPhase(round.campaignId, ALLOCATION_PHASES, { tx });
       await this.transitions.transitionTo({
         lifecycle: allocationRoundLifecycle,
         id: round.id,
@@ -191,11 +194,18 @@ export class AllocationRoundService {
       const nominations = await this.repository.nominationsOf(round.id, tx);
       const nominated = new Set(nominations.map((nomination) => nomination.preferenceId));
       const ranked = new Set(round.inputSnapshot.pairs.map((pair) => pair.preferenceId));
+      const excluded = new Set(round.inputSnapshot.excluded.map((pair) => pairKey(pair.studentId, pair.jdId)));
       for (const preference of await this.preferences.listForAllocation(campaign.id, { tx, lock: 'update' })) {
-        if (nominated.has(preference.id)) {
-          await this.preferences.markNominated(preference.id, preference.rowVersion, actor, ROUND_PUBLISHED_REASON, { tx });
-        } else if (ranked.has(preference.id) && preference.status === 'TEST_GRADED') {
-          await this.preferences.markWaitingNextRound(preference.id, preference.rowVersion, actor, ROUND_PUBLISHED_REASON, { tx });
+        const { id, rowVersion } = preference;
+        if (nominated.has(id)) {
+          await this.preferences.markNominated(id, rowVersion, actor, ROUND_PUBLISHED_REASON, { tx });
+        } else if (preference.status !== 'TEST_GRADED') {
+          continue;
+        } else if (ranked.has(id)) {
+          await this.preferences.markWaitingNextRound(id, rowVersion, actor, ROUND_PUBLISHED_REASON, { tx });
+        } else if (excluded.has(pairKey(preference.studentId, preference.jdId))) {
+          // Graded but kept out by BR-07 (hard filter, θ_cv): no later round can nominate it either.
+          await this.preferences.markNotEligible(id, rowVersion, actor, ROUND_PUBLISHED_REASON, { tx });
         }
       }
       const notices = await this.notifyPublished(tx, campaign, round, nominations);
@@ -212,10 +222,18 @@ export class AllocationRoundService {
     return view;
   }
 
-  private async runInTx(tx: DbTx, campaignId: number, actor: Actor): Promise<AllocationRoundView> {
+  private async runInTx(
+    tx: DbTx,
+    campaignId: number,
+    request: RunAllocationRequest,
+    actor: Actor,
+  ): Promise<AllocationRoundView> {
     const campaign = await this.campaigns.assertPhase(campaignId, ALLOCATION_PHASES, { tx, lock: 'update' });
     const existing = await this.repository.findByRoundNo(tx, campaignId, ROUND_NO);
     if (existing?.status === 'PUBLISHED') throw new AllocationRoundPublishedError(campaignId, ROUND_NO);
+    if (existing && request.rowVersion !== existing.rowVersion) {
+      throw new RowVersionConflictError(ROUND_ENTITY, existing.id, request.rowVersion, existing.rowVersion);
+    }
 
     const preferences = await this.preferences.listForAllocation(campaignId, { tx });
     const sessions = await this.results.listForAllocation(campaignId, { tx });
@@ -272,7 +290,8 @@ export class AllocationRoundService {
 
   /**
    * AC-6: a preference whose test has no final score, a session still within its appeal window, an
-   * appeal still open (US-4.6 through THRESHOLD_HOLDS). Times by `Clock`.
+   * appeal still open (US-4.6 through THRESHOLD_HOLDS), a graded pair with no current match result.
+   * Times by `Clock`.
    */
   private async pendingItems(
     campaign: CampaignSettings,
@@ -290,6 +309,12 @@ export class AllocationRoundService {
         continue;
       }
       if (preference.status !== 'TEST_GRADED') continue;
+      // Graded, but no result under the current rules and pinned prompt (rules raised since):
+      // its hard filter is unknown, so the pair is neither ranked nor reported as failing it.
+      if (!preference.match) {
+        pending.push({ kind: 'MATCH_NOT_CURRENT', ...item });
+        continue;
+      }
       const session = sessionOf.get(pairKey(preference.studentId, preference.jdId));
       if (!session?.resultsPublishedAt || session.sTest === null) {
         pending.push({ kind: 'TEST_NOT_FINAL', ...item });
@@ -320,9 +345,11 @@ export class AllocationRoundService {
         studentId: String(preference.studentId),
         jdId: String(preference.jdId),
         preferenceRank: preference.rank,
+        // No current result: a graded pair never gets here (`pendingItems`); for a pair below θ_test
+        // or never tested, no verdict is not a failed hard filter, and its other reasons keep it out.
         hardFilter: preference.match
           ? { eligible: preference.match.eligible, codes: preference.match.ineligibleCodes }
-          : { eligible: false, codes: ['NO_MATCH_RESULT'] },
+          : { eligible: true, codes: [] },
         sCv: sCv === null ? null : toCentiScore(sCv),
         sTest: sTest === null ? null : toCentiScore(sTest),
         sFinal: preference.sFinal === null ? null : toCentiScore(preference.sFinal),
@@ -339,8 +366,15 @@ export class AllocationRoundService {
       const preference = candidateOf.get(key);
       const session = sessionOf.get(key);
       const student = students.get(Number(pair.studentId));
-      if (!preference || !session?.submittedAt || !student || pair.sFinal === null || pair.sTest === null || pair.sCv === null) {
-        throw new Error(`pair ${key} is eligible without its preference, test, student or scores`);
+      if (
+        !preference?.match ||
+        !session?.submittedAt ||
+        !student ||
+        pair.sFinal === null ||
+        pair.sTest === null ||
+        pair.sCv === null
+      ) {
+        throw new Error(`pair ${key} is eligible without its preference, match result, test, student or scores`);
       }
       const { match } = preference;
       return {
@@ -532,6 +566,16 @@ export class AllocationRoundService {
     return this.audit.record(tx, { actor, action, entity: NOMINATION_ENTITY, entityId: nominationId, before, after, reason });
   }
 
+  /**
+   * The phase check of a round's campaign (`FOR SHARE`), taken before `lockDraft`: campaign first,
+   * then round, the order `run` locks them in, so a run and an adjustment or a publish never deadlock.
+   */
+  private async assertRoundPhase(tx: DbTx, roundId: number): Promise<CampaignSettings> {
+    const campaignId = await this.repository.campaignOf(tx, roundId);
+    if (campaignId === undefined) throw new EntityNotFoundError(ROUND_ENTITY, roundId);
+    return this.campaigns.assertPhase(campaignId, ALLOCATION_PHASES, { tx });
+  }
+
   /** The round locked `FOR UPDATE`, at the version the caller read (AC-11), still a draft (AC-10). */
   private async lockDraft(tx: DbTx, roundId: number, rowVersion: number): Promise<RoundRecord> {
     const round = await this.repository.findRound(roundId, { tx, lock: 'update' });
@@ -542,8 +586,8 @@ export class AllocationRoundService {
   }
 
   /**
-   * GĐ7 step 4 (CONTEXT D64): in the app only. Each ranked student hears where they are nominated,
-   * or that they wait; the HR of each JD with nominations hears how many. Written in `tx`.
+   * GĐ7 step 4 (CONTEXT D64): in the app only. Each student of the round hears where they are
+   * nominated, or that they are not; the HR of each JD with nominations hears how many. Written in `tx`.
    */
   private async notifyPublished(
     tx: DbTx,
@@ -555,7 +599,8 @@ export class AllocationRoundService {
     const base = { campaignId: campaign.id, campaignName: campaign.name, roundNo: round.roundNo };
     const jdIdOf = new Map(nominations.map((nomination) => [nomination.studentId, nomination.jdId]));
     const jds = new Map((await this.jds.listAllocationJds([...new Set(nominations.map((n) => n.jdId))])).map((jd) => [jd.jdId, jd]));
-    const accounts = await this.users.userIdsByStudent([...new Set(round.inputSnapshot.pairs.map((pair) => Number(pair.studentId)))]);
+    // Every student of the round, also one whose every NV BR-07 kept out (AC-7).
+    const accounts = await this.users.userIdsByStudent(idsOf(round.inputSnapshot).studentIds);
 
     const byJd = new Map<number | null, number[]>();
     for (const [studentId, userIds] of accounts) {

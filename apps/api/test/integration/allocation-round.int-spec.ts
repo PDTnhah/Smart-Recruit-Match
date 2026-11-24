@@ -13,7 +13,7 @@ import { and, eq, inArray } from 'drizzle-orm';
 import type { Redis } from 'ioredis';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { allocationRounds, nominations, notifications, preferences } from '../../src/db/schema/index.js';
+import { allocationRounds, matchResults, nominations, notifications, preferences } from '../../src/db/schema/index.js';
 import { AllocationResultsService } from '../../src/modules/assessment/index.js';
 import { ALLOCATION_ENGINE, type AllocationEngine, AllocationRoundService } from '../../src/modules/allocation/index.js';
 import { PreferenceAllocationService } from '../../src/modules/matching/index.js';
@@ -58,7 +58,8 @@ describe('GĐ7 allocation rounds (US-5.2)', () => {
 
   afterAll(() => t.close());
 
-  const run = (campaignId: number) => center.agent.post(api(`campaigns/${campaignId}/allocation-rounds`));
+  const run = (campaignId: number, rowVersion: number | null = null) =>
+    center.agent.post(api(`campaigns/${campaignId}/allocation-rounds`)).send({ rowVersion });
   const patch = (roundId: number, rowVersion: number, operations: unknown[]) =>
     center.agent.patch(api(`allocation-rounds/${roundId}/nominations`)).send({ rowVersion, operations });
   const publish = (roundId: number, rowVersion: number) =>
@@ -79,8 +80,18 @@ describe('GĐ7 allocation rounds (US-5.2)', () => {
     expect(holdersOf(view, a)).toEqual([seed.studentIds[BINH]]);
     expect(holdersOf(view, b)).toEqual([seed.studentIds[CHI], seed.studentIds[AN]]);
     expect(holdersOf(view, c)).toEqual([seed.studentIds[DUNG]]);
-    expect(view.counts).toEqual({ students: 4, nominated: 4, unassigned: 0, excludedPairs: 2 });
+    expect(view.counts).toEqual({ students: 5, nominated: 4, unassigned: 1, excludedPairs: 2 });
     expect(view.warnings).toEqual([]);
+    // AC-7: Em, whose every NV BR-07 kept out, is listed with the reasons.
+    expect(view.unassigned).toEqual([
+      expect.objectContaining({
+        studentId: seed.studentIds[EM_INDEX],
+        preferences: [
+          expect.objectContaining({ jdId: a, reason: 'NOT_ELIGIBLE', exclusionReasons: ['BELOW_THETA_TEST'] }),
+          expect.objectContaining({ jdId: c, reason: 'NOT_ELIGIBLE', exclusionReasons: ['HARD_FILTER'] }),
+        ],
+      }),
+    ]);
 
     const [round] = await roundsOf(seed.campaignId);
     const snapshot = round!.inputSnapshot as { pairs: Record<string, unknown>[]; excluded: Record<string, unknown>[] };
@@ -110,17 +121,23 @@ describe('GĐ7 allocation rounds (US-5.2)', () => {
     expect(errorOf(await run(testing.campaignId).expect(409)).code).toBe('CAMPAIGN_PHASE_MISMATCH');
 
     const pending = await seedAllocationCampaign(t.db, {
-      quotas: [1, 1],
+      quotas: [1, 1, 1],
       students: [
         { prefs: [{ jd: 0, sFinal: 70, sTest: 60, publishedAt: new Date(Date.now() - HOUR) }] },
         { prefs: [{ jd: 1, sFinal: 0, sTest: null, status: 'PENDING_TEST' }] },
+        { prefs: [{ jd: 2, sFinal: 70, sTest: 60 }] },
       ],
     });
+    // Rules raised since grading: the third pair has no result under the current ones.
+    await t.db
+      .delete(matchResults)
+      .where(and(eq(matchResults.campaignId, pending.campaignId), eq(matchResults.jdId, pending.jdIds[2]!)));
     const refused = await run(pending.campaignId).expect(409);
     expect(errorOf(refused).code).toBe('ALLOCATION_NOT_READY');
     expect(detailsOf<{ pending: unknown[] }>(refused).pending).toEqual([
       expect.objectContaining({ kind: 'APPEAL_WINDOW_OPEN', preferenceId: pending.preferenceIds[0]![0] }),
       expect.objectContaining({ kind: 'TEST_NOT_FINAL', preferenceId: pending.preferenceIds[1]![0] }),
+      expect.objectContaining({ kind: 'MATCH_NOT_CURRENT', preferenceId: pending.preferenceIds[2]![0] }),
     ]);
     expect(await roundsOf(pending.campaignId)).toEqual([]);
     // The lock was released with the failure.
@@ -132,8 +149,11 @@ describe('GĐ7 allocation rounds (US-5.2)', () => {
     const first = roundOf(await run(seed.campaignId).expect(201));
     const removed = (await nominationsOf(seed.campaignId)).find((n) => n.studentId === seed.studentIds[DUNG])!;
     await patch(first.id, first.rowVersion, [{ op: 'remove', nominationId: removed.id, reason: 'Thử điều chỉnh' }]).expect(200);
+    // AC-11: a page still showing the first version, or none, cannot wipe the adjustment.
+    expect(errorOf(await run(seed.campaignId, first.rowVersion).expect(409)).code).toBe('ROW_VERSION_CONFLICT');
+    expect(errorOf(await run(seed.campaignId).expect(409)).code).toBe('ROW_VERSION_CONFLICT');
 
-    const again = roundOf(await run(seed.campaignId).expect(201));
+    const again = roundOf(await run(seed.campaignId, first.rowVersion + 1).expect(201));
     expect(again.id).toBe(first.id);
     expect(again.rowVersion).toBe(first.rowVersion + 2);
     expect(again.adjustments).toEqual([]);
@@ -257,7 +277,7 @@ describe('GĐ7 allocation rounds (US-5.2)', () => {
   });
 
   it('GĐ7 publish transitions round and preferences, notifies after commit; NFR-4 explanation; RBAC and IDOR', async () => {
-    const seed = await seedAllocationCampaign(t.db, { quotas: PRD_QUOTAS, students: PRD_STUDENTS });
+    const seed = await seedAllocationCampaign(t.db, { quotas: PRD_QUOTAS, students: [...PRD_STUDENTS, EM] });
     const hr = await t.loginAs('HR', { companyId: seed.companyId });
     const students = await Promise.all(seed.studentIds.map((studentId) => t.loginAs('STUDENT', { studentId })));
     const an = students[AN]!;
@@ -275,6 +295,14 @@ describe('GĐ7 allocation rounds (US-5.2)', () => {
     expect(await statusOf(seed.preferenceIds[BINH]![1]!)).toBe('WAITING_NEXT_ROUND');
     expect(await statusOf(seed.preferenceIds[AN]![0]!)).toBe('WAITING_NEXT_ROUND');
     expect(await statusOf(seed.preferenceIds[AN]![1]!)).toBe('NOMINATED');
+    // BR-07: Em's graded NVs were kept out; no later round can nominate them.
+    expect(await statusOf(seed.preferenceIds[EM_INDEX]![0]!)).toBe('BELOW_THRESHOLD');
+    expect(await statusOf(seed.preferenceIds[EM_INDEX]![1]!)).toBe('BELOW_THRESHOLD');
+    const emNotices = await t.db
+      .select({ payload: notifications.payload })
+      .from(notifications)
+      .where(and(eq(notifications.type, 'NOMINATIONS_PUBLISHED'), eq(notifications.userId, students[EM_INDEX]!.user.id)));
+    expect(emNotices.map((notice) => notice.payload)).toEqual([expect.objectContaining({ audience: 'STUDENT', jd: null })]);
 
     const notices = await t.db
       .select()

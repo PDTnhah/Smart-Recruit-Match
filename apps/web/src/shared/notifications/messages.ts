@@ -165,7 +165,7 @@ export function describeNotification(notification: Notification): NotificationVi
           }
         : {
             title: 'Kết quả phân bổ đã công bố',
-            body: `Vòng phân bổ ${payload.roundNo} của đợt "${payload.campaignName}" chưa có đề cử cho bạn. Bạn đang chờ vòng sau; xem lý do từng nguyện vọng.`,
+            body: `Vòng phân bổ ${payload.roundNo} của đợt "${payload.campaignName}" chưa có đề cử cho bạn. Xem kết quả và lý do của từng nguyện vọng.`,
             href: STUDENT_RESULTS_PATH,
           };
     }

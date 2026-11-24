@@ -5,6 +5,7 @@ import {
   AllocationRoundViewSchema,
   MyAllocationResultsSchema,
   PublishAllocationRoundRequestSchema,
+  RunAllocationRequestSchema,
 } from '@srm/shared';
 import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';
@@ -16,6 +17,8 @@ export class AllocationRoundViewDto extends createZodDto(AllocationRoundViewSche
 export class AllocationRoundListDto extends createZodDto(AllocationRoundListSchema) {}
 
 export class AdjustNominationsRequestDto extends createZodDto(AdjustNominationsRequestSchema) {}
+
+export class RunAllocationRequestDto extends createZodDto(RunAllocationRequestSchema) {}
 
 export class PublishAllocationRoundRequestDto extends createZodDto(PublishAllocationRoundRequestSchema) {}
 

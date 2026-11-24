@@ -89,4 +89,20 @@ export class PreferenceAllocationService {
       tx: options.tx,
     });
   }
+
+  /**
+   * AC-10 (BR-07): TEST_GRADED → BELOW_THRESHOLD for a graded pair the round kept out (hard filter
+   * or θ_cv): no round can nominate it, so it does not wait for the next one. Audited in `tx`.
+   */
+  async markNotEligible(id: number, rowVersion: number, actor: Actor, reason: string, options: { tx: DbTx }): Promise<void> {
+    await this.transitions.transitionTo({
+      lifecycle: applicationLifecycle,
+      id,
+      to: 'BELOW_THRESHOLD',
+      actor,
+      reason,
+      expectedRowVersion: rowVersion,
+      tx: options.tx,
+    });
+  }
 }

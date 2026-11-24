@@ -74,7 +74,8 @@ const MESSAGES: Record<ApiErrorCode, string> = {
   EXAM_NOT_CLOSED: 'Bài test chưa nộp nên chưa có kết quả.',
   EXAM_ANSWER_ALREADY_GRADED: 'Câu này đã được chấm xong. Điểm đã lưu chỉ sửa được qua phúc khảo.',
   ALLOCATION_IN_PROGRESS: 'Một cán bộ khác đang chạy phân bổ cho đợt này. Chờ lượt đó xong rồi tải lại trang.',
-  ALLOCATION_NOT_READY: 'Chưa chạy được phân bổ vì còn bài test chưa có điểm cuối hoặc còn trong hạn phúc khảo.',
+  ALLOCATION_NOT_READY:
+    'Chưa chạy được phân bổ vì còn bài test chưa có điểm cuối, còn trong hạn phúc khảo hoặc chưa có kết quả phù hợp theo bộ luật hiện tại.',
   ALLOCATION_ROUND_PUBLISHED: 'Vòng phân bổ đã được công bố nên không chạy lại hay điều chỉnh được nữa.',
   ALLOCATION_UNSTABLE: 'Kết quả phân bổ không qua bước kiểm tra ổn định nên chưa được lưu. Báo quản trị hệ thống.',
   NOMINATION_NOT_ELIGIBLE: 'Sinh viên chưa đủ điều kiện để được đề cử vào JD này (điều kiện cứng, ngưỡng điểm hoặc không phải nguyện vọng).',
