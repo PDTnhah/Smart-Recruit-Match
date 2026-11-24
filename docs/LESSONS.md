@@ -281,6 +281,7 @@ See [CONTEXT D33](CONTEXT.md).
 
 **How to avoid**:
 - `build('<tên image>', { deleteOnExit: false })`: image được giữ lại, lần sau chỉ build lại lớp `app/` (vài giây).
+- Cập nhật (US-5.2): CI báo `Failed to build image` mà không có lý do, vì testcontainers bỏ output của Docker. Helper `startAiWorker` giờ build bằng `docker build` (BuildKit, một lần build cho hai worker Jest, giữ cache), thử lại một lần, rồi ném lỗi kèm 40 dòng cuối output.
 - Dockerfile cài phụ thuộc ở một layer riêng, chỉ phụ thuộc `pyproject.toml`.
 - Dựng tài nguyên lần lượt trong `beforeAll` (app trước, container build lâu sau) và gán biến ngay, để `afterAll` đóng được phần đã chạy.
 - Test bị treo sau khi `beforeAll` lỗi thì tìm tiến trình `node` còn chạy và dừng nó; container đã dừng nhưng kết nối của app vẫn thử lại.

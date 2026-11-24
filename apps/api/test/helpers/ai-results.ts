@@ -1,8 +1,10 @@
 // End-to-end helpers for AI jobs (US-2.1, CONTEXT D33): a RabbitMQ vhost per test file, the AI
 // Service worker in a container, and CV_PARSE result messages for the listener of US-2.4.
+import { execFile } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
+import { promisify } from 'node:util';
 import type { AmqpConnection } from '@golevelup/nestjs-rabbitmq';
 import { AI_RESULTS_QUEUE, type CvParseOutput, type CvPii, type CvProfile } from '@srm/shared';
 import { GenericContainer, type StartedTestContainer, Wait } from 'testcontainers';
@@ -11,6 +13,8 @@ import type { AiResultEvent } from '../../src/modules/aigateway/index.js';
 import { aiDatabaseUrl } from './db.js';
 
 const AI_SERVICE_DIR = path.resolve(__dirname, '../../../../ai-service');
+const AI_IMAGE = 'srm-ai-service-test';
+const BUILD_ATTEMPTS = 2;
 /** Sample CVs and recorded LLM replies of the AI Service tests (US-2.4). */
 const AI_FIXTURES_DIR = path.join(AI_SERVICE_DIR, 'tests/fixtures');
 
@@ -61,6 +65,29 @@ export async function createVhost(name: string): Promise<RabbitVhost> {
 }
 
 /**
+ * Builds ai-service/Dockerfile with the Docker CLI, not testcontainers: its build drops Docker's
+ * output and only says "Failed to build image", which is all a fresh CI runner reported when two
+ * Jest workers built the image at once. BuildKit runs one build for both and keeps the layer cache
+ * between runs. A failed build is tried once more (a network error of pip, a registry), then
+ * reported with the end of Docker's output.
+ */
+async function buildAiImage(): Promise<void> {
+  let output = '';
+  for (let attempt = 1; attempt <= BUILD_ATTEMPTS; attempt += 1) {
+    try {
+      await promisify(execFile)('docker', ['build', '--progress=plain', '--tag', AI_IMAGE, AI_SERVICE_DIR], {
+        maxBuffer: 16 * 1024 * 1024,
+      });
+      return;
+    } catch (error) {
+      const { stderr, message } = error as { stderr?: string; message: string };
+      output = (stderr || message).trim().split('\n').slice(-40).join('\n');
+    }
+  }
+  throw new Error(`docker build of ${AI_SERVICE_DIR} failed ${BUILD_ATTEMPTS} times:\n${output}`);
+}
+
+/**
  * Builds ai-service/Dockerfile and runs the FastStream worker on the test network, connected as
  * the ai_service role (the same image and command as compose's ai-worker). The recorded LLM replies
  * of ai-service/tests/fixtures/llm are copied in, so the sample CVs parse without a real API, and
@@ -68,14 +95,11 @@ export async function createVhost(name: string): Promise<RabbitVhost> {
  * overrides variables, e.g. a short LLM_BATCH_POLL_SECONDS for the matching batches (US-3.2).
  */
 export async function startAiWorker(vhost: RabbitVhost, env: Record<string, string> = {}): Promise<StartedTestContainer> {
-  // Kept after the run: the dependency layer is then reused, so only a changed app/ rebuilds.
-  const image = await GenericContainer.fromDockerfile(AI_SERVICE_DIR).build('srm-ai-service-test', {
-    deleteOnExit: false,
-  });
+  await buildAiImage();
   const database = new URL(aiDatabaseUrl());
   database.hostname = 'postgres';
   database.port = '5432';
-  return image
+  return new GenericContainer(AI_IMAGE)
     .withNetworkMode(requiredEnv('TEST_DOCKER_NETWORK'))
     .withEnvironment({
       AI_DATABASE_URL: database.toString(),
