@@ -935,7 +935,7 @@ Mọi thông báo đều hiện trong ứng dụng (chuông ở ba cổng, cập
 | FR-39 | Danh mục kỹ năng có vùng, họ (nhóm kỹ năng thay thế được cho nhau) và quan hệ kéo theo; kỹ năng mềm quy về bộ năng lực chuẩn; Quản trị gán và sửa khi duyệt kỹ năng (GĐ2, FR-13, [CONTEXT D42](CONTEXT.md)) | P0 | 🚧 In progress | EPIC-2 |
 | FR-40 | Khớp kỹ năng CV–JD bằng code, không dùng LLM: bậc bằng chứng của từng kỹ năng (cả kỹ năng mềm), khớp đúng / kéo theo / cùng họ, quy đổi ngoại ngữ theo CEFR (cả điều kiện cứng), ngoại ngữ ưu tiên của JD, mức khớp ngành, độ phủ theo vùng; mọi verdict kèm nguồn trong CV (GĐ3, NFR-4, [CONTEXT D42, D45](CONTEXT.md)) | P0 | 🚧 In progress | EPIC-3 |
 | FR-41 | Cán bộ Trung tâm sửa đợt sau khi mở (tên, thêm đối tượng, tham số của pha chưa bắt đầu, dời mốc chưa tới); hủy đợt đã có dữ liệu; xóa đợt chưa có dữ liệu; SV và HR của đợt được báo khi mốc đổi hoặc đợt bị hủy (GĐ0, [CONTEXT D56](CONTEXT.md)) | P1 | 🚧 In progress | EPIC-1 |
-| FR-42 | Cán bộ Trung tâm hoặc HR (JD của công ty mình) tự thêm câu hỏi vào ngân hàng chưa khóa bằng form hoặc import file `.xlsx`/`.csv` theo mẫu: xem trước có lỗi theo dòng, lưu tất cả hoặc không; code kiểm như câu AI sinh; câu thêm tay dùng được ngay và được tính vào độ phủ; HR chỉ thấy câu của công ty mình, Trung tâm thấy và loại được mọi câu (GĐ5, BR-11, [CONTEXT D62](CONTEXT.md)) | P1 | 📋 backlog | EPIC-4 |
+| FR-42 | Cán bộ Trung tâm hoặc HR (JD của công ty mình) tự thêm câu hỏi vào ngân hàng chưa khóa bằng form hoặc import file `.xlsx`/`.csv` theo mẫu: xem trước có lỗi theo dòng, lưu tất cả hoặc không; code kiểm như câu AI sinh; câu thêm tay dùng được ngay và được tính vào độ phủ; HR chỉ thấy câu của công ty mình, Trung tâm thấy và loại được mọi câu (GĐ5, BR-11, [CONTEXT D62](CONTEXT.md)) | P1 | 👀 review | EPIC-4 |
 
 Priority: `P0` = bắt buộc cho MVP, `P1` = nên có, `P2` = tùy chọn, `P3` = mở rộng. Status: `✅ shipped (vX.Y.Z)` / `🚧 in-progress` / `📋 backlog` / `⏪ reverted in vX.Y.Z` / `🗑️ deprecated vX.Y.Z`.
 
@@ -1074,7 +1074,7 @@ Mỗi epic tương ứng một giai đoạn trong [ARCHITECTURE.md › Implement
 | US-4.10 | Tách Validator khỏi job sinh câu: AI kiểm câu khi Trung tâm yêu cầu | 👀 review | 0.28.0 |
 | US-4.11 | Tab Ngân hàng câu hỏi: xem toàn bộ câu và loại câu sai | 👀 review | 0.30.0 |
 | US-4.12 | Sửa giao diện ngân hàng câu hỏi: ô độ phủ và đổi phần D thành C | 👀 review | 0.27.1 |
-| US-4.13 | Trung tâm và HR tự thêm câu hỏi: điền form hoặc import file | 📋 backlog | — |
+| US-4.13 | Trung tâm và HR tự thêm câu hỏi: điền form hoặc import file | 👀 review | 0.31.0 |
 
 ### EPIC-5: Phân bổ, HR duyệt và phỏng vấn
 

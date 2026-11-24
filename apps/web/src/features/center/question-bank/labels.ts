@@ -5,6 +5,7 @@ import type {
   QuestionDifficulty,
   QuestionGenerationRunStatus,
   QuestionRejectReason,
+  QuestionSource,
   QuestionStatus,
   QuestionType,
 } from '@srm/shared';
@@ -12,7 +13,8 @@ import type { VariantProps } from 'class-variance-authority';
 import type { badgeVariants } from '@/components/ui/badge';
 import { formatNumber } from '@/lib/format';
 
-// Vietnamese labels of the question bank screen (US-4.1 AC-11, US-4.2 AC-10, US-4.10 AC-5, US-4.11, DESIGN.md §9).
+// Vietnamese labels of the question bank screen (US-4.1 AC-11, US-4.2 AC-10, US-4.10 AC-5, US-4.11, US-4.13,
+// DESIGN.md §9).
 
 export const DIFFICULTY_LABELS: Readonly<Record<QuestionDifficulty, string>> = {
   EASY: 'Dễ',
@@ -23,6 +25,18 @@ export const DIFFICULTY_LABELS: Readonly<Record<QuestionDifficulty, string>> = {
 export const QUESTION_TYPE_LABELS: Readonly<Record<QuestionType, string>> = {
   MCQ: 'Trắc nghiệm',
   ESSAY: 'Tự luận',
+};
+
+/** Who wrote a question (US-4.13 AC-7). */
+export const QUESTION_SOURCE_LABELS: Readonly<Record<QuestionSource, string>> = {
+  AI: 'AI sinh',
+  MANUAL: 'Thêm tay',
+};
+
+/** The role of the account that added a question by hand (DESIGN.md §9 role names). */
+export const QUESTION_AUTHOR_ROLE_LABELS: Readonly<Record<'CENTER' | 'HR', string>> = {
+  CENTER: 'Trung tâm',
+  HR: 'Doanh nghiệp',
 };
 
 export const EXAM_PART_TITLES: Readonly<Record<ExamPart, string>> = {

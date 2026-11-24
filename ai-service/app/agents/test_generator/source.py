@@ -1,10 +1,12 @@
-"""The bank to fill, read through three views of AD-4 only (US-4.1 AC-6, US-4.11 AC-4, CONTEXT
-D49, D60).
+"""The bank to fill, read through four views of AD-4 only (US-4.1 AC-6, US-4.11 AC-4, US-4.13
+AC-9, CONTEXT D49, D60, D62).
 
 - core.v_ai_question_banks: the banks not locked yet, with their blueprint;
 - core.v_ai_jd_requirements: the approved requirements of the JD, for the prompt;
 - core.v_ai_question_rejections: the drafts CENTER rejected by hand, with the reasons, while the
-  bank is not locked.
+  bank is not locked;
+- core.v_ai_manual_questions: the questions CENTER and HR added by hand, with their cell, stem and
+  status (no answer key, no author), while the bank is not locked.
 
 A bank missing from the join (locked by the Validator, or its JD is no longer approved) is not an
 error to retry: the backend stores nothing for a locked bank anyway.
@@ -26,6 +28,10 @@ BANK_SQL = (
     "WHERE b.bank_id = %s"
 )
 REJECTIONS_SQL = "SELECT draft_id, reasons FROM core.v_ai_question_rejections WHERE bank_id = %s"
+MANUAL_SQL = (
+    "SELECT question_id, type, skill, difficulty, stem, status "
+    "FROM core.v_ai_manual_questions WHERE bank_id = %s ORDER BY question_id"
+)
 
 
 @dataclass(frozen=True)
@@ -55,6 +61,20 @@ class BankSource:
 
 
 @dataclass(frozen=True)
+class ManualQuestion:
+    """A question CENTER or HR added by hand (US-4.13): it has no draft. Its stem was written by a
+    person: data for the prompt, never instructions (AGENTS › Invariant 6)."""
+
+    question_id: int
+    type: str
+    skill: str
+    difficulty: str
+    stem: str
+    status: str
+    """core.questions.status: DRAFT or VALIDATED is usable, REJECTED takes no room in its cell."""
+
+
+@dataclass(frozen=True)
 class _RejectionRow:
     draft_id: int
     reasons: list[str]
@@ -66,6 +86,10 @@ class BankSourceRepo(Protocol):
     async def rejections(self, bank_id: int) -> dict[int, tuple[str, ...]]:
         """Reasons (QUESTION_REJECT_REASONS codes) of each draft CENTER rejected by hand, by draft
         id: none once the bank is locked."""
+        ...
+
+    async def manual_questions(self, bank_id: int) -> list[ManualQuestion]:
+        """The questions added by hand to the bank, oldest first: none once it is locked."""
         ...
 
 
@@ -100,3 +124,11 @@ class PostgresBankSourceRepo:
             await cursor.execute(REJECTIONS_SQL, (bank_id,))
             rows = await cursor.fetchall()
         return {row.draft_id: tuple(row.reasons) for row in rows}
+
+    async def manual_questions(self, bank_id: int) -> list[ManualQuestion]:
+        async with (
+            self._pool.connection() as conn,
+            conn.cursor(row_factory=class_row(ManualQuestion)) as cursor,
+        ):
+            await cursor.execute(MANUAL_SQL, (bank_id,))
+            return await cursor.fetchall()

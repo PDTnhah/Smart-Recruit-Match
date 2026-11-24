@@ -15,7 +15,7 @@ import { DRIZZLE } from '../../../db/tokens.js';
 import type { Database, DbTx } from '../../../db/types.js';
 import { QUESTION_BANK_ENTITY } from '../domain/audit-actions.js';
 import type { QuestionCount, RejectReasonCount } from '../domain/blueprint.js';
-import type { StoredQuestion } from '../domain/stored-question.js';
+import type { ManualStoredQuestion, StoredQuestion } from '../domain/stored-question.js';
 
 export type QuestionBankRecord = typeof questionBanks.$inferSelect;
 
@@ -25,7 +25,8 @@ export type QuestionRecord = typeof questions.$inferSelect;
 export interface QuestionState {
   id: number;
   bankId: number;
-  draftId: number;
+  /** Null for a question added by hand (US-4.13). */
+  draftId: number | null;
   status: QuestionStatus;
   rowVersion: number;
   type: QuestionType;
@@ -39,6 +40,15 @@ export interface UncheckedQuestion {
   type: QuestionType;
   skill: string;
   difficulty: QuestionDifficulty;
+}
+
+/** A question of the bank as a save of questions added by hand checks it (US-4.13 AC-2). */
+export interface BankStem {
+  type: QuestionType;
+  skill: string;
+  difficulty: QuestionDifficulty;
+  status: QuestionStatus;
+  stem: string;
 }
 
 export interface NewQuestionBank {
@@ -227,13 +237,58 @@ export class QuestionBanksRepository {
       .orderBy(asc(questions.id));
   }
 
-  /** DRAFT questions of the bank, oldest draft first: those nobody has checked (US-4.10 AC-2). */
+  /**
+   * DRAFT questions of the bank, oldest draft first: those nobody has checked (US-4.10 AC-2). AI
+   * questions only: the Validator reads drafts, and one added by hand has none (US-4.13).
+   */
   async uncheckedQuestions(tx: DbTx, bankId: number): Promise<UncheckedQuestion[]> {
-    return tx
+    const rows = await tx
       .select({ draftId: questions.draftId, type: questions.type, skill: questions.skill, difficulty: questions.difficulty })
       .from(questions)
-      .where(and(eq(questions.bankId, bankId), eq(questions.status, 'DRAFT')))
+      .where(and(eq(questions.bankId, bankId), eq(questions.status, 'DRAFT'), eq(questions.source, 'AI')))
       .orderBy(asc(questions.draftId));
+    return rows.flatMap(({ draftId, ...cell }) => (draftId === null ? [] : [{ draftId, ...cell }]));
+  }
+
+  /**
+   * What a save of questions added by hand is checked against (US-4.13 AC-2): the cell and stem of
+   * every question of the bank, whatever its status.
+   */
+  async questionStems(tx: DbTx, bankId: number): Promise<BankStem[]> {
+    return tx
+      .select({
+        type: questions.type,
+        skill: questions.skill,
+        difficulty: questions.difficulty,
+        status: questions.status,
+        stem: sql<string>`${questions.content} ->> 'stem'`,
+      })
+      .from(questions)
+      .where(eq(questions.bankId, bankId));
+  }
+
+  /** Questions added by hand, oldest first (US-4.13 AC-7). */
+  async manualQuestions(bankId: number, tx?: DbTx): Promise<QuestionRecord[]> {
+    return (tx ?? this.db)
+      .select()
+      .from(questions)
+      .where(and(eq(questions.bankId, bankId), eq(questions.source, 'MANUAL')))
+      .orderBy(asc(questions.id));
+  }
+
+  /** US-4.13 AC-1, AC-5: questions added by hand, DRAFT, in the order given; returns their ids. */
+  async insertManualQuestions(
+    tx: DbTx,
+    bankId: number,
+    createdBy: number,
+    rows: readonly ManualStoredQuestion[],
+  ): Promise<number[]> {
+    if (rows.length === 0) return [];
+    const written = await tx
+      .insert(questions)
+      .values(rows.map((row) => ({ ...row, bankId, createdBy, source: 'MANUAL' as const, status: 'DRAFT' as const })))
+      .returning({ id: questions.id });
+    return written.map((row) => row.id);
   }
 
   /** One more version of a locked bank (US-4.2 AC-7), under the bank's row lock. */

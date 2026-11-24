@@ -35,7 +35,15 @@ import {
   questions,
 } from '../../src/db/schema/index.js';
 import { createBank } from '../helpers/exam.js';
-import { createCv, createJobDescription, createPreference, createStudent, SAMPLE_CV_PROFILE } from '../helpers/factories.js';
+import { SMALL_BLUEPRINT } from '../helpers/question-bank.js';
+import {
+  createCv,
+  createJobDescription,
+  createPreference,
+  createStudent,
+  createUser,
+  SAMPLE_CV_PROFILE,
+} from '../helpers/factories.js';
 import { SAMPLE_REQUIREMENTS } from '../helpers/jd.js';
 
 const CV_VIEW = 'core.v_ai_cv_profile_masked';
@@ -46,6 +54,7 @@ const SKILL_CANDIDATES_VIEW = 'core.v_ai_skill_candidates';
 const MATCH_PAIRS_VIEW = 'core.v_ai_match_pairs';
 const QUESTION_BANKS_VIEW = 'core.v_ai_question_banks';
 const QUESTION_REJECTIONS_VIEW = 'core.v_ai_question_rejections';
+const MANUAL_QUESTIONS_VIEW = 'core.v_ai_manual_questions';
 const ESSAY_ANSWERS_VIEW = 'core.v_ai_essay_answers';
 const CV_VERIFICATION_ANSWERS_VIEW = 'core.v_ai_cv_verification_answers';
 
@@ -109,6 +118,7 @@ describe('AD-4: database roles of the AI Service and the API', () => {
     await ai.query(`SELECT * FROM ${CV_VIEW} LIMIT 1`);
     await ai.query(`SELECT * FROM ${JD_VIEW} LIMIT 1`);
     await ai.query(`SELECT * FROM ${QUESTION_REJECTIONS_VIEW} LIMIT 1`);
+    await ai.query(`SELECT * FROM ${MANUAL_QUESTIONS_VIEW} LIMIT 1`);
     const jobId = randomUUID();
     await ai.query("INSERT INTO ai.jobs (job_id, type, status, attempts) VALUES ($1, 'CV_PARSE', 'PROCESSING', 1)", [
       jobId,
@@ -185,6 +195,7 @@ describe('AD-4: database roles of the AI Service and the API', () => {
       `${ESSAY_ANSWERS_VIEW} SELECT`,
       `${JD_VIEW} SELECT`,
       `${JD_SOURCE_VIEW} SELECT`,
+      `${MANUAL_QUESTIONS_VIEW} SELECT`,
       `${MATCH_PAIRS_VIEW} SELECT`,
       `${QUESTION_BANKS_VIEW} SELECT`,
       `${QUESTION_REJECTIONS_VIEW} SELECT`,
@@ -279,6 +290,16 @@ describe('AD-4: views the AI Service reads', () => {
     expect(await columnsOf(QUESTION_BANKS_VIEW)).toEqual(['bank_id', 'jd_id', 'jd_version', 'campaign_id', 'blueprint']);
     // Why CENTER rejected a draft by hand, by draft only: no question text, no account (US-4.11 AC-4).
     expect(await columnsOf(QUESTION_REJECTIONS_VIEW)).toEqual(['bank_id', 'draft_id', 'reasons']);
+    // A question added by hand: its cell, stem and status; no answer key, no author (US-4.13 AC-9).
+    expect(await columnsOf(MANUAL_QUESTIONS_VIEW)).toEqual([
+      'bank_id',
+      'question_id',
+      'type',
+      'skill',
+      'difficulty',
+      'stem',
+      'status',
+    ]);
     // Part C by preference only, the CV entry as a reference into profile_masked (US-4.8 AC-3, BR-03).
     expect(await columnsOf(CV_VERIFICATION_ANSWERS_VIEW)).toEqual([
       'preference_id',
@@ -421,6 +442,35 @@ describe('AD-4: views the AI Service reads', () => {
         answer_text: 'Em viết API.',
       },
     ]);
+  });
+
+  it('US-4.13 v_ai_manual_questions shows only questions added by hand to banks not yet locked', async () => {
+    const author = await createUser(seed.db, { role: 'CENTER' });
+    const content = { stem: 'Câu thêm tay', options: ['a', 'b', 'c', 'd'] };
+    const answerKey = { correct_option: 1, explanation: 'Vì b.', sample_answer: null };
+    const ids: number[] = [];
+    for (const locked of [false, true]) {
+      const jd = await createJobDescription(seed.db, { status: 'APPROVED' });
+      const [bank] = await seed.db
+        .insert(questionBanks)
+        .values({ campaignId: jd.campaignId, jdId: jd.id, jdVersion: jd.version, blueprint: SMALL_BLUEPRINT })
+        .returning();
+      if (!bank) throw new Error('no bank');
+      ids.push(bank.id);
+      const cell = { bankId: bank.id, type: 'MCQ' as const, skill: 'Java', difficulty: 'EASY' as const, answerKey };
+      await seed.db.insert(questions).values([
+        { ...cell, source: 'MANUAL', createdBy: author.id, content },
+        { ...cell, draftId: -900_000 - bank.id, model: 'm', promptVersion: 'test_generator/v1', content: { ...content, stem: 'Câu AI' } },
+      ]);
+      if (locked) {
+        await seed.db.update(questionBanks).set({ status: 'LOCKED', lockedAt: new Date() }).where(eq(questionBanks.id, bank.id));
+      }
+    }
+    const { rows } = await ai.query<{ bank_id: string; stem: string; status: string }>(
+      `SELECT bank_id, stem, status FROM ${MANUAL_QUESTIONS_VIEW} WHERE bank_id = ANY($1)`,
+      [ids],
+    );
+    expect(rows).toEqual([{ bank_id: String(ids[0]), stem: 'Câu thêm tay', status: 'DRAFT' }]);
   });
 
   it('US-4.1 v_ai_question_banks shows only banks not yet locked', async () => {

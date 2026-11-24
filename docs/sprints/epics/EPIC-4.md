@@ -77,7 +77,7 @@ Ranh giới mà epic này giữ: chấm trắc nghiệm, tính S_test, S_final v
 | FR-23 | US-4.5 | 🚧 in-progress |
 | FR-24 | US-4.6 | 📋 backlog |
 | FR-25 | US-4.8, US-4.12 | 👀 review |
-| FR-42 | US-4.13 | 📋 backlog |
+| FR-42 | US-4.13 | 👀 review |
 
 ## AD Coverage
 
@@ -104,7 +104,7 @@ Ranh giới mà epic này giữ: chấm trắc nghiệm, tính S_test, S_final v
 | US-4.10 | Tách Validator khỏi job sinh câu: AI kiểm câu khi Trung tâm yêu cầu | Sinh ngân hàng ít request hơn; AI kiểm câu khi Trung tâm bấm | 👀 review | 0.28.0 |
 | US-4.11 | Tab Ngân hàng câu hỏi: xem toàn bộ câu và loại câu sai | Trung tâm xem mọi câu đã sinh và loại câu sai | 👀 review | 0.30.0 |
 | US-4.12 | Sửa giao diện ngân hàng câu hỏi: ô độ phủ và đổi phần D thành C | Ô độ phủ dễ đọc; các phần đánh chữ A, B, C | 👀 review | 0.27.1 |
-| US-4.13 | Trung tâm và HR tự thêm câu hỏi: điền form hoặc import file | Ngân hàng chứa được câu do người viết, qua cùng luật kiểm với câu AI | 📋 backlog | — |
+| US-4.13 | Trung tâm và HR tự thêm câu hỏi: điền form hoặc import file | Ngân hàng chứa được câu do người viết, qua cùng luật kiểm với câu AI | 👀 review | 0.31.0 |
 
 ## Object map & user-story interactions
 
@@ -124,7 +124,7 @@ Ranh giới mà epic này giữ: chấm trắc nghiệm, tính S_test, S_final v
 | US-4.10 | job `QUESTIONS_VALIDATE`, `question_generation_runs.kind`; độ phủ đếm `DRAFT` + `VALIDATED`; `DRAFT → RETIRED` | FR-18 |
 | US-4.11 | `GET /api/question-banks/{id}/questions`, `questions.manual_rejection`, view `core.v_ai_question_rejections`; web `center/question-bank/` | FR-18 |
 | US-4.12 | `CV_VERIFICATION_PART` = `C`; ô độ phủ; nhãn web | FR-18, FR-25 |
-| US-4.13 | `questions.source`, `created_by`; file mẫu, xem trước và import `.xlsx`/`.csv` (exceljs); view `core.v_ai_manual_questions` (đề xuất); web `center/question-bank/` và trang JD của HR | FR-42, FR-18 |
+| US-4.13 | `questions.source`, `created_by`; file mẫu, xem trước và import `.xlsx`/`.csv` (exceljs); view `core.v_ai_manual_questions`; web `center/question-bank/` và trang JD của HR | FR-42, FR-18 |
 
 ## Cross-cutting invariants
 

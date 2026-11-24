@@ -91,7 +91,8 @@ export class EmailRenderer {
 
   render(
     content: NotificationContent,
-    recipient: UserContact,
+    /** Who the email goes to; the role plays no part in it. */
+    recipient: Omit<UserContact, 'role'>,
     links: { invitation?: InvitationLink } = {},
   ): Omit<MailMessage, 'to'> {
     const { type } = content;

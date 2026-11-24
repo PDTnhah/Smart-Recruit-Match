@@ -4,9 +4,6 @@ Lịch sử phát hành của Smart Recruit Match. Mỗi commit ship code tăng 
 
 ## [Unreleased]
 
-### Added
-- **Thiết kế US-4.13: Trung tâm và HR tự thêm câu hỏi** ([CONTEXT D62](CONTEXT.md)), chỉ có tài liệu, chưa có code: điền form hoặc import `.xlsx`/`.csv` theo mẫu, xem trước có lỗi theo dòng, lưu tất cả hoặc không, chỉ trước khi khóa ngân hàng; HR chỉ thấy câu do HR của công ty thêm. Tài liệu cập nhật: PRD (GĐ1, GĐ5, FR-42), BRIEF, EPIC-4, lộ trình (49 story), AGENTS.
-
 ### Changed
 - **Thiết kế khớp kỹ năng CV–JD bằng code** ([CONTEXT D42](CONTEXT.md)), chỉ có tài liệu, chưa có code:
   - code chấm kỹ năng (cả kỹ năng mềm), ngoại ngữ và mức khớp ngành; Matching Agent chỉ chấm tiêu chí dự án và viết nhận xét;
@@ -15,6 +12,32 @@ Lịch sử phát hành của Smart Recruit Match. Mỗi commit ship code tăng 
   - lọc top-M theo `skill_fit`.
 - Tài liệu cập nhật: PRD (GĐ1, GĐ3, *S_cv*, FR-39, FR-40, Glossary), ARCHITECTURE (pipeline Matching, bảng, AD-15), EPIC-2, EPIC-3, lộ trình, AGENTS (Nguyên tắc 2, 5).
 - Story mới: US-2.7, US-3.5, US-3.6. *Story refresh* cho US-3.2, US-3.3, US-6.3.
+
+---
+
+## [0.31.0] — 2026-11-23 — Trung tâm và HR tự thêm câu hỏi: điền form hoặc import file — v0.31.0
+
+US-4.13. Trung tâm và doanh nghiệp đưa câu hỏi của mình vào ngân hàng của một JD trước khi khóa ([CONTEXT D62](CONTEXT.md)). Câu thêm tay qua cùng luật kiểm với câu AI sinh, dùng được ngay và được tính vào độ phủ; Test Generator chỉ sinh phần còn thiếu.
+
+### Added
+- "Thêm câu": form một câu trắc nghiệm (đề, 4 phương án, đáp án đúng, giải thích) hoặc tự luận (đề, rubric 1–10 tiêu chí điểm nguyên, đáp án mẫu, giải thích), chọn ô của ma trận đề kèm số câu ô còn nhận. Lỗi (ô không có trong ma trận, ô đã đủ 5×, ngân hàng đủ 1 000 câu, trùng đề) hiện ở đúng ô nhập.
+- "Import file": tải file mẫu `.xlsx` (có sheet "Hướng dẫn" liệt kê các ô của ma trận và số câu đang có) hoặc `.csv` UTF-8, tải file đã điền lên để xem trước: mỗi dòng thành một câu, lỗi theo dòng và cột, ô chứa công thức bị báo lỗi và không bao giờ được tính. "Lưu N câu" chỉ bật khi không còn lỗi; server kiểm lại và lưu tất cả hoặc không câu nào.
+- Tab "Câu hỏi của công ty" trên trang JD của HR (`?tab=questions`): câu do HR của công ty thêm, kèm trạng thái và lý do khi Trung tâm loại câu; cùng hai nút thêm câu.
+- `GET /api/jds/{id}/question-bank/import-template?format=xlsx|csv`, `POST /api/jds/{id}/question-bank/import/preview` (multipart, ≤ 5 MB, ≤ 200 dòng; `400 QUESTION_IMPORT_FILE_INVALID`), `POST /api/jds/{id}/question-bank/questions` (`{ origin, fileName?, questions[1..200] }`; `400 MANUAL_QUESTIONS_INVALID` kèm lỗi từng câu), `GET /api/jds/{id}/question-bank/manual-questions`. HR của công ty sở hữu JD và Trung tâm; HR công ty khác `404`, sinh viên `403`. `409` khi ngân hàng đã khóa, ma trận đề cũ hơn yêu cầu của JD, đang có lượt sinh hoặc kiểm câu, hoặc đợt đã đóng hay hủy.
+
+### Changed
+- Danh sách câu của Trung tâm có nhãn "Thêm tay", người thêm (Trung tâm hoặc doanh nghiệp, có tên) và bộ lọc theo nguồn; nút "Thêm câu", "Import file" ở mục "Câu hỏi".
+- Test Generator đếm câu thêm tay vào độ phủ và chỗ của ô, không sinh câu trùng nguyên văn hay gần nghĩa (cosine ≥ 0,9) với chúng, và đưa đề của chúng vào prompt như dữ liệu (prompt `test_generator/v4`).
+- "Kiểm câu bằng AI" chỉ gửi câu AI sinh: câu thêm tay không có bản nháp ở AI Service.
+
+### Migration
+- `0046_question_manual_entry`: `core.questions.source` (`AI`/`MANUAL`), `created_by`; `draft_id`, `model`, `prompt_version` thành nullable; CHECK `questions_author_check` giữ hai nguồn tách biệt; view `core.v_ai_manual_questions` cho AI Service; `core.v_ai_question_rejections` chỉ còn câu AI.
+
+### Dependencies
+- `exceljs` 4.4.0 (API): đọc và tạo file câu hỏi.
+
+### Not done
+- Chưa kiểm tay giao diện ở 360 / 768 / 1024 px (AC-10, người dùng kiểm theo checklist trong story).
 
 ---
 

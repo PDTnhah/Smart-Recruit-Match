@@ -1,5 +1,6 @@
 import type {
   GeneratedQuestion,
+  ManualQuestionInput,
   QuestionAnswerKey,
   QuestionContent,
   QuestionDifficulty,
@@ -50,6 +51,31 @@ export function toStoredQuestion(question: GeneratedQuestion): StoredQuestion | 
     ...base,
     content: { stem: question.stem, options: question.options.map((option) => option.text) },
     answerKey: { correct_option: correct[0] ?? null, explanation: question.explanation, sample_answer: null },
+    rubric: null,
+  };
+}
+
+/** A question added by hand as `core.questions` stores it (US-4.13): no draft, model or prompt. */
+export type ManualStoredQuestion = Omit<StoredQuestion, 'draftId' | 'model' | 'promptVersion'>;
+
+/**
+ * Splits a question added by hand as `toStoredQuestion` splits a draft (AGENTS › Invariant 8), with
+ * the skill as the blueprint cell writes it, as the Test Generator stores its drafts.
+ */
+export function toManualStoredQuestion(question: ManualQuestionInput, cellSkill: string): ManualStoredQuestion {
+  const base = { type: question.type, skill: cellSkill, difficulty: question.difficulty };
+  if (question.type === 'ESSAY') {
+    return {
+      ...base,
+      content: { stem: question.stem, options: null },
+      answerKey: { correct_option: null, explanation: question.explanation, sample_answer: question.sampleAnswer },
+      rubric: question.rubric.map((criterion) => ({ criterion: criterion.criterion, max_points: criterion.maxPoints })),
+    };
+  }
+  return {
+    ...base,
+    content: { stem: question.stem, options: [...question.options] },
+    answerKey: { correct_option: question.correctOption, explanation: question.explanation, sample_answer: null },
     rubric: null,
   };
 }

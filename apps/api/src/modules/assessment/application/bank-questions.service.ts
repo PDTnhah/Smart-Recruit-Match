@@ -29,7 +29,7 @@ import { DRIZZLE } from '../../../db/tokens.js';
 import type { Database } from '../../../db/types.js';
 import { userActor } from '../../audit/index.js';
 import { CampaignService } from '../../campaign/index.js';
-import { UserDirectory } from '../../iam/index.js';
+import { type UserContact, UserDirectory } from '../../iam/index.js';
 import { QUESTION_BANK_ENTITY } from '../domain/audit-actions.js';
 import { cellKeyOf, cellsOf, coverageOf } from '../domain/blueprint.js';
 import { QuestionBanksRepository, type QuestionRecord } from '../infrastructure/question-banks.repository.js';
@@ -70,10 +70,16 @@ export class BankQuestionsService {
       },
       { isolationLevel: 'repeatable read', accessMode: 'read only' },
     );
-    const rejecterIds = [...new Set(rows.flatMap((row) => (row.manualRejection ? [row.manualRejection.rejected_by] : [])))];
-    const names = new Map(
-      (await this.users.findContacts(rejecterIds)).map((user) => [user.id, user.fullName ?? user.email]),
-    );
+    // The CENTER accounts that rejected questions, and the accounts that added questions by hand (US-4.13 AC-7).
+    const accountIds = [
+      ...new Set(
+        rows.flatMap((row) => [
+          ...(row.manualRejection ? [row.manualRejection.rejected_by] : []),
+          ...(row.createdBy === null ? [] : [row.createdBy]),
+        ]),
+      ),
+    ];
+    const accounts = new Map((await this.users.findContacts(accountIds)).map((user) => [user.id, user]));
     const order = new Map(cellsOf(bank.blueprint).map((cell, index) => [cellKeyOf(cell.type, cell.skill, cell.difficulty), index]));
     const rank = (row: QuestionRecord) => order.get(cellKeyOf(row.type, row.skill, row.difficulty)) ?? order.size;
     // Cells the blueprint no longer has share one rank: by skill as cells match it, then by difficulty level.
@@ -90,7 +96,7 @@ export class BankQuestionsService {
       jdId: bank.jdId,
       status: bank.status,
       version: bank.version,
-      questions: sorted.map((row) => bankQuestionView(row, rank(row) < order.size, names)),
+      questions: sorted.map((row) => bankQuestionView(row, rank(row) < order.size, accounts)),
     };
   }
 
@@ -175,8 +181,13 @@ export class BankQuestionsService {
   }
 }
 
-function bankQuestionView(row: QuestionRecord, inBlueprint: boolean, names: ReadonlyMap<number, string>): BankQuestion {
-  const { validation, manualRejection } = row;
+function bankQuestionView(row: QuestionRecord, inBlueprint: boolean, accounts: ReadonlyMap<number, UserContact>): BankQuestion {
+  const { validation, manualRejection, createdBy } = row;
+  const nameOf = (id: number) => {
+    const account = accounts.get(id);
+    return account ? (account.fullName ?? account.email) : `#${id}`;
+  };
+  const author = createdBy === null ? undefined : accounts.get(createdBy);
   return {
     id: row.id,
     rowVersion: row.rowVersion,
@@ -207,10 +218,15 @@ function bankQuestionView(row: QuestionRecord, inBlueprint: boolean, names: Read
       ? {
           reason: manualRejection.reason,
           note: manualRejection.note,
-          rejectedBy: { id: manualRejection.rejected_by, name: names.get(manualRejection.rejected_by) ?? `#${manualRejection.rejected_by}` },
+          rejectedBy: { id: manualRejection.rejected_by, name: nameOf(manualRejection.rejected_by) },
           rejectedAt: manualRejection.rejected_at,
         }
       : null,
+    source: row.source,
+    createdBy:
+      createdBy === null
+        ? null
+        : { id: createdBy, name: nameOf(createdBy), role: author?.role === 'HR' ? 'HR' : 'CENTER' },
     model: row.model,
     promptVersion: row.promptVersion,
     createdAt: row.createdAt.toISOString(),

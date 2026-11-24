@@ -1,10 +1,10 @@
-"""Test Generator (US-4.1, US-4.2)."""
+"""Test Generator (US-4.1, US-4.2, US-4.13)."""
 
 from .agent import TestGenerator
 from .config import AGENT
 from .drafts import Draft, NewDraft, PostgresQuestionDraftRepo, QuestionDraftRepo
 from .schemas import ProposedCriterion, ProposedOption, ProposedQuestion, QuestionProposalBatch
-from .source import BankSource, BankSourceRepo, PostgresBankSourceRepo
+from .source import BankSource, BankSourceRepo, ManualQuestion, PostgresBankSourceRepo
 from .tools import (
     CellCoverage,
     FailedDraft,
@@ -24,6 +24,7 @@ __all__ = [
     "CellCoverage",
     "Draft",
     "FailedDraft",
+    "ManualQuestion",
     "NewDraft",
     "PostgresBankSourceRepo",
     "PostgresQuestionDraftRepo",

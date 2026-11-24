@@ -242,7 +242,7 @@ describe('GĐ5 question bank lock (US-4.2)', () => {
         `INSERT INTO core.questions (bank_id, draft_id, type, skill, difficulty, content, answer_key, model, prompt_version)
          VALUES ($1, $2, 'MCQ', 'Java', 'EASY', '{"stem": "x", "options": ["a", "b", "c", "d"]}',
                  '{"correct_option": 0, "explanation": "x", "sample_answer": null}', 'm', 'test_generator/v1')`,
-        [bankId, -question.draftId],
+        [bankId, -(question.draftId ?? 0)],
       ),
     ).rejects.toMatchObject(LOCKED_REFUSAL);
     await expect(pool.query('DELETE FROM core.questions WHERE id = $1', [question.id])).rejects.toMatchObject(LOCKED_REFUSAL);

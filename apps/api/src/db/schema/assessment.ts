@@ -36,6 +36,8 @@ import {
   QUESTION_REVIEW_VERDICTS,
   type QuestionReviewVerdict,
   type QuestionRubric,
+  QUESTION_SOURCES,
+  type QuestionSource,
   type QuestionStatus,
   type QuestionType,
   type QuestionValidation,
@@ -164,6 +166,10 @@ export const questionGenerationRuns = core.table(
  * may reject either by hand, with `manual_rejection`: REJECTED before locking, RETIRED after (US-4.11).
  * `content` is what a student may see; `answer_key` and `rubric` never leave the server for a
  * student (AGENTS › Invariant 8).
+ *
+ * CENTER and HR also add questions by hand (US-4.13, CONTEXT D62): `source` MANUAL, `created_by`
+ * the account, no draft, model or prompt (Invariant 12 is about LLM output), and never a verdict
+ * of the Validator, which reads drafts only. They start DRAFT like the drafts.
  */
 export const questions = core.table(
   'questions',
@@ -172,8 +178,11 @@ export const questions = core.table(
     bankId: ref('bank_id')
       .notNull()
       .references(() => questionBanks.id),
-    /** `ai.question_drafts.id`; no foreign key across the schemas the two services own (AD-4). */
-    draftId: bigint('draft_id', { mode: 'number' }).notNull().unique('questions_draft_id_key'),
+    /** `ai.question_drafts.id` of an AI question; no foreign key across the schemas the two services own (AD-4). */
+    draftId: bigint('draft_id', { mode: 'number' }).unique('questions_draft_id_key'),
+    source: text('source').$type<QuestionSource>().notNull().default('AI'),
+    /** The CENTER or HR account that added a MANUAL question (US-4.13 AC-1); null for an AI one. */
+    createdBy: ref('created_by').references(() => users.id),
     type: text('type').$type<QuestionType>().notNull(),
     skill: text('skill').notNull(),
     difficulty: text('difficulty').$type<QuestionDifficulty>().notNull(),
@@ -186,14 +195,22 @@ export const questions = core.table(
     /** CENTER's rejection by hand (US-4.11 AC-3), set with REJECTED or RETIRED; null otherwise. */
     manualRejection: jsonb('manual_rejection').$type<ManualQuestionRejection>(),
     version: integer('version').notNull().default(1),
-    model: text('model').notNull(),
-    promptVersion: text('prompt_version').notNull(),
+    /** The model and prompt that wrote an AI question (Invariant 12); null for a MANUAL one. */
+    model: text('model'),
+    promptVersion: text('prompt_version'),
     rowVersion: rowVersion(),
     ...timestamps(),
   },
   (t) => [
     // Coverage and the exam draw read a bank's questions by cell and status (US-4.3).
     index('questions_bank_cell_status_idx').on(t.bankId, t.skill, t.difficulty, t.status),
+    oneOf('questions_source_check', t.source, QUESTION_SOURCES),
+    // US-4.13 AC-8: an AI question has its draft, model and prompt and no author; a MANUAL one the
+    // other way round, and no Validator verdict, since the Validator reads drafts only.
+    check(
+      'questions_author_check',
+      sql`(${t.source} = 'AI' and ${t.draftId} is not null and ${t.model} is not null and ${t.promptVersion} is not null and ${t.createdBy} is null) or (${t.source} = 'MANUAL' and ${t.draftId} is null and ${t.model} is null and ${t.promptVersion} is null and ${t.createdBy} is not null and ${t.validation} is null)`,
+    ),
     oneOf('questions_type_check', t.type, QUESTION_TYPES),
     oneOf('questions_difficulty_check', t.difficulty, QUESTION_DIFFICULTIES),
     oneOf('questions_status_check', t.status, QUESTION_STATES),

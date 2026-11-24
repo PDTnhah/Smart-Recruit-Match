@@ -10,15 +10,20 @@ import {
   GradingQueueSchema,
   LockQuestionBankRequestSchema,
   ManualGradeRequestSchema,
+  ManualQuestionListSchema,
   ManualGradeResultSchema,
   ManualGradingDetailSchema,
   MyExamsResponseSchema,
   QuestionGenerationRunSchema,
+  QuestionImportPreviewSchema,
+  QuestionImportTemplateQuerySchema,
   QuestionReviewSampleSchema,
   RejectQuestionRequestSchema,
   RejectQuestionResultSchema,
   SaveExamAnswersRequestSchema,
   SaveExamAnswersResultSchema,
+  SaveManualQuestionsRequestSchema,
+  SaveManualQuestionsResultSchema,
   SubmitQuestionReviewRequestSchema,
   UpdateExamBlueprintRequestSchema,
 } from '@srm/shared';
@@ -47,6 +52,18 @@ export class BankQuestionListDto extends createZodDto(BankQuestionListSchema) {}
 export class RejectQuestionRequestDto extends createZodDto(RejectQuestionRequestSchema) {}
 
 export class RejectQuestionResultDto extends createZodDto(RejectQuestionResultSchema) {}
+
+// Questions added by hand (US-4.13): answer keys go to HR and CENTER only (Invariant 8).
+
+export class QuestionImportTemplateQueryDto extends createZodDto(QuestionImportTemplateQuerySchema) {}
+
+export class QuestionImportPreviewDto extends createZodDto(QuestionImportPreviewSchema) {}
+
+export class SaveManualQuestionsRequestDto extends createZodDto(SaveManualQuestionsRequestSchema) {}
+
+export class SaveManualQuestionsResultDto extends createZodDto(SaveManualQuestionsResultSchema) {}
+
+export class ManualQuestionListDto extends createZodDto(ManualQuestionListSchema) {}
 
 // Exam room (US-4.3): responses are whitelists (AGENTS › Invariant 8).
 

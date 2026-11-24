@@ -1,11 +1,16 @@
 // US-4.1 AC-3, AC-4, AC-9 (FR-18, BR-02, BR-05, GĐ5, CONTEXT D49): the question bank of an approved
 // JD, its exam blueprint as CENTER edits it, and the generation runs of the Test Generator. US-4.11
-// (CONTEXT D60): CENTER reads every question of the bank and rejects wrong ones by hand. The AI
-// Service is not running here: jobs stay in their queue and results are handed to the listener.
+// (CONTEXT D60): CENTER reads every question of the bank and rejects wrong ones by hand. US-4.13
+// (FR-42, CONTEXT D62): CENTER and HR add questions by hand or from a file. The AI Service is not
+// running here: jobs stay in their queue and results are handed to the listener.
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
   ApiErrorSchema,
   BankQuestionListSchema,
+  ManualQuestionListSchema,
+  QUESTION_IMPORT_HEADERS,
+  QuestionImportPreviewSchema,
+  SaveManualQuestionsResultSchema,
   CV_VERIFICATION_DEFAULTS,
   type ExamBlueprint,
   ExamBlueprintViewSchema,
@@ -15,8 +20,10 @@ import {
   RejectQuestionResultSchema,
 } from '@srm/shared';
 import { and, eq } from 'drizzle-orm';
+import { Workbook } from 'exceljs';
 import { randomUUID } from 'node:crypto';
 import type { Pool } from 'pg';
+import type { Response } from 'supertest';
 import { auditLogs, jobDescriptions, questionBanks, questionGenerationRuns, questions } from '../../src/db/schema/index.js';
 import { PG_POOL } from '../../src/db/tokens.js';
 import { AI_JOB_DISPATCHED, type AiJobDispatchedEvent, type AiResultEvent } from '../../src/modules/aigateway/index.js';
@@ -24,7 +31,7 @@ import { QuestionBankService } from '../../src/modules/assessment/application/qu
 import { buildDefaultBlueprint } from '../../src/modules/assessment/domain/blueprint.js';
 import type { JdEvent } from '../../src/modules/company/index.js';
 import { api, type AuthTestApp, createAuthTestApp, type LoggedIn } from '../helpers/auth.js';
-import { createCompany } from '../helpers/factories.js';
+import { createCampaign, createCompany } from '../helpers/factories.js';
 import { captureEvents, createJdInState } from '../helpers/jd.js';
 import { waitFor } from '../helpers/notifications.js';
 import {
@@ -571,5 +578,321 @@ describe('GĐ5 question bank and exam blueprint (US-4.1)', () => {
     await expect(
       pool.query(`UPDATE core.questions SET status = 'REJECTED' WHERE id = $1`, [passed.id]),
     ).rejects.toMatchObject({ code: '23514', constraint: 'questions_validation_check' });
+  });
+  // US-4.13 (FR-42, CONTEXT D62): CENTER and HR add questions by hand.
+
+  const addQuestions = (jdId: number, questionsToAdd: object[], as: LoggedIn = center, extra: object = {}) =>
+    as.agent.post(api(`jds/${jdId}/question-bank/questions`)).send({ origin: 'FORM', questions: questionsToAdd, ...extra });
+  const manualMcq = (stem: string, skill = 'Java') => ({
+    type: 'MCQ',
+    skill,
+    difficulty: 'EASY',
+    stem,
+    options: ['Phương án 1', 'Phương án 2', 'Phương án 3', 'Phương án 4'],
+    correctOption: 2,
+    explanation: 'Vì phương án 3.',
+  });
+  const manualEssay = (stem: string) => ({
+    type: 'ESSAY',
+    skill: 'sql',
+    difficulty: 'MEDIUM',
+    stem,
+    rubric: [
+      { criterion: 'Đúng cú pháp', maxPoints: 6 },
+      { criterion: 'Giải thích', maxPoints: 4 },
+    ],
+    sampleAnswer: 'SELECT 1;',
+    explanation: 'Kiểm tra truy vấn.',
+  });
+  const manualIssues = (body: unknown) =>
+    (ApiErrorSchema.parse(body).details?.issues as { index: number; code: string; field: string | null }[]).map(
+      (issue) => `${issue.index}:${issue.field}:${issue.code}`,
+    );
+  const preview = (jdId: number, file: Buffer, filename: string, as: LoggedIn = center) =>
+    as.agent.post(api(`jds/${jdId}/question-bank/import/preview`)).attach('file', file, { filename });
+  /** Reads a download whole, as a Buffer: supertest only buffers text and JSON. */
+  const binary = (res: Response, done: (error: Error | null, body: Buffer) => void) => {
+    const stream = res as unknown as NodeJS.ReadableStream;
+    const chunks: Buffer[] = [];
+    stream.on('data', (chunk: Buffer) => chunks.push(chunk));
+    stream.on('end', () => done(null, Buffer.concat(chunks)));
+  };
+  /** A workbook of the template whose sheet "Câu hỏi" holds `rows` (values by header). */
+  async function importFile(rows: Record<string, string | { formula: string }>[]): Promise<Buffer> {
+    const workbook = new Workbook();
+    const sheet = workbook.addWorksheet('Câu hỏi');
+    sheet.addRow([...QUESTION_IMPORT_HEADERS]);
+    for (const row of rows) sheet.addRow(QUESTION_IMPORT_HEADERS.map((header) => row[header] ?? null));
+    return Buffer.from(await workbook.xlsx.writeBuffer());
+  }
+  const MCQ_ROW: Record<string, string> = {
+    Loại: 'Trắc nghiệm',
+    'Kỹ năng': 'Java',
+    'Độ khó': 'Dễ',
+    'Phương án A': 'final',
+    'Phương án B': 'const',
+    'Phương án C': 'static',
+    'Phương án D': 'var',
+    'Đáp án đúng': 'A',
+    'Giải thích': 'final khai báo hằng.',
+  };
+
+  it('FR-42 US-4.13 AC-1 AC-7 AC-8 CENTER and HR of the company add questions: DRAFT, MANUAL, audited, usable at once', async () => {
+    const { jdId, bankId } = await filledBank();
+    const hr = await t.loginAs('HR', { companyId });
+
+    const fromCenter = SaveManualQuestionsResultSchema.parse(
+      (await addQuestions(jdId, [manualMcq('Câu của Trung tâm')]).expect(201)).body,
+    );
+    const fromHr = SaveManualQuestionsResultSchema.parse((await addQuestions(jdId, [manualEssay('Câu của HR')], hr).expect(201)).body);
+    expect(fromCenter.bankId).toBe(bankId);
+    expect(await questionRow(fromHr.questionIds[0]!)).toMatchObject({
+      source: 'MANUAL',
+      status: 'DRAFT',
+      createdBy: hr.user.id,
+      draftId: null,
+      model: null,
+      promptVersion: null,
+      validation: null,
+      skill: 'SQL',
+      content: { stem: 'Câu của HR', options: null },
+      answerKey: { correct_option: null, explanation: 'Kiểm tra truy vấn.', sample_answer: 'SELECT 1;' },
+      rubric: [
+        { criterion: 'Đúng cú pháp', max_points: 6 },
+        { criterion: 'Giải thích', max_points: 4 },
+      ],
+    });
+    const [entry] = await t.db
+      .select()
+      .from(auditLogs)
+      .where(and(eq(auditLogs.entityId, bankId), eq(auditLogs.action, 'QUESTIONS_ADDED_MANUALLY'), eq(auditLogs.actorId, hr.user.id)));
+    expect(entry?.after).toEqual({ origin: 'FORM', fileName: null, count: 1, questionIds: fromHr.questionIds });
+
+    // AC-7: CENTER sees the source and the author; HR only the questions HR of the company added.
+    const list = BankQuestionListSchema.parse((await listQuestions(bankId).expect(200)).body);
+    expect(list.questions.find((q) => q.id === fromCenter.questionIds[0])).toMatchObject({
+      source: 'MANUAL',
+      createdBy: { id: center.user.id, role: 'CENTER' },
+      model: null,
+    });
+    expect(list.questions.find((q) => q.id === fromHr.questionIds[0])?.createdBy).toMatchObject({ id: hr.user.id, role: 'HR' });
+    expect(list.questions.filter((q) => q.source === 'AI')).toHaveLength(9);
+    const ofCompany = ManualQuestionListSchema.parse(
+      (await hr.agent.get(api(`jds/${jdId}/question-bank/manual-questions`)).expect(200)).body,
+    );
+    // The form offers the blueprint's cells with the room each has left (5× less those not rejected).
+    expect(ofCompany.cells).toEqual([
+      { type: 'MCQ', skill: 'Java', difficulty: 'EASY', usable: 4, room: 1 },
+      { type: 'ESSAY', skill: 'SQL', difficulty: 'MEDIUM', usable: 7, room: 3 },
+    ]);
+    expect(ofCompany.questions.map((q) => [q.id, q.createdBy.id, q.status, q.correctOption])).toEqual([
+      [fromHr.questionIds[0], hr.user.id, 'DRAFT', null],
+    ]);
+
+    // Usable at once: in the coverage; never sent to "Kiểm câu bằng AI", which reads drafts only.
+    const view = ExamBlueprintViewSchema.parse((await getBlueprint(jdId).expect(200)).body);
+    expect(view.coverage.find((cell) => cell.skill === 'Java')).toMatchObject({ usable: 4, pending: 1 });
+    expect(errorCode((await center.agent.post(api(`jds/${jdId}/question-bank/validate`)).send().expect(409)).body)).toBe(
+      'NOTHING_TO_VALIDATE',
+    );
+    // … and drawn once the bank is locked.
+    await center.agent.post(api(`question-banks/${bankId}/lock`)).send({ rowVersion: view.rowVersion }).expect(200);
+    const drawable = await t.app.get(QuestionBankService).getDrawableQuestions(bankId);
+    expect(drawable.questions.map((q) => q.id)).toEqual(expect.arrayContaining([...fromCenter.questionIds, ...fromHr.questionIds]));
+
+    // BR-11: HR of another company 404 like a missing JD; STUDENT 403.
+    const other = await t.loginAs('HR', { companyId: (await createCompany(t.db)).id });
+    await addQuestions(jdId, [manualMcq('Câu lạ')], other).expect(404);
+    await other.agent.get(api(`jds/${jdId}/question-bank/manual-questions`)).expect(404);
+    await other.agent.get(api(`jds/${jdId}/question-bank/import-template`)).expect(404);
+    const student = await t.loginAs('STUDENT');
+    await addQuestions(jdId, [manualMcq('Câu lạ')], student).expect(403);
+    await student.agent.get(api(`jds/${jdId}/question-bank/manual-questions`)).expect(403);
+  });
+
+  it('FR-42 US-4.13 AC-2 AC-5 one question breaking a rule and none is saved: 400 with every issue', async () => {
+    const { jdId, bankId, rows } = await filledBank();
+    const aiStem = rows.find((row) => row.type === 'MCQ')!.content.stem;
+    const before = (await questionsOf(bankId)).length;
+
+    // Java EASY draws 1, so it holds 5 at most: 3 AI questions, then 2 more.
+    const res = await addQuestions(jdId, [
+      manualMcq('Mới 1'),
+      manualMcq('Mới 2'),
+      manualMcq('Mới 3'),
+      manualMcq('Không có ô', 'Docker'),
+      manualMcq(`  ${aiStem.toUpperCase()} `),
+      manualEssay('Mới 4'),
+      manualEssay('mới   4'),
+    ]).expect(400);
+    expect(errorCode(res.body)).toBe('MANUAL_QUESTIONS_INVALID');
+    expect(manualIssues(res.body)).toEqual(['2:skill:CELL_FULL', '3:skill:UNKNOWN_CELL', '4:skill:CELL_FULL', '6:stem:DUPLICATE']);
+    expect(await questionsOf(bankId)).toHaveLength(before);
+
+    // A stem of the bank in a cell with room: DUPLICATE. The schema's rules: 400 VALIDATION_FAILED.
+    expect(manualIssues((await addQuestions(jdId, [manualEssay(aiStem)]).expect(400)).body)).toEqual(['0:stem:DUPLICATE']);
+    const invalid = await addQuestions(jdId, [{ ...manualMcq('Hai đáp án'), options: ['a', 'b', 'a', 'c'] }]).expect(400);
+    expect(errorCode(invalid.body)).toBe('VALIDATION_FAILED');
+    expect(await questionsOf(bankId)).toHaveLength(before);
+  });
+
+  it('FR-42 US-4.13 AC-3 the template: .xlsx with the guide sheet listing the cells, .csv in UTF-8 with commas', async () => {
+    const { jdId } = await filledBank();
+    const hr = await t.loginAs('HR', { companyId });
+    const xlsx = await hr.agent
+      .get(api(`jds/${jdId}/question-bank/import-template?format=xlsx`))
+      .buffer(true)
+      .parse(binary)
+      .expect(200);
+    expect(xlsx.headers['content-type']).toContain('spreadsheetml');
+    expect(xlsx.headers['content-disposition']).toContain(`attachment; filename="mau-cau-hoi-jd-${jdId}.xlsx"`);
+    const workbook = new Workbook();
+    await workbook.xlsx.load(xlsx.body as ArrayBuffer);
+    expect((workbook.getWorksheet('Câu hỏi')!.getRow(1).values as unknown[]).slice(1)).toEqual([...QUESTION_IMPORT_HEADERS]);
+    const guide: unknown[][] = [];
+    workbook.getWorksheet('Hướng dẫn')!.eachRow((row) => guide.push((row.values as unknown[]).slice(1)));
+    expect(guide).toEqual(
+      expect.arrayContaining([
+        ['Trắc nghiệm', 'Java', 'Dễ', 3, 3, 5],
+        ['Tự luận', 'SQL', 'Trung bình', 6, 6, 10],
+      ]),
+    );
+
+    const csv = await center.agent
+      .get(api(`jds/${jdId}/question-bank/import-template?format=csv`))
+      .buffer(true)
+      .parse(binary)
+      .expect(200);
+    expect(csv.headers['content-type']).toContain('text/csv');
+    expect((csv.body as Buffer).toString('utf8')).toBe(`\uFEFF${QUESTION_IMPORT_HEADERS.join(',')}\r\n`);
+  });
+
+  it('FR-42 US-4.13 AC-4 AC-5 a file is previewed row by row, nothing saved; its rows are then saved together', async () => {
+    const { jdId, bankId } = await filledBank();
+    const before = (await questionsOf(bankId)).length;
+    const file = await importFile([
+      { ...MCQ_ROW, Đề: 'Từ khóa nào khai báo hằng?' },
+      { ...MCQ_ROW, Đề: { formula: '"Đề"&"x"' } },
+      { ...MCQ_ROW, Đề: 'từ khóa nào   khai báo hằng?' },
+      {
+        Loại: 'Tự luận',
+        'Kỹ năng': 'SQL',
+        'Độ khó': 'Trung bình',
+        Đề: 'Viết truy vấn đếm sinh viên.',
+        'Đáp án mẫu': 'SELECT count(*) FROM students;',
+        'Giải thích': 'COUNT.',
+        'Tiêu chí 1': 'Đúng',
+        'Điểm 1': '10',
+      },
+    ]);
+    const result = QuestionImportPreviewSchema.parse((await preview(jdId, file, 'Câu hỏi công ty.xlsx').expect(200)).body);
+    expect(result.fileName).toBe('Câu hỏi công ty.xlsx');
+    expect(result.rows.map((row) => [row.row, row.issues.map((issue) => `${issue.column}:${issue.code}`)])).toEqual([
+      [2, []],
+      [3, ['Đề:FORMULA']],
+      [4, ['Đề:DUPLICATE']],
+      [5, []],
+    ]);
+    expect(result.rows[2]!.issues[0]!.message).toBe('Trùng đề với dòng 2');
+    expect(await questionsOf(bankId)).toHaveLength(before);
+
+    // CSV with or without BOM; a missing header or a file of another type is refused whole.
+    const csvRow = QUESTION_IMPORT_HEADERS.map((header) => (header === 'Đề' ? '"Câu, có dấu phẩy"' : (MCQ_ROW[header] ?? '')));
+    const csvText = `${QUESTION_IMPORT_HEADERS.join(',')}\r\n${csvRow.join(',')}\r\n`;
+    for (const prefix of ['\uFEFF', '']) {
+      const csv = QuestionImportPreviewSchema.parse(
+        (await preview(jdId, Buffer.from(`${prefix}${csvText}`, 'utf8'), 'cau-hoi.csv').expect(200)).body,
+      );
+      expect(csv.rows).toMatchObject([{ row: 2, issues: [], question: { stem: 'Câu, có dấu phẩy', correctOption: 0 } }]);
+    }
+    const fileError = (res: { body: unknown }) => [errorCode(res.body), ApiErrorSchema.parse(res.body).details?.reason];
+    expect(fileError(await preview(jdId, Buffer.from('Loại,Kỹ năng\r\n'), 'thieu.csv').expect(400))).toEqual([
+      'QUESTION_IMPORT_FILE_INVALID',
+      'MISSING_COLUMNS',
+    ]);
+    expect(fileError(await preview(jdId, Buffer.from('%PDF-1.7\n\u0000\u0001'), 'cau-hoi.xlsx').expect(400))).toEqual([
+      'QUESTION_IMPORT_FILE_INVALID',
+      'UNSUPPORTED_TYPE',
+    ]);
+    expect(fileError(await preview(jdId, await importFile([]), 'rong.xlsx').expect(400))).toEqual([
+      'QUESTION_IMPORT_FILE_INVALID',
+      'NO_ROWS',
+    ]);
+
+    // Saving the rows without errors: one audit entry with the file and the count.
+    const valid = result.rows.filter((row) => row.issues.length === 0).map((row) => row.question!);
+    const saved = SaveManualQuestionsResultSchema.parse(
+      (await addQuestions(jdId, valid, center, { origin: 'IMPORT', fileName: 'Câu hỏi công ty.xlsx' }).expect(201)).body,
+    );
+    expect(saved.questionIds).toHaveLength(2);
+    const [entry] = await t.db
+      .select()
+      .from(auditLogs)
+      .where(and(eq(auditLogs.entityId, bankId), eq(auditLogs.action, 'QUESTIONS_ADDED_MANUALLY')));
+    expect(entry?.after).toEqual({ origin: 'IMPORT', fileName: 'Câu hỏi công ty.xlsx', count: 2, questionIds: saved.questionIds });
+  });
+
+  it('FR-42 US-4.13 AC-6 409 while the blueprint predates the JD, while a run is RUNNING, once the bank is locked and for a closed campaign; the DB refuses too', async () => {
+    const { jdId, bankId } = await filledBank();
+    // As for a run (US-4.2 AC-11): newer requirements may drop a skill of the blueprint's cells.
+    const hr = await t.loginAs('HR', { companyId });
+    const [jd] = await t.db.select({ version: jobDescriptions.version }).from(jobDescriptions).where(eq(jobDescriptions.id, jdId));
+    await t.db.update(jobDescriptions).set({ version: jd!.version + 1 }).where(eq(jobDescriptions.id, jdId));
+    expect(errorCode((await addQuestions(jdId, [manualMcq('JD mới hơn')], hr).expect(409)).body)).toBe('QUESTION_BANK_JD_OUTDATED');
+    const ofCompany = ManualQuestionListSchema.parse(
+      (await hr.agent.get(api(`jds/${jdId}/question-bank/manual-questions`)).expect(200)).body,
+    );
+    expect(ofCompany.bank).toMatchObject({ jdOutdated: true });
+    await t.db.update(jobDescriptions).set({ version: jd!.version }).where(eq(jobDescriptions.id, jdId));
+
+    await generate(jdId).expect(202);
+    expect(errorCode((await addQuestions(jdId, [manualMcq('Khi đang sinh')]).expect(409)).body)).toBe('QUESTION_GENERATION_RUNNING');
+    await deliver(message(jobsOf(bankId).at(-1)!.job, { questions: [] }));
+
+    const view = ExamBlueprintViewSchema.parse((await getBlueprint(jdId).expect(200)).body);
+    await center.agent.post(api(`question-banks/${bankId}/lock`)).send({ rowVersion: view.rowVersion }).expect(200);
+    expect(errorCode((await addQuestions(jdId, [manualMcq('Sau khi khóa')]).expect(409)).body)).toBe('QUESTION_BANK_LOCKED');
+    const xlsx = await importFile([{ ...MCQ_ROW, Đề: 'Sau khi khóa' }]);
+    expect(errorCode((await preview(jdId, xlsx, 'a.xlsx').expect(409)).body)).toBe('QUESTION_BANK_LOCKED');
+
+    // Invariant 11: the trigger refuses a question added to a locked bank.
+    const pool = t.app.get<Pool>(PG_POOL);
+    await expect(
+      pool.query(
+        `INSERT INTO core.questions (bank_id, source, created_by, type, skill, difficulty, content, answer_key)
+         VALUES ($1, 'MANUAL', $2, 'MCQ', 'Java', 'EASY', '{"stem": "x", "options": ["a", "b", "c", "d"]}',
+                 '{"correct_option": 0, "explanation": "x", "sample_answer": null}')`,
+        [bankId, center.user.id],
+      ),
+    ).rejects.toMatchObject({ code: '23000' });
+
+    const closed = await createJdInState(t.db, {
+      companyId,
+      status: 'APPROVED',
+      requirements: REQUIREMENTS,
+      campaignId: (await createCampaign(t.db, { status: 'CLOSED' })).id,
+    });
+    expect(errorCode((await addQuestions(closed.id, [manualMcq('Đợt đã đóng')]).expect(409)).body)).toBe('CAMPAIGN_PHASE_MISMATCH');
+  });
+
+  it('FR-42 US-4.13 AC-8 the CHECK keeps both sources apart: a MANUAL question has an author and no model; an AI one the other way round', async () => {
+    const { bankId, rows } = await filledBank();
+    const pool = t.app.get<Pool>(PG_POOL);
+    const insert = (columns: string, values: string) =>
+      pool.query(
+        `INSERT INTO core.questions (bank_id, type, skill, difficulty, content, answer_key, ${columns})
+         VALUES ($1, 'MCQ', 'Java', 'EASY', '{"stem": "y", "options": ["a", "b", "c", "d"]}',
+                 '{"correct_option": 0, "explanation": "x", "sample_answer": null}', ${values})`,
+        [bankId],
+      );
+    const refused = { code: '23514', constraint: 'questions_author_check' };
+    await expect(
+      insert('source, created_by, model, prompt_version', `'MANUAL', ${center.user.id}, 'm', 'test_generator/v1'`),
+    ).rejects.toMatchObject(refused);
+    await expect(insert('source, created_by', `'MANUAL', NULL`)).rejects.toMatchObject(refused);
+    await expect(insert('source, model, prompt_version', `'AI', 'm', 'test_generator/v1'`)).rejects.toMatchObject(refused);
+    await expect(
+      pool.query(`UPDATE core.questions SET created_by = $2 WHERE id = $1`, [rows[0]!.id, center.user.id]),
+    ).rejects.toMatchObject(refused);
   });
 });

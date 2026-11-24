@@ -18,6 +18,7 @@ from uuid import UUID
 from app.agents.test_generator import (
     BankSource,
     Draft,
+    ManualQuestion,
     NewDraft,
     TestGenerator,
     stem_key,
@@ -235,6 +236,8 @@ class MemoryBanks:
         self.fetched: list[int] = []
         self.rejected: dict[int, dict[int, tuple[str, ...]]] = {}
         """core.v_ai_question_rejections: CENTER's reasons by bank, then by draft (US-4.11)."""
+        self.manual: dict[int, list[ManualQuestion]] = {}
+        """core.v_ai_manual_questions: the questions added by hand, by bank (US-4.13)."""
 
     async def fetch(self, bank_id: int) -> BankSource | None:
         self.fetched.append(bank_id)
@@ -242,6 +245,32 @@ class MemoryBanks:
 
     async def rejections(self, bank_id: int) -> dict[int, tuple[str, ...]]:
         return dict(self.rejected.get(bank_id, {}))
+
+    async def manual_questions(self, bank_id: int) -> list[ManualQuestion]:
+        return list(self.manual.get(bank_id, []))
+
+    def add_manual(
+        self,
+        bank_id: int,
+        skill: str,
+        difficulty: str,
+        stem: str,
+        *,
+        type: str = "MCQ",
+        status: str = "DRAFT",
+    ) -> None:
+        """CENTER or HR added a question by hand, as the view shows it."""
+        questions = self.manual.setdefault(bank_id, [])
+        questions.append(
+            ManualQuestion(
+                question_id=9000 + len(questions),
+                type=type,
+                skill=skill,
+                difficulty=difficulty,
+                stem=stem,
+                status=status,
+            )
+        )
 
     def reject(self, bank_id: int, draft_id: int, reason: str) -> None:
         """CENTER rejects the draft by hand, as the backend stores it."""

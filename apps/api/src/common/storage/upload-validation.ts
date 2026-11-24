@@ -51,7 +51,7 @@ export async function detectDocument(buffer: Buffer): Promise<DetectedDocument> 
  * The client-supplied name, safe to store and show: no directory part, no control characters, at
  * most 255 characters. Falls back to `file.<ext>`.
  */
-export function displayFileName(originalName: string, ext: DocumentExtension): string {
+export function displayFileName(originalName: string, ext: string): string {
   const base = originalName.split(/[/\\]/).pop() ?? '';
   // eslint-disable-next-line no-control-regex
   const cleaned = base.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 255);

@@ -4,16 +4,19 @@ CONTEXT D49, D60).
 
 1. Read the bank and the JD requirements through core.v_ai_question_banks and
    core.v_ai_jd_requirements; load the bank's drafts, their vectors, the verdicts the Validator
-   gave when CENTER ran it (QUESTIONS_VALIDATE, app/agents/validator/job.py), and the drafts CENTER
-   rejected by hand through core.v_ai_question_rejections.
+   gave when CENTER ran it (QUESTIONS_VALIDATE, app/agents/validator/job.py), the drafts CENTER
+   rejected by hand through core.v_ai_question_rejections, and the questions CENTER and HR added
+   by hand through core.v_ai_manual_questions (US-4.13): they count in the coverage, and the
+   drafts are checked against them.
 2. Each round: `get_blueprint_coverage()`; stop when no cell is short of 3× usable drafts (not
    rejected, checked or not). Take the short cells of one part, the parts taking turns while both
    have some; the cells asked for in the fewest rounds go first, in blueprint order on a tie. Each
    asks for what it lacks up to 3×, at most 15 in all. So a cell that never fills holds up neither
    the other cells nor the other part.
 3. One `LLMClient.generate` call, effort high: the requirements in `shared`; the cells, the stems
-   they hold, those the Validator or CENTER rejected with the reasons, and the questions code
-   refused in the part's round before in `user`.
+   they hold (those added by hand among them, as data inside `untrusted`), those the Validator or
+   CENTER rejected with the reasons, and the questions code refused in the part's round before in
+   `user`.
 4. `submit_questions()` checks each question, refuses duplicates and stores the others. A stored
    draft is usable at once: the job does not call the Validator (D60).
 5. Stop at MAX_ROUNDS, or once MAX_TOKENS_PER_JOB are spent: no LLM call starts past it. The tokens
@@ -137,11 +140,13 @@ class TestGenerator:
         drafts = list(await self._drafts.drafts(bank.bank_id))
         verdicts = await self._validations.validations(bank.bank_id)
         rejections = await self._sources.rejections(bank.bank_id)
+        manual = await self._sources.manual_questions(bank.bank_id)
         tools = await load_bank_tools(
             bank=bank,
             drafts=drafts,
             verdicts=verdicts,
             rejections=rejections,
+            manual=manual,
             repo=self._drafts,
             embedder=self._embedder,
             job_id=job.job_id,

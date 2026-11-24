@@ -804,6 +804,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/jds/{id}/question-bank/import-template": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ManualQuestionsController_template"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jds/{id}/question-bank/import/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["ManualQuestionsController_preview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jds/{id}/question-bank/questions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["ManualQuestionsController_save"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jds/{id}/question-bank/manual-questions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ManualQuestionsController_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/me/exams": {
         parameters: {
             query?: never;
@@ -2873,8 +2937,16 @@ export interface components {
                     /** Format: date-time */
                     rejectedAt: string;
                 } | null;
-                model: string;
-                promptVersion: string;
+                /** @enum {string} */
+                source: "AI" | "MANUAL";
+                createdBy: {
+                    id: number;
+                    name: string;
+                    /** @enum {string} */
+                    role: "CENTER" | "HR";
+                } | null;
+                model: string | null;
+                promptVersion: string | null;
                 /** Format: date-time */
                 createdAt: string;
             }[];
@@ -2968,6 +3040,138 @@ export interface components {
             verdict: "OK" | "ERROR";
             reason?: string;
             rowVersion?: number;
+        };
+        QuestionImportPreviewDto_Output: {
+            jdId: number;
+            fileName: string;
+            rows: {
+                row: number;
+                type: string;
+                skill: string;
+                difficulty: string;
+                stem: string;
+                question: ({
+                    /** @enum {string} */
+                    type: "MCQ";
+                    skill: string;
+                    /** @enum {string} */
+                    difficulty: "EASY" | "MEDIUM" | "HARD";
+                    stem: string;
+                    explanation: string;
+                    options: string[];
+                    correctOption: number;
+                } | {
+                    /** @enum {string} */
+                    type: "ESSAY";
+                    skill: string;
+                    /** @enum {string} */
+                    difficulty: "EASY" | "MEDIUM" | "HARD";
+                    stem: string;
+                    explanation: string;
+                    rubric: {
+                        criterion: string;
+                        maxPoints: number;
+                    }[];
+                    sampleAnswer: string;
+                }) | null;
+                issues: {
+                    column: string | null;
+                    /** @enum {string} */
+                    code: "INVALID" | "FORMULA" | "UNKNOWN_CELL" | "CELL_FULL" | "BANK_FULL" | "DUPLICATE";
+                    message: string;
+                }[];
+            }[];
+        };
+        SaveManualQuestionsRequestDto: {
+            /** @enum {string} */
+            origin: "FORM" | "IMPORT";
+            fileName?: string;
+            questions: ({
+                /** @enum {string} */
+                type: "MCQ";
+                skill: string;
+                /** @enum {string} */
+                difficulty: "EASY" | "MEDIUM" | "HARD";
+                stem: string;
+                explanation: string;
+                options: string[];
+                correctOption: number;
+            } | {
+                /** @enum {string} */
+                type: "ESSAY";
+                skill: string;
+                /** @enum {string} */
+                difficulty: "EASY" | "MEDIUM" | "HARD";
+                stem: string;
+                explanation: string;
+                rubric: {
+                    criterion: string;
+                    maxPoints: number;
+                }[];
+                sampleAnswer: string;
+            })[];
+        };
+        SaveManualQuestionsResultDto_Output: {
+            bankId: number;
+            questionIds: number[];
+        };
+        ManualQuestionListDto_Output: {
+            jdId: number;
+            bank: {
+                id: number;
+                /** @enum {string} */
+                status: "OPEN" | "LOCKED";
+                version: number;
+                jdOutdated: boolean;
+            } | null;
+            cells: {
+                /** @enum {string} */
+                type: "MCQ" | "ESSAY";
+                skill: string;
+                /** @enum {string} */
+                difficulty: "EASY" | "MEDIUM" | "HARD";
+                usable: number;
+                room: number;
+            }[];
+            questions: {
+                id: number;
+                rowVersion: number;
+                /** @enum {string} */
+                status: "DRAFT" | "VALIDATED" | "REJECTED" | "RETIRED";
+                /** @enum {string} */
+                part: "A" | "B";
+                /** @enum {string} */
+                type: "MCQ" | "ESSAY";
+                skill: string;
+                /** @enum {string} */
+                difficulty: "EASY" | "MEDIUM" | "HARD";
+                stem: string;
+                options: string[] | null;
+                correctOption: number | null;
+                explanation: string;
+                sampleAnswer: string | null;
+                rubric: {
+                    /** @description What the grader looks for */
+                    criterion: string;
+                    /** @description Points this criterion is worth at most */
+                    max_points: number;
+                }[] | null;
+                createdBy: {
+                    id: number;
+                    name: string;
+                    /** @enum {string} */
+                    role: "CENTER" | "HR";
+                };
+                /** Format: date-time */
+                createdAt: string;
+                rejection: {
+                    /** @enum {string} */
+                    reason: "ANSWER_MISMATCH" | "MULTIPLE_CORRECT" | "OFF_SKILL" | "ANSWER_LEAKED" | "WEAK_DISTRACTORS" | "UNCLEAR" | "RUBRIC_MISMATCH" | "DIFFICULTY_MISMATCH" | "DUPLICATE";
+                    note: string | null;
+                    /** Format: date-time */
+                    rejectedAt: string;
+                } | null;
+            }[];
         };
         MyExamsResponseDto_Output: {
             campaign: {
@@ -4761,6 +4965,101 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["QuestionReviewSampleDto_Output"];
+                };
+            };
+        };
+    };
+    ManualQuestionsController_template: {
+        parameters: {
+            query?: {
+                format?: "xlsx" | "csv";
+            };
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ManualQuestionsController_preview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuestionImportPreviewDto_Output"];
+                };
+            };
+        };
+    };
+    ManualQuestionsController_save: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveManualQuestionsRequestDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SaveManualQuestionsResultDto_Output"];
+                };
+            };
+        };
+    };
+    ManualQuestionsController_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManualQuestionListDto_Output"];
                 };
             };
         };
