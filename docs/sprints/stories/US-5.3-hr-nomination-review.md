@@ -15,7 +15,7 @@ arch_ref:
 depends_on:
   - US-5.2
 assignee: PDTnhah
-commit:
+commit: 0325e46
 created: 2026-10-07
 updated: 2026-11-24
 ---
@@ -89,7 +89,7 @@ GĐ8 (UC-23, UC-24), FR-28, FR-29; BR-11, BR-12, BR-13; AD-8 (`transitionTo` + `
 - Kiểm tra cấp bản ghi: HR chỉ thấy đề cử thuộc JD của công ty mình (BR-11), có test IDOR và danh sách route cho phép của HR (Q5).
 - Hạn phản hồi của HR theo ngày làm việc: nhắc trước 2 ngày, báo HR và Trung tâm khi quá hạn (trong app); Trung tâm gia hạn có lý do.
 
-**Commit**:
+**Commit**: `0325e46`
 
 ## Implementation notes
 
