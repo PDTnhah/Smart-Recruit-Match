@@ -24,7 +24,7 @@ goal: 'Sửa lỗi tìm kỹ năng khi ô tìm còn trống (US-2.8, v0.25.1); �
 | US-4.3  | Phòng thi                                          | EPIC-4 | P0  | 8      | 👀 review  | from W45 | [stories/US-4.3-exam-room.md](stories/US-4.3-exam-room.md)                                                   |
 | US-4.4  | Chấm bài, S_test và S_final                        | EPIC-4 | P0  | 13     | 👀 review  | from W45 | [stories/US-4.4-grading-stest-sfinal.md](stories/US-4.4-grading-stest-sfinal.md)                             |
 | US-4.5  | Chấm tay câu tự luận được chuyển                   | EPIC-4 | P0  | 5      | 👀 review  | from W45 | [stories/US-4.5-manual-essay-grading.md](stories/US-4.5-manual-essay-grading.md)                             |
-| US-5.1  | Allocation Engine và property-based test           | EPIC-5 | P0  | 5      | 📋 backlog | from W42 | [stories/US-5.1-allocation-engine-property-tests.md](stories/US-5.1-allocation-engine-property-tests.md)     |
+| US-5.1  | Allocation Engine và property-based test           | EPIC-5 | P0  | 5      | 👀 review  | from W42 | [stories/US-5.1-allocation-engine-property-tests.md](stories/US-5.1-allocation-engine-property-tests.md)     |
 | US-6.4  | Mô phỏng phân bổ so với baseline                   | EPIC-6 | P1  | 5      | 📋 backlog | from W44 | [stories/US-6.4-allocation-simulation-vs-baselines.md](stories/US-6.4-allocation-simulation-vs-baselines.md) |
 | US-4.8  | Câu hỏi xác minh CV và chỉ số tin cậy              | EPIC-4 | P1  | 8      | 👀 review  | new  | [stories/US-4.8-cv-verification-questions-trust-score.md](stories/US-4.8-cv-verification-questions-trust-score.md) |
 | US-2.9  | Thêm nhà cung cấp LLM OpenAI và DeepSeek           | EPIC-2 | P1  | 5      | 👀 review  | new  | [stories/US-2.9-openai-deepseek-llm-providers.md](stories/US-2.9-openai-deepseek-llm-providers.md) |
@@ -49,20 +49,20 @@ Ngày 2026-11-16, người dùng bắt đầu US-2.8 (1 điểm, sửa lỗi tá
 2. **Người dùng**: kiểm tay, `db:migrate`, `smoke_llm` theo bảng carry-over, rồi chuyển các story sang `done`.
 3. **US-4.8** (bắt đầu 2026-11-16, người dùng chọn): phần D và chỉ số tin cậy CV ([CONTEXT D57](../CONTEXT.md)); xong 0.26.0 ngày 2026-11-18, `review`, chờ kiểm tay và `db:migrate` `0040`–`0041`.
 4. **US-2.9** (bắt đầu 2026-11-19, người dùng chọn): người dùng không có key Gemini hay Claude, nên thêm nhà cung cấp OpenAI và DeepSeek ([CONTEXT D58](../CONTEXT.md)). v0.27.0, `review`; chờ người dùng chạy với key thật (TASK-2.9.9).
-5. **Story kế tiếp**: US-5.1 (mốc M1), khi người dùng chọn.
+5. **US-5.1** (2026-11-24, người dùng chọn, một phiên): Allocation Engine là hàm thuần, có property-based test; xong 0.32.0, `review`. Người dùng chốt hai điểm phá hòa ([CONTEXT D63](../CONTEXT.md)). Không có migration, không có giao diện để kiểm tay.
 6. **Ngân hàng câu hỏi** (lập ngày 2026-11-19 từ phản hồi của người dùng về ngân hàng JD 5, [CONTEXT D60](../CONTEXT.md)): ba story mới ở `backlog`, thứ tự đề xuất [US-4.12](stories/US-4.12-question-bank-ui-fixes-part-c.md) (ô độ phủ, phần D → C; 3 điểm) → [US-4.10](stories/US-4.10-on-demand-question-validation.md) (Validator chạy khi Trung tâm yêu cầu; 8 điểm) → [US-4.11](stories/US-4.11-question-bank-browser-and-rejection.md) (xem toàn bộ câu, loại câu; 5 điểm). US-4.12 bắt đầu 2026-11-19 (người dùng chọn), xong 0.27.1, `review`; chờ người dùng kiểm tay 360 / 768 / 1024 px. US-4.10 làm ngày 2026-11-19, xong 0.28.0, `review`; chờ `/code-review`, `db:migrate` `0043`, `smoke_llm --bank` với key thật và kiểm tay. US-4.11 làm ngày 2026-11-19 → 20, xong 0.30.0, `review`; chờ `/code-review`, `db:migrate` `0045` và kiểm tay AC-2.
 
 ## Parked / deferred from W45, W46
 
 - ✅ **Closed**: [W45](sprint-2026-W45.md) (11 story, 0.14.0–0.24.0), [W46](sprint-2026-W46.md) (US-1.8 0.24.1, US-1.10 0.25.0), đóng ngày 2026-11-16.
 - 🚧 **Carried into W47**: 14 story `review` (bảng trên).
-- ⏭️ **Not started**: US-5.1, US-6.4.
+- ⏭️ **Not started**: US-6.4 (dùng engine của US-5.1).
 - 📋 **Backlog**: US-1.9 (phiên giữa các tab). US-4.13 (lập ngày 2026-11-21, [CONTEXT D62](../CONTEXT.md)) xếp vào W47 ngày 2026-11-23, 0.31.0 `review`.
 
 ## Risks & dependencies
 
 - **14 story `review` chờ người dùng** — *Impact*: chưa story nào chuyển `done`. US-4.1…US-4.5 và US-1.10 cần migration `0028`…`0039`; kiểm tay trên DB chưa migrate sẽ lỗi. *Mitigation*: chạy `db:migrate` một lần trước khi kiểm tay; làm theo bảng carry-over của W45, W46. *Owner*: @PDTnhah.
-- **Mốc M1 còn thiếu US-5.1, US-6.4** — *Impact*: chưa có số liệu mô phỏng phân bổ cho báo cáo. *Mitigation*: US-5.1 là hàm thuần, làm ngay sau US-2.8. *Owner*: @PDTnhah.
+- **Mốc M1 còn thiếu US-6.4** — *Impact*: chưa có số liệu mô phỏng phân bổ cho báo cáo. *Mitigation*: engine của US-5.1 (0.32.0) đã có; US-6.4 chỉ cần runner và các phương án đối chứng. *Owner*: @PDTnhah.
 
 ## Per-Epic Retrospective
 
@@ -72,7 +72,7 @@ Ngày 2026-11-16, người dùng bắt đầu US-2.8 (1 điểm, sửa lỗi tá
 | EPIC-2 | optional     | US-2.8 0.25.1; US-2.7 chờ kiểm tay       |
 | EPIC-3 | optional     | US-3.1…US-3.6 chờ kiểm tay hoặc key thật |
 | EPIC-4 | optional     | US-4.1…US-4.5 chờ `db:migrate`, kiểm tay |
-| EPIC-5 | optional     | US-5.1 chưa bắt đầu                      |
+| EPIC-5 | optional     | US-5.1 0.32.0 `review`                   |
 | EPIC-6 | optional     | US-6.4 chưa bắt đầu                      |
 
 ## Retrospective

@@ -15,6 +15,19 @@ Lịch sử phát hành của Smart Recruit Match. Mỗi commit ship code tăng 
 
 ---
 
+## [0.32.0] — 2026-11-24 — Allocation Engine và property-based test — v0.32.0
+
+US-5.1. Thuật toán phân bổ Deferred Acceptance (sinh viên đề xuất) là hàm TypeScript thuần, chưa có route hay giao diện. US-5.2 dựng đầu vào từ DB rồi gọi engine.
+
+### Added
+- `apps/api/src/modules/allocation/domain/`: `deferredAcceptance`, `checkStability` (báo `OVER_CAPACITY`, `NOT_IN_PREFERENCES`, `DUPLICATE_ASSIGNMENT`, `BLOCKING_PAIR`), `computeCapacity` cho C_j(r) của GĐ10, `toCentiScore` quy điểm `numeric(5,2)` về số nguyên ×100 mà không nhân số thực.
+- Hàm so sánh chặt `compareRankKeys` / `buildCompareAt`: SV bị hạ ưu tiên (BR-16) xếp sau mọi người, rồi S_final → S_test → S_cv → GPA (SV thiếu GPA xếp sau) → nộp bài sớm hơn → mã SV nhỏ hơn ([CONTEXT D63](CONTEXT.md)).
+- Property-based test (fast-check, 1 000 bộ mỗi tính chất) cho ba tính chất: ổn định, không vượt sức chứa, tất định kể cả khi hoán vị thứ tự chèn. Ví dụ minh họa của PRD là một test cố định. Bộ sinh `arbAllocationInput` dùng lại được cho US-5.2, US-5.5, US-6.4.
+- Đo hiệu năng: 5 000 SV × 3 NV × 200 JD, engine cộng `checkStability` khoảng 50 ms (NFR-8 đặt mức dưới 1 giây).
+- Luật dependency-cruiser `allocation-domain-self-contained` và luật ESLint cấm đồng hồ và số ngẫu nhiên trong `allocation/domain/`.
+
+---
+
 ## [0.31.0] — 2026-11-23 — Trung tâm và HR tự thêm câu hỏi: điền form hoặc import file — v0.31.0
 
 US-4.13. Trung tâm và doanh nghiệp đưa câu hỏi của mình vào ngân hàng của một JD trước khi khóa ([CONTEXT D62](CONTEXT.md)). Câu thêm tay qua cùng luật kiểm với câu AI sinh, dùng được ngay và được tính vào độ phủ; Test Generator chỉ sinh phần còn thiếu.

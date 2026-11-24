@@ -582,7 +582,7 @@ Cách quy về thang 100 ([CONTEXT D53](CONTEXT.md)):
 
 Điều kiện để sinh viên được tham gia phân bổ vào một JD: đạt điều kiện cứng, S_cv ≥ θ_cv và S_test ≥ θ_test.
 
-**Phá hòa** (khi S_final bằng nhau sau khi làm tròn 2 chữ số): S_test cao hơn → S_cv cao hơn → GPA cao hơn → nộp bài test sớm hơn.
+**Phá hòa** (khi S_final bằng nhau sau khi làm tròn 2 chữ số): S_test cao hơn → S_cv cao hơn → GPA cao hơn → nộp bài test sớm hơn. **Chốt ([CONTEXT D63](CONTEXT.md)):** sinh viên thiếu GPA xếp sau người có GPA; cuối cùng mã sinh viên nhỏ hơn xếp trên, nên thứ hạng luôn chặt.
 
 ### Thuật toán phân bổ
 
@@ -919,7 +919,7 @@ Mọi thông báo đều hiện trong ứng dụng (chuông ở ba cổng, cập
 | FR-23 | Cán bộ Trung tâm hoặc giảng viên chấm tay các câu tự luận được chuyển (UC-06); giảng viên dùng tài khoản `CENTER` do Trung tâm cấp ([CONTEXT D54](CONTEXT.md)) | P0 | 🚧 in-progress | EPIC-4 |
 | FR-24 | Sinh viên xem điểm, phúc khảo phần tự luận trong 48 giờ và báo lỗi câu hỏi; câu sai bị loại và các bài liên quan được chấm lại (UC-15, UC-06) | P1 | 📋 backlog | EPIC-4 |
 | FR-25 | Câu hỏi xác minh CV (phần C) và chỉ số tin cậy CV cho HR tham khảo | P1 | 🚧 in-progress | EPIC-4 |
-| FR-26 | Chạy phân bổ Deferred Acceptance có sức chứa, kết quả ở trạng thái dự thảo; kiểm tra tính ổn định; lưu snapshot đầu vào và cấu hình (UC-34, BR-07, BR-09, BR-17, GĐ7) | P0 | 📋 backlog | EPIC-5 |
+| FR-26 | Chạy phân bổ Deferred Acceptance có sức chứa, kết quả ở trạng thái dự thảo; kiểm tra tính ổn định; lưu snapshot đầu vào và cấu hình (UC-34, BR-07, BR-09, BR-17, GĐ7) | P0 | 🚧 in-progress | EPIC-5 |
 | FR-27 | Cán bộ Trung tâm xem dự thảo, điều chỉnh thủ công có ghi lý do và công bố danh sách đề cử (UC-05, BR-10) | P0 | 📋 backlog | EPIC-5 |
 | FR-28 | HR xem danh sách đề cử và hồ sơ chi tiết: CV gốc, hồ sơ năng lực, S_cv kèm bằng chứng, S_test và bản đồ năng lực (UC-23, BR-11, GĐ8) | P0 | 📋 backlog | EPIC-5 |
 | FR-29 | HR mời phỏng vấn, từ chối có lý do, hoặc yêu cầu bổ sung hồ sơ; SLA và nhắc hạn (UC-24, BR-12) | P0 | 📋 backlog | EPIC-5 |

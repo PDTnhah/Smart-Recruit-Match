@@ -15,7 +15,8 @@ fi
 for expected in \
   'domain-no-framework: .*alpha/domain/scoring.ts → .*@nestjs/common' \
   'domain-no-framework: .*alpha/domain/scoring.ts → .*drizzle-orm' \
-  'no-cross-module-internals: .*alpha/application/alpha.service.ts → .*beta/application/beta.service.ts'
+  'no-cross-module-internals: .*alpha/application/alpha.service.ts → .*beta/application/beta.service.ts' \
+  'allocation-domain-self-contained: .*allocation/domain/engine.ts → fs'
 do
   printf '%s\n' "$out" | grep -Eq "$expected" || {
     echo "check-depcruise-fixture: expected violation not reported: $expected" >&2

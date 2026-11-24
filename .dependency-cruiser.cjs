@@ -14,6 +14,14 @@ module.exports = {
       to: { path: '(^|/)(@nestjs/|drizzle-orm)' },
     },
     {
+      name: 'allocation-domain-self-contained',
+      comment:
+        'The allocation engine (US-5.1, Invariant 9) imports nothing outside its domain/ folder: no framework, Redis, other module or Node built-in (I/O). Its __tests__/ may use fast-check.',
+      severity: 'error',
+      from: { path: '(^|/)modules/allocation/domain/', pathNot: '(^|/)modules/allocation/domain/__tests__/' },
+      to: { pathNot: '(^|/)modules/allocation/domain/' },
+    },
+    {
       name: 'no-cross-module-internals',
       comment:
         "A module may only use another module through its public entry modules/<m>/index.ts (exported services) or events.",

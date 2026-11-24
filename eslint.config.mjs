@@ -37,6 +37,25 @@ export default defineConfig(
     languageOptions: { globals: globals.node },
   },
   {
+    // US-5.1 AC-11, AGENTS › Invariant 9: the allocation engine reads no clock and no randomness, so
+    // its result depends on its input alone. dependency-cruiser keeps its imports inside the folder.
+    files: ['apps/api/src/modules/allocation/domain/**/*.ts'],
+    ignores: ['apps/api/src/modules/allocation/domain/__tests__/**'],
+    rules: {
+      'no-restricted-globals': [
+        'error',
+        ...['Date', 'performance', 'crypto', 'process', 'setTimeout', 'setInterval'].map((name) => ({
+          name,
+          message: 'The allocation engine is pure: pass times and other values in through its input.',
+        })),
+      ],
+      'no-restricted-properties': [
+        'error',
+        { object: 'Math', property: 'random', message: 'The allocation engine is deterministic: no randomness.' },
+      ],
+    },
+  },
+  {
     files: ['apps/web/**/*.{ts,tsx}'],
     extends: [reactHooks.configs.flat['recommended-latest'], reactRefresh.configs.vite],
     languageOptions: { globals: globals.browser },
