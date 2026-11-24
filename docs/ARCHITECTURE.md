@@ -197,6 +197,15 @@ export function deferredAcceptance({ preferences, capacity, compareAt }: Allocat
 }
 ```
 
+Từ US-5.1 ([CONTEXT D63](CONTEXT.md)), code ở `apps/api/src/modules/allocation/domain/`:
+
+- `deferredAcceptance(input)` trả `{ held, unassigned }`. `held` có mọi JD của `capacity` theo thứ tự mã JD, mỗi danh sách xếp theo thứ hạng tại JD. Mỗi JD giữ danh sách đã sắp và chèn người đề xuất bằng tìm kiếm nhị phân thay vì sắp lại cả danh sách. Không cần heap: 5.000 SV × 3 NV × 200 JD chạy cả `checkStability` trong khoảng 50 ms.
+- Đầu vào được kiểm trước khi chạy: sức chứa là số nguyên ≥ 0, một JD không lặp trong danh sách NV của một SV, và `compareAt(jd, sv, sv)` trả 0 cho mọi NV. Lần gọi cuối này để `buildCompareAt` báo thiếu rank key. Sai thì ném `InvalidAllocationInputError`. `compareAt` trả 0 với hai SV khác nhau thì ném `NonStrictComparatorError`.
+- `buildCompareAt(rankKeys)` dựng `compareAt` từ `RankKey` của từng cặp (JD, SV): `demoted`, `sFinal`, `sTest`, `sCv`, `gpa` (null khi thiếu), `submittedAt` (epoch ms do bên gọi truyền vào), `studentCode`. Điểm ×100 qua `toCentiScore`.
+- `checkStability(input, { held })` trả `{ ok, violations }`, với các loại `OVER_CAPACITY`, `NOT_IN_PREFERENCES`, `DUPLICATE_ASSIGNMENT`, `BLOCKING_PAIR`. Hàm này dùng được cả cho kết quả đã điều chỉnh tay (US-5.2).
+- `computeCapacity({ quota, accepted, inProcess, k })` tính C_j(r) của GĐ10.
+- Tính thuần được giữ bằng hai luật chạy trong CI. Luật dependency-cruiser `allocation-domain-self-contained` không cho `domain/` import gì ngoài thư mục, trừ `__tests__/`. Luật ESLint cấm `Date`, `performance`, `crypto`, `process`, timer và `Math.random`. Bộ sinh dữ liệu fast-check `arbAllocationInput` ở `domain/__tests__/arbitraries.ts` dùng lại được cho US-5.2, US-5.5 và US-6.4.
+
 #### Tác vụ định kỳ
 
 `@nestjs/schedule` (cron) + advisory lock của PostgreSQL (`pg_try_advisory_lock`) để nhiều instance không chạy trùng: chuyển trạng thái đợt theo mốc thời gian, hủy NV quá hạn làm test, nhắc HR trước hạn SLA, hết hạn T_offer, hết hạn Dự bị. Email được ghi vào bảng `notifications` trước (outbox) rồi gửi bằng tác vụ nền, gửi lỗi thì thử lại.

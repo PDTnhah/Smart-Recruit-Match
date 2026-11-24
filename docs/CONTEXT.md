@@ -69,6 +69,7 @@
 - D60 · Validator chạy khi Trung tâm yêu cầu (job `QUESTIONS_VALIDATE`, nhắm 3×, câu `DRAFT` dùng được), Trung tâm xem và loại câu, phần xác minh CV đổi `D` → `C`; thêm US-4.10, US-4.11, US-4.12
 - D61 · Duyệt đề mẫu (US-4.9): giảng viên dùng tài khoản CENTER, duyệt cả trước và sau khi khóa, không bước nào chờ, ô thiếu câu chỉ cảnh báo; cỡ mẫu là tham số đợt; màn "Duyệt JD" giữ JD đã duyệt
 - D62 · Trung tâm và HR tự thêm câu hỏi bằng form hoặc import `.xlsx`/`.csv`: HR chỉ thấy câu của công ty, chỉ trước khi khóa, xem trước rồi lưu tất cả hoặc không; thêm US-4.13, FR-42
+- D63 · Phá hòa cuối của Allocation Engine: `student_code` tăng dần theo code unit, SV thiếu GPA xếp sau; `computeCapacity` đọc k như số thập phân chính xác (US-5.1)
 
 ---
 
@@ -2651,3 +2652,22 @@ Lúc điều tra còn thấy hai lỗi khác, không gây ra sự cố này:
 
 **Date**: 2026-11-21
 **Version**: 0.30.0 (chưa có code)
+
+### D63. Phá hòa cuối của Allocation Engine, SV thiếu GPA, k đọc chính xác (US-5.1) (chốt điểm mở của US-5.1)
+
+**Context**: PRD › *Điểm tổng hợp (S_final)* chỉ ghi "GPA cao hơn". ARCH › *Allocation Engine* ghi "cuối cùng so mã sinh viên" mà không ghi chiều so. `gpa4` có thể null khi CV không ghi GPA và JD không đặt `min_gpa`. AC-8 ghi "k quy về ×100", nhưng `campaigns.config.k` (US-1.4) không giới hạn số chữ số thập phân.
+
+**Decision** (người dùng chốt hai điểm đầu ngày 2026-11-24):
+
+- Mức phá hòa cuối: `student_code` nhỏ hơn xếp trên, so theo code unit, không theo locale.
+- Ở mức GPA, SV thiếu GPA xếp sau mọi SV có GPA. Hai SV cùng thiếu GPA thì so tiếp thời điểm nộp bài.
+- `computeCapacity` đọc k như phân số thập phân chính xác (`1.1` = 11/10, `1.333` = 1333/1000) và lấy trần bằng bigint, nên k không phải giới hạn ở hai chữ số thập phân.
+
+**Rationale**: So theo code unit cho cùng thứ tự trên mọi máy và runtime, còn `localeCompare` phụ thuộc ICU. SV thiếu GPA thì không có căn cứ để xếp trên người có GPA. Đọc k chính xác vẫn giữ Nguyên tắc 9 mà không phải đổi schema đợt đã phát hành.
+
+**Alternatives considered**: So mã giảm dần; bỏ qua mức GPA khi một bên thiếu. Người dùng không chọn hai phương án này. Thêm `multipleOf(0.01)` cho k rồi nhân ×100: loại, vì phải đổi schema của US-1.4 mà kết quả không chính xác hơn.
+
+**Impact**: PRD › *Điểm tổng hợp (S_final)*; ARCH › *Allocation Engine*. US-5.2, US-5.4 dựng `RankKey` với `gpa: null` khi SV thiếu GPA.
+
+**Date**: 2026-11-24
+**Version**: 0.32.0
