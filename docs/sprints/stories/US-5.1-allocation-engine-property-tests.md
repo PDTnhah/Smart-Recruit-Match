@@ -14,8 +14,8 @@ arch_ref:
   - AD-7
 depends_on:
   - US-1.1
-assignee:
-commit:
+assignee: PDTnhah
+commit: d314c24
 created: 2026-10-07
 updated: 2026-11-24
 ---
@@ -154,7 +154,7 @@ Story này phủ phần thuật toán của FR-26 và phần engine của NFR-8 
 - Property-based test cho ba tính chất ổn định, không vượt sức chứa, tất định; test cố định theo ví dụ của PRD; bộ sinh `arbAllocationInput`; đo hiệu năng 5 000 SV.
 - Luật dependency-cruiser và ESLint giữ tính thuần của `allocation/domain/`.
 
-**Commit**: chưa commit.
+**Commit**: `d314c24`
 
 ## Implementation notes
 
