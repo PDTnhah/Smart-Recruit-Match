@@ -39,6 +39,17 @@ function shortlistRowsOf(
   );
 }
 
+/** What an allocation round reads of a pair's result (US-5.2): the hard filter, S_cv, model and prompt. */
+export interface AllocationMatchRow {
+  cvId: number;
+  jdId: number;
+  eligible: boolean;
+  ineligibleCodes: string[];
+  sCv: number | null;
+  model: string | null;
+  promptVersion: string | null;
+}
+
 /** The code part of one pair, as a run writes it; the LLM part stays empty until the result. */
 export interface MatchCodeRow extends PairKey {
   campaignId: number;
@@ -145,6 +156,46 @@ export class MatchResultsRepository {
       .limit(1)
       .for('share');
     return row?.eligible ? row.sCv : null;
+  }
+
+  /**
+   * The current result of each pair of the given CV versions (US-5.2, BR-07, BR-17): the newest JD
+   * version that has one, with these rules, waiting or scored with `pinnedPrompt`. Keyed by
+   * `pairKeyOf`-style `${cvId}:${jdId}`. Read in `tx`.
+   */
+  async currentOfCvs(
+    tx: DbTx,
+    campaignId: number,
+    rulesVersion: string,
+    pinnedPrompt: string | null,
+    cvs: readonly { cvId: number; cvVersion: number }[],
+  ): Promise<Map<string, AllocationMatchRow>> {
+    const current = new Map<string, AllocationMatchRow>();
+    const versionOf = new Map(cvs.map((cv) => [cv.cvId, cv.cvVersion]));
+    const cvIds = [...versionOf.keys()];
+    for (let start = 0; start < cvIds.length; start += 500) {
+      const rows = await tx
+        .select({
+          cvId: matchResults.cvId,
+          cvVersion: matchResults.cvVersion,
+          jdId: matchResults.jdId,
+          eligible: matchResults.eligible,
+          ineligibleReasons: matchResults.ineligibleReasons,
+          sCv: matchResults.sCv,
+          model: matchResults.model,
+          promptVersion: matchResults.promptVersion,
+        })
+        .from(matchResults)
+        .where(shortlistRowsOf(campaignId, rulesVersion, pinnedPrompt, cvIds.slice(start, start + 500)))
+        .orderBy(desc(matchResults.jdVersion), desc(matchResults.id));
+      for (const { cvVersion, ineligibleReasons, ...row } of rows) {
+        if (versionOf.get(row.cvId) !== cvVersion) continue;
+        const key = `${row.cvId}:${row.jdId}`;
+        if (current.has(key)) continue; // newest first
+        current.set(key, { ...row, ineligibleCodes: ineligibleReasons.map((reason) => reason.code) });
+      }
+    }
+    return current;
   }
 
   /**

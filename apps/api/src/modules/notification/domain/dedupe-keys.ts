@@ -29,6 +29,9 @@ export const DEDUPE_KEYS = {
   examNotTaken: (preferenceId: number) => `exam_not_taken:${preferenceId}`,
   /** The results of a session are published once (US-4.4 AC-11): one notice each. */
   examResultPublished: (sessionId: number) => `exam_result_published:${sessionId}`,
+  /** A round is published once (US-5.2): one notice per student, and per JD for its HR. */
+  nominationsPublished: (roundId: number, jdId?: number) =>
+    jdId === undefined ? `nominations_published:${roundId}` : `nominations_published:${roundId}:jd:${jdId}`,
   /**
    * One notice per CV version and outcome (US-2.4, CONTEXT D37): a redelivered result is quiet, a
    * profile after a failed dispatch is still announced, and a retry by command that fails again

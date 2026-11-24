@@ -41,6 +41,7 @@ import { COMPANY_AUDIT_ACTIONS } from '../domain/audit-actions.js';
 import { JD_APPROVED, JD_SUBMITTED, type JdEvent } from '../domain/events.js';
 import { checkApprovable, checkSubmittable } from '../domain/jd-checks.js';
 import {
+  type AllocationJd,
   type ApprovedJd,
   type JdChanges,
   type JdContent,
@@ -105,6 +106,14 @@ export class JdService implements OnModuleInit {
    */
   async listCardsByIds(jdIds: readonly number[]): Promise<ShortlistJdCard[]> {
     return this.repository.listCardsByIds(jdIds);
+  }
+
+  /**
+   * The JDs an allocation round ranks students for (US-5.2): quota, company and current state, by
+   * JD id. No record scope: only CENTER runs a round.
+   */
+  async listAllocationJds(jdIds: readonly number[]): Promise<AllocationJd[]> {
+    return this.repository.listAllocationJds(jdIds);
   }
 
   /**

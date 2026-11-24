@@ -70,6 +70,7 @@
 - D61 · Duyệt đề mẫu (US-4.9): giảng viên dùng tài khoản CENTER, duyệt cả trước và sau khi khóa, không bước nào chờ, ô thiếu câu chỉ cảnh báo; cỡ mẫu là tham số đợt; màn "Duyệt JD" giữ JD đã duyệt
 - D62 · Trung tâm và HR tự thêm câu hỏi bằng form hoặc import `.xlsx`/`.csv`: HR chỉ thấy câu của công ty, chỉ trước khi khóa, xem trước rồi lưu tất cả hoặc không; thêm US-4.13, FR-42
 - D63 · Phá hòa cuối của Allocation Engine: `student_code` tăng dần theo code unit, SV thiếu GPA xếp sau; `computeCapacity` đọc k như số thập phân chính xác (US-5.1)
+- D64 · Vòng phân bổ: `allocation` sở hữu `nominations`, điều chỉnh vi phạm BR-07/BR-09 bị chặn, chạy sau hạn phúc khảo, *Công bố đề cử* chỉ trong app, chạy lại ghi đè dự thảo (US-5.2)
 
 ---
 
@@ -2671,3 +2672,24 @@ Lúc điều tra còn thấy hai lỗi khác, không gây ra sự cố này:
 
 **Date**: 2026-11-24
 **Version**: 0.32.0
+
+### D64. Vòng phân bổ: module sở hữu `nominations`, điều chỉnh tay, điều kiện chạy, kênh thông báo (US-5.2) (chốt điểm mở của US-5.2; sửa ARCH › Các module)
+
+**Context**: Story US-5.2 để năm điểm "hỏi trước khi chốt". ARCH xếp "Đề cử" vào module `review`, nhưng chạy, điều chỉnh, công bố ghi `allocation_rounds` và `nominations` trong cùng giao dịch, còn HR (US-5.3) cần biết vòng đã công bố chưa: `review` sở hữu thì hai module phụ thuộc vòng tròn. GĐ7 ghi "sau khi hết hạn test và phúc khảo" khi US-4.6 (phúc khảo) chưa làm. PRD › Thông báo để trống kênh của *Công bố đề cử*.
+
+**Decision** (người dùng chốt bốn điểm đầu ngày 2026-11-24; các điểm còn lại theo đề xuất của story):
+
+- `allocation` sở hữu cả `allocation_rounds` và `nominations`; US-5.3 đọc và chuyển trạng thái đề cử qua service export của `allocation`. `review` còn HR duyệt, yêu cầu bổ sung, SLA.
+- Điều chỉnh tay tạo cặp không đạt BR-07 hoặc làm JD vượt C_j bị từ chối `422` (`NOMINATION_NOT_ELIGIBLE`, `NOMINATION_OVER_CAPACITY`); cặp bất ổn định do điều chỉnh chỉ là cảnh báo.
+- Chạy phân bổ bị chặn `409 ALLOCATION_NOT_READY` khi còn NV `PENDING_TEST`, bài còn trong `appeal_window_hours`, hoặc phúc khảo đang mở (móc `THRESHOLD_HOLDS` cho US-4.6).
+- *Công bố đề cử* (`NOMINATIONS_PUBLISHED`) chỉ trong app: SV biết nơi được đề cử hoặc đang chờ vòng sau; HR mỗi JD biết số đề cử.
+- Theo đề xuất: chạy lại khi vòng còn `DRAFT` ghi đè dòng cũ (`unique(campaign_id, round_no)`) và có audit; đề cử của dự thảo mang `NOMINATED` nên partial unique BR-08 có hiệu lực từ dự thảo; model, prompt của matching và Grader nằm trong `input_snapshot` theo từng cặp; vòng đời đề cử là đoạn từ `NOMINATED` của vòng đời hồ sơ ứng tuyển (cùng mã, cùng cạnh, `DECLINED` gồm cả quá hạn).
+
+**Rationale**: Một module ghi cả vòng lẫn đề cử thì một giao dịch đủ, và không có phụ thuộc vòng. BR-07, BR-09 là quy tắc tuyệt đối của PRD. Chạy sau hạn phúc khảo để điểm không đổi sau khi đã phân bổ. Thông báo trong app vì người dùng chọn.
+
+**Alternatives considered**: `review` sở hữu `nominations` (đề cử mang `published_at` để `review` khỏi gọi `allocation`); cho điều chỉnh vượt quy tắc kèm cảnh báo; chỉ chặn NV chưa chấm; gửi cả email. Người dùng không chọn các phương án này.
+
+**Impact**: ARCH › *Các module*, *Các bảng chính*, *API architecture*; PRD › *Thông báo*. US-5.3 dùng `nominations` qua `allocation`; US-4.6 thay `THRESHOLD_HOLDS`; US-5.5 mở rộng `AllocationRoundService.run` cho `round_no > 1`.
+
+**Date**: 2026-11-24
+**Version**: 0.33.0

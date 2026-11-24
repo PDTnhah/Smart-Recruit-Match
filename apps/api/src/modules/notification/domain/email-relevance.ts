@@ -40,7 +40,8 @@ export function emailStillRelevant(content: NotificationContent, now: Date): boo
     case 'JD_REQUIREMENTS_VERSIONED':
     case 'CV_PROFILE_READY':
     case 'CV_NEEDS_ATTENTION':
-      // Shown in the app only; never queued as email (CONTEXT D35, D37).
+    case 'NOMINATIONS_PUBLISHED':
+      // Shown in the app only; never queued as email (CONTEXT D35, D37, D64).
       return false;
   }
 }

@@ -34,6 +34,8 @@ export const NOTIFICATION_TYPES = [
   // A campaign that has left DRAFT moved deadlines, or was cancelled (US-1.10, CONTEXT D56).
   'CAMPAIGN_DEADLINES_CHANGED',
   'CAMPAIGN_CANCELLED',
+  // An allocation round was published (US-5.2, GĐ7 step 4, CONTEXT D64): in the app only.
+  'NOMINATIONS_PUBLISHED',
 ] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
@@ -50,6 +52,7 @@ export const IN_APP_ONLY_NOTIFICATION_TYPES = [
   'JD_REQUIREMENTS_VERSIONED',
   'CV_PROFILE_READY',
   'CV_NEEDS_ATTENTION',
+  'NOMINATIONS_PUBLISHED',
 ] as const satisfies readonly NotificationType[];
 
 /** Types that may be sent by email, each with a template in the notification module. */
@@ -239,6 +242,29 @@ export const CampaignCancelledPayloadSchema = z.object({
   reason,
 });
 
+/**
+ * An allocation round was published (US-5.2 AC-10, CONTEXT D64), in the app only. A student hears
+ * where they are nominated, or that they wait for the next round (`jd` null); HR hears how many
+ * students were put forward to one JD of their company.
+ */
+export const NominationsPublishedPayloadSchema = z.discriminatedUnion('audience', [
+  z.object({
+    audience: z.literal('STUDENT'),
+    campaignId: id,
+    campaignName: z.string().min(1),
+    roundNo: z.number().int().min(1),
+    jd: z.object({ jdId: id, title: z.string().min(1), companyName: z.string().min(1) }).nullable(),
+  }),
+  z.object({
+    audience: z.literal('HR'),
+    campaignId: id,
+    campaignName: z.string().min(1),
+    roundNo: z.number().int().min(1),
+    jd: z.object({ jdId: id, title: z.string().min(1) }),
+    nominationCount: z.number().int().min(0),
+  }),
+]);
+
 /** `type` and the `payload` that goes with it. */
 export const NotificationContentSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('CAMPAIGN_OPENED'), payload: CampaignOpenedPayloadSchema }),
@@ -256,6 +282,7 @@ export const NotificationContentSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('EXAM_RESULT_PUBLISHED'), payload: ExamResultPublishedPayloadSchema }),
   z.object({ type: z.literal('CAMPAIGN_DEADLINES_CHANGED'), payload: CampaignDeadlinesChangedPayloadSchema }),
   z.object({ type: z.literal('CAMPAIGN_CANCELLED'), payload: CampaignCancelledPayloadSchema }),
+  z.object({ type: z.literal('NOMINATIONS_PUBLISHED'), payload: NominationsPublishedPayloadSchema }),
 ]);
 
 export type NotificationContent = z.output<typeof NotificationContentSchema>;

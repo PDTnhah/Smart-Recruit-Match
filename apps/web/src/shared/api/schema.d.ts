@@ -1044,6 +1044,102 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/campaigns/{id}/allocation-rounds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["CampaignAllocationRoundsController_list"];
+        put?: never;
+        post: operations["CampaignAllocationRoundsController_run"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/allocation-rounds/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["AllocationRoundsController_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/allocation-rounds/{id}/nominations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["AllocationRoundsController_adjust"];
+        trace?: never;
+    };
+    "/api/allocation-rounds/{id}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AllocationRoundsController_publish"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/allocation-rounds/{id}/students/{studentId}/explanation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["AllocationRoundsController_explain"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/me/allocation-results": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["MeAllocationResultsController_mine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2277,6 +2373,37 @@ export interface components {
                     audience: "STUDENT" | "HR";
                     reason: string;
                 };
+            } | {
+                id: number;
+                /** Format: date-time */
+                readAt: string | null;
+                /** Format: date-time */
+                createdAt: string;
+                /** @enum {string} */
+                type: "NOMINATIONS_PUBLISHED";
+                payload: {
+                    /** @enum {string} */
+                    audience: "STUDENT";
+                    campaignId: number;
+                    campaignName: string;
+                    roundNo: number;
+                    jd: {
+                        jdId: number;
+                        title: string;
+                        companyName: string;
+                    } | null;
+                } | {
+                    /** @enum {string} */
+                    audience: "HR";
+                    campaignId: number;
+                    campaignName: string;
+                    roundNo: number;
+                    jd: {
+                        jdId: number;
+                        title: string;
+                    };
+                    nominationCount: number;
+                };
             })[];
             unreadCount: number;
             nextBefore: number | null;
@@ -3443,6 +3570,170 @@ export interface components {
                 verdict: "CONSISTENT" | "PARTIAL" | "INCONSISTENT" | "NO_ANSWER" | null;
                 quote: string | null;
                 reason: string | null;
+            }[];
+        };
+        RunAllocationRequestDto: {
+            rowVersion: number | null;
+        };
+        AllocationRoundViewDto_Output: {
+            id: number;
+            campaignId: number;
+            roundNo: number;
+            /** @enum {string} */
+            status: "DRAFT" | "PUBLISHED";
+            /** Format: date-time */
+            ranAt: string;
+            /** Format: date-time */
+            publishedAt: string | null;
+            rowVersion: number;
+            campaignName: string;
+            counts: {
+                students: number;
+                nominated: number;
+                unassigned: number;
+                excludedPairs: number;
+            };
+            jds: {
+                jdId: number;
+                title: string;
+                companyName: string;
+                quota: number;
+                capacity: number;
+                nominated: number;
+                fillPercent: number | null;
+                short: boolean;
+                nominations: {
+                    id: number;
+                    studentId: number;
+                    studentCode: string;
+                    fullName: string;
+                    sFinal: number;
+                    rank: number;
+                    preferenceRank: number;
+                    /** @enum {string} */
+                    status: "NOMINATED" | "INTERVIEW" | "HR_REJECTED" | "PASSED" | "RESERVE" | "INTERVIEW_FAILED" | "ACCEPTED" | "DECLINED" | "CLOSED";
+                    overrideReason: string | null;
+                }[];
+            }[];
+            unassigned: {
+                studentId: number;
+                studentCode: string;
+                fullName: string;
+                preferences: {
+                    preferenceRank: number;
+                    jdId: number;
+                    title: string;
+                    companyName: string;
+                    /** @enum {string} */
+                    reason: "FULL_WITH_HIGHER_RANKED" | "ZERO_CAPACITY" | "NOT_ELIGIBLE" | "DEMOTED" | "MANUAL_ADJUSTMENT";
+                    exclusionReasons: ("HARD_FILTER" | "BELOW_THETA_CV" | "BELOW_THETA_TEST" | "TEST_NOT_TAKEN")[];
+                }[];
+            }[];
+            adjustments: {
+                /** @enum {string} */
+                op: "add" | "remove" | "move";
+                studentId: number;
+                studentCode: string;
+                fromJdId: number | null;
+                toJdId: number | null;
+                reason: string;
+                actorId: number | null;
+                /** Format: date-time */
+                at: string;
+            }[];
+            warnings: {
+                studentId: number;
+                studentCode: string;
+                jdId: number;
+                outranksStudentId: number | null;
+                outranksStudentCode: string | null;
+            }[];
+        };
+        AllocationRoundListDto_Output: {
+            items: {
+                id: number;
+                campaignId: number;
+                roundNo: number;
+                /** @enum {string} */
+                status: "DRAFT" | "PUBLISHED";
+                /** Format: date-time */
+                ranAt: string;
+                /** Format: date-time */
+                publishedAt: string | null;
+                rowVersion: number;
+            }[];
+        };
+        AdjustNominationsRequestDto: {
+            rowVersion: number;
+            operations: ({
+                /** @enum {string} */
+                op: "add";
+                studentId: number;
+                jdId: number;
+                reason: string;
+            } | {
+                /** @enum {string} */
+                op: "remove";
+                nominationId: number;
+                reason: string;
+            } | {
+                /** @enum {string} */
+                op: "move";
+                nominationId: number;
+                jdId: number;
+                reason: string;
+            })[];
+        };
+        PublishAllocationRoundRequestDto: {
+            rowVersion: number;
+        };
+        AllocationExplanationDto_Output: {
+            roundId: number;
+            studentId: number;
+            studentCode: string;
+            fullName: string;
+            nominatedJdId: number | null;
+            items: {
+                preferenceRank: number;
+                jdId: number;
+                title: string;
+                companyName: string;
+                /** @enum {string} */
+                reason: "FULL_WITH_HIGHER_RANKED" | "ZERO_CAPACITY" | "NOT_ELIGIBLE" | "DEMOTED" | "MANUAL_ADJUSTMENT";
+                exclusionReasons: ("HARD_FILTER" | "BELOW_THETA_CV" | "BELOW_THETA_TEST" | "TEST_NOT_TAKEN")[];
+                sFinal: number | null;
+                capacity: number;
+                held: number;
+                lowestHeld: {
+                    studentCode: string;
+                    sFinal: number;
+                } | null;
+            }[];
+        };
+        MyAllocationResultsDto_Output: {
+            items: {
+                campaignId: number;
+                campaignName: string;
+                roundNo: number;
+                /** Format: date-time */
+                publishedAt: string;
+                nomination: {
+                    jdId: number;
+                    title: string;
+                    companyName: string;
+                    /** @enum {string} */
+                    status: "NOMINATED" | "INTERVIEW" | "HR_REJECTED" | "PASSED" | "RESERVE" | "INTERVIEW_FAILED" | "ACCEPTED" | "DECLINED" | "CLOSED";
+                } | null;
+                preferences: {
+                    preferenceRank: number;
+                    jdId: number;
+                    title: string;
+                    companyName: string;
+                    /** @enum {string} */
+                    reason: "FULL_WITH_HIGHER_RANKED" | "ZERO_CAPACITY" | "NOT_ELIGIBLE" | "DEMOTED" | "MANUAL_ADJUSTMENT";
+                    exclusionReasons: ("HARD_FILTER" | "BELOW_THETA_CV" | "BELOW_THETA_TEST" | "TEST_NOT_TAKEN")[];
+                    sFinal: number | null;
+                }[];
             }[];
         };
     };
@@ -5301,6 +5592,164 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CvTrustViewDto_Output"];
+                };
+            };
+        };
+    };
+    CampaignAllocationRoundsController_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AllocationRoundListDto_Output"];
+                };
+            };
+        };
+    };
+    CampaignAllocationRoundsController_run: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RunAllocationRequestDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AllocationRoundViewDto_Output"];
+                };
+            };
+        };
+    };
+    AllocationRoundsController_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AllocationRoundViewDto_Output"];
+                };
+            };
+        };
+    };
+    AllocationRoundsController_adjust: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdjustNominationsRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AllocationRoundViewDto_Output"];
+                };
+            };
+        };
+    };
+    AllocationRoundsController_publish: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PublishAllocationRoundRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AllocationRoundViewDto_Output"];
+                };
+            };
+        };
+    };
+    AllocationRoundsController_explain: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+                studentId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AllocationExplanationDto_Output"];
+                };
+            };
+        };
+    };
+    MeAllocationResultsController_mine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyAllocationResultsDto_Output"];
                 };
             };
         };

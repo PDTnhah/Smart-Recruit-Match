@@ -8,3 +8,5 @@ export * from './application.js';
 export * from './question.js';
 export * from './question-bank.js';
 export * from './exam-session.js';
+export * from './allocation-round.js';
+export * from './nomination.js';

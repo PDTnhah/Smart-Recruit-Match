@@ -277,14 +277,19 @@ export class CampaignService {
   /**
    * AC-8: throws 409 CAMPAIGN_PHASE_MISMATCH unless the campaign is in one of `allowed` and the
    * deadline ending that phase has not passed (CONTEXT D27). With `tx`, the campaign row is read
-   * `FOR SHARE`, so it cannot change phase before the caller's transaction commits.
+   * `FOR SHARE`, so it cannot change phase before the caller's transaction commits; `lock: 'update'`
+   * takes it `FOR UPDATE` instead, so the caller's work on the campaign runs one at a time (an
+   * allocation run, US-5.2 AC-5).
    */
   async assertPhase(
     campaignId: number,
     allowed: readonly CampaignStatus[],
-    options: { tx?: DbTx } = {},
+    options: { tx?: DbTx; lock?: 'share' | 'update' } = {},
   ): Promise<CampaignSettings> {
-    const record = await this.repository.findById(campaignId, options.tx ? { tx: options.tx, lock: 'share' } : {});
+    const record = await this.repository.findById(
+      campaignId,
+      options.tx ? { tx: options.tx, lock: options.lock ?? 'share' } : {},
+    );
     if (!record) throw new EntityNotFoundError(ENTITY, campaignId);
     const check = checkPhase(record.status, record.phaseDeadlines, allowed, this.clock.now());
     if (!check.ok) throw new CampaignPhaseMismatchError(campaignId, record.status, allowed, check.phaseEndedAt);

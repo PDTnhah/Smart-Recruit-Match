@@ -44,6 +44,16 @@ export interface ShortlistJdCard {
   quota: number;
 }
 
+/** A JD as an allocation round sees it (US-5.2): its places, its company, its state. */
+export interface AllocationJd {
+  jdId: number;
+  title: string;
+  companyId: number;
+  companyName: string;
+  quota: number;
+  status: JobDescriptionStatus;
+}
+
 /** Approved by the center and still taking students (BR-02); FILLED and CLOSED have no place left. */
 const MATCHABLE_JD_STATES = ['APPROVED', 'RECRUITING'] as const satisfies readonly JobDescriptionStatus[];
 
@@ -217,6 +227,24 @@ export class JdRepository {
       .from(jobDescriptions)
       .innerJoin(companies, eq(companies.id, jobDescriptions.companyId))
       .where(inArray(jobDescriptions.id, [...jdIds]))
+      .orderBy(jobDescriptions.id);
+  }
+
+  /** What an allocation round reads of its JDs (US-5.2), whatever their state now; by JD id. */
+  async listAllocationJds(jdIds: readonly number[]): Promise<AllocationJd[]> {
+    if (jdIds.length === 0) return [];
+    return this.db
+      .select({
+        jdId: jobDescriptions.id,
+        title: jobDescriptions.title,
+        companyId: jobDescriptions.companyId,
+        companyName: companies.name,
+        quota: jobDescriptions.quota,
+        status: jobDescriptions.status,
+      })
+      .from(jobDescriptions)
+      .innerJoin(companies, eq(companies.id, jobDescriptions.companyId))
+      .where(inArray(jobDescriptions.id, [...new Set(jdIds)]))
       .orderBy(jobDescriptions.id);
   }
 

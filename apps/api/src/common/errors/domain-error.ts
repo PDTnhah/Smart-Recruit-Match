@@ -52,8 +52,9 @@ export class RowVersionConflictError extends DomainError {
   readonly code = 'ROW_VERSION_CONFLICT';
   readonly httpStatus = 409;
 
-  constructor(entity: string, id: number, expected: number, actual?: number) {
-    super(`${entity} ${id} was modified concurrently (expected row_version ${expected})`, {
+  /** `expected` is null when the caller saw no row at all (a draft created since). */
+  constructor(entity: string, id: number, expected: number | null, actual?: number) {
+    super(`${entity} ${id} was modified concurrently (expected row_version ${expected ?? 'none'})`, {
       entity,
       id,
       expectedRowVersion: expected,
@@ -647,5 +648,93 @@ export class RateLimitedError extends DomainError {
 
   constructor(route: string, retryAfterSeconds: number) {
     super(`too many requests to ${route}; retry in ${retryAfterSeconds} s`, { route, retryAfterSeconds });
+  }
+}
+
+// Allocation rounds (US-5.2, CONTEXT D64).
+
+/** Another run of the campaign holds `lock:allocation:{campaignId}` (AC-5). */
+export class AllocationInProgressError extends DomainError {
+  readonly code = 'ALLOCATION_IN_PROGRESS';
+  readonly httpStatus = 409;
+
+  constructor(campaignId: number) {
+    super(`campaign ${campaignId} already has an allocation running`, { campaignId });
+  }
+}
+
+/** What keeps a round from running (AC-6); `until` is when an appeal window ends. */
+export interface AllocationPendingItem {
+  kind: 'TEST_NOT_FINAL' | 'APPEAL_WINDOW_OPEN' | 'APPEAL_OPEN' | 'MATCH_NOT_CURRENT';
+  preferenceId: number;
+  studentId: number;
+  jdId: number;
+  until?: string;
+}
+
+/** AC-6: some preference has no final test score yet, or may still be appealed. The first 50 are listed. */
+export class AllocationNotReadyError extends DomainError {
+  readonly code = 'ALLOCATION_NOT_READY';
+  readonly httpStatus = 409;
+
+  constructor(campaignId: number, pending: readonly AllocationPendingItem[]) {
+    super(`campaign ${campaignId}: ${pending.length} preferences are not final yet`, {
+      campaignId,
+      total: pending.length,
+      pending: pending.slice(0, 50),
+    });
+  }
+}
+
+/** The round is published: it is not run, adjusted or published again (AC-6, AC-10). */
+export class AllocationRoundPublishedError extends DomainError {
+  readonly code = 'ALLOCATION_ROUND_PUBLISHED';
+  readonly httpStatus = 409;
+
+  constructor(campaignId: number, roundNo: number) {
+    super(`campaign ${campaignId}: allocation round ${roundNo} is already published`, { campaignId, roundNo });
+  }
+}
+
+/** `checkStability` refused the engine's result (AC-4): nothing was stored. A bug, never the user's fault. */
+export class AllocationUnstableError extends DomainError {
+  readonly code = 'ALLOCATION_UNSTABLE';
+  readonly httpStatus = 500;
+
+  constructor(campaignId: number, violations: readonly unknown[]) {
+    super(`campaign ${campaignId}: the allocation result failed the stability check`, {
+      campaignId,
+      violations: violations.slice(0, 50),
+    });
+  }
+}
+
+/** AC-8 (BR-07): the pair is not one of the round's eligible preferences; `reasons` say why. */
+export class NominationNotEligibleError extends DomainError {
+  readonly code = 'NOMINATION_NOT_ELIGIBLE';
+  readonly httpStatus = 422;
+
+  constructor(studentId: number, jdId: number, reasons: readonly string[]) {
+    super(`student ${studentId} cannot be nominated to JD ${jdId}`, { studentId, jdId, reasons: [...reasons] });
+  }
+}
+
+/** AC-8 (BR-09): the JD already holds C_j nominations in this round. */
+export class NominationOverCapacityError extends DomainError {
+  readonly code = 'NOMINATION_OVER_CAPACITY';
+  readonly httpStatus = 422;
+
+  constructor(jdId: number, capacity: number) {
+    super(`JD ${jdId} already holds its ${capacity} nominations`, { jdId, capacity });
+  }
+}
+
+/** AC-9 (BR-08): the student already has a running nomination in the campaign. */
+export class NominationStudentActiveError extends DomainError {
+  readonly code = 'NOMINATION_STUDENT_ACTIVE';
+  readonly httpStatus = 409;
+
+  constructor(studentId: number) {
+    super(`student ${studentId} already has a running nomination`, { studentId });
   }
 }

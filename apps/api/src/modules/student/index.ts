@@ -1,6 +1,11 @@
 // Public entry of the student module (CONTEXT D22): other code imports only from here.
 export { StudentModule } from './student.module.js';
-export { StudentService, type NewStudent, type StudentSchoolRecord } from './application/student.service.js';
+export {
+  StudentService,
+  type NewStudent,
+  type StudentAllocationRecord,
+  type StudentSchoolRecord,
+} from './application/student.service.js';
 export { ConsentService } from './application/consent.service.js';
 export { CvService } from './application/cv.service.js';
 export type { ActiveCv, ConfirmedCv, ConfirmedCvKey } from './infrastructure/cv.repository.js';

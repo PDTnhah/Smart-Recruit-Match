@@ -15,6 +15,21 @@ Lịch sử phát hành của Smart Recruit Match. Mỗi commit ship code tăng 
 
 ---
 
+## [0.33.0] — 2026-11-24 — Vòng phân bổ: dự thảo, điều chỉnh, công bố — v0.33.0
+
+US-5.2. Trung tâm chạy vòng phân bổ 1 trên dữ liệu thật của đợt, xem dự thảo, điều chỉnh có lý do rồi công bố; HR và sinh viên chỉ thấy đề cử sau khi công bố ([CONTEXT D64](CONTEXT.md)).
+
+### Added
+- Module `allocation` sở hữu bảng `allocation_rounds`, `nominations` (migration `0047`): partial unique index BR-08 trên `nominations(campaign_id, student_id)` có hiệu lực từ dự thảo; bảng chuyển trạng thái vòng (`DRAFT → PUBLISHED`) và đề cử trong `packages/shared/states`.
+- `POST /api/campaigns/{id}/allocation-rounds`: khóa Redis `lock:allocation:{campaignId}` rồi dòng đợt `FOR UPDATE`; lọc BR-07 (điều kiện cứng, θ_cv, θ_test), gọi engine của US-5.1, `checkStability` (lỗi thì rollback, `ALLOCATION_UNSTABLE`); lưu `input_snapshot` (NV hợp lệ, rank key, cặp bị loại kèm lý do, sức chứa, model + prompt của matching và Grader), `config_snapshot` (tham số đợt, version hệ thống) và kết quả gốc để `replayRound` chạy lại ra đúng kết quả. Chặn khi còn bài chưa có điểm cuối hoặc còn trong hạn phúc khảo; chạy lại dự thảo thì ghi đè và ghi nhật ký.
+- Dự thảo theo JD (chỉ tiêu, C_j, số đề cử, tỷ lệ lấp đầy, JD thiếu hồ sơ), SV chưa có đề cử kèm lý do; điều chỉnh thêm / chuyển / bỏ bắt buộc lý do, ghi `audit_logs`, chặn cặp không đạt BR-07 hoặc vượt C_j (`422`), cặp bất ổn định do điều chỉnh hiện thành cảnh báo.
+- Công bố: vòng chuyển `PUBLISHED`, NV được đề cử sang *Được đề cử*, NV còn lại sang *Chờ vòng sau*, thông báo `NOMINATIONS_PUBLISHED` trong app cho SV và HR từng JD, tất cả trong một giao dịch.
+- "Vì sao tôi không vào được A?" (NFR-4): `GET /api/allocation-rounds/{id}/students/{studentId}/explanation` cho Trung tâm (kèm điểm thấp nhất JD giữ) và `GET /api/me/allocation-results` cho SV (chỉ lý do và điểm của chính mình).
+- Màn *Phân bổ* của cổng Trung tâm và màn *Kết quả* của cổng SV.
+- Đo NFR-8: 500 SV × 50 JD × 3 NV, chạy vòng (đọc dữ liệu, lọc, engine, kiểm tra ổn định, ghi DB) khoảng 1,3 giây.
+
+---
+
 ## [0.32.0] — 2026-11-24 — Allocation Engine và property-based test — v0.32.0
 
 US-5.1. Thuật toán phân bổ Deferred Acceptance (sinh viên đề xuất) là hàm TypeScript thuần, chưa có route hay giao diện. US-5.2 dựng đầu vào từ DB rồi gọi engine.
