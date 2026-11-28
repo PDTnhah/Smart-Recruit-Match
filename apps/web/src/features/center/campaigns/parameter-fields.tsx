@@ -1,4 +1,4 @@
-import { type CampaignConfig, NO_PREFERENCE_POLICIES, SCV_WEIGHT_KEYS } from '@srm/shared';
+import { type CampaignConfig, NO_PREFERENCE_POLICIES, OFFER_DECLINE_POLICIES, SCV_WEIGHT_KEYS } from '@srm/shared';
 import { type Control, Controller, type FieldValues, type Path } from 'react-hook-form';
 import {
   Field,
@@ -18,6 +18,8 @@ import { formatNumber } from '@/lib/format';
 import {
   COMPETITION_THRESHOLD_FIELDS,
   NO_PREFERENCE_POLICY_LABELS,
+  OFFER_DECLINE_POLICY_FIELD,
+  OFFER_DECLINE_POLICY_LABELS,
   PARAMETER_FIELDS,
   type ParameterField,
   PREFERENCE_POLICY_FIELDS,
@@ -65,6 +67,7 @@ export function ParameterInputs<T extends FieldValues, U extends FieldValues = T
         {PARAMETER_FIELDS.map((parameter) => (
           <ParameterInput key={parameter.key} control={control} parameter={parameter} locked={locked} />
         ))}
+        <OfferDeclinePolicyInput control={control} locked={locked} />
       </FieldGroup>
       <FieldSeparator />
       <FieldSet>
@@ -88,6 +91,47 @@ export function ParameterInputs<T extends FieldValues, U extends FieldValues = T
         </FieldGroup>
       </FieldSet>
     </FieldGroup>
+  );
+}
+
+/** Q4 (US-5.4, CONTEXT D66): a choice, next to the numbers of GĐ9. */
+function OfferDeclinePolicyInput<T extends FieldValues, U extends FieldValues>({ control, locked }: InputsProps<T, U>) {
+  const id = 'config-offer_decline_policy';
+  const note = locked?.noteOf('offer_decline_policy');
+  if (locked && note) {
+    return (
+      <LockedValue
+        id={id}
+        label={OFFER_DECLINE_POLICY_FIELD.label}
+        value={OFFER_DECLINE_POLICY_LABELS[locked.config.offer_decline_policy]}
+        note={note}
+      />
+    );
+  }
+  return (
+    <Controller
+      name={'config.offer_decline_policy' as Path<T>}
+      control={control}
+      render={({ field, fieldState }) => (
+        <Field data-invalid={fieldState.invalid}>
+          <FieldLabel htmlFor={id}>{OFFER_DECLINE_POLICY_FIELD.label}</FieldLabel>
+          <Select value={field.value} onValueChange={field.onChange}>
+            <SelectTrigger id={id} ref={field.ref} className="w-full" aria-invalid={fieldState.invalid} onBlur={field.onBlur}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {OFFER_DECLINE_POLICIES.map((value) => (
+                <SelectItem key={value} value={value}>
+                  {OFFER_DECLINE_POLICY_LABELS[value]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <FieldDescription>{OFFER_DECLINE_POLICY_FIELD.description}</FieldDescription>
+          {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+        </Field>
+      )}
+    />
   );
 }
 
@@ -312,6 +356,12 @@ export function ParameterList({ config }: { config: CampaignConfig }) {
   return (
     <div className="flex flex-col gap-4">
       <ParameterValues config={config} fields={PARAMETER_FIELDS} />
+      <dl className="grid gap-x-6 gap-y-4 md:grid-cols-2">
+        <div className="flex flex-col gap-1">
+          <dt className="text-sm text-muted-foreground">{OFFER_DECLINE_POLICY_FIELD.label}</dt>
+          <dd className="text-sm font-medium">{OFFER_DECLINE_POLICY_LABELS[config.offer_decline_policy]}</dd>
+        </div>
+      </dl>
       <Separator />
       <h3 className="text-base font-medium">{SCV_WEIGHTS_TITLE}</h3>
       <ParameterValues config={config} fields={SCV_WEIGHT_FIELDS} />

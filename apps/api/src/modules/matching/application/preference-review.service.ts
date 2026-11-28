@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type { NominationMatch } from '@srm/shared';
+import { type ApplicationStatus, canTransition, applicationMachine, type NominationMatch } from '@srm/shared';
 import { EntityNotFoundError } from '../../../common/errors/index.js';
 import { StateTransitionService } from '../../../common/state/index.js';
 import { applicationLifecycle } from '../../../db/lifecycles.js';
@@ -12,8 +12,14 @@ import type { ShortlistRow } from '../domain/shortlist-view.js';
 import { MatchResultsRepository } from '../infrastructure/match-results.repository.js';
 import { PreferencesRepository } from '../infrastructure/preferences.repository.js';
 
-/** States HR's decision moves the preference of a nomination to (US-5.3 AC-5, AC-6). */
-export type ReviewedPreferenceStatus = 'INTERVIEW' | 'HR_REJECTED';
+/**
+ * States a nomination moves its preference to: HR's decision (US-5.3 AC-5, AC-6), the interview
+ * result, the offer's answer and the end of a reserve (US-5.4).
+ */
+export type ReviewedPreferenceStatus = Extract<
+  ApplicationStatus,
+  'INTERVIEW' | 'HR_REJECTED' | 'PASSED' | 'RESERVE' | 'INTERVIEW_FAILED' | 'ACCEPTED' | 'DECLINED' | 'CLOSED'
+>;
 
 type ScoredRow = ShortlistRow & {
   [K in 'criteria' | 'assessment' | 'scvBreakdown' | 'sCv']: NonNullable<ShortlistRow[K]>;
@@ -38,9 +44,9 @@ export class PreferenceReviewService {
   ) {}
 
   /**
-   * AC-5, AC-6: NOMINATED → INTERVIEW or HR_REJECTED with the nomination, in `tx`, under the
-   * preference's row lock, audited (AD-8). The student's other preferences already wait for the next
-   * round since the round was published (US-5.2), so nothing else moves.
+   * The preference follows its nomination (US-5.3 AC-5, AC-6; US-5.4 AC-3, AC-6, AC-7, AC-9), in
+   * `tx`, under the preference's row lock, audited (AD-8). The student's other preferences already
+   * wait for the next round since the round was published (US-5.2), so nothing else moves here.
    */
   async followNomination(
     preferenceId: number,
@@ -60,6 +66,36 @@ export class PreferenceReviewService {
       expectedRowVersion: row.rowVersion,
       tx: options.tx,
     });
+  }
+
+  /**
+   * BR-15 (US-5.4 AC-6): the student accepted an offer of the campaign, so every other preference of
+   * theirs in it that can still close does (WAITING_NEXT_ROUND, PENDING_TEST → CLOSED), in `tx`, each
+   * under its row lock and audited. Returns the ids closed.
+   */
+  async closeOtherPreferences(
+    studentId: number,
+    campaignId: number,
+    keepPreferenceId: number,
+    actor: Actor,
+    reason: string,
+    options: { tx: DbTx },
+  ): Promise<number[]> {
+    const closed: number[] = [];
+    for (const row of await this.repository.rowsOfStudentInCampaign(options.tx, studentId, campaignId, { lock: 'update' })) {
+      if (row.id === keepPreferenceId || !canTransition(applicationMachine, row.status, 'CLOSED')) continue;
+      await this.transitions.transitionTo({
+        lifecycle: applicationLifecycle,
+        id: row.id,
+        to: 'CLOSED',
+        actor,
+        reason,
+        expectedRowVersion: row.rowVersion,
+        tx: options.tx,
+      });
+      closed.push(row.id);
+    }
+    return closed;
   }
 
   /**

@@ -50,10 +50,11 @@ export class NominationService {
 
   /**
    * AC-1: the JD's nominations of every published round, by S_final, then the tie-breaks of US-5.1
-   * (`compareRankKeys` on the rank keys of each round's snapshot), then id.
+   * (`compareRankKeys` on the rank keys of each round's snapshot), then id. With `tx`, read in it:
+   * US-5.4 picks the reserve to promote from this order, after changes of its own transaction.
    */
-  async listPublishedOfJd(jdId: number): Promise<PublishedNomination[]> {
-    const rows = await this.repository.publishedNominationsOfJd(jdId);
+  async listPublishedOfJd(jdId: number, options: { tx?: DbTx } = {}): Promise<PublishedNomination[]> {
+    const rows = await this.repository.publishedNominationsOfJd(jdId, options.tx);
     const keys = await this.rankKeysOf(rows);
     return rows
       .map((row) => ({ row, key: keys.get(row.id) }))
@@ -74,8 +75,9 @@ export class NominationService {
   }
 
   /**
-   * HR's decision moves the nomination (AC-5, AC-6): through `transitionTo` at the version HR read,
-   * audited in `tx` (AD-8). Returns the new row version.
+   * HR's decision (US-5.3), an interview result or an offer's answer (US-5.4) moves the nomination:
+   * through `transitionTo` at the version the caller read, audited in `tx` (AD-8). Returns the new
+   * row version.
    */
   async transition(
     id: number,
@@ -95,6 +97,28 @@ export class NominationService {
       tx: options.tx,
     });
     return result.rowVersion;
+  }
+
+  /** The student's nominations in published rounds, newest first, with their rounds (US-5.4). */
+  async listPublishedOfStudent(studentId: number): Promise<PublishedNomination[]> {
+    const rows = await this.repository.publishedNominationsOfStudent(studentId);
+    const keys = await this.rankKeysOf(rows);
+    return rows.map((row) => toPublished(row, keys.get(row.id)));
+  }
+
+  /** Nominations of published rounds in `status`, by id, without scores of the snapshot (US-5.4 sweep). */
+  async listPublishedInStatus(status: NominationStatus): Promise<PublishedNomination[]> {
+    return (await this.repository.publishedNominationsInStatus(status)).map((row) => toPublished(row, undefined));
+  }
+
+  /**
+   * BR-14, BR-15 (US-5.4): the JD's nominations that hold or wait for a place, in published rounds:
+   * ACCEPTED, PASSED (an offer waiting for the student's answer) and RESERVE. Read in `tx` under the
+   * JD's slot lock so the counts are those the caller's change applies to.
+   */
+  async slotCounts(jdId: number, options: { tx?: DbTx } = {}): Promise<{ accepted: number; passed: number; reserve: number }> {
+    const counts = await this.repository.countByStatus(options.tx ?? this.db, jdId);
+    return { accepted: counts.get('ACCEPTED') ?? 0, passed: counts.get('PASSED') ?? 0, reserve: counts.get('RESERVE') ?? 0 };
   }
 
   /** The student's nominations in published rounds, newest first (US-5.3 AC-6: what HR decided). */

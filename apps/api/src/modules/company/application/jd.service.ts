@@ -35,7 +35,7 @@ import { jobDescriptionLifecycle } from '../../../db/lifecycles.js';
 import { jobDescriptions } from '../../../db/schema/index.js';
 import { DRIZZLE } from '../../../db/tokens.js';
 import type { Database, DbTx } from '../../../db/types.js';
-import { AuditService, userActor } from '../../audit/index.js';
+import { type Actor, AuditService, userActor } from '../../audit/index.js';
 import { CampaignService } from '../../campaign/index.js';
 import { COMPANY_AUDIT_ACTIONS } from '../domain/audit-actions.js';
 import { JD_APPROVED, JD_SUBMITTED, type JdEvent } from '../domain/events.js';
@@ -269,6 +269,41 @@ export class JdService implements OnModuleInit {
       },
     });
     return this.publishAndGet(user, JD_APPROVED, result);
+  }
+
+  /**
+   * BR-15 (US-5.4 AC-6, CONTEXT D66): the JD has accepted as many students as its quota, so it takes
+   * no more (matching and allocation leave FILLED JDs out): → FILLED in `tx`, audited. No story moves
+   * a JD to RECRUITING yet, so an APPROVED one goes through it first, in the PRD's order. A JD that
+   * is FILLED or CLOSED already stays as it is. Returns whether it moved.
+   */
+  async markFilled(jdId: number, actor: Actor, options: { tx: DbTx }): Promise<boolean> {
+    const record = await this.repository.findById(jdId, { tx: options.tx, lock: 'update' });
+    if (!record) throw new EntityNotFoundError(ENTITY, jdId);
+    if (record.status !== 'APPROVED' && record.status !== 'RECRUITING') return false;
+    let rowVersion = record.rowVersion;
+    if (record.status === 'APPROVED') {
+      const recruiting = await this.transitions.transitionTo<JobDescriptionStatus>({
+        lifecycle: jobDescriptionLifecycle,
+        id: jdId,
+        to: 'RECRUITING',
+        actor,
+        reason: 'JD recruiting: interviews of its nominations under way',
+        expectedRowVersion: rowVersion,
+        tx: options.tx,
+      });
+      rowVersion = recruiting.rowVersion;
+    }
+    await this.transitions.transitionTo<JobDescriptionStatus>({
+      lifecycle: jobDescriptionLifecycle,
+      id: jdId,
+      to: 'FILLED',
+      actor,
+      reason: 'JD quota accepted in full (BR-15)',
+      expectedRowVersion: rowVersion,
+      tx: options.tx,
+    });
+    return true;
   }
 
   /** The original file of a JD the caller may see, for `GET /api/files/jd:{id}/url` (AC-9). */

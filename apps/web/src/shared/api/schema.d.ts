@@ -1252,6 +1252,150 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/interviews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["InterviewController_schedule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/interviews/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["InterviewController_reschedule"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/interviews/{id}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["InterviewController_confirm"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/interviews/{id}/reschedule-request": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["InterviewController_requestReschedule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/interviews/{id}/result": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["InterviewController_result"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jds/{id}/interviews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["InterviewController_listForJd"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/me/interviews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["InterviewController_mine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/offers/{id}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["OfferController_accept"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/offers/{id}/decline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["OfferController_decline"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1606,6 +1750,13 @@ export interface components {
                 sla_hr_business_days: number;
                 /** @default 3 */
                 t_offer_days: number;
+                /** @default 7 */
+                reserve_ttl_days: number;
+                /**
+                 * @default DEMOTE
+                 * @enum {string}
+                 */
+                offer_decline_policy: "DEMOTE" | "EXCLUDE";
                 /** @default 24 */
                 reminder_hours_before: number;
                 /** @default 0.4 */
@@ -1681,6 +1832,13 @@ export interface components {
                 sla_hr_business_days: number;
                 /** @default 3 */
                 t_offer_days: number;
+                /** @default 7 */
+                reserve_ttl_days: number;
+                /**
+                 * @default DEMOTE
+                 * @enum {string}
+                 */
+                offer_decline_policy: "DEMOTE" | "EXCLUDE";
                 /** @default 24 */
                 reminder_hours_before: number;
                 /** @default 0.4 */
@@ -1762,6 +1920,13 @@ export interface components {
                     sla_hr_business_days: number;
                     /** @default 3 */
                     t_offer_days: number;
+                    /** @default 7 */
+                    reserve_ttl_days: number;
+                    /**
+                     * @default DEMOTE
+                     * @enum {string}
+                     */
+                    offer_decline_policy: "DEMOTE" | "EXCLUDE";
                     /** @default 24 */
                     reminder_hours_before: number;
                     /** @default 0.4 */
@@ -1831,6 +1996,9 @@ export interface components {
                 t_test_minutes?: number;
                 sla_hr_business_days?: number;
                 t_offer_days?: number;
+                reserve_ttl_days?: number;
+                /** @enum {string} */
+                offer_decline_policy?: "DEMOTE" | "EXCLUDE";
                 reminder_hours_before?: number;
                 scv_weight_must_have?: number;
                 scv_weight_nice_to_have?: number;
@@ -2580,6 +2748,159 @@ export interface components {
                     invitedCount: number;
                     quota: number;
                     note: string;
+                };
+            } | {
+                id: number;
+                /** Format: date-time */
+                readAt: string | null;
+                /** Format: date-time */
+                createdAt: string;
+                /** @enum {string} */
+                type: "INTERVIEW_SCHEDULED";
+                payload: {
+                    /** @enum {string} */
+                    audience: "STUDENT" | "HR";
+                    interviewId: number;
+                    nominationId: number;
+                    jd: {
+                        jdId: number;
+                        title: string;
+                        companyName: string;
+                    };
+                    student: {
+                        studentCode: string;
+                        fullName: string;
+                    };
+                    /** Format: date-time */
+                    scheduledAt: string;
+                    /** @enum {string} */
+                    mode: "ONLINE" | "OFFLINE";
+                    location: string;
+                };
+            } | {
+                id: number;
+                /** Format: date-time */
+                readAt: string | null;
+                /** Format: date-time */
+                createdAt: string;
+                /** @enum {string} */
+                type: "INTERVIEW_RESCHEDULED";
+                payload: {
+                    /** @enum {string} */
+                    audience: "STUDENT" | "HR";
+                    interviewId: number;
+                    nominationId: number;
+                    jd: {
+                        jdId: number;
+                        title: string;
+                        companyName: string;
+                    };
+                    student: {
+                        studentCode: string;
+                        fullName: string;
+                    };
+                    /** Format: date-time */
+                    scheduledAt: string;
+                    /** @enum {string} */
+                    mode: "ONLINE" | "OFFLINE";
+                    location: string;
+                };
+            } | {
+                id: number;
+                /** Format: date-time */
+                readAt: string | null;
+                /** Format: date-time */
+                createdAt: string;
+                /** @enum {string} */
+                type: "INTERVIEW_RESCHEDULE_REQUESTED";
+                payload: {
+                    interviewId: number;
+                    nominationId: number;
+                    jd: {
+                        jdId: number;
+                        title: string;
+                        companyName: string;
+                    };
+                    student: {
+                        studentCode: string;
+                        fullName: string;
+                    };
+                    /** Format: date-time */
+                    scheduledAt: string;
+                    note: string;
+                };
+            } | {
+                id: number;
+                /** Format: date-time */
+                readAt: string | null;
+                /** Format: date-time */
+                createdAt: string;
+                /** @enum {string} */
+                type: "INTERVIEW_RESULT";
+                payload: {
+                    nominationId: number;
+                    jd: {
+                        jdId: number;
+                        title: string;
+                        companyName: string;
+                    };
+                    /** @enum {string} */
+                    status: "PASSED" | "RESERVE" | "INTERVIEW_FAILED";
+                    promoted: boolean;
+                    offer: {
+                        offerId: number;
+                        /** Format: date-time */
+                        expiresAt: string;
+                    } | null;
+                };
+            } | {
+                id: number;
+                /** Format: date-time */
+                readAt: string | null;
+                /** Format: date-time */
+                createdAt: string;
+                /** @enum {string} */
+                type: "RESERVE_CLOSED";
+                payload: {
+                    nominationId: number;
+                    jd: {
+                        jdId: number;
+                        title: string;
+                        companyName: string;
+                    };
+                    /** @enum {string} */
+                    reason: "RESERVE_EXPIRED" | "JD_FILLED";
+                };
+            } | {
+                id: number;
+                /** Format: date-time */
+                readAt: string | null;
+                /** Format: date-time */
+                createdAt: string;
+                /** @enum {string} */
+                type: "OFFER_ANSWERED";
+                payload: {
+                    /** @enum {string} */
+                    audience: "HR" | "CENTER";
+                    campaignId: number;
+                    offerId: number;
+                    nominationId: number;
+                    jd: {
+                        jdId: number;
+                        title: string;
+                        companyName: string;
+                    };
+                    student: {
+                        studentCode: string;
+                        fullName: string;
+                    };
+                    /** @enum {string} */
+                    response: "ACCEPTED" | "DECLINED" | "EXPIRED";
+                    promoted: {
+                        studentCode: string;
+                        fullName: string;
+                    } | null;
+                    jdFilled: boolean;
                 };
             })[];
             unreadCount: number;
@@ -4337,6 +4658,249 @@ export interface components {
                 /** @enum {string|null} */
                 reasonCode: "MISSING_SKILLS" | "TEST_BELOW_EXPECTATION" | "POSITION_FILLED" | "OTHER" | null;
             }[];
+        };
+        ScheduleInterviewRequestDto: {
+            /** Format: date-time */
+            scheduledAt: string;
+            /** @enum {string} */
+            mode: "ONLINE" | "OFFLINE";
+            location: string;
+            nominationId: number;
+        };
+        StaffInterviewViewDto_Output: {
+            interviewId: number;
+            nominationId: number;
+            /** @enum {string} */
+            status: "SCHEDULED" | "CONFIRMED" | "RESCHEDULE_REQUESTED" | "DONE";
+            /** Format: date-time */
+            scheduledAt: string;
+            /** @enum {string} */
+            mode: "ONLINE" | "OFFLINE";
+            location: string;
+            /** Format: date-time */
+            confirmedAt: string | null;
+            /** Format: date-time */
+            rescheduleRequestedAt: string | null;
+            rescheduleNote: string[];
+            /** @enum {string|null} */
+            result: "PASSED" | "RESERVE" | "FAILED" | "ABSENT" | null;
+            /** Format: date-time */
+            resultAt: string | null;
+            rowVersion: number;
+            resultNote: string[];
+        };
+        RescheduleInterviewRequestDto: {
+            /** Format: date-time */
+            scheduledAt: string;
+            /** @enum {string} */
+            mode: "ONLINE" | "OFFLINE";
+            location: string;
+            rowVersion: number;
+        };
+        RowVersionBodyDto: {
+            rowVersion: number;
+        };
+        InterviewViewDto_Output: {
+            interviewId: number;
+            nominationId: number;
+            /** @enum {string} */
+            status: "SCHEDULED" | "CONFIRMED" | "RESCHEDULE_REQUESTED" | "DONE";
+            /** Format: date-time */
+            scheduledAt: string;
+            /** @enum {string} */
+            mode: "ONLINE" | "OFFLINE";
+            location: string;
+            /** Format: date-time */
+            confirmedAt: string | null;
+            /** Format: date-time */
+            rescheduleRequestedAt: string | null;
+            rescheduleNote: string[];
+            /** @enum {string|null} */
+            result: "PASSED" | "RESERVE" | "FAILED" | "ABSENT" | null;
+            /** Format: date-time */
+            resultAt: string | null;
+            rowVersion: number;
+        };
+        RescheduleRequestBodyDto: {
+            rowVersion: number;
+            note: string;
+        };
+        InterviewResultRequestDto: {
+            /** @enum {string} */
+            result: "PASSED" | "RESERVE" | "FAILED" | "ABSENT";
+            note?: string | null;
+            rowVersion: number;
+        };
+        InterviewResultResponseDto_Output: {
+            nominationId: number;
+            /** @enum {string} */
+            nominationStatus: "NOMINATED" | "INTERVIEW" | "HR_REJECTED" | "PASSED" | "RESERVE" | "INTERVIEW_FAILED" | "ACCEPTED" | "DECLINED" | "CLOSED";
+            reservedForQuota: boolean;
+            interview: {
+                interviewId: number;
+                nominationId: number;
+                /** @enum {string} */
+                status: "SCHEDULED" | "CONFIRMED" | "RESCHEDULE_REQUESTED" | "DONE";
+                /** Format: date-time */
+                scheduledAt: string;
+                /** @enum {string} */
+                mode: "ONLINE" | "OFFLINE";
+                location: string;
+                /** Format: date-time */
+                confirmedAt: string | null;
+                /** Format: date-time */
+                rescheduleRequestedAt: string | null;
+                rescheduleNote: string | null;
+                /** @enum {string|null} */
+                result: "PASSED" | "RESERVE" | "FAILED" | "ABSENT" | null;
+                /** Format: date-time */
+                resultAt: string | null;
+                rowVersion: number;
+                resultNote: string | null;
+            };
+            offer: {
+                offerId: number;
+                nominationId: number;
+                /** @enum {string} */
+                status: "PENDING" | "ACCEPTED" | "DECLINED" | "EXPIRED";
+                /** Format: date-time */
+                sentAt: string;
+                /** Format: date-time */
+                expiresAt: string;
+                /** Format: date-time */
+                respondedAt: string | null;
+                rowVersion: number;
+            } | null;
+            slots: {
+                quota: number;
+                accepted: number;
+                passed: number;
+                reserve: number;
+            };
+        };
+        JdInterviewListDto_Output: {
+            jd: {
+                jdId: number;
+                title: string;
+                campaignId: number;
+            };
+            slots: {
+                quota: number;
+                accepted: number;
+                passed: number;
+                reserve: number;
+            };
+            items: {
+                nominationId: number;
+                /** @enum {string} */
+                nominationStatus: "NOMINATED" | "INTERVIEW" | "HR_REJECTED" | "PASSED" | "RESERVE" | "INTERVIEW_FAILED" | "ACCEPTED" | "DECLINED" | "CLOSED";
+                student: {
+                    studentId: number;
+                    studentCode: string;
+                    fullName: string;
+                };
+                sFinal: number;
+                interview: {
+                    interviewId: number;
+                    nominationId: number;
+                    /** @enum {string} */
+                    status: "SCHEDULED" | "CONFIRMED" | "RESCHEDULE_REQUESTED" | "DONE";
+                    /** Format: date-time */
+                    scheduledAt: string;
+                    /** @enum {string} */
+                    mode: "ONLINE" | "OFFLINE";
+                    location: string;
+                    /** Format: date-time */
+                    confirmedAt: string | null;
+                    /** Format: date-time */
+                    rescheduleRequestedAt: string | null;
+                    rescheduleNote: string | null;
+                    /** @enum {string|null} */
+                    result: "PASSED" | "RESERVE" | "FAILED" | "ABSENT" | null;
+                    /** Format: date-time */
+                    resultAt: string | null;
+                    rowVersion: number;
+                    resultNote: string | null;
+                } | null;
+                offer: {
+                    offerId: number;
+                    nominationId: number;
+                    /** @enum {string} */
+                    status: "PENDING" | "ACCEPTED" | "DECLINED" | "EXPIRED";
+                    /** Format: date-time */
+                    sentAt: string;
+                    /** Format: date-time */
+                    expiresAt: string;
+                    /** Format: date-time */
+                    respondedAt: string | null;
+                    rowVersion: number;
+                } | null;
+            }[];
+        };
+        MyInterviewsDto_Output: {
+            items: {
+                nominationId: number;
+                /** @enum {string} */
+                nominationStatus: "NOMINATED" | "INTERVIEW" | "HR_REJECTED" | "PASSED" | "RESERVE" | "INTERVIEW_FAILED" | "ACCEPTED" | "DECLINED" | "CLOSED";
+                jd: {
+                    jdId: number;
+                    title: string;
+                    companyName: string;
+                };
+                interview: {
+                    interviewId: number;
+                    nominationId: number;
+                    /** @enum {string} */
+                    status: "SCHEDULED" | "CONFIRMED" | "RESCHEDULE_REQUESTED" | "DONE";
+                    /** Format: date-time */
+                    scheduledAt: string;
+                    /** @enum {string} */
+                    mode: "ONLINE" | "OFFLINE";
+                    location: string;
+                    /** Format: date-time */
+                    confirmedAt: string | null;
+                    /** Format: date-time */
+                    rescheduleRequestedAt: string | null;
+                    rescheduleNote: string | null;
+                    /** @enum {string|null} */
+                    result: "PASSED" | "RESERVE" | "FAILED" | "ABSENT" | null;
+                    /** Format: date-time */
+                    resultAt: string | null;
+                    rowVersion: number;
+                } | null;
+                offer: {
+                    offerId: number;
+                    nominationId: number;
+                    /** @enum {string} */
+                    status: "PENDING" | "ACCEPTED" | "DECLINED" | "EXPIRED";
+                    /** Format: date-time */
+                    sentAt: string;
+                    /** Format: date-time */
+                    expiresAt: string;
+                    /** Format: date-time */
+                    respondedAt: string | null;
+                    rowVersion: number;
+                } | null;
+                /** @enum {string} */
+                offerDeclinePolicy: "DEMOTE" | "EXCLUDE";
+            }[];
+        };
+        OfferAnswerResponseDto_Output: {
+            offer: {
+                offerId: number;
+                nominationId: number;
+                /** @enum {string} */
+                status: "PENDING" | "ACCEPTED" | "DECLINED" | "EXPIRED";
+                /** Format: date-time */
+                sentAt: string;
+                /** Format: date-time */
+                expiresAt: string;
+                /** Format: date-time */
+                respondedAt: string | null;
+                rowVersion: number;
+            };
+            /** @enum {string} */
+            nominationStatus: "NOMINATED" | "INTERVIEW" | "HR_REJECTED" | "PASSED" | "RESERVE" | "INTERVIEW_FAILED" | "ACCEPTED" | "DECLINED" | "CLOSED";
         };
     };
     responses: never;
@@ -6509,6 +7073,219 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MyNominationReviewsDto_Output"];
+                };
+            };
+        };
+    };
+    InterviewController_schedule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScheduleInterviewRequestDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffInterviewViewDto_Output"];
+                };
+            };
+        };
+    };
+    InterviewController_reschedule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RescheduleInterviewRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffInterviewViewDto_Output"];
+                };
+            };
+        };
+    };
+    InterviewController_confirm: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RowVersionBodyDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InterviewViewDto_Output"];
+                };
+            };
+        };
+    };
+    InterviewController_requestReschedule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RescheduleRequestBodyDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InterviewViewDto_Output"];
+                };
+            };
+        };
+    };
+    InterviewController_result: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InterviewResultRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InterviewResultResponseDto_Output"];
+                };
+            };
+        };
+    };
+    InterviewController_listForJd: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JdInterviewListDto_Output"];
+                };
+            };
+        };
+    };
+    InterviewController_mine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyInterviewsDto_Output"];
+                };
+            };
+        };
+    };
+    OfferController_accept: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RowVersionBodyDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OfferAnswerResponseDto_Output"];
+                };
+            };
+        };
+    };
+    OfferController_decline: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RowVersionBodyDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OfferAnswerResponseDto_Output"];
                 };
             };
         };

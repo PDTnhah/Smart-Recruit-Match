@@ -15,6 +15,22 @@ Lịch sử phát hành của Smart Recruit Match. Mỗi commit ship code tăng 
 
 ---
 
+## [0.35.0] — 2026-11-29 — Phỏng vấn, Dự bị và lời mời thực tập — v0.35.0
+
+US-5.4. HR lên lịch phỏng vấn và nhập kết quả; số SV Đạt không vượt chỉ tiêu còn lại, người dư vào Dự bị; SV Đạt nhận lời mời có hạn, nhận thì rời hàng chờ, từ chối hoặc quá hạn thì suất chuyển cho Dự bị ([CONTEXT D66](CONTEXT.md)).
+
+### Added
+- Module `interview` với bảng `interviews`, `offers` (mỗi đề cử một lịch và tối đa một lời mời, có `status` theo bảng chuyển và `row_version`; migration `0049`).
+- `POST /api/interviews`, `PUT /api/interviews/{id}` (đổi lịch), `PUT /api/interviews/{id}/result` (Đạt / Dự bị / Không đạt / Vắng; Vắng xử lý như Không đạt), `GET /api/jds/{id}/interviews` (HR của công ty và Trung tâm); SV `POST /api/interviews/{id}/confirm`, `POST /api/interviews/{id}/reschedule-request` (một lần), `GET /api/me/interviews`.
+- BR-14: PASSED khi đã nhận + đang chờ trả lời ≥ chỉ tiêu thì ghi Dự bị (`reservedForQuota`); hai HR nhập cùng lúc cho suất cuối chỉ một người Đạt (khóa suất theo JD). HR chọn Dự bị khi JD còn suất → `409 INTERVIEW_RESERVE_PLACES_LEFT`.
+- Lời mời `expires_at = sent_at + T_offer` do server đặt; `POST /api/offers/{id}/accept` đóng mọi NV khác của SV, JD đủ chỉ tiêu thì `FILLED` và Dự bị còn lại đóng (BR-15); `POST /api/offers/{id}/decline` hoặc quá hạn thì đề cử `DECLINED` và Dự bị xếp cao nhất tự lên Đạt kèm lời mời mới (BR-16). Quá hạn → `409 OFFER_EXPIRED`.
+- Tác vụ quét mỗi phút: lời mời quá hạn, Dự bị quá `reserve_ttl_days` hoặc của JD đã đủ.
+- Tham số đợt `reserve_ttl_days` (mặc định 7 ngày) và `offer_decline_policy` (`DEMOTE` mặc định / `EXCLUDE`, Q4 chốt); form đợt của Trung tâm có hai ô mới.
+- Thông báo trong app: lịch, đổi lịch, SV xin đổi lịch, kết quả và lời mời (kể cả Dự bị được lên), Dự bị đóng, SV nhận / từ chối / quá hạn (HR và Trung tâm).
+- Giao diện: tab "Phỏng vấn" ở trang JD của HR (suất, tạo / đổi lịch, nhập kết quả); lịch phỏng vấn và lời mời có đếm ngược trên màn *Kết quả* của SV, hộp thoại từ chối nêu hệ quả theo Q4.
+
+---
+
 ## [0.34.0] — 2026-11-24 — HR duyệt danh sách đề cử — v0.34.0
 
 US-5.3. HR xem đề cử của JD công ty mình ở các vòng đã công bố, mở hồ sơ chi tiết có bằng chứng, mời phỏng vấn hoặc từ chối có lý do, yêu cầu bổ sung hồ sơ; hạn phản hồi được nhắc và Trung tâm gia hạn được ([CONTEXT D65](CONTEXT.md)).

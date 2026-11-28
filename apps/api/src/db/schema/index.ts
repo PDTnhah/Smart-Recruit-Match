@@ -14,4 +14,5 @@ export * from './matching.js';
 export * from './assessment.js';
 export * from './allocation.js';
 export * from './review.js';
+export * from './interview.js';
 export * from './ai.js';

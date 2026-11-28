@@ -66,8 +66,8 @@ Allocation Engine (US-5.1) là hàm TS thuần, không phụ thuộc DB hay AI. 
 | FR-27 | US-5.2 | 📋 backlog |
 | FR-28 | US-5.3 (US-5.6: tóm tắt tham khảo) | 👀 review |
 | FR-29 | US-5.3 | 👀 review |
-| FR-30 | US-5.4 | 📋 backlog |
-| FR-31 | US-5.4 | 📋 backlog |
+| FR-30 | US-5.4 | 👀 review |
+| FR-31 | US-5.4 | 👀 review |
 | FR-32 | US-5.5 | 📋 backlog |
 
 ## AD Coverage
@@ -84,7 +84,7 @@ Allocation Engine (US-5.1) là hàm TS thuần, không phụ thuộc DB hay AI. 
 | US-5.1 | Allocation Engine và property-based test | Thuật toán phân bổ thuần, ổn định, tất định, có chứng minh bằng test | 👀 review | — |
 | US-5.2 | Vòng phân bổ: dự thảo, điều chỉnh, công bố | Trung tâm chạy phân bổ, xem dự thảo, điều chỉnh có lý do và công bố | 👀 review | — |
 | US-5.3 | HR duyệt danh sách đề cử | HR xem hồ sơ chi tiết và mời phỏng vấn hoặc từ chối có lý do | 👀 review | 0.34.0 |
-| US-5.4 | Phỏng vấn, Dự bị và lời mời thực tập | Kết quả phỏng vấn dẫn đến lời mời; SV nhận hoặc từ chối trong hạn | 📋 backlog | — |
+| US-5.4 | Phỏng vấn, Dự bị và lời mời thực tập | Kết quả phỏng vấn dẫn đến lời mời; SV nhận hoặc từ chối trong hạn | 👀 review | 0.35.0 |
 | US-5.5 | Vòng bổ sung và đóng đợt | SV trong hàng chờ được xét vòng sau; Trung tâm đóng đợt | 📋 backlog | — |
 | US-5.6 | Tóm tắt hồ sơ đề cử bằng AI cho HR | HR đọc một đoạn tóm tắt tham khảo do AI viết từ hồ sơ đã che PII | 📋 backlog | — |
 

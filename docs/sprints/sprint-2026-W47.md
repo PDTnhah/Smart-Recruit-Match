@@ -35,6 +35,7 @@ goal: 'Sửa lỗi tìm kỹ năng khi ô tìm còn trống (US-2.8, v0.25.1); �
 | US-4.13 | Trung tâm và HR tự thêm câu hỏi: điền form hoặc import file         | EPIC-4 | P1  | 8      | 👀 review  | new      | [stories/US-4.13-manual-question-entry-and-import.md](stories/US-4.13-manual-question-entry-and-import.md)         |
 | US-5.2  | Vòng phân bổ: dự thảo, điều chỉnh, công bố                          | EPIC-5 | P0  | 8      | 👀 review  | new      | [stories/US-5.2-allocation-round-draft-adjust-publish.md](stories/US-5.2-allocation-round-draft-adjust-publish.md) |
 | US-5.3  | HR duyệt danh sách đề cử                                            | EPIC-5 | P0  | 8      | 👀 review  | new      | [stories/US-5.3-hr-nomination-review.md](stories/US-5.3-hr-nomination-review.md)                                   |
+| US-5.4 | Phỏng vấn, Dự bị và lời mời thực tập | EPIC-5 | P0 | 8 | 👀 review | new | [stories/US-5.4-interviews-reserve-and-offers.md](stories/US-5.4-interviews-reserve-and-offers.md) |
 
 > **Convention**: AC + Tasks live inside each story file. This sprint file lists planned
 > stories at a glance only. Design + decision docs cross-linked at the bottom.
@@ -55,6 +56,7 @@ Ngày 2026-11-16, người dùng bắt đầu US-2.8 (1 điểm, sửa lỗi tá
 6. **Ngân hàng câu hỏi** (lập ngày 2026-11-19 từ phản hồi của người dùng về ngân hàng JD 5, [CONTEXT D60](../CONTEXT.md)): ba story mới ở `backlog`, thứ tự đề xuất [US-4.12](stories/US-4.12-question-bank-ui-fixes-part-c.md) (ô độ phủ, phần D → C; 3 điểm) → [US-4.10](stories/US-4.10-on-demand-question-validation.md) (Validator chạy khi Trung tâm yêu cầu; 8 điểm) → [US-4.11](stories/US-4.11-question-bank-browser-and-rejection.md) (xem toàn bộ câu, loại câu; 5 điểm). US-4.12 bắt đầu 2026-11-19 (người dùng chọn), xong 0.27.1, `review`; chờ người dùng kiểm tay 360 / 768 / 1024 px. US-4.10 làm ngày 2026-11-19, xong 0.28.0, `review`; chờ `/code-review`, `db:migrate` `0043`, `smoke_llm --bank` với key thật và kiểm tay. US-4.11 làm ngày 2026-11-19 → 20, xong 0.30.0, `review`; chờ `/code-review`, `db:migrate` `0045` và kiểm tay AC-2.
 7. **US-5.2** (2026-11-24, người dùng chọn, một phiên): vòng phân bổ 1 chạy trên dữ liệu thật, dự thảo, điều chỉnh có lý do, công bố, giải thích kết quả; xong 0.33.0, `review`. Người dùng chốt bốn điểm ([CONTEXT D64](../CONTEXT.md)). Chờ `db:migrate` `0047` và kiểm tay màn *Phân bổ* (1024 px), *Kết quả* (360 px).
 8. **US-5.3** (2026-11-24, người dùng chọn, một phiên): HR duyệt đề cử, quyết định có lý do, yêu cầu bổ sung hồ sơ, hạn phản hồi theo ngày làm việc; xong 0.34.0, `review`. Người dùng chốt bốn điểm và tách tóm tắt AI thành [US-5.6](stories/US-5.6-ai-profile-summary-for-hr.md) (`backlog`, [CONTEXT D65](../CONTEXT.md)). Chờ `db:migrate` `0048` và kiểm tay AC-12.
+9. **US-5.4** (2026-11-29, người dùng chọn, một phiên): lịch phỏng vấn, kết quả, Dự bị, lời mời có hạn, nhận / từ chối / quá hạn; xong 0.35.0, `review`. Người dùng chốt bốn điểm ([CONTEXT D66](../CONTEXT.md): hạn Dự bị 7 ngày, Q4 hạ ưu tiên, hệ thống tự đưa Dự bị lên Đạt, thông báo chỉ trong app). Chờ `db:migrate` `0049` và kiểm tay AC-12.
 
 ## Parked / deferred from W45, W46
 

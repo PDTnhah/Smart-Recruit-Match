@@ -15,6 +15,7 @@ import { HealthModule } from './health/health.module.js';
 import { AiGatewayModule } from './modules/aigateway/index.js';
 import { AllocationModule } from './modules/allocation/index.js';
 import { ReviewModule } from './modules/review/index.js';
+import { InterviewModule } from './modules/interview/index.js';
 import { AssessmentModule } from './modules/assessment/index.js';
 import { CampaignModule } from './modules/campaign/index.js';
 import { CompanyModule } from './modules/company/index.js';
@@ -63,6 +64,7 @@ import { RedisModule } from './redis/redis.module.js';
     AssessmentModule,
     AllocationModule,
     ReviewModule,
+    InterviewModule,
   ],
   providers: [
     { provide: APP_PIPE, useClass: ZodRequestValidationPipe },

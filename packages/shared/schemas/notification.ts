@@ -1,5 +1,7 @@
 import { z } from 'zod';
+import { OFFER_RESPONSES } from '../states/offer.js';
 import { CAMPAIGN_DEADLINE_KEYS, type CampaignDeadlineKey } from './campaign.js';
+import { INTERVIEW_MODES } from './interview.js';
 
 // Notifications (FR-8, US-1.7, CONTEXT D31). The API validates `type` + `payload` with these
 // schemas before writing a row, and the web renders each type from the same shapes, so both sides
@@ -40,6 +42,13 @@ export const NOTIFICATION_TYPES = [
   'HR_REVIEW_DUE_SOON',
   'HR_REVIEW_OVERDUE',
   'SUPPLEMENT_REQUESTED',
+  // Interviews and internship offers (US-5.4, GĐ9, CONTEXT D66): in the app only.
+  'INTERVIEW_SCHEDULED',
+  'INTERVIEW_RESCHEDULED',
+  'INTERVIEW_RESCHEDULE_REQUESTED',
+  'INTERVIEW_RESULT',
+  'RESERVE_CLOSED',
+  'OFFER_ANSWERED',
 ] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
@@ -60,6 +69,12 @@ export const IN_APP_ONLY_NOTIFICATION_TYPES = [
   'HR_REVIEW_DUE_SOON',
   'HR_REVIEW_OVERDUE',
   'SUPPLEMENT_REQUESTED',
+  'INTERVIEW_SCHEDULED',
+  'INTERVIEW_RESCHEDULED',
+  'INTERVIEW_RESCHEDULE_REQUESTED',
+  'INTERVIEW_RESULT',
+  'RESERVE_CLOSED',
+  'OFFER_ANSWERED',
 ] as const satisfies readonly NotificationType[];
 
 /** Types that may be sent by email, each with a template in the notification module. */
@@ -309,6 +324,69 @@ export const SupplementRequestedPayloadSchema = z.object({
   note: z.string().min(1),
 });
 
+const InterviewJdSchema = ReviewJdSchema;
+const InterviewStudentSchema = z.object({ studentCode: z.string().min(1), fullName: z.string().min(1) });
+
+/**
+ * HR scheduled an interview, or moved it (US-5.4 AC-1, AC-2): the student and HR of the company, in
+ * the app only (CONTEXT D66). One schema for both types; `audience` picks the page the bell opens.
+ */
+export const InterviewScheduledPayloadSchema = z.object({
+  audience: z.enum(['STUDENT', 'HR']),
+  interviewId: id,
+  nominationId: id,
+  jd: InterviewJdSchema,
+  student: InterviewStudentSchema,
+  scheduledAt: instant,
+  mode: z.enum(INTERVIEW_MODES),
+  location: z.string().min(1),
+});
+
+/** The student asked once for another time (AC-2): HR of the company hears it with the reason. */
+export const InterviewRescheduleRequestedPayloadSchema = z.object({
+  interviewId: id,
+  nominationId: id,
+  jd: InterviewJdSchema,
+  student: InterviewStudentSchema,
+  scheduledAt: instant,
+  note: z.string().min(1),
+});
+
+/**
+ * Where the student's nomination went after the interview (AC-3, AC-5) or a free place (AC-7:
+ * `promoted`, from the reserve list): an offer comes with PASSED, its deadline set by the server.
+ */
+export const InterviewResultPayloadSchema = z.object({
+  nominationId: id,
+  jd: InterviewJdSchema,
+  status: z.enum(['PASSED', 'RESERVE', 'INTERVIEW_FAILED']),
+  promoted: z.boolean(),
+  offer: z.object({ offerId: id, expiresAt: instant }).nullable(),
+});
+
+/** A reserve ended without a place (AC-9): its time ran out, or the JD accepted its quota. */
+export const ReserveClosedPayloadSchema = z.object({
+  nominationId: id,
+  jd: InterviewJdSchema,
+  reason: z.enum(['RESERVE_EXPIRED', 'JD_FILLED']),
+});
+
+/**
+ * The student accepted, declined or let an offer expire (AC-6, AC-7): HR of the company and the
+ * center, with who took the freed place from the reserve list and whether the JD is now full.
+ */
+export const OfferAnsweredPayloadSchema = z.object({
+  audience: z.enum(['HR', 'CENTER']),
+  campaignId: id,
+  offerId: id,
+  nominationId: id,
+  jd: InterviewJdSchema,
+  student: InterviewStudentSchema,
+  response: z.enum(OFFER_RESPONSES),
+  promoted: InterviewStudentSchema.nullable(),
+  jdFilled: z.boolean(),
+});
+
 /** `type` and the `payload` that goes with it. */
 export const NotificationContentSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('CAMPAIGN_OPENED'), payload: CampaignOpenedPayloadSchema }),
@@ -330,6 +408,12 @@ export const NotificationContentSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('HR_REVIEW_DUE_SOON'), payload: HrReviewDueSoonPayloadSchema }),
   z.object({ type: z.literal('HR_REVIEW_OVERDUE'), payload: HrReviewOverduePayloadSchema }),
   z.object({ type: z.literal('SUPPLEMENT_REQUESTED'), payload: SupplementRequestedPayloadSchema }),
+  z.object({ type: z.literal('INTERVIEW_SCHEDULED'), payload: InterviewScheduledPayloadSchema }),
+  z.object({ type: z.literal('INTERVIEW_RESCHEDULED'), payload: InterviewScheduledPayloadSchema }),
+  z.object({ type: z.literal('INTERVIEW_RESCHEDULE_REQUESTED'), payload: InterviewRescheduleRequestedPayloadSchema }),
+  z.object({ type: z.literal('INTERVIEW_RESULT'), payload: InterviewResultPayloadSchema }),
+  z.object({ type: z.literal('RESERVE_CLOSED'), payload: ReserveClosedPayloadSchema }),
+  z.object({ type: z.literal('OFFER_ANSWERED'), payload: OfferAnsweredPayloadSchema }),
 ]);
 
 export type NotificationContent = z.output<typeof NotificationContentSchema>;

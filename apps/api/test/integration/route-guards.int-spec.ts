@@ -24,7 +24,7 @@ const HTTP_METHODS: Partial<Record<RequestMethod, 'get' | 'post' | 'put' | 'patc
 
 /**
  * Every route HR may call (US-5.3 AC-4, PRD Q5): its JDs, their question banks, the nominations of
- * its JDs and files it may see. A new HR route must be added here on purpose, so a route that lists
+ * its JDs and their interviews (US-5.4), and files it may see. A new HR route must be added here on purpose, so a route that lists
  * or opens students outside the nominations cannot slip in.
  */
 const HR_ROUTES = [
@@ -34,6 +34,7 @@ const HR_ROUTES = [
   'GET files/:id/url', // `cv:` answers 404 to HR; `nomination:` only for its own JDs
   'GET jds',
   'GET jds/:id',
+  'GET jds/:id/interviews',
   'GET jds/:id/nominations',
   'GET jds/:id/question-bank/import-template',
   'GET jds/:id/question-bank/manual-questions',
@@ -44,6 +45,7 @@ const HR_ROUTES = [
   'GET notifications',
   'GET skills',
   'PATCH jds/:id',
+  'POST interviews',
   'POST jds',
   'POST jds/:id/question-bank/import/preview',
   'POST jds/:id/question-bank/questions',
@@ -53,6 +55,8 @@ const HR_ROUTES = [
   'POST nominations/:id/decision',
   'POST notifications/:id/read',
   'POST notifications/read-all',
+  'PUT interviews/:id',
+  'PUT interviews/:id/result',
   'PUT jds/:id/file',
   'PUT jds/:id/requirements',
   'PUT jds/:id/requirements/confirm',
