@@ -15,7 +15,7 @@ arch_ref:
 depends_on:
   - US-5.3
 assignee: PDTnhah
-commit:
+commit: 5e034ff
 created: 2026-10-07
 updated: 2026-11-29
 ---
@@ -84,7 +84,7 @@ Story này hiện thực GĐ9 (UC-16, UC-17, UC-25), FR-30, FR-31 và các quy t
 
 Xem [CHANGELOG 0.35.0](../../CHANGELOG.md).
 
-**Commit**:
+**Commit**: `5e034ff`
 
 ## Implementation notes
 
