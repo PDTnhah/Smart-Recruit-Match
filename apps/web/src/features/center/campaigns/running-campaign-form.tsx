@@ -47,6 +47,7 @@ const FIELDS = [
   ...CAMPAIGN_DEADLINE_KEYS.map((key) => `phaseDeadlines.${key}`),
   ...[...PARAMETER_FIELDS, ...SCV_WEIGHT_FIELDS].map((parameter) => `config.${parameter.key}`),
   'config.no_preference_policy',
+  'config.offer_decline_policy',
   'config.require_full_preferences',
   ...COMPETITION_THRESHOLD_FIELDS.map(({ key }) => `config.competition_thresholds.${key}`),
 ];

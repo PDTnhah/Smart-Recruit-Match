@@ -63,6 +63,15 @@ export const NO_PREFERENCE_POLICIES = ['AUTO_ASSIGN_TOP_SCV', 'NONE'] as const;
 
 export type NoPreferencePolicy = (typeof NO_PREFERENCE_POLICIES)[number];
 
+/**
+ * PRD Q4, BR-16 (US-5.4, CONTEXT D66): a student who declined an offer, or let it expire, is ranked
+ * after every other student in every remaining round of the campaign (`DEMOTE`), or takes no further
+ * part in it (`EXCLUDE`). US-5.4 records the answer; the supplementary rounds of US-5.5 apply it.
+ */
+export const OFFER_DECLINE_POLICIES = ['DEMOTE', 'EXCLUDE'] as const;
+
+export type OfferDeclinePolicy = (typeof OFFER_DECLINE_POLICIES)[number];
+
 const weight = (label: string) =>
   z
     .number({ error: `${label} phải là một số` })
@@ -113,6 +122,10 @@ const CONFIG_FIELDS = {
   t_test_minutes: positiveInt('T_test'),
   sla_hr_business_days: positiveInt('SLA_HR'),
   t_offer_days: positiveInt('T_offer'),
+  // GĐ9 (US-5.4, CONTEXT D66): calendar days a RESERVE waits for a free place from HR's result on,
+  // and what a declined or expired offer means for the next rounds (Q4).
+  reserve_ttl_days: positiveInt('Thời hạn dự bị').max(60, { error: 'Thời hạn dự bị tối đa 60 ngày' }),
+  offer_decline_policy: z.enum(OFFER_DECLINE_POLICIES, { error: 'Chọn cách xử lý SV từ chối lời mời' }),
   // How long before a deadline students who still have work get a reminder (US-1.7, CONTEXT D31).
   reminder_hours_before: positiveInt('Thời gian nhắc trước hạn').max(168, {
     error: 'Thời gian nhắc trước hạn tối đa 168 giờ (7 ngày)',
@@ -150,7 +163,8 @@ const CONFIG_FIELDS = {
  * table (US-3.1, CONTEXT D41). `match_top_m` is not in the PRD table: added by US-3.2 (CONTEXT
  * D46); nor is `require_full_preferences`: added by US-3.3 (CONTEXT D47); nor is
  * `competition_thresholds`: added by US-3.4 (CONTEXT D48); nor is `appeal_window_hours`: added by
- * US-4.4 (CONTEXT D53); nor is `bank_review_sample_size`: added by US-4.9.
+ * US-4.4 (CONTEXT D53); nor is `bank_review_sample_size`: added by US-4.9; nor is `reserve_ttl_days`:
+ * added by US-5.4 (CONTEXT D66). Q4 (`offer_decline_policy`) is settled as proposed (CONTEXT D66).
  */
 export const DEFAULT_CAMPAIGN_CONFIG = {
   n_nv: 3,
@@ -163,6 +177,8 @@ export const DEFAULT_CAMPAIGN_CONFIG = {
   t_test_minutes: 45,
   sla_hr_business_days: 5,
   t_offer_days: 3,
+  reserve_ttl_days: 7,
+  offer_decline_policy: 'DEMOTE',
   reminder_hours_before: 24,
   scv_weight_must_have: 0.4,
   scv_weight_nice_to_have: 0.15,
@@ -228,6 +244,8 @@ export const CampaignConfigSchema = z
       DEFAULT_CAMPAIGN_CONFIG.sla_hr_business_days,
     ),
     t_offer_days: CONFIG_FIELDS.t_offer_days.default(DEFAULT_CAMPAIGN_CONFIG.t_offer_days),
+    reserve_ttl_days: CONFIG_FIELDS.reserve_ttl_days.default(DEFAULT_CAMPAIGN_CONFIG.reserve_ttl_days),
+    offer_decline_policy: CONFIG_FIELDS.offer_decline_policy.default(DEFAULT_CAMPAIGN_CONFIG.offer_decline_policy),
     reminder_hours_before: CONFIG_FIELDS.reminder_hours_before.default(
       DEFAULT_CAMPAIGN_CONFIG.reminder_hours_before,
     ),
@@ -305,6 +323,9 @@ export const CAMPAIGN_CONFIG_USED_FROM = {
   r_max: 'ALLOCATION_REVIEW',
   sla_hr_business_days: 'ALLOCATION_REVIEW',
   t_offer_days: 'ALLOCATION_REVIEW',
+  // Every reserve and every declined offer of a campaign is handled with the same values (US-5.4).
+  reserve_ttl_days: 'ALLOCATION_REVIEW',
+  offer_decline_policy: 'ALLOCATION_REVIEW',
   reminder_hours_before: null,
   // Only how many questions a reviewer is shown: no score depends on it.
   bank_review_sample_size: null,

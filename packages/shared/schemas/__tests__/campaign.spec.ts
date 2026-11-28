@@ -44,6 +44,9 @@ describe('GĐ0: campaign config schema', () => {
       t_test_minutes: 45,
       sla_hr_business_days: 5,
       t_offer_days: 3,
+      // US-5.4 (CONTEXT D66).
+      reserve_ttl_days: 7,
+      offer_decline_policy: 'DEMOTE',
       reminder_hours_before: 24,
       scv_weight_must_have: 0.4,
       scv_weight_nice_to_have: 0.15,

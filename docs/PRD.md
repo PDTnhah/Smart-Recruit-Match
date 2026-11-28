@@ -260,7 +260,7 @@ Quyết định kiến trúc và quy trình được ghi trong [CONTEXT.md](CONT
 | Q1 | Sinh viên tự chọn NV hay hệ thống phân bổ hoàn toàn theo điểm? | Sinh viên chọn tối đa 3 NV từ shortlist — vừa tôn trọng mong muốn, thuật toán vẫn chống dồn hồ sơ. **Chốt ([CONTEXT D47](CONTEXT.md)):** theo đề xuất; số NV là tham số `n_nv` của đợt, mặc định 3 |
 | Q2 | Làm 1 bài test cho mỗi NV hay 1 bài chung theo nhóm vị trí? | Theo JD; các JD cùng nhóm vị trí được phép dùng chung. **Chốt một phần ([CONTEXT D49](CONTEXT.md)):** mỗi JD một ma trận đề và một ngân hàng câu hỏi; dùng chung theo nhóm vị trí còn mở |
 | Q3 | Hệ số đề cử k? | 1,5 — HR có dư lựa chọn mà không quá tải |
-| Q4 | Sinh viên từ chối lời mời thực tập thì xử lý thế nào? | Xếp ưu tiên thấp nhất ở vòng sau |
+| Q4 | Sinh viên từ chối lời mời thực tập thì xử lý thế nào? | Xếp ưu tiên thấp nhất ở vòng sau. **Chốt ([CONTEXT D66](CONTEXT.md)):** theo đề xuất, áp cho mọi vòng còn lại của đợt, quá hạn T_offer như từ chối; là mặc định của tham số `offer_decline_policy`, Trung tâm đổi được thành `EXCLUDE` (không xét nữa) |
 | Q5 | HR có được chủ động chọn sinh viên ngoài danh sách đề cử? | Không; chỉ "yêu cầu bổ sung hồ sơ" qua hệ thống. **Chốt ([CONTEXT D65](CONTEXT.md)):** theo đề xuất |
 | Q6 | Sinh viên không chọn NV đến hạn? | Hệ thống tự gán N_NV JD có S_cv cao nhất trong shortlist và thông báo cho sinh viên. **Chốt ([CONTEXT D47](CONTEXT.md)):** theo đề xuất, là mặc định của tham số `no_preference_policy`; Trung tâm đổi được thành `NONE` (không gán) |
 | Q7 | Có chấm bài lập trình tự động? | Để ở phần mở rộng; MVP dùng trắc nghiệm + tự luận. **Chốt ([CONTEXT D49](CONTEXT.md)):** theo đề xuất; ma trận đề chỉ có phần A và B |
@@ -289,6 +289,8 @@ Quyết định kiến trúc và quy trình được ghi trong [CONTEXT.md](CONT
 | T_test | Thời gian làm một bài test | 45 phút |
 | SLA_HR | Thời hạn HR phản hồi danh sách đề cử | 5 ngày làm việc |
 | T_offer | Thời hạn sinh viên xác nhận lời mời thực tập | 3 ngày |
+| `reserve_ttl_days` | Thời hạn dự bị: số ngày sinh viên Dự bị chờ suất trống, tính từ lúc HR nhập kết quả (GĐ9). Thêm ở US-5.4 ([CONTEXT D66](CONTEXT.md)) | 7 ngày |
+| `offer_decline_policy` | Sinh viên từ chối lời mời hoặc quá hạn T_offer (Q4, BR-16): `DEMOTE` (xếp sau mọi sinh viên ở các vòng còn lại) hoặc `EXCLUDE` (không xét nữa). Thêm ở US-5.4 ([CONTEXT D66](CONTEXT.md)) | `DEMOTE` |
 | H_nhắc (`reminder_hours_before`) | Nhắc sinh viên chưa hoàn thành việc của giai đoạn khi còn chừng này giờ trước hạn (nộp CV; về sau chọn NV, làm test). Thêm ở US-1.7 ([CONTEXT D31](CONTEXT.md)) | 24 giờ |
 | `no_preference_policy` | Sinh viên không chọn NV đến hạn: `AUTO_ASSIGN_TOP_SCV` (gán các JD đầu shortlist, Q6) hoặc `NONE`. Thêm ở US-3.3 ([CONTEXT D47](CONTEXT.md)) | `AUTO_ASSIGN_TOP_SCV` |
 | `require_full_preferences` | Bắt buộc chọn đủ min(N_NV, số JD trong shortlist) nguyện vọng (GĐ4 bước 3); `false` là chỉ khuyến nghị. Thêm ở US-3.3 | `false` |
@@ -424,7 +426,7 @@ Quy tắc: HR không xem được hồ sơ sinh viên ngoài danh sách đề c�
 1. HR tạo lịch phỏng vấn (thời gian, hình thức online/offline, địa điểm/đường link). Sinh viên xác nhận hoặc xin đổi lịch (tối đa 1 lần).
 2. Sau phỏng vấn, HR nhập kết quả kèm nhận xét:
    - **Đạt** — số sinh viên Đạt không vượt quá chỉ tiêu còn lại của JD;
-   - **Dự bị** — đạt yêu cầu nhưng đã hết suất; được chuyển thành Đạt nếu có người từ chối, hết thời hạn dự bị thì về hàng chờ;
+   - **Dự bị** — đạt yêu cầu nhưng đã hết suất (HR chỉ chọn được khi JD hết suất); được chuyển thành Đạt nếu có người từ chối, hết thời hạn dự bị (`reserve_ttl_days`) thì về hàng chờ. Khi có suất trống, hệ thống tự chuyển sinh viên Dự bị xếp cao nhất (S_final rồi quy tắc phá hòa) thành Đạt và báo HR; JD nhận đủ chỉ tiêu thì các hồ sơ Dự bị còn lại đóng ([CONTEXT D66](CONTEXT.md));
    - **Không đạt**. Sinh viên vắng không báo trước được ghi nhận "Vắng" và xử lý như Không đạt.
 3. Đạt → hệ thống gửi **lời mời thực tập**; sinh viên xác nhận Nhận/Từ chối trong T_offer.
    - **Nhận** → sinh viên chuyển sang "Đã có nơi thực tập", mọi NV khác đóng lại; chỉ tiêu còn lại của JD giảm 1.
@@ -868,9 +870,9 @@ Mọi thông báo đều hiện trong ứng dụng (chuông ở ba cổng, cập
 | Công bố đề cử | Sinh viên, HR | Chỉ trong app ([CONTEXT D64](CONTEXT.md)) |
 | Nhắc hạn duyệt hồ sơ (HR); quá SLA (HR, Cán bộ Trung tâm) | HR, Cán bộ Trung tâm | Chỉ trong app ([CONTEXT D65](CONTEXT.md)) |
 | HR yêu cầu bổ sung hồ sơ | Cán bộ Trung tâm | Chỉ trong app ([CONTEXT D65](CONTEXT.md)) |
-| Lịch phỏng vấn, đổi lịch | Sinh viên, HR | |
-| Kết quả phỏng vấn, lời mời thực tập | Sinh viên | |
-| Sinh viên nhận/từ chối lời mời | HR, Cán bộ Trung tâm | |
+| Lịch phỏng vấn, đổi lịch; sinh viên xin đổi lịch (HR) | Sinh viên, HR | Chỉ trong app ([CONTEXT D66](CONTEXT.md)) |
+| Kết quả phỏng vấn, lời mời thực tập (kể cả Dự bị được lên Đạt); hồ sơ Dự bị đóng | Sinh viên | Chỉ trong app ([CONTEXT D66](CONTEXT.md)) |
+| Sinh viên nhận/từ chối lời mời, lời mời quá hạn | HR, Cán bộ Trung tâm | Chỉ trong app ([CONTEXT D66](CONTEXT.md)) |
 
 ---
 
@@ -924,8 +926,8 @@ Mọi thông báo đều hiện trong ứng dụng (chuông ở ba cổng, cập
 | FR-27 | Cán bộ Trung tâm xem dự thảo, điều chỉnh thủ công có ghi lý do và công bố danh sách đề cử (UC-05, BR-10) | P0 | 📋 backlog | EPIC-5 |
 | FR-28 | HR xem danh sách đề cử và hồ sơ chi tiết: CV gốc, hồ sơ năng lực, S_cv kèm bằng chứng, S_test và bản đồ năng lực (UC-23, BR-11, GĐ8) | P0 | 👀 review | EPIC-5 |
 | FR-29 | HR mời phỏng vấn, từ chối có lý do, hoặc yêu cầu bổ sung hồ sơ; SLA và nhắc hạn (UC-24, BR-12) | P0 | 👀 review | EPIC-5 |
-| FR-30 | HR lên lịch phỏng vấn; sinh viên xác nhận hoặc xin đổi lịch 1 lần; HR nhập kết quả Đạt / Dự bị / Không đạt / Vắng (UC-25, UC-16, BR-14, GĐ9) | P0 | 📋 backlog | EPIC-5 |
-| FR-31 | Lời mời thực tập: sinh viên nhận hoặc từ chối trong T_offer; Dự bị được chuyển thành Đạt khi có suất trống (UC-17, BR-15, BR-16) | P0 | 📋 backlog | EPIC-5 |
+| FR-30 | HR lên lịch phỏng vấn; sinh viên xác nhận hoặc xin đổi lịch 1 lần; HR nhập kết quả Đạt / Dự bị / Không đạt / Vắng (UC-25, UC-16, BR-14, GĐ9) | P0 | 👀 review | EPIC-5 |
+| FR-31 | Lời mời thực tập: sinh viên nhận hoặc từ chối trong T_offer; Dự bị được chuyển thành Đạt khi có suất trống (UC-17, BR-15, BR-16) | P0 | 👀 review | EPIC-5 |
 | FR-32 | Vòng bổ sung: sinh viên trong hàng chờ thêm nguyện vọng, chạy lại phân bổ với sức chứa C_j(r); đóng đợt (UC-07, GĐ10) | P0 | 📋 backlog | EPIC-5 |
 | FR-33 | Dashboard đợt cho Trung tâm: phễu tuyển, tỷ lệ lấp đầy, heatmap NV/chỉ tiêu (UC-04) | P0 | 📋 backlog | EPIC-6 |
 | FR-34 | Xuất báo cáo khi đóng đợt (UC-08) | P1 | 📋 backlog | EPIC-6 |
@@ -1092,7 +1094,7 @@ Thuật toán phân bổ là hàm thuần, không phụ thuộc epic khác, nên
 | US-5.1 | Allocation Engine và property-based test | 👀 review | 0.32.0 |
 | US-5.2 | Vòng phân bổ: dự thảo, điều chỉnh, công bố | 👀 review | 0.33.0 |
 | US-5.3 | HR duyệt danh sách đề cử | 👀 review | 0.34.0 |
-| US-5.4 | Phỏng vấn, Dự bị và lời mời thực tập | 📋 backlog | — |
+| US-5.4 | Phỏng vấn, Dự bị và lời mời thực tập | 👀 review | 0.35.0 |
 | US-5.5 | Vòng bổ sung và đóng đợt | 📋 backlog | — |
 | US-5.6 | Tóm tắt hồ sơ đề cử bằng AI cho HR (chưa quyết làm, [CONTEXT D65](CONTEXT.md)) | 📋 backlog | — |
 

@@ -776,3 +776,73 @@ export class ReviewDeadlineNotLaterError extends DomainError {
     });
   }
 }
+
+/** An interview needs a nomination HR invited and that has no result yet (US-5.4 AC-1, AC-3). */
+export class NominationNotInInterviewError extends DomainError {
+  readonly code = 'NOMINATION_NOT_IN_INTERVIEW';
+  readonly httpStatus = 409;
+
+  constructor(nominationId: number, status: string) {
+    super(`nomination ${nominationId} is not in INTERVIEW (${status})`, { nominationId, status });
+  }
+}
+
+/** A nomination has one interview (US-5.4 AC-1); HR moves it with `PUT /api/interviews/{id}`. */
+export class InterviewAlreadyScheduledError extends DomainError {
+  readonly code = 'INTERVIEW_ALREADY_SCHEDULED';
+  readonly httpStatus = 409;
+
+  constructor(nominationId: number, interviewId?: number) {
+    super(`nomination ${nominationId} already has an interview`, { nominationId, ...(interviewId ? { interviewId } : {}) });
+  }
+}
+
+/** The student asks for another time once per interview (FR-30, US-5.4 AC-2). */
+export class InterviewRescheduleAlreadyRequestedError extends DomainError {
+  readonly code = 'INTERVIEW_RESCHEDULE_ALREADY_REQUESTED';
+  readonly httpStatus = 409;
+
+  constructor(interviewId: number) {
+    super(`interview ${interviewId}: the one reschedule request was already made`, { interviewId });
+  }
+}
+
+/** An interview is scheduled for later than now, by the server's clock (US-5.4 AC-1, AC-2). */
+export class InterviewTimeNotFutureError extends DomainError {
+  readonly code = 'INTERVIEW_TIME_NOT_FUTURE';
+  readonly httpStatus = 422;
+
+  constructor(scheduledAt: Date) {
+    super(`an interview must be scheduled after now (${scheduledAt.toISOString()})`, { scheduledAt: scheduledAt.toISOString() });
+  }
+}
+
+/** BR-14 (CONTEXT D66): RESERVE is for a student who passed once no place is left; this JD still has one. */
+export class InterviewReservePlacesLeftError extends DomainError {
+  readonly code = 'INTERVIEW_RESERVE_PLACES_LEFT';
+  readonly httpStatus = 409;
+
+  constructor(interviewId: number, placesLeft: number) {
+    super(`interview ${interviewId}: RESERVE while the JD has ${placesLeft} free place(s)`, { interviewId, placesLeft });
+  }
+}
+
+/** The offer's deadline has passed by the server's clock (US-5.4 AC-8); the sweep expires it. */
+export class OfferExpiredError extends DomainError {
+  readonly code = 'OFFER_EXPIRED';
+  readonly httpStatus = 409;
+
+  constructor(offerId: number, expiresAt: Date) {
+    super(`offer ${offerId} expired at ${expiresAt.toISOString()}`, { offerId, expiresAt: expiresAt.toISOString() });
+  }
+}
+
+/** An offer is answered once (US-5.4 AC-6…AC-8): accepted, declined or expired already. */
+export class OfferAlreadyAnsweredError extends DomainError {
+  readonly code = 'OFFER_ALREADY_ANSWERED';
+  readonly httpStatus = 409;
+
+  constructor(offerId: number, status: string) {
+    super(`offer ${offerId} is already answered (${status})`, { offerId, status });
+  }
+}

@@ -1,4 +1,5 @@
 import { CircleAlert } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
   AlertDialog,
@@ -26,6 +27,8 @@ interface ConfirmActionDialogProps {
   /** Why the action failed, shown in the dialog. */
   error: string | null;
   errorTitle: string;
+  /** Fields the step needs, under the description (the reason of a reschedule request, US-5.4). */
+  children?: ReactNode;
 }
 
 /**
@@ -42,6 +45,7 @@ export function ConfirmActionDialog({
   pending,
   error,
   errorTitle,
+  children,
 }: ConfirmActionDialogProps) {
   const isMobile = useIsMobile();
   const onOpenChange = (next: boolean) => {
@@ -70,6 +74,7 @@ export function ConfirmActionDialog({
             <SheetDescription>{description}</SheetDescription>
           </SheetHeader>
           {errorAlert && <div className="px-4">{errorAlert}</div>}
+          {children && <div className="overflow-y-auto px-4">{children}</div>}
           <SheetFooter className="pb-[max(1rem,env(safe-area-inset-bottom))]">
             {action}
             <Button variant="outline" onClick={onClose} disabled={pending}>
@@ -89,6 +94,7 @@ export function ConfirmActionDialog({
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
         {errorAlert}
+        {children}
         <AlertDialogFooter>
           <AlertDialogCancel disabled={pending}>Hủy</AlertDialogCancel>
           {action}

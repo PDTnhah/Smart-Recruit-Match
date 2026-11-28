@@ -11,10 +11,14 @@ import {
   cvMachine,
   type ExamSessionStatus,
   examSessionMachine,
+  type InterviewStatus,
+  interviewMachine,
   type JobDescriptionStatus,
   jobDescriptionMachine,
   type NominationStatus,
   nominationMachine,
+  type OfferStatus,
+  offerMachine,
   type QuestionBankStatus,
   questionBankMachine,
   type QuestionStatus,
@@ -30,8 +34,10 @@ import {
   campaigns,
   cvs,
   examSessions,
+  interviews,
   jobDescriptions,
   nominations,
+  offers,
   preferences,
   questionBanks,
   questions,
@@ -84,3 +90,9 @@ export const allocationRoundLifecycle: Lifecycle<AllocationRoundStatus> = {
 
 /** A nomination of a round; HR review and interviews move it on (US-5.3, US-5.4). */
 export const nominationLifecycle: Lifecycle<NominationStatus> = { table: nominations, machine: nominationMachine };
+
+/** The interview of a nomination: the student's answer, HR's new time, HR's result (US-5.4). */
+export const interviewLifecycle: Lifecycle<InterviewStatus> = { table: interviews, machine: interviewMachine };
+
+/** The offer of a PASSED nomination: accepted, declined or expired (US-5.4). */
+export const offerLifecycle: Lifecycle<OfferStatus> = { table: offers, machine: offerMachine };

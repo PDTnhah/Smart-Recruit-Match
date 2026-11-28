@@ -4,6 +4,7 @@ import {
   HR_REJECT_REASON_LABELS,
   type HrRejectReason,
   type MyAllocationResult,
+  type MyInterviews,
   NOMINATION_STATUS_LABELS,
   type NominationStatus,
 } from '@srm/shared';
@@ -17,7 +18,10 @@ import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDateTime, formatNumber } from '@/lib/format';
 import { apiErrorMessage } from '@/shared/api/errors';
-import { useMyAllocationResults, useMyNominationReviews } from './api';
+import { useMyAllocationResults, useMyInterviews, useMyNominationReviews } from './api';
+import { InterviewSection } from './interview-section';
+
+type InterviewItem = MyInterviews['items'][number];
 
 function PageTitle() {
   return <h1 className="font-heading text-xl font-semibold md:text-2xl">Kết quả phân bổ</h1>;
@@ -60,6 +64,19 @@ function nominationNote(status: NominationStatus, rejectReason: HrRejectReason |
       return 'Doanh nghiệp sẽ xem hồ sơ và báo kết quả cho bạn qua hệ thống.';
     case 'INTERVIEW':
       return 'Doanh nghiệp mời bạn phỏng vấn. Lịch phỏng vấn sẽ được báo qua hệ thống.';
+    // GĐ9 (US-5.4): the interview and the offer below carry the details.
+    case 'PASSED':
+      return 'Bạn đạt phỏng vấn. Trả lời lời mời thực tập trước hạn bên dưới.';
+    case 'RESERVE':
+      return 'Bạn đạt yêu cầu và ở danh sách dự bị. Bạn được lên Đạt và nhận lời mời khi có sinh viên từ chối hoặc quá hạn trả lời.';
+    case 'INTERVIEW_FAILED':
+      return 'Bạn chưa đạt phỏng vấn ở JD này. Các nguyện vọng còn lại của bạn được xét ở vòng bổ sung.';
+    case 'ACCEPTED':
+      return 'Bạn đã nhận lời mời và có nơi thực tập. Các nguyện vọng khác trong đợt đã đóng.';
+    case 'DECLINED':
+      return 'Lời mời này đã được từ chối hoặc quá hạn trả lời.';
+    case 'CLOSED':
+      return 'Hồ sơ dự bị đã đóng. Các nguyện vọng còn lại của bạn được xét ở vòng bổ sung.';
     case 'HR_REJECTED':
       // The catalogue label only; HR's note never reaches the student (GĐ8, BR-12).
       return `Doanh nghiệp không tiếp tục với hồ sơ này${rejectReason ? `. Lý do: ${HR_REJECT_REASON_LABELS[rejectReason].toLowerCase()}` : ''}. Các nguyện vọng còn lại của bạn được xét ở vòng bổ sung.`;
@@ -68,7 +85,16 @@ function nominationNote(status: NominationStatus, rejectReason: HrRejectReason |
   }
 }
 
-function ResultCard({ result, rejectReasons }: { result: MyAllocationResult; rejectReasons: ReadonlyMap<number, HrRejectReason | null> }) {
+function ResultCard({
+  result,
+  rejectReasons,
+  interviews,
+}: {
+  result: MyAllocationResult;
+  rejectReasons: ReadonlyMap<number, HrRejectReason | null>;
+  interviews: ReadonlyMap<number, InterviewItem>;
+}) {
+  const interview = result.nomination ? interviews.get(result.nomination.nominationId) : undefined;
   const { nomination } = result;
   // Without a nomination every NV is listed; when BR-07 kept all of them out, none waits for a round.
   const noneEligible =
@@ -95,6 +121,7 @@ function ResultCard({ result, rejectReasons }: { result: MyAllocationResult; rej
             <p className="text-sm text-muted-foreground">
               {nominationNote(nomination.status, rejectReasons.get(nomination.nominationId))}
             </p>
+            {interview && <InterviewSection item={interview} />}
           </div>
         ) : noneEligible ? (
           <div className="flex flex-col gap-2">
@@ -127,7 +154,8 @@ function ResultCard({ result, rejectReasons }: { result: MyAllocationResult; rej
 /**
  * "Kết quả" of the student portal (US-5.2 AC-13, AC-15, NFR-13): where the student is nominated
  * after each published round, or that they wait, with the reason for each NV ranked above; what HR
- * decided, a rejection with its catalogue reason only (US-5.3 AC-6). Cards,
+ * decided, a rejection with its catalogue reason only (US-5.3 AC-6); the interview and the offer of
+ * the nomination (US-5.4 AC-12). Cards,
  * one column, for a 360 px phone (DESIGN.md §5).
  */
 export function ResultsPage() {
@@ -135,6 +163,9 @@ export function ResultsPage() {
   // A failed read only leaves the reason out: the state itself comes with the results.
   const reviews = useMyNominationReviews();
   const rejectReasons = new Map((reviews.data ?? []).map((review) => [review.nominationId, review.reasonCode]));
+  // GĐ9 (US-5.4): a failed read leaves the interview out; the nomination's state still shows.
+  const interviews = useMyInterviews();
+  const interviewOf = new Map((interviews.data ?? []).map((item) => [item.nominationId, item]));
 
   let content;
   if (results.isPending) {
@@ -173,7 +204,12 @@ export function ResultsPage() {
     content = (
       <div className="flex flex-col gap-4">
         {results.data.map((result) => (
-          <ResultCard key={`${result.campaignId}:${result.roundNo}`} result={result} rejectReasons={rejectReasons} />
+          <ResultCard
+            key={`${result.campaignId}:${result.roundNo}`}
+            result={result}
+            rejectReasons={rejectReasons}
+            interviews={interviewOf}
+          />
         ))}
       </div>
     );

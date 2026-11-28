@@ -4,6 +4,7 @@ import type {
   CampaignStatus,
   CompetitionThresholds,
   NoPreferencePolicy,
+  OfferDeclinePolicy,
   ScvCriterion,
 } from '@srm/shared';
 import type { badgeVariants } from '@/components/ui/badge';
@@ -95,6 +96,13 @@ export const PARAMETER_FIELDS: readonly ParameterField[] = [
     step: 1,
   },
   {
+    key: 'reserve_ttl_days',
+    label: 'Thời hạn dự bị (ngày)',
+    description:
+      'Sinh viên dự bị chờ suất trống tối đa chừng này ngày, tính từ lúc HR nhập kết quả; hết hạn thì về hàng chờ. Từ 1 đến 60. Mặc định 7.',
+    step: 1,
+  },
+  {
     key: 'reminder_hours_before',
     label: 'Nhắc trước hạn (giờ)',
     description: 'Sinh viên chưa hoàn thành việc của giai đoạn được nhắc khi còn chừng này giờ. Từ 1 đến 168. Mặc định 24.',
@@ -145,6 +153,17 @@ export const NO_PREFERENCE_POLICY_LABELS: Record<NoPreferencePolicy, string> = {
   AUTO_ASSIGN_TOP_SCV: 'Tự gán các JD có điểm phù hợp cao nhất',
   NONE: 'Không tự gán',
 };
+
+/** Q4 (US-5.4, CONTEXT D66): what a declined or expired offer means for the next rounds. */
+export const OFFER_DECLINE_POLICY_LABELS: Record<OfferDeclinePolicy, string> = {
+  DEMOTE: 'Xếp sau mọi sinh viên ở các vòng còn lại',
+  EXCLUDE: 'Không xét ở các vòng còn lại',
+};
+
+export const OFFER_DECLINE_POLICY_FIELD = {
+  label: 'Khi sinh viên từ chối hoặc quá hạn trả lời lời mời',
+  description: 'Áp dụng ở các vòng bổ sung của đợt. Mặc định: xếp sau mọi sinh viên khác.',
+} as const;
 
 /** `require_full_preferences`, keyed by the value the Select carries. */
 export const REQUIRE_FULL_PREFERENCES_LABELS: Record<'true' | 'false', string> = {

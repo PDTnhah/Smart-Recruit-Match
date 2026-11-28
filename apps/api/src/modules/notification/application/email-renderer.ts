@@ -203,6 +203,12 @@ export class EmailRenderer {
       case 'HR_REVIEW_DUE_SOON':
       case 'HR_REVIEW_OVERDUE':
       case 'SUPPLEMENT_REQUESTED':
+      case 'INTERVIEW_SCHEDULED':
+      case 'INTERVIEW_RESCHEDULED':
+      case 'INTERVIEW_RESCHEDULE_REQUESTED':
+      case 'INTERVIEW_RESULT':
+      case 'RESERVE_CLOSED':
+      case 'OFFER_ANSWERED':
         throw new Error(`${content.type} is shown in the app only, never emailed`);
     }
   }

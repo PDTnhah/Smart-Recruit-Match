@@ -265,15 +265,48 @@ export class AllocationRoundRepository {
       .where(eq(nominations.id, id));
   }
 
-  /** Nominations of the JD in every PUBLISHED round (US-5.3 AC-1); drafts never show. */
-  async publishedNominationsOfJd(jdId: number): Promise<PublishedNominationRecord[]> {
-    const rows = await this.db
+  /** Nominations of the JD in every PUBLISHED round (US-5.3 AC-1); drafts never show. Read in `tx` when given. */
+  async publishedNominationsOfJd(jdId: number, tx: DbTx | Database = this.db): Promise<PublishedNominationRecord[]> {
+    const rows = await tx
       .select({ ...NOMINATION_COLUMNS, roundNo: allocationRounds.roundNo, publishedAt: allocationRounds.publishedAt })
       .from(nominations)
       .innerJoin(allocationRounds, eq(allocationRounds.id, nominations.roundId))
       .where(and(eq(nominations.jdId, jdId), eq(allocationRounds.status, 'PUBLISHED')))
       .orderBy(asc(allocationRounds.roundNo), asc(nominations.rank), asc(nominations.id));
     return rows.map(published);
+  }
+
+  /** The student's nominations in published rounds, newest first (US-5.4: interviews and offers). */
+  async publishedNominationsOfStudent(studentId: number): Promise<PublishedNominationRecord[]> {
+    const rows = await this.db
+      .select({ ...NOMINATION_COLUMNS, roundNo: allocationRounds.roundNo, publishedAt: allocationRounds.publishedAt })
+      .from(nominations)
+      .innerJoin(allocationRounds, eq(allocationRounds.id, nominations.roundId))
+      .where(and(eq(nominations.studentId, studentId), eq(allocationRounds.status, 'PUBLISHED')))
+      .orderBy(desc(nominations.id));
+    return rows.map(published);
+  }
+
+  /** Nominations of published rounds in `status`, by id (US-5.4: the reserve sweep). */
+  async publishedNominationsInStatus(status: NominationStatus): Promise<PublishedNominationRecord[]> {
+    const rows = await this.db
+      .select({ ...NOMINATION_COLUMNS, roundNo: allocationRounds.roundNo, publishedAt: allocationRounds.publishedAt })
+      .from(nominations)
+      .innerJoin(allocationRounds, eq(allocationRounds.id, nominations.roundId))
+      .where(and(eq(nominations.status, status), eq(allocationRounds.status, 'PUBLISHED')))
+      .orderBy(asc(nominations.id));
+    return rows.map(published);
+  }
+
+  /** Nominations of the JD per status, in published rounds (US-5.4, BR-14). */
+  async countByStatus(tx: DbTx | Database, jdId: number): Promise<Map<NominationStatus, number>> {
+    const rows = await tx
+      .select({ status: nominations.status, count: sql<number>`count(*)::int` })
+      .from(nominations)
+      .innerJoin(allocationRounds, eq(allocationRounds.id, nominations.roundId))
+      .where(and(eq(nominations.jdId, jdId), eq(allocationRounds.status, 'PUBLISHED')))
+      .groupBy(nominations.status);
+    return new Map(rows.map((row) => [row.status, row.count]));
   }
 
   /**

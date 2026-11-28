@@ -42,6 +42,16 @@ export const DEDUPE_KEYS = {
     `hr_review_overdue:${roundId}:${jdId}:${dueAt.toISOString()}`,
   /** One notice per supplement request (US-5.3 AC-9). */
   supplementRequested: (requestId: number) => `supplement_requested:${requestId}`,
+  /** GĐ9 (US-5.4): an interview is scheduled once; each new time has its row version. */
+  interviewScheduled: (interviewId: number) => `interview_scheduled:${interviewId}`,
+  interviewRescheduled: (interviewId: number, rowVersion: number) => `interview_rescheduled:${interviewId}:${rowVersion}`,
+  /** The student asks for another time once per interview (AC-2). */
+  interviewRescheduleRequested: (interviewId: number) => `interview_reschedule_requested:${interviewId}`,
+  /** A nomination reaches each GĐ9 state once: a RESERVE later PASSED hears both. */
+  interviewResult: (nominationId: number, status: string) => `interview_result:${nominationId}:${status}`,
+  reserveClosed: (nominationId: number) => `reserve_closed:${nominationId}`,
+  /** An offer is answered once (AC-6, AC-7). */
+  offerAnswered: (offerId: number) => `offer_answered:${offerId}`,
   /**
    * One notice per CV version and outcome (US-2.4, CONTEXT D37): a redelivered result is quiet, a
    * profile after a failed dispatch is still announced, and a retry by command that fails again

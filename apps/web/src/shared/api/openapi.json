@@ -3902,6 +3902,394 @@
           "review"
         ]
       }
+    },
+    "/api/interviews": {
+      "post": {
+        "operationId": "InterviewController_schedule",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScheduleInterviewRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffInterviewViewDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "interview"
+        ]
+      }
+    },
+    "/api/interviews/{id}": {
+      "put": {
+        "operationId": "InterviewController_reschedule",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "maximum": 9007199254740991,
+              "exclusiveMinimum": true,
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RescheduleInterviewRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffInterviewViewDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "interview"
+        ]
+      }
+    },
+    "/api/interviews/{id}/confirm": {
+      "post": {
+        "operationId": "InterviewController_confirm",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "maximum": 9007199254740991,
+              "exclusiveMinimum": true,
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RowVersionBodyDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InterviewViewDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "interview"
+        ]
+      }
+    },
+    "/api/interviews/{id}/reschedule-request": {
+      "post": {
+        "operationId": "InterviewController_requestReschedule",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "maximum": 9007199254740991,
+              "exclusiveMinimum": true,
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RescheduleRequestBodyDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InterviewViewDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "interview"
+        ]
+      }
+    },
+    "/api/interviews/{id}/result": {
+      "put": {
+        "operationId": "InterviewController_result",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "maximum": 9007199254740991,
+              "exclusiveMinimum": true,
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InterviewResultRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InterviewResultResponseDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "interview"
+        ]
+      }
+    },
+    "/api/jds/{id}/interviews": {
+      "get": {
+        "operationId": "InterviewController_listForJd",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "maximum": 9007199254740991,
+              "exclusiveMinimum": true,
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JdInterviewListDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "interview"
+        ]
+      }
+    },
+    "/api/me/interviews": {
+      "get": {
+        "operationId": "InterviewController_mine",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyInterviewsDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "interview"
+        ]
+      }
+    },
+    "/api/offers/{id}/accept": {
+      "post": {
+        "operationId": "OfferController_accept",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "maximum": 9007199254740991,
+              "exclusiveMinimum": true,
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RowVersionBodyDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OfferAnswerResponseDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "interview"
+        ]
+      }
+    },
+    "/api/offers/{id}/decline": {
+      "post": {
+        "operationId": "OfferController_decline",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "maximum": 9007199254740991,
+              "exclusiveMinimum": true,
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RowVersionBodyDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OfferAnswerResponseDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "interview"
+        ]
+      }
     }
   },
   "info": {
@@ -5430,6 +5818,21 @@
                 "maximum": 9007199254740991,
                 "minimum": 0
               },
+              "reserve_ttl_days": {
+                "default": 7,
+                "type": "integer",
+                "exclusiveMinimum": true,
+                "maximum": 60,
+                "minimum": 0
+              },
+              "offer_decline_policy": {
+                "default": "DEMOTE",
+                "type": "string",
+                "enum": [
+                  "DEMOTE",
+                  "EXCLUDE"
+                ]
+              },
               "reminder_hours_before": {
                 "default": 24,
                 "type": "integer",
@@ -5684,6 +6087,21 @@
                 "maximum": 9007199254740991,
                 "minimum": 0
               },
+              "reserve_ttl_days": {
+                "default": 7,
+                "type": "integer",
+                "exclusiveMinimum": true,
+                "maximum": 60,
+                "minimum": 0
+              },
+              "offer_decline_policy": {
+                "default": "DEMOTE",
+                "type": "string",
+                "enum": [
+                  "DEMOTE",
+                  "EXCLUDE"
+                ]
+              },
               "reminder_hours_before": {
                 "default": 24,
                 "type": "integer",
@@ -5799,6 +6217,8 @@
               "t_test_minutes",
               "sla_hr_business_days",
               "t_offer_days",
+              "reserve_ttl_days",
+              "offer_decline_policy",
               "reminder_hours_before",
               "scv_weight_must_have",
               "scv_weight_nice_to_have",
@@ -5992,6 +6412,21 @@
                       "maximum": 9007199254740991,
                       "minimum": 0
                     },
+                    "reserve_ttl_days": {
+                      "default": 7,
+                      "type": "integer",
+                      "exclusiveMinimum": true,
+                      "maximum": 60,
+                      "minimum": 0
+                    },
+                    "offer_decline_policy": {
+                      "default": "DEMOTE",
+                      "type": "string",
+                      "enum": [
+                        "DEMOTE",
+                        "EXCLUDE"
+                      ]
+                    },
                     "reminder_hours_before": {
                       "default": 24,
                       "type": "integer",
@@ -6107,6 +6542,8 @@
                     "t_test_minutes",
                     "sla_hr_business_days",
                     "t_offer_days",
+                    "reserve_ttl_days",
+                    "offer_decline_policy",
                     "reminder_hours_before",
                     "scv_weight_must_have",
                     "scv_weight_nice_to_have",
@@ -6281,6 +6718,19 @@
                 "exclusiveMinimum": true,
                 "maximum": 9007199254740991,
                 "minimum": 0
+              },
+              "reserve_ttl_days": {
+                "type": "integer",
+                "exclusiveMinimum": true,
+                "maximum": 60,
+                "minimum": 0
+              },
+              "offer_decline_policy": {
+                "type": "string",
+                "enum": [
+                  "DEMOTE",
+                  "EXCLUDE"
+                ]
               },
               "reminder_hours_before": {
                 "type": "integer",
@@ -10024,6 +10474,723 @@
                         "invitedCount",
                         "quota",
                         "note"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "readAt",
+                    "createdAt",
+                    "type",
+                    "payload"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "readAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                      "nullable": true
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "INTERVIEW_SCHEDULED"
+                      ]
+                    },
+                    "payload": {
+                      "type": "object",
+                      "properties": {
+                        "audience": {
+                          "type": "string",
+                          "enum": [
+                            "STUDENT",
+                            "HR"
+                          ]
+                        },
+                        "interviewId": {
+                          "type": "integer",
+                          "exclusiveMinimum": true,
+                          "maximum": 9007199254740991,
+                          "minimum": 0
+                        },
+                        "nominationId": {
+                          "type": "integer",
+                          "exclusiveMinimum": true,
+                          "maximum": 9007199254740991,
+                          "minimum": 0
+                        },
+                        "jd": {
+                          "type": "object",
+                          "properties": {
+                            "jdId": {
+                              "type": "integer",
+                              "exclusiveMinimum": true,
+                              "maximum": 9007199254740991,
+                              "minimum": 0
+                            },
+                            "title": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "companyName": {
+                              "type": "string",
+                              "minLength": 1
+                            }
+                          },
+                          "required": [
+                            "jdId",
+                            "title",
+                            "companyName"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "student": {
+                          "type": "object",
+                          "properties": {
+                            "studentCode": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "fullName": {
+                              "type": "string",
+                              "minLength": 1
+                            }
+                          },
+                          "required": [
+                            "studentCode",
+                            "fullName"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "scheduledAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                        },
+                        "mode": {
+                          "type": "string",
+                          "enum": [
+                            "ONLINE",
+                            "OFFLINE"
+                          ]
+                        },
+                        "location": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      },
+                      "required": [
+                        "audience",
+                        "interviewId",
+                        "nominationId",
+                        "jd",
+                        "student",
+                        "scheduledAt",
+                        "mode",
+                        "location"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "readAt",
+                    "createdAt",
+                    "type",
+                    "payload"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "readAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                      "nullable": true
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "INTERVIEW_RESCHEDULED"
+                      ]
+                    },
+                    "payload": {
+                      "type": "object",
+                      "properties": {
+                        "audience": {
+                          "type": "string",
+                          "enum": [
+                            "STUDENT",
+                            "HR"
+                          ]
+                        },
+                        "interviewId": {
+                          "type": "integer",
+                          "exclusiveMinimum": true,
+                          "maximum": 9007199254740991,
+                          "minimum": 0
+                        },
+                        "nominationId": {
+                          "type": "integer",
+                          "exclusiveMinimum": true,
+                          "maximum": 9007199254740991,
+                          "minimum": 0
+                        },
+                        "jd": {
+                          "type": "object",
+                          "properties": {
+                            "jdId": {
+                              "type": "integer",
+                              "exclusiveMinimum": true,
+                              "maximum": 9007199254740991,
+                              "minimum": 0
+                            },
+                            "title": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "companyName": {
+                              "type": "string",
+                              "minLength": 1
+                            }
+                          },
+                          "required": [
+                            "jdId",
+                            "title",
+                            "companyName"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "student": {
+                          "type": "object",
+                          "properties": {
+                            "studentCode": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "fullName": {
+                              "type": "string",
+                              "minLength": 1
+                            }
+                          },
+                          "required": [
+                            "studentCode",
+                            "fullName"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "scheduledAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                        },
+                        "mode": {
+                          "type": "string",
+                          "enum": [
+                            "ONLINE",
+                            "OFFLINE"
+                          ]
+                        },
+                        "location": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      },
+                      "required": [
+                        "audience",
+                        "interviewId",
+                        "nominationId",
+                        "jd",
+                        "student",
+                        "scheduledAt",
+                        "mode",
+                        "location"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "readAt",
+                    "createdAt",
+                    "type",
+                    "payload"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "readAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                      "nullable": true
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "INTERVIEW_RESCHEDULE_REQUESTED"
+                      ]
+                    },
+                    "payload": {
+                      "type": "object",
+                      "properties": {
+                        "interviewId": {
+                          "type": "integer",
+                          "exclusiveMinimum": true,
+                          "maximum": 9007199254740991,
+                          "minimum": 0
+                        },
+                        "nominationId": {
+                          "type": "integer",
+                          "exclusiveMinimum": true,
+                          "maximum": 9007199254740991,
+                          "minimum": 0
+                        },
+                        "jd": {
+                          "type": "object",
+                          "properties": {
+                            "jdId": {
+                              "type": "integer",
+                              "exclusiveMinimum": true,
+                              "maximum": 9007199254740991,
+                              "minimum": 0
+                            },
+                            "title": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "companyName": {
+                              "type": "string",
+                              "minLength": 1
+                            }
+                          },
+                          "required": [
+                            "jdId",
+                            "title",
+                            "companyName"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "student": {
+                          "type": "object",
+                          "properties": {
+                            "studentCode": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "fullName": {
+                              "type": "string",
+                              "minLength": 1
+                            }
+                          },
+                          "required": [
+                            "studentCode",
+                            "fullName"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "scheduledAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                        },
+                        "note": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      },
+                      "required": [
+                        "interviewId",
+                        "nominationId",
+                        "jd",
+                        "student",
+                        "scheduledAt",
+                        "note"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "readAt",
+                    "createdAt",
+                    "type",
+                    "payload"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "readAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                      "nullable": true
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "INTERVIEW_RESULT"
+                      ]
+                    },
+                    "payload": {
+                      "type": "object",
+                      "properties": {
+                        "nominationId": {
+                          "type": "integer",
+                          "exclusiveMinimum": true,
+                          "maximum": 9007199254740991,
+                          "minimum": 0
+                        },
+                        "jd": {
+                          "type": "object",
+                          "properties": {
+                            "jdId": {
+                              "type": "integer",
+                              "exclusiveMinimum": true,
+                              "maximum": 9007199254740991,
+                              "minimum": 0
+                            },
+                            "title": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "companyName": {
+                              "type": "string",
+                              "minLength": 1
+                            }
+                          },
+                          "required": [
+                            "jdId",
+                            "title",
+                            "companyName"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "PASSED",
+                            "RESERVE",
+                            "INTERVIEW_FAILED"
+                          ]
+                        },
+                        "promoted": {
+                          "type": "boolean"
+                        },
+                        "offer": {
+                          "type": "object",
+                          "properties": {
+                            "offerId": {
+                              "type": "integer",
+                              "exclusiveMinimum": true,
+                              "maximum": 9007199254740991,
+                              "minimum": 0
+                            },
+                            "expiresAt": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                            }
+                          },
+                          "required": [
+                            "offerId",
+                            "expiresAt"
+                          ],
+                          "additionalProperties": false,
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "nominationId",
+                        "jd",
+                        "status",
+                        "promoted",
+                        "offer"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "readAt",
+                    "createdAt",
+                    "type",
+                    "payload"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "readAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                      "nullable": true
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "RESERVE_CLOSED"
+                      ]
+                    },
+                    "payload": {
+                      "type": "object",
+                      "properties": {
+                        "nominationId": {
+                          "type": "integer",
+                          "exclusiveMinimum": true,
+                          "maximum": 9007199254740991,
+                          "minimum": 0
+                        },
+                        "jd": {
+                          "type": "object",
+                          "properties": {
+                            "jdId": {
+                              "type": "integer",
+                              "exclusiveMinimum": true,
+                              "maximum": 9007199254740991,
+                              "minimum": 0
+                            },
+                            "title": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "companyName": {
+                              "type": "string",
+                              "minLength": 1
+                            }
+                          },
+                          "required": [
+                            "jdId",
+                            "title",
+                            "companyName"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "reason": {
+                          "type": "string",
+                          "enum": [
+                            "RESERVE_EXPIRED",
+                            "JD_FILLED"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "nominationId",
+                        "jd",
+                        "reason"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "readAt",
+                    "createdAt",
+                    "type",
+                    "payload"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "readAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                      "nullable": true
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "OFFER_ANSWERED"
+                      ]
+                    },
+                    "payload": {
+                      "type": "object",
+                      "properties": {
+                        "audience": {
+                          "type": "string",
+                          "enum": [
+                            "HR",
+                            "CENTER"
+                          ]
+                        },
+                        "campaignId": {
+                          "type": "integer",
+                          "exclusiveMinimum": true,
+                          "maximum": 9007199254740991,
+                          "minimum": 0
+                        },
+                        "offerId": {
+                          "type": "integer",
+                          "exclusiveMinimum": true,
+                          "maximum": 9007199254740991,
+                          "minimum": 0
+                        },
+                        "nominationId": {
+                          "type": "integer",
+                          "exclusiveMinimum": true,
+                          "maximum": 9007199254740991,
+                          "minimum": 0
+                        },
+                        "jd": {
+                          "type": "object",
+                          "properties": {
+                            "jdId": {
+                              "type": "integer",
+                              "exclusiveMinimum": true,
+                              "maximum": 9007199254740991,
+                              "minimum": 0
+                            },
+                            "title": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "companyName": {
+                              "type": "string",
+                              "minLength": 1
+                            }
+                          },
+                          "required": [
+                            "jdId",
+                            "title",
+                            "companyName"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "student": {
+                          "type": "object",
+                          "properties": {
+                            "studentCode": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "fullName": {
+                              "type": "string",
+                              "minLength": 1
+                            }
+                          },
+                          "required": [
+                            "studentCode",
+                            "fullName"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "response": {
+                          "type": "string",
+                          "enum": [
+                            "ACCEPTED",
+                            "DECLINED",
+                            "EXPIRED"
+                          ]
+                        },
+                        "promoted": {
+                          "type": "object",
+                          "properties": {
+                            "studentCode": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "fullName": {
+                              "type": "string",
+                              "minLength": 1
+                            }
+                          },
+                          "required": [
+                            "studentCode",
+                            "fullName"
+                          ],
+                          "additionalProperties": false,
+                          "nullable": true
+                        },
+                        "jdFilled": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "audience",
+                        "campaignId",
+                        "offerId",
+                        "nominationId",
+                        "jd",
+                        "student",
+                        "response",
+                        "promoted",
+                        "jdFilled"
                       ],
                       "additionalProperties": false
                     }
@@ -18093,6 +19260,1170 @@
         },
         "required": [
           "items"
+        ],
+        "additionalProperties": false
+      },
+      "ScheduleInterviewRequestDto": {
+        "type": "object",
+        "properties": {
+          "scheduledAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "ONLINE",
+              "OFFLINE"
+            ]
+          },
+          "location": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "nominationId": {
+            "type": "integer",
+            "exclusiveMinimum": true,
+            "maximum": 9007199254740991,
+            "minimum": 0
+          }
+        },
+        "required": [
+          "scheduledAt",
+          "mode",
+          "location",
+          "nominationId"
+        ]
+      },
+      "StaffInterviewViewDto_Output": {
+        "type": "object",
+        "properties": {
+          "interviewId": {
+            "type": "integer",
+            "exclusiveMinimum": true,
+            "maximum": 9007199254740991,
+            "minimum": 0
+          },
+          "nominationId": {
+            "type": "integer",
+            "exclusiveMinimum": true,
+            "maximum": 9007199254740991,
+            "minimum": 0
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "SCHEDULED",
+              "CONFIRMED",
+              "RESCHEDULE_REQUESTED",
+              "DONE"
+            ]
+          },
+          "scheduledAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "ONLINE",
+              "OFFLINE"
+            ]
+          },
+          "location": {
+            "type": "string"
+          },
+          "confirmedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "nullable": true
+          },
+          "rescheduleRequestedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "nullable": true
+          },
+          "rescheduleNote": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "result": {
+            "type": "string",
+            "enum": [
+              "PASSED",
+              "RESERVE",
+              "FAILED",
+              "ABSENT",
+              null
+            ],
+            "nullable": true
+          },
+          "resultAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "nullable": true
+          },
+          "rowVersion": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "resultNote": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "interviewId",
+          "nominationId",
+          "status",
+          "scheduledAt",
+          "mode",
+          "location",
+          "confirmedAt",
+          "rescheduleRequestedAt",
+          "rescheduleNote",
+          "result",
+          "resultAt",
+          "rowVersion",
+          "resultNote"
+        ],
+        "additionalProperties": false
+      },
+      "RescheduleInterviewRequestDto": {
+        "type": "object",
+        "properties": {
+          "scheduledAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "ONLINE",
+              "OFFLINE"
+            ]
+          },
+          "location": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "rowVersion": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "scheduledAt",
+          "mode",
+          "location",
+          "rowVersion"
+        ]
+      },
+      "RowVersionBodyDto": {
+        "type": "object",
+        "properties": {
+          "rowVersion": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "rowVersion"
+        ]
+      },
+      "InterviewViewDto_Output": {
+        "type": "object",
+        "properties": {
+          "interviewId": {
+            "type": "integer",
+            "exclusiveMinimum": true,
+            "maximum": 9007199254740991,
+            "minimum": 0
+          },
+          "nominationId": {
+            "type": "integer",
+            "exclusiveMinimum": true,
+            "maximum": 9007199254740991,
+            "minimum": 0
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "SCHEDULED",
+              "CONFIRMED",
+              "RESCHEDULE_REQUESTED",
+              "DONE"
+            ]
+          },
+          "scheduledAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "ONLINE",
+              "OFFLINE"
+            ]
+          },
+          "location": {
+            "type": "string"
+          },
+          "confirmedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "nullable": true
+          },
+          "rescheduleRequestedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "nullable": true
+          },
+          "rescheduleNote": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "result": {
+            "type": "string",
+            "enum": [
+              "PASSED",
+              "RESERVE",
+              "FAILED",
+              "ABSENT",
+              null
+            ],
+            "nullable": true
+          },
+          "resultAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "nullable": true
+          },
+          "rowVersion": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "interviewId",
+          "nominationId",
+          "status",
+          "scheduledAt",
+          "mode",
+          "location",
+          "confirmedAt",
+          "rescheduleRequestedAt",
+          "rescheduleNote",
+          "result",
+          "resultAt",
+          "rowVersion"
+        ],
+        "additionalProperties": false
+      },
+      "RescheduleRequestBodyDto": {
+        "type": "object",
+        "properties": {
+          "rowVersion": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "note": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "rowVersion",
+          "note"
+        ]
+      },
+      "InterviewResultRequestDto": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string",
+            "enum": [
+              "PASSED",
+              "RESERVE",
+              "FAILED",
+              "ABSENT"
+            ]
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 1000,
+            "nullable": true
+          },
+          "rowVersion": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "result",
+          "rowVersion"
+        ]
+      },
+      "InterviewResultResponseDto_Output": {
+        "type": "object",
+        "properties": {
+          "nominationId": {
+            "type": "integer",
+            "exclusiveMinimum": true,
+            "maximum": 9007199254740991,
+            "minimum": 0
+          },
+          "nominationStatus": {
+            "type": "string",
+            "enum": [
+              "NOMINATED",
+              "INTERVIEW",
+              "HR_REJECTED",
+              "PASSED",
+              "RESERVE",
+              "INTERVIEW_FAILED",
+              "ACCEPTED",
+              "DECLINED",
+              "CLOSED"
+            ]
+          },
+          "reservedForQuota": {
+            "type": "boolean"
+          },
+          "interview": {
+            "type": "object",
+            "properties": {
+              "interviewId": {
+                "type": "integer",
+                "exclusiveMinimum": true,
+                "maximum": 9007199254740991,
+                "minimum": 0
+              },
+              "nominationId": {
+                "type": "integer",
+                "exclusiveMinimum": true,
+                "maximum": 9007199254740991,
+                "minimum": 0
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "SCHEDULED",
+                  "CONFIRMED",
+                  "RESCHEDULE_REQUESTED",
+                  "DONE"
+                ]
+              },
+              "scheduledAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              },
+              "mode": {
+                "type": "string",
+                "enum": [
+                  "ONLINE",
+                  "OFFLINE"
+                ]
+              },
+              "location": {
+                "type": "string"
+              },
+              "confirmedAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                "nullable": true
+              },
+              "rescheduleRequestedAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                "nullable": true
+              },
+              "rescheduleNote": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "result": {
+                "type": "string",
+                "enum": [
+                  "PASSED",
+                  "RESERVE",
+                  "FAILED",
+                  "ABSENT",
+                  null
+                ],
+                "nullable": true
+              },
+              "resultAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                "nullable": true
+              },
+              "rowVersion": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "resultNote": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "interviewId",
+              "nominationId",
+              "status",
+              "scheduledAt",
+              "mode",
+              "location",
+              "confirmedAt",
+              "rescheduleRequestedAt",
+              "rescheduleNote",
+              "result",
+              "resultAt",
+              "rowVersion",
+              "resultNote"
+            ],
+            "additionalProperties": false
+          },
+          "offer": {
+            "type": "object",
+            "properties": {
+              "offerId": {
+                "type": "integer",
+                "exclusiveMinimum": true,
+                "maximum": 9007199254740991,
+                "minimum": 0
+              },
+              "nominationId": {
+                "type": "integer",
+                "exclusiveMinimum": true,
+                "maximum": 9007199254740991,
+                "minimum": 0
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "PENDING",
+                  "ACCEPTED",
+                  "DECLINED",
+                  "EXPIRED"
+                ]
+              },
+              "sentAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              },
+              "expiresAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              },
+              "respondedAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                "nullable": true
+              },
+              "rowVersion": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "offerId",
+              "nominationId",
+              "status",
+              "sentAt",
+              "expiresAt",
+              "respondedAt",
+              "rowVersion"
+            ],
+            "additionalProperties": false,
+            "nullable": true
+          },
+          "slots": {
+            "type": "object",
+            "properties": {
+              "quota": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "accepted": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "passed": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "reserve": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "quota",
+              "accepted",
+              "passed",
+              "reserve"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "nominationId",
+          "nominationStatus",
+          "reservedForQuota",
+          "interview",
+          "offer",
+          "slots"
+        ],
+        "additionalProperties": false
+      },
+      "JdInterviewListDto_Output": {
+        "type": "object",
+        "properties": {
+          "jd": {
+            "type": "object",
+            "properties": {
+              "jdId": {
+                "type": "integer",
+                "exclusiveMinimum": true,
+                "maximum": 9007199254740991,
+                "minimum": 0
+              },
+              "title": {
+                "type": "string"
+              },
+              "campaignId": {
+                "type": "integer",
+                "exclusiveMinimum": true,
+                "maximum": 9007199254740991,
+                "minimum": 0
+              }
+            },
+            "required": [
+              "jdId",
+              "title",
+              "campaignId"
+            ],
+            "additionalProperties": false
+          },
+          "slots": {
+            "type": "object",
+            "properties": {
+              "quota": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "accepted": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "passed": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "reserve": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "quota",
+              "accepted",
+              "passed",
+              "reserve"
+            ],
+            "additionalProperties": false
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "nominationId": {
+                  "type": "integer",
+                  "exclusiveMinimum": true,
+                  "maximum": 9007199254740991,
+                  "minimum": 0
+                },
+                "nominationStatus": {
+                  "type": "string",
+                  "enum": [
+                    "NOMINATED",
+                    "INTERVIEW",
+                    "HR_REJECTED",
+                    "PASSED",
+                    "RESERVE",
+                    "INTERVIEW_FAILED",
+                    "ACCEPTED",
+                    "DECLINED",
+                    "CLOSED"
+                  ]
+                },
+                "student": {
+                  "type": "object",
+                  "properties": {
+                    "studentId": {
+                      "type": "integer",
+                      "exclusiveMinimum": true,
+                      "maximum": 9007199254740991,
+                      "minimum": 0
+                    },
+                    "studentCode": {
+                      "type": "string"
+                    },
+                    "fullName": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "studentId",
+                    "studentCode",
+                    "fullName"
+                  ],
+                  "additionalProperties": false
+                },
+                "sFinal": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 100
+                },
+                "interview": {
+                  "type": "object",
+                  "properties": {
+                    "interviewId": {
+                      "type": "integer",
+                      "exclusiveMinimum": true,
+                      "maximum": 9007199254740991,
+                      "minimum": 0
+                    },
+                    "nominationId": {
+                      "type": "integer",
+                      "exclusiveMinimum": true,
+                      "maximum": 9007199254740991,
+                      "minimum": 0
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "SCHEDULED",
+                        "CONFIRMED",
+                        "RESCHEDULE_REQUESTED",
+                        "DONE"
+                      ]
+                    },
+                    "scheduledAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                    },
+                    "mode": {
+                      "type": "string",
+                      "enum": [
+                        "ONLINE",
+                        "OFFLINE"
+                      ]
+                    },
+                    "location": {
+                      "type": "string"
+                    },
+                    "confirmedAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                      "nullable": true
+                    },
+                    "rescheduleRequestedAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                      "nullable": true
+                    },
+                    "rescheduleNote": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "result": {
+                      "type": "string",
+                      "enum": [
+                        "PASSED",
+                        "RESERVE",
+                        "FAILED",
+                        "ABSENT",
+                        null
+                      ],
+                      "nullable": true
+                    },
+                    "resultAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                      "nullable": true
+                    },
+                    "rowVersion": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "resultNote": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "interviewId",
+                    "nominationId",
+                    "status",
+                    "scheduledAt",
+                    "mode",
+                    "location",
+                    "confirmedAt",
+                    "rescheduleRequestedAt",
+                    "rescheduleNote",
+                    "result",
+                    "resultAt",
+                    "rowVersion",
+                    "resultNote"
+                  ],
+                  "additionalProperties": false,
+                  "nullable": true
+                },
+                "offer": {
+                  "type": "object",
+                  "properties": {
+                    "offerId": {
+                      "type": "integer",
+                      "exclusiveMinimum": true,
+                      "maximum": 9007199254740991,
+                      "minimum": 0
+                    },
+                    "nominationId": {
+                      "type": "integer",
+                      "exclusiveMinimum": true,
+                      "maximum": 9007199254740991,
+                      "minimum": 0
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "PENDING",
+                        "ACCEPTED",
+                        "DECLINED",
+                        "EXPIRED"
+                      ]
+                    },
+                    "sentAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                    },
+                    "expiresAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                    },
+                    "respondedAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                      "nullable": true
+                    },
+                    "rowVersion": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "offerId",
+                    "nominationId",
+                    "status",
+                    "sentAt",
+                    "expiresAt",
+                    "respondedAt",
+                    "rowVersion"
+                  ],
+                  "additionalProperties": false,
+                  "nullable": true
+                }
+              },
+              "required": [
+                "nominationId",
+                "nominationStatus",
+                "student",
+                "sFinal",
+                "interview",
+                "offer"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "jd",
+          "slots",
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "MyInterviewsDto_Output": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "nominationId": {
+                  "type": "integer",
+                  "exclusiveMinimum": true,
+                  "maximum": 9007199254740991,
+                  "minimum": 0
+                },
+                "nominationStatus": {
+                  "type": "string",
+                  "enum": [
+                    "NOMINATED",
+                    "INTERVIEW",
+                    "HR_REJECTED",
+                    "PASSED",
+                    "RESERVE",
+                    "INTERVIEW_FAILED",
+                    "ACCEPTED",
+                    "DECLINED",
+                    "CLOSED"
+                  ]
+                },
+                "jd": {
+                  "type": "object",
+                  "properties": {
+                    "jdId": {
+                      "type": "integer",
+                      "exclusiveMinimum": true,
+                      "maximum": 9007199254740991,
+                      "minimum": 0
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "companyName": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "jdId",
+                    "title",
+                    "companyName"
+                  ],
+                  "additionalProperties": false
+                },
+                "interview": {
+                  "type": "object",
+                  "properties": {
+                    "interviewId": {
+                      "type": "integer",
+                      "exclusiveMinimum": true,
+                      "maximum": 9007199254740991,
+                      "minimum": 0
+                    },
+                    "nominationId": {
+                      "type": "integer",
+                      "exclusiveMinimum": true,
+                      "maximum": 9007199254740991,
+                      "minimum": 0
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "SCHEDULED",
+                        "CONFIRMED",
+                        "RESCHEDULE_REQUESTED",
+                        "DONE"
+                      ]
+                    },
+                    "scheduledAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                    },
+                    "mode": {
+                      "type": "string",
+                      "enum": [
+                        "ONLINE",
+                        "OFFLINE"
+                      ]
+                    },
+                    "location": {
+                      "type": "string"
+                    },
+                    "confirmedAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                      "nullable": true
+                    },
+                    "rescheduleRequestedAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                      "nullable": true
+                    },
+                    "rescheduleNote": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "result": {
+                      "type": "string",
+                      "enum": [
+                        "PASSED",
+                        "RESERVE",
+                        "FAILED",
+                        "ABSENT",
+                        null
+                      ],
+                      "nullable": true
+                    },
+                    "resultAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                      "nullable": true
+                    },
+                    "rowVersion": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "interviewId",
+                    "nominationId",
+                    "status",
+                    "scheduledAt",
+                    "mode",
+                    "location",
+                    "confirmedAt",
+                    "rescheduleRequestedAt",
+                    "rescheduleNote",
+                    "result",
+                    "resultAt",
+                    "rowVersion"
+                  ],
+                  "additionalProperties": false,
+                  "nullable": true
+                },
+                "offer": {
+                  "type": "object",
+                  "properties": {
+                    "offerId": {
+                      "type": "integer",
+                      "exclusiveMinimum": true,
+                      "maximum": 9007199254740991,
+                      "minimum": 0
+                    },
+                    "nominationId": {
+                      "type": "integer",
+                      "exclusiveMinimum": true,
+                      "maximum": 9007199254740991,
+                      "minimum": 0
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "PENDING",
+                        "ACCEPTED",
+                        "DECLINED",
+                        "EXPIRED"
+                      ]
+                    },
+                    "sentAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                    },
+                    "expiresAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                    },
+                    "respondedAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                      "nullable": true
+                    },
+                    "rowVersion": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "offerId",
+                    "nominationId",
+                    "status",
+                    "sentAt",
+                    "expiresAt",
+                    "respondedAt",
+                    "rowVersion"
+                  ],
+                  "additionalProperties": false,
+                  "nullable": true
+                },
+                "offerDeclinePolicy": {
+                  "type": "string",
+                  "enum": [
+                    "DEMOTE",
+                    "EXCLUDE"
+                  ]
+                }
+              },
+              "required": [
+                "nominationId",
+                "nominationStatus",
+                "jd",
+                "interview",
+                "offer",
+                "offerDeclinePolicy"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "OfferAnswerResponseDto_Output": {
+        "type": "object",
+        "properties": {
+          "offer": {
+            "type": "object",
+            "properties": {
+              "offerId": {
+                "type": "integer",
+                "exclusiveMinimum": true,
+                "maximum": 9007199254740991,
+                "minimum": 0
+              },
+              "nominationId": {
+                "type": "integer",
+                "exclusiveMinimum": true,
+                "maximum": 9007199254740991,
+                "minimum": 0
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "PENDING",
+                  "ACCEPTED",
+                  "DECLINED",
+                  "EXPIRED"
+                ]
+              },
+              "sentAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              },
+              "expiresAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              },
+              "respondedAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                "nullable": true
+              },
+              "rowVersion": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "offerId",
+              "nominationId",
+              "status",
+              "sentAt",
+              "expiresAt",
+              "respondedAt",
+              "rowVersion"
+            ],
+            "additionalProperties": false
+          },
+          "nominationStatus": {
+            "type": "string",
+            "enum": [
+              "NOMINATED",
+              "INTERVIEW",
+              "HR_REJECTED",
+              "PASSED",
+              "RESERVE",
+              "INTERVIEW_FAILED",
+              "ACCEPTED",
+              "DECLINED",
+              "CLOSED"
+            ]
+          }
+        },
+        "required": [
+          "offer",
+          "nominationStatus"
         ],
         "additionalProperties": false
       }

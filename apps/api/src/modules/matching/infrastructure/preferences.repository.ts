@@ -128,6 +128,21 @@ export class PreferencesRepository {
       .orderBy(desc(preferences.campaignId), asc(preferences.rank));
   }
 
+  /** The student's preferences of the campaign by rank, in `tx`; `FOR UPDATE` when `lock` is set (US-5.4). */
+  async rowsOfStudentInCampaign(
+    tx: DbTx,
+    studentId: number,
+    campaignId: number,
+    options: { lock?: 'update' } = {},
+  ): Promise<PreferenceRow[]> {
+    const query = tx
+      .select(ROW_COLUMNS)
+      .from(preferences)
+      .where(and(eq(preferences.studentId, studentId), eq(preferences.campaignId, campaignId)))
+      .orderBy(asc(preferences.rank));
+    return options.lock ? query.for(options.lock) : query;
+  }
+
   /** Every preference of the campaign, by student then rank; in `tx`, `FOR UPDATE` when `lock` is set (US-5.2). */
   async rowsOfCampaign(tx: DbTx, campaignId: number, options: { lock?: 'update' } = {}): Promise<PreferenceRow[]> {
     const query = tx

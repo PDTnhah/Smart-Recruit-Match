@@ -59,6 +59,15 @@ export const ADVISORY_LOCK_KEYS = {
   CV_VERIFICATION_SWEEP: 4_801,
   /** HR's review deadline: reminders and overdue notices (US-5.3 AC-10). */
   REVIEW_SLA: 5_301,
+  /**
+   * First key of `pg_advisory_xact_lock(5_401, hashtext(jdId))`, taken by every change to the places
+   * of a JD (US-5.4, BR-14, BR-15): an interview result, an answer to an offer, its expiry, a
+   * reserve promoted or closed. Two of them for the same JD run one after the other, so the counts
+   * of accepted and PASSED nominations they read are never stale (AGENTS › Invariant 11).
+   */
+  JD_SLOTS: 5_401,
+  /** Sweep of GĐ9 (US-5.4): offers past `expires_at`, reserves past `reserve_ttl_days`. */
+  INTERVIEW_SWEEP: 5_402,
 } as const;
 
 /**

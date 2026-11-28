@@ -1,21 +1,20 @@
 # Sprint Status
 
 > **AUTO-GENERATED** by `koni-docs status`. Do not hand-edit (RULE-5).
-> Last generated: 2026-11-24 14:45:11 UTC
+> Last generated: 2026-11-28 19:24:12 UTC
 > Total stories: 50
 
 ## ⏰ Deadlines (0)
 
 _No stories carry an explicit deadline._
 
-## 📋 Backlog (12)
+## 📋 Backlog (11)
 
 | ID | Title | Epic | Pri | Points | Sprint | Assignee |
 |---|---|---|---|---|---|---|
 | US-1.9 | Phiên đăng nhập nhất quán giữa các tab | EPIC-1 | P0 | 3 | — | — |
 | US-4.6 | Phúc khảo và báo lỗi câu hỏi | EPIC-4 | P1 | 5 | — | — |
 | US-4.7 | Tín hiệu gian lận | EPIC-4 | P1 | 3 | — | — |
-| US-5.4 | Phỏng vấn, Dự bị và lời mời thực tập | EPIC-5 | P0 | 8 | — | — |
 | US-5.5 | Vòng bổ sung và đóng đợt | EPIC-5 | P0 | 5 | — | — |
 | US-5.6 | Tóm tắt hồ sơ đề cử bằng AI cho HR | EPIC-5 | P2 | 5 | — | — |
 | US-6.1 | Dashboard đợt | EPIC-6 | P0 | 5 | — | — |
@@ -33,7 +32,7 @@ _No stories_
 
 _No stories_
 
-## 👀 Review (25)
+## 👀 Review (26)
 
 | ID | Title | Epic | Pri | Points | Sprint | Assignee |
 |---|---|---|---|---|---|---|
@@ -62,6 +61,7 @@ _No stories_
 | US-5.1 | Allocation Engine và property-based test | EPIC-5 | P0 | 5 | sprint-2026-W47 | PDTnhah |
 | US-5.2 | Vòng phân bổ: dự thảo, điều chỉnh, công bố | EPIC-5 | P0 | 8 | sprint-2026-W47 | PDTnhah |
 | US-5.3 | HR duyệt danh sách đề cử | EPIC-5 | P0 | 8 | sprint-2026-W47 | PDTnhah |
+| US-5.4 | Phỏng vấn, Dự bị và lời mời thực tập | EPIC-5 | P0 | 8 | sprint-2026-W47 | PDTnhah |
 
 ## ✅ Done (13)
 
@@ -93,10 +93,10 @@ _No stories_
 
 ## Summary
 
-- 📋 **Backlog**: 12
+- 📋 **Backlog**: 11
 - 🟢 **Ready**: 0
 - 🟡 **In Progress**: 0
-- 👀 **Review**: 25
+- 👀 **Review**: 26
 - ✅ **Done**: 13
 - 🚫 **Blocked**: 0
 - 🗑️ **Deprecated**: 0

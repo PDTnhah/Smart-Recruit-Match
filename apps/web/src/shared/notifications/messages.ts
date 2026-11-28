@@ -1,5 +1,6 @@
 import {
   CAMPAIGN_NOTICE_DEADLINE_NAMES,
+  INTERVIEW_MODE_LABELS,
   type CampaignDeadlineKey,
   type CampaignNoticeAudience,
   type Notification,
@@ -9,7 +10,7 @@ import { examResultPath } from '@/features/exam/paths';
 import { centerCvsPath } from '@/features/center/cvs/paths';
 import { jdApprovalPath } from '@/features/center/jd-approval/paths';
 import { allocationPath } from '@/features/center/allocation/paths';
-import { HR_JDS_PATH, hrJdNominationsPath, hrJdPath } from '@/features/hr/jds/paths';
+import { HR_JDS_PATH, hrJdInterviewsPath, hrJdNominationsPath, hrJdPath } from '@/features/hr/jds/paths';
 import { STUDENT_RESULTS_PATH } from '@/features/student/results/paths';
 import { formatDateTime } from '@/lib/format';
 
@@ -191,6 +192,80 @@ export function describeNotification(notification: Notification): NotificationVi
             body: `${jd.companyName} – "${jd.title}" còn ${pendingCount} đề cử chưa có quyết định (hạn ${formatDateTime(dueAt)}). Liên hệ doanh nghiệp hoặc gia hạn.`,
             href: allocationPath(campaignId),
           };
+    }
+    // GĐ9 (US-5.4, CONTEXT D66): in the app only.
+    case 'INTERVIEW_SCHEDULED':
+    case 'INTERVIEW_RESCHEDULED': {
+      const { audience, jd, student, scheduledAt, mode, location } = notification.payload;
+      const moved = notification.type === 'INTERVIEW_RESCHEDULED';
+      const when = `${formatDateTime(scheduledAt)}, ${INTERVIEW_MODE_LABELS[mode].toLowerCase()} (${location})`;
+      return audience === 'STUDENT'
+        ? {
+            title: moved ? 'Lịch phỏng vấn đã đổi' : 'Lịch phỏng vấn',
+            body: `${jd.companyName} – "${jd.title}": ${when}. Xác nhận lịch trên trang Kết quả.`,
+            href: STUDENT_RESULTS_PATH,
+          }
+        : {
+            title: moved ? 'Đã đổi lịch phỏng vấn' : 'Đã tạo lịch phỏng vấn',
+            body: `${student.fullName} (${student.studentCode}) – "${jd.title}": ${when}.`,
+            href: hrJdInterviewsPath(jd.jdId),
+          };
+    }
+    case 'INTERVIEW_RESCHEDULE_REQUESTED': {
+      const { jd, student, scheduledAt, note } = notification.payload;
+      return {
+        title: 'Sinh viên xin đổi lịch phỏng vấn',
+        body: `${student.fullName} (${student.studentCode}) – "${jd.title}", lịch ${formatDateTime(scheduledAt)}. Lý do: ${note}`,
+        href: hrJdInterviewsPath(jd.jdId),
+      };
+    }
+    case 'INTERVIEW_RESULT': {
+      const { jd, status, promoted, offer } = notification.payload;
+      const where = `"${jd.title}" của ${jd.companyName}`;
+      if (status === 'PASSED') {
+        return {
+          title: promoted ? 'Bạn được lên Đạt từ danh sách dự bị' : 'Bạn đạt phỏng vấn',
+          body: `${where}: bạn nhận lời mời thực tập${offer ? `, trả lời trước ${formatDateTime(offer.expiresAt)}` : ''}.`,
+          href: STUDENT_RESULTS_PATH,
+        };
+      }
+      return status === 'RESERVE'
+        ? {
+            title: 'Bạn vào danh sách dự bị',
+            body: `${where}: bạn đạt yêu cầu và ở danh sách dự bị. Bạn được lên Đạt khi có suất trống.`,
+            href: STUDENT_RESULTS_PATH,
+          }
+        : {
+            title: 'Kết quả phỏng vấn',
+            body: `${where}: bạn chưa đạt phỏng vấn. Các nguyện vọng còn lại được xét ở vòng bổ sung.`,
+            href: STUDENT_RESULTS_PATH,
+          };
+    }
+    case 'RESERVE_CLOSED': {
+      const { jd, reason } = notification.payload;
+      return {
+        title: 'Hồ sơ dự bị đã đóng',
+        body: `"${jd.title}" của ${jd.companyName}: ${reason === 'JD_FILLED' ? 'JD đã nhận đủ chỉ tiêu' : 'đã hết thời hạn dự bị'}. Các nguyện vọng còn lại của bạn được xét ở vòng bổ sung.`,
+        href: STUDENT_RESULTS_PATH,
+      };
+    }
+    case 'OFFER_ANSWERED': {
+      const { audience, campaignId, jd, student, response, promoted, jdFilled } = notification.payload;
+      const who = `${student.fullName} (${student.studentCode})`;
+      const what =
+        response === 'ACCEPTED' ? 'đã nhận lời mời' : response === 'DECLINED' ? 'đã từ chối lời mời' : 'không trả lời lời mời trước hạn';
+      const after = jdFilled
+        ? ' JD đã nhận đủ chỉ tiêu.'
+        : promoted
+          ? ` ${promoted.fullName} (${promoted.studentCode}) từ danh sách dự bị được lên Đạt.`
+          : response === 'ACCEPTED'
+            ? ''
+            : ' Không còn ai trong danh sách dự bị: suất để trống cho vòng bổ sung.';
+      return {
+        title: response === 'ACCEPTED' ? 'Sinh viên nhận lời mời thực tập' : 'Lời mời thực tập không được nhận',
+        body: `${audience === 'CENTER' ? `${jd.companyName} – ` : ''}"${jd.title}": ${who} ${what}.${after}`,
+        href: audience === 'HR' ? hrJdInterviewsPath(jd.jdId) : allocationPath(campaignId),
+      };
     }
     case 'SUPPLEMENT_REQUESTED': {
       const { campaignId, jd, invitedCount, quota, note } = notification.payload;

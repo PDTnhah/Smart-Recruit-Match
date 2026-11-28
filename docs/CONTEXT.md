@@ -72,6 +72,7 @@
 - D63 · Phá hòa cuối của Allocation Engine: `student_code` tăng dần theo code unit, SV thiếu GPA xếp sau; `computeCapacity` đọc k như số thập phân chính xác (US-5.1)
 - D64 · Vòng phân bổ: `allocation` sở hữu `nominations`, điều chỉnh vi phạm BR-07/BR-09 bị chặn, chạy sau hạn phúc khảo, *Công bố đề cử* chỉ trong app, chạy lại ghi đè dự thảo (US-5.2)
 - D65 · HR duyệt đề cử: hồ sơ HR xem, tóm tắt AI tách US-5.6, SLA ngày làm việc và thông báo chỉ trong app, Q5 chốt "không", file CV qua `nomination:{id}` (US-5.3)
+- D66 · Phỏng vấn, Dự bị, lời mời: thời hạn Dự bị 7 ngày (tham số), Q4 chốt "hạ ưu tiên" (tham số), hệ thống tự đưa Dự bị lên Đạt, thông báo GĐ9 chỉ trong app (US-5.4)
 
 ---
 
@@ -2716,3 +2717,25 @@ Lúc điều tra còn thấy hai lỗi khác, không gây ra sự cố này:
 
 **Date**: 2026-11-24
 **Version**: 0.34.0
+
+### D66. Phỏng vấn, Dự bị, lời mời: thời hạn Dự bị, Q4, ai đưa Dự bị lên Đạt, kênh thông báo (US-5.4) (chốt điểm mở của US-5.4 và Q4)
+
+**Context**: Story US-5.4 để bốn điểm "hỏi trước khi chốt": PRD có "hết thời hạn dự bị thì về hàng chờ" nhưng bảng tham số GĐ0 không có tham số này; Q4 (SV từ chối lời mời) chưa chốt; PRD không nói hệ thống tự đưa Dự bị lên Đạt hay HR chọn; PRD › Thông báo để trống kênh của lịch phỏng vấn, kết quả và lời mời, SV nhận/từ chối. D64 đã cho đề cử `PASSED → DECLINED` cả khi quá hạn.
+
+**Decision** (người dùng chốt bốn điểm đầu ngày 2026-11-29; các điểm còn lại theo đề xuất của story):
+
+- Thời hạn Dự bị là tham số `reserve_ttl_days` (1–60, mặc định 7 ngày lịch, tính từ lúc HR nhập kết quả), khóa từ `ALLOCATION_REVIEW`. Hết hạn thì Dự bị → Đóng, SV về hàng chờ. JD nhận đủ chỉ tiêu thì các Dự bị còn lại đóng ngay.
+- Q4 chốt theo Đề xuất, thành tham số `offer_decline_policy`: `DEMOTE` (mặc định, xếp sau mọi SV ở mọi vòng còn lại của đợt) hoặc `EXCLUDE` (không xét nữa), khóa từ `ALLOCATION_REVIEW`. Quá hạn T_offer xử lý như từ chối. US-5.4 chỉ ghi nhận (đề cử `DECLINED`, `offers.status` phân biệt `DECLINED`/`EXPIRED`); US-5.5 áp vào phân bổ.
+- Có suất trống (từ chối, quá hạn) thì hệ thống tự đưa SV Dự bị xếp cao nhất của JD (S_final rồi phá hòa của US-5.1) lên Đạt, gửi lời mời và báo HR. Không có Dự bị thì suất để trống cho vòng bổ sung.
+- Mọi thông báo của GĐ9 chỉ trong app.
+- HR chỉ chọn Dự bị khi JD đã hết suất (đã nhận + chờ trả lời ≥ chỉ tiêu); còn suất thì `409 INTERVIEW_RESERVE_PLACES_LEFT` (người dùng chốt sau review, để suất trống không bị bỏ không trong khi SV Dự bị chờ tới hết hạn).
+- Theo đề xuất: `interviews`, `offers` có `status` theo bảng chuyển (`response` của ARCH thành `status` có `PENDING`), `unique(nomination_id)` ở cả hai; BR-14 chống đua bằng `pg_advisory_xact_lock(5401, hashtext(jdId))` lấy trước mọi khóa khác; JD đủ chỉ tiêu đi `APPROVED → RECRUITING → FILLED` (chưa story nào chuyển sang `RECRUITING`); "SV trong đợt" và cờ BR-16 suy ra từ đề cử, không thêm cột.
+
+**Rationale**: Bảy ngày đủ cho một hoặc hai lượt lời mời (T_offer 3 ngày) mà không giữ SV quá lâu (BR-08 chặn SV Dự bị vào vòng bổ sung). Tự đưa lên Đạt là quy tắc tất định, giải thích được, không để suất trống khi HR chậm. Thông báo trong app như US-5.2, US-5.3.
+
+**Alternatives considered**: mặc định 3 ngày hoặc không có hạn; mặc định `EXCLUDE`, hay chỉ hạ ưu tiên không tham số; HR chọn người lên Đạt; gửi email cho SV hoặc cho mọi người. Người dùng không chọn các phương án này.
+
+**Impact**: PRD › Q4, GĐ0 (bảng tham số), GĐ9, *Thông báo*; ARCH › *Các module*, *Các bảng chính*, *API architecture*, *Tác vụ định kỳ*. US-5.5 đọc đề cử `DECLINED` và `offer_decline_policy` khi dựng đầu vào vòng sau, đếm đã nhận / đang trong quy trình qua `NominationService.slotCounts`.
+
+**Date**: 2026-11-29
+**Version**: 0.35.0
